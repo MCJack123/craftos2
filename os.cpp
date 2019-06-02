@@ -56,7 +56,12 @@ int getNextEvent(lua_State *L, const char * filter) {
                     lua_pushinteger(param, 28);
                     lua_pushboolean(param, false);
                     eventQueue.push(std::make_pair("key", param));
-                } else if ()
+                } else if (ch == KEY_BACKSPACE) {
+                    lua_State *param = lua_newthread(L);
+                    lua_pushinteger(param, 14);
+                    lua_pushboolean(param, false);
+                    eventQueue.push(std::make_pair("key", param));
+                }
             }
         }
         ev = eventQueue.front();
