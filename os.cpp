@@ -12,9 +12,9 @@ extern "C" {
 #include <utility>
 #include <vector>
 #include <ncurses.h>
+#ifndef NO_UPTIME
 #include <sys/sysinfo.h>
-#include <linux/reboot.h>
-#include <sys/reboot.h>
+#endif
 
 int running = 1;
 const char * label;
@@ -97,9 +97,13 @@ int os_queueEvent(lua_State *L) {
 }
 
 int os_clock(lua_State *L) {
+    #ifndef NO_UPTIME
     struct sysinfo info;
     sysinfo(&info);
     lua_pushinteger(L, info.uptime);
+    #else
+    return clock() / CLOCKS_PER_SEC;
+    #endif
     return 1;
 }
 
