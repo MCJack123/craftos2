@@ -8,13 +8,14 @@
 #include "os.h"
 #include "term.h"
 #include "redstone.h"
+#include "keys.h"
 
 int main() {
     int status, result, i;
     double sum;
     lua_State *L;
     lua_State *coro;
-
+start:
     /*
      * All Lua contexts are held in this structure. We work with it almost
      * all the time.
@@ -31,11 +32,8 @@ int main() {
     lua_getglobal(coro, "redstone");
     lua_setglobal(coro, "rs");
     load_library(coro, term_lib);
-    status = termInit();
-    if (status != 0) {
-        fprintf(stderr, "Couldn't initialize terminal: %s\n", strerror(status));
-        exit(1);
-    }
+    termInit();
+    initKeys();
 
     lua_pushstring(L, "");
     lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
@@ -43,7 +41,7 @@ int main() {
     lua_setglobal(L, "_HOST");
 
     /* Load the file containing the script we are going to run */
-    status = luaL_loadfile(coro, "/etc/craftos/bios.lua.bak");
+    status = luaL_loadfile(coro, "/etc/craftos/bios.lua");
     if (status) {
         /* If something went wrong, error message is at the top of */
         /* the stack */
@@ -54,7 +52,7 @@ int main() {
     /* Ask Lua to run our little script */
     status = LUA_YIELD;
     int narg = 0;
-    while (status == LUA_YIELD) {
+    while (status == LUA_YIELD && running == 1) {
         status = lua_resume(coro, narg);
         if (status == LUA_YIELD) {
             if (lua_isstring(coro, -1)) narg = getNextEvent(coro, lua_tostring(coro, -1));
@@ -69,7 +67,13 @@ int main() {
     }
 
     termClose();
+    closeKeys();
     lua_close(L);   /* Cya, Lua */
+
+    if (running == 2) {
+        usleep(1000000);
+        goto start;
+    }
 
     return 0;
 }

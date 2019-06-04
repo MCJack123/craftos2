@@ -1,5 +1,6 @@
 extern "C" {
 #include "os.h"
+#include "keys.h"
 #include <lauxlib.h>
 }
 #include <stdlib.h>
@@ -15,6 +16,7 @@ extern "C" {
 #include <linux/reboot.h>
 #include <sys/reboot.h>
 
+int running = 1;
 const char * label;
 bool label_defined = false;
 std::queue<std::pair<const char *, lua_State*>> eventQueue;
@@ -51,14 +53,11 @@ int getNextEvent(lua_State *L, const char * filter) {
                     lua_State *param = lua_newthread(L);
                     lua_pushstring(param, tmp);
                     eventQueue.push(std::make_pair("char", param));
-                } else if (ch == '\n') {
+                }
+                int cch = getKey(ch);
+                if (cch != 0) {
                     lua_State *param = lua_newthread(L);
-                    lua_pushinteger(param, 28);
-                    lua_pushboolean(param, false);
-                    eventQueue.push(std::make_pair("key", param));
-                } else if (ch == KEY_BACKSPACE) {
-                    lua_State *param = lua_newthread(L);
-                    lua_pushinteger(param, 14);
+                    lua_pushinteger(param, cch);
                     lua_pushboolean(param, false);
                     eventQueue.push(std::make_pair("key", param));
                 }
@@ -180,12 +179,14 @@ int os_cancelAlarm(lua_State *L) {
 
 int os_shutdown(lua_State *L) {
     sync();
+    running = 0;
     //reboot(LINUX_REBOOT_CMD_POWER_OFF);
     return 0;
 }
 
 int os_reboot(lua_State *L) {
     sync();
+    running = 2;
     //reboot(LINUX_REBOOT_CMD_RESTART);
     return 0;
 }

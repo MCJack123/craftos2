@@ -1,11 +1,14 @@
-craftos: obj/fs_handle.o obj/fs.o obj/lib.o obj/main.o obj/os.o obj/term.o
-	g++ -o craftos obj/fs_handle.o obj/fs.o obj/lib.o obj/main.o obj/os.o obj/term.o -llua -lm -ldl -lncurses
+craftos: obj/fs_handle.o obj/fs.o obj/keys.o obj/lib.o obj/main.o obj/os.o obj/term.o
+	g++ -o craftos obj/fs_handle.o obj/fs.o obj/keys.o obj/lib.o obj/main.o obj/os.o obj/term.o -llua -lm -ldl -lncurses
 
 obj/fs_handle.o: fs_handle.c fs_handle.h
 	gcc -o obj/fs_handle.o -c fs_handle.c
 
 obj/fs.o: fs.c fs.h fs_handle.h lib.h
 	gcc -o obj/fs.o -c fs.c
+
+obj/keys.o: keys.c keys.h
+	gcc -o obj/keys.o -c keys.c
 
 obj/lib.o: lib.c lib.h
 	gcc -o obj/lib.o -c lib.c

@@ -11,7 +11,7 @@ unsigned int cursorX = 0, cursorY = 0;
 unsigned char colors = 0x07;
 const unsigned char colorMap[16] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
 
-int termInit() {
+void termInit() {
     initscr();
     keypad(stdscr, TRUE);
     noecho();
@@ -19,7 +19,6 @@ int termInit() {
     nodelay(stdscr, TRUE);
     start_color();
     for (int i = 0; i < 256; i++) init_pair(i, i & 0x0f, i >> 4);
-    return 0;
 }
 
 void termClose() {
