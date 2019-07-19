@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <signal.h>
 #include "bit.h"
 #include "fs.h"
 #include "os.h"
@@ -10,10 +12,23 @@
 #include "redstone.h"
 #include "keys.h"
 
+pthread_t tid;
+lua_State *L;
+
+void sighandler(int sig) {
+    if (sig == SIGINT) {
+        running = 0;
+        pthread_join(tid, NULL);
+        termClose();
+        closeKeys();
+        lua_close(L);   /* Cya, Lua */
+        exit(SIGINT);
+    }
+}
+
 int main() {
     int status, result, i;
     double sum;
-    lua_State *L;
     lua_State *coro;
 start:
     /*
@@ -48,6 +63,8 @@ start:
         fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
         exit(1);
     }
+    pthread_create(&tid, NULL, &termRenderLoop, NULL);
+    signal(SIGINT, sighandler);
 
     /* Ask Lua to run our little script */
     status = LUA_YIELD;
@@ -58,6 +75,8 @@ start:
             if (lua_isstring(coro, -1)) narg = getNextEvent(coro, lua_tostring(coro, -1));
             else narg = getNextEvent(coro, "");
         } else if (status != 0) {
+            running = 0;
+            pthread_join(tid, NULL);
             usleep(5000000);
             termClose();
             printf("%s\n", lua_tostring(coro, -1));
@@ -66,6 +85,7 @@ start:
         }
     }
 
+    pthread_join(tid, NULL);
     termClose();
     closeKeys();
     lua_close(L);   /* Cya, Lua */
