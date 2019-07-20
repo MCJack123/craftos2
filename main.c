@@ -10,7 +10,6 @@
 #include "os.h"
 #include "term.h"
 #include "redstone.h"
-#include "keys.h"
 
 pthread_t tid;
 lua_State *L;
@@ -48,7 +47,6 @@ start:
     lua_setglobal(coro, "rs");
     load_library(coro, term_lib);
     termInit();
-    initKeys();
 
     lua_pushstring(L, "");
     lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
@@ -87,7 +85,6 @@ start:
 
     pthread_join(tid, NULL);
     termClose();
-    closeKeys();
     lua_close(L);   /* Cya, Lua */
 
     if (running == 2) {

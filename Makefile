@@ -1,26 +1,31 @@
-craftos: obj/fs_handle.o obj/fs.o obj/keys.o obj/lib.o obj/main.o obj/os.o obj/term.o obj/TerminalWindow.o
-	g++ -o craftos obj/fs_handle.o obj/fs.o obj/keys.o obj/lib.o obj/main.o obj/os.o obj/term.o obj/TerminalWindow.o -llua -lm -ldl -lSDL2 -lpthread
+CC=gcc
+CXX=g++
+CFLAGS=-c -g
+LIBS=-llua -lm -ldl -lSDL2 -lpthread
+
+craftos: obj/fs_handle.o obj/fs.o obj/lib.o obj/main.o obj/os.o obj/platform.o obj/term.o obj/TerminalWindow.o
+	$(CXX) -o craftos obj/fs_handle.o obj/fs.o obj/lib.o obj/main.o obj/os.o obj/platform.o obj/term.o obj/TerminalWindow.o $(LIBS)
 
 obj/fs_handle.o: fs_handle.c fs_handle.h
-	gcc -o obj/fs_handle.o -c -g fs_handle.c
+	$(CC) -o obj/fs_handle.o $(CFLAGS) fs_handle.c
 
-obj/fs.o: fs.c fs.h fs_handle.h lib.h
-	gcc -o obj/fs.o -c -g fs.c
-
-obj/keys.o: keys.c keys.h
-	gcc -o obj/keys.o -c -g keys.c
+obj/fs.o: fs.c fs.h fs_handle.h lib.h platform.h
+	$(CC) -o obj/fs.o $(CFLAGS) fs.c
 
 obj/lib.o: lib.c lib.h
-	gcc -o obj/lib.o -c -g lib.c
+	$(CC) -o obj/lib.o $(CFLAGS) lib.c
 
 obj/main.o: main.c lib.h fs.h os.h bit.h redstone.h
-	gcc -o obj/main.o -c -g main.c
+	$(CC) -o obj/main.o $(CFLAGS) main.c
 
 obj/os.o: os.cpp os.h lib.h
-	g++ -o obj/os.o -c -g os.cpp
+	$(CXX) -o obj/os.o $(CFLAGS) os.cpp
+
+obj/platform.o: platform.cpp platform.h platform_linux.cpp
+	$(CXX) -o obj/platform.o -std=c++11 $(CFLAGS) platform.cpp
 
 obj/term.o: term.cpp term.h TerminalWindow.hpp lib.h
-	g++ -o obj/term.o -c -g term.cpp
+	$(CXX) -o obj/term.o $(CFLAGS) term.cpp
 
 obj/TerminalWindow.o: TerminalWindow.cpp TerminalWindow.hpp
-	g++ -o obj/TerminalWindow.o -c -g TerminalWindow.cpp
+	$(CXX) -o obj/TerminalWindow.o $(CFLAGS) TerminalWindow.cpp

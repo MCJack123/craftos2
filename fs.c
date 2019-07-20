@@ -1,5 +1,6 @@
 #include "fs.h"
 #include "fs_handle.h"
+#include "platform.h"
 #include <lauxlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,17 +12,7 @@
 #include <errno.h>
 #include <glob.h>
 #include <dirent.h>
-#define true 1
-#define false 0
-
-char * fixpath(const char * path) {
-    char * retval = (char*)malloc(strlen(path) + 2);
-    if (path[0] != '/') {
-        retval[0] = '/';
-        strcpy(&retval[1], path);
-    } else strcpy(retval, path);
-    return retval;
-}
+#include <stdbool.h>
 
 void err(lua_State *L, char * path, const char * err) {
     char * msg = (char*)malloc(strlen(path) + strlen(err) + 3);
@@ -236,7 +227,12 @@ int fs_delete(lua_State *L) {
 
 int fs_combine(lua_State *L) {
     const char * basePath = lua_tostring(L, 1);
-    char * localPath = fixpath(lua_tostring(L, 2));
+    const char * localPathOrig = lua_tostring(L, 2);
+    char * localPath = malloc(strlen(localPathOrig) + 2);
+    if (localPathOrig[0] != '/') {
+        localPath[0] = '/';
+        strcpy(&localPath[1], localPathOrig);
+    } else strcpy(localPath, localPathOrig);
     if (basePath[0] == '/') basePath = basePath + 1;
     if (basePath[strlen(basePath)-1] == '/') localPath = localPath + 1;
     char * retval = (char*)malloc(strlen(basePath) + strlen(localPath) + 1);

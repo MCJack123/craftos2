@@ -1,6 +1,5 @@
 extern "C" {
 #include "os.h"
-#include "keys.h"
 #include <lauxlib.h>
 }
 #include <stdlib.h>
@@ -22,6 +21,8 @@ bool label_defined = false;
 std::queue<std::pair<const char *, lua_State*>> eventQueue;
 std::vector<time_t> timers;
 std::vector<double> alarms;
+
+void queueEvent(const char * name, lua_State *param) {eventQueue.push(std::make_pair(name, param));}
 
 int getNextEvent(lua_State *L, const char * filter) {
     std::pair<const char *, lua_State*> ev;
