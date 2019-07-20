@@ -10,6 +10,7 @@
 #include "os.h"
 #include "term.h"
 #include "redstone.h"
+#include "platform.h"
 
 pthread_t tid;
 lua_State *L;
@@ -19,7 +20,6 @@ void sighandler(int sig) {
         running = 0;
         pthread_join(tid, NULL);
         termClose();
-        closeKeys();
         lua_close(L);   /* Cya, Lua */
         exit(SIGINT);
     }
@@ -54,7 +54,7 @@ start:
     lua_setglobal(L, "_HOST");
 
     /* Load the file containing the script we are going to run */
-    status = luaL_loadfile(coro, "/etc/craftos/bios.lua");
+    status = luaL_loadfile(coro, bios_path);
     if (status) {
         /* If something went wrong, error message is at the top of */
         /* the stack */

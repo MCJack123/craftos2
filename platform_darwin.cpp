@@ -4,23 +4,20 @@
 #include <wordexp.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/sysinfo.h>
 }
 #include <string>
 #include <vector>
 #include <sstream>
-extern "C" {
 
-const char * rom_path = "/usr/share/craftos";
-const char * bios_path = "/usr/share/craftos/bios.lua";
+const char * rom_path = "/usr/local/share/craftos";
+const char * bios_path = "/usr/local/share/craftos/bios.lua";
 #ifdef FS_ROOT
 const char * base_path = "";
 #else
 const char * base_path = "$HOME/.craftos/computer/0";
 #endif
-char * base_path_expanded;
+char * base_path_expanded = NULL;
 
-}
 std::vector<std::string> split(std::string strToSplit, char delimeter) 
 {
     std::stringstream ss(strToSplit);
@@ -45,16 +42,15 @@ char * fixpath(const char * path) {
     std::stringstream ss;
     ss << bp;
     for (std::string s : pathc) ss << "/" << s;
-    //free(bp);
+    if (bp != base_path_expanded) free(bp);
     std::string retstr = ss.str();
     char * retval = (char*)malloc(retstr.size() + 1);
     strcpy(retval, retstr.c_str());
-    //printf("%s\n", retval);
     return retval;
 }
 
 char * expandEnvironment(const char * src) {
-    if (base_path_expanded) return base_path_expanded;
+    if (base_path_expanded != NULL && std::string(src) == std::string(base_path)) return base_path_expanded;
     wordexp_t p;
     wordexp(src, &p, 0);
     int size = 0;
@@ -62,12 +58,10 @@ char * expandEnvironment(const char * src) {
     char * retval = (char*)malloc(size + 1);
     strcpy(retval, p.we_wordv[0]);
     for (int i = 1; i < p.we_wordc; i++) strcat(retval, p.we_wordv[i]);
-    base_path_expanded = retval;
+    if (std::string(src) == std::string(base_path)) base_path_expanded = retval;
     return retval;
 }
 
 int getUptime() {
-    struct sysinfo info;
-    sysinfo(&info);
-    return info.uptime;
+    return clock() / CLOCKS_PER_SEC;
 }

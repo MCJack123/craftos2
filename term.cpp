@@ -181,7 +181,7 @@ int convertY(int x) {
 
 int log2i(int num) {
     int retval;
-    for (retval = 0; num & 1 == 0; retval++) num = num >> 1;
+    for (retval = 0; (num & 1) == 0; retval++) num = num >> 1;
     return retval;
 }
 

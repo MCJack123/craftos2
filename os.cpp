@@ -1,5 +1,6 @@
 extern "C" {
 #include "os.h"
+#include "platform.h"
 #include <lauxlib.h>
 }
 #include <stdlib.h>
@@ -11,14 +12,11 @@ extern "C" {
 #include <utility>
 #include <vector>
 #include "term.h"
-#ifndef NO_UPTIME
-#include <sys/sysinfo.h>
-#endif
 
 int running = 1;
 const char * label;
 bool label_defined = false;
-std::queue<std::pair<const char *, lua_State*>> eventQueue;
+std::queue<std::pair<const char *, lua_State*> > eventQueue;
 std::vector<time_t> timers;
 std::vector<double> alarms;
 
@@ -95,13 +93,7 @@ int os_queueEvent(lua_State *L) {
 }
 
 int os_clock(lua_State *L) {
-    #ifndef NO_UPTIME
-    struct sysinfo info;
-    sysinfo(&info);
-    lua_pushinteger(L, info.uptime);
-    #else
-    return clock() / CLOCKS_PER_SEC;
-    #endif
+    lua_pushinteger(L, getUptime());
     return 1;
 }
 

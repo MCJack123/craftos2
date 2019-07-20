@@ -1,7 +1,31 @@
 #include "TerminalWindow.hpp"
 
+void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
+{
+    const float kSysDefaultDpi =
+#ifdef __APPLE__
+        72.0f;
+#elif defined(_WIN32)
+        96.0f;
+#else
+        static_assert(false, "No system default DPI set for this platform.");
+#endif
+ 
+    if (SDL_GetDisplayDPI(displayIndex, NULL, dpi, NULL) != 0)
+    {
+        // Failed to get DPI, so just return the default value.
+        if (dpi) *dpi = kSysDefaultDpi;
+    }
+ 
+    if (defaultDpi) *defaultDpi = kSysDefaultDpi;
+}
+
 TerminalWindow::TerminalWindow(std::string title) {
-    win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN);
+    float dpi, defaultDpi;
+    MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
+    printf("%f %f\n", dpi, defaultDpi);
+    dpiScale = floor(dpi / defaultDpi);
+    win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
     if (win == nullptr) throw window_exception("Failed to create window");
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (ren == nullptr) {
@@ -63,10 +87,10 @@ void TerminalWindow::setCharScale(int scale) {
 void TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        x * charWidth + (2 * charScale * fontScale), 
-        y * charHeight + (2 * charScale * fontScale), 
-        fontWidth * fontScale * charScale, 
-        fontHeight * fontScale * charScale
+        x * charWidth * dpiScale + 2 * charScale * dpiScale * fontScale, 
+        y * charHeight * dpiScale + 2 * charScale * dpiScale * fontScale, 
+        fontWidth * fontScale * charScale * dpiScale, 
+        fontHeight * fontScale * charScale * dpiScale
     };
     if (!transparent) {
         SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF);
@@ -100,6 +124,7 @@ void TerminalWindow::render() {
     } else {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
+                /*
                 SDL_SetRenderDrawColor(ren, palette[colors[y][x] >> 4].r, palette[colors[y][x] >> 4].g, palette[colors[y][x] >> 4].b, 0xFF);
                 if (x == 0)
                     SDL_RenderFillRect(ren, setRect(&rect, 0, y * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, charHeight));
@@ -117,6 +142,7 @@ void TerminalWindow::render() {
                     SDL_RenderFillRect(ren, setRect(&rect, (x + 1) * charWidth + (2 * fontScale * charScale), 0, 2 * fontScale * charScale, 2 * fontScale * charScale));
                 if (x + 1 == width && y + 1 == height)
                     SDL_RenderFillRect(ren, setRect(&rect, (x + 1) * charWidth + (2 * fontScale * charScale), (y + 1) * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, 2 * fontScale * charScale));
+                */
                 drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4]);
             }
         }

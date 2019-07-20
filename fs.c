@@ -166,7 +166,8 @@ int recurse_mkdir(const char * path) {
             if (recurse_mkdir(dirname(unconst(path)))) return 1;
             mkdir(path, 0777);
         } else return 1;
-    } else return 0;
+    }
+    return 0;
 }
 
 int fs_makeDir(lua_State *L) {
