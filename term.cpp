@@ -14,7 +14,7 @@ bool canBlink = true;
 int colors = 0xF0;
 extern int os_queueEvent(lua_State *L);
 std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
-const std::unordered_map<int, char> keymap = {
+const std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
     {SDL_SCANCODE_1, 2},
     {SDL_SCANCODE_2, 3},
@@ -202,7 +202,6 @@ const char * termGetEvent(lua_State *L) {
     if (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
-            //printf("key %i %i\n", e.key.keysym.scancode, e.key.keysym.sym);
             lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
             lua_pushboolean(L, false);
             return "key";
@@ -210,7 +209,10 @@ const char * termGetEvent(lua_State *L) {
             lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
             return "key_up";
         } else if (e.type == SDL_TEXTINPUT) {
-            lua_pushstring(L, e.text.text);
+            char tmp[2];
+            tmp[0] = e.text.text[0];
+            tmp[1] = 0;
+            lua_pushstring(L, tmp);
             return "char";
         } else if (e.type == SDL_MOUSEBUTTONDOWN) {
             lua_pushinteger(L, buttonConvert(e.button.button));

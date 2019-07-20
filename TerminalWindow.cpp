@@ -8,7 +8,7 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 #elif defined(_WIN32)
         96.0f;
 #else
-        static_assert(false, "No system default DPI set for this platform.");
+        96.0f;
 #endif
  
     if (SDL_GetDisplayDPI(displayIndex, NULL, dpi, NULL) != 0)
@@ -23,8 +23,7 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 TerminalWindow::TerminalWindow(std::string title) {
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
-    printf("%f %f\n", dpi, defaultDpi);
-    dpiScale = floor(dpi / defaultDpi);
+    dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
     win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
     if (win == nullptr) throw window_exception("Failed to create window");
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);

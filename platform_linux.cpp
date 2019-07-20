@@ -5,11 +5,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/sysinfo.h>
-}
+#include <pthread.h>
 #include <string>
 #include <vector>
 #include <sstream>
-extern "C" {
 
 const char * rom_path = "/usr/share/craftos";
 const char * bios_path = "/usr/share/craftos/bios.lua";
@@ -20,7 +19,6 @@ const char * base_path = "$HOME/.craftos/computer/0";
 #endif
 char * base_path_expanded;
 
-}
 std::vector<std::string> split(std::string strToSplit, char delimeter) 
 {
     std::stringstream ss(strToSplit);
@@ -32,6 +30,7 @@ std::vector<std::string> split(std::string strToSplit, char delimeter)
     }
     return splittedStrings;
 }
+
 extern "C" {
 
 char * fixpath(const char * path) {
@@ -41,11 +40,11 @@ char * fixpath(const char * path) {
         if (s == "..") {if (pathc.size() < 1) return NULL; else pathc.pop_back();}
         else if (s != "." && s != "") pathc.push_back(s);
     }
-    char * bp = expandEnvironment((pathc.size() > 0 && pathc[0] == "rom") ? rom_path : base_path);
+    const char * bp = (pathc.size() > 0 && pathc[0] == "rom") ? rom_path : expandEnvironment(base_path);
     std::stringstream ss;
     ss << bp;
     for (std::string s : pathc) ss << "/" << s;
-    //free(bp);
+    //if (bp != base_path_expanded) free(bp);
     std::string retstr = ss.str();
     char * retval = (char*)malloc(retstr.size() + 1);
     strcpy(retval, retstr.c_str());
@@ -54,7 +53,7 @@ char * fixpath(const char * path) {
 }
 
 char * expandEnvironment(const char * src) {
-    if (base_path_expanded) return base_path_expanded;
+    if (base_path_expanded != NULL && std::string(src) == std::string(base_path)) return base_path_expanded;
     wordexp_t p;
     wordexp(src, &p, 0);
     int size = 0;
@@ -62,12 +61,23 @@ char * expandEnvironment(const char * src) {
     char * retval = (char*)malloc(size + 1);
     strcpy(retval, p.we_wordv[0]);
     for (int i = 1; i < p.we_wordc; i++) strcat(retval, p.we_wordv[i]);
-    base_path_expanded = retval;
+    if (std::string(src) == std::string(base_path)) base_path_expanded = retval;
     return retval;
+}
+
+void * createThread(void*(*func)(void*)) {
+    pthread_t * tid = new pthread_t;
+    pthread_create(tid, NULL, func, NULL);
+    return (void*)tid;
+}
+
+void joinThread(void* thread) {
+    pthread_join(*(pthread_t*)thread, NULL);
 }
 
 int getUptime() {
     struct sysinfo info;
     sysinfo(&info);
     return info.uptime;
+}
 }

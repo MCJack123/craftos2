@@ -17,25 +17,25 @@ typedef struct {
 
 int http_request(lua_State *L) {
     http_param_t param;
-    const char * url = lua_tostring(L, 1);
-    const char * postData = NULL;
-    dict_val_t * headers = NULL;
-    int headers_size = 0;
-    if (lua_isstring(L, 2)) postData = lua_tostring(L, 2);
+    param.url = lua_tostring(L, 1);
+    param.postData = NULL;
+    param.headers = NULL;
+    param.headers_size = 0;
+    if (lua_isstring(L, 2)) param.postData = lua_tostring(L, 2);
     if (lua_istable(L, 3)) {
-        headers_size = lua_objlen(L, 3);
-        headers = (dict_val_t*)malloc(headers_size * sizeof(dict_val_t));
+        param.headers_size = lua_objlen(L, 3);
+        param.headers = (dict_val_t*)malloc(param.headers_size * sizeof(dict_val_t));
         lua_pushvalue(L, 3);
         lua_pushnil(L);
         for (int i = 0; lua_next(L, -2); i++) {
             lua_pushvalue(L, -2);
-            headers[i].key = lua_tostring(L, -1);
-            headers[i].value = lua_tostring(L, -2);
+            param.headers[i].key = lua_tostring(L, -1);
+            param.headers[i].value = lua_tostring(L, -2);
             lua_pop(L, 2);
         }
         lua_pop(L, 1);
     }
-
+    
 }
 
 const char * http_keys[1] = {

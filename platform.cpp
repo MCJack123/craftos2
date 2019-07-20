@@ -1,5 +1,6 @@
 extern "C" {
 #include "platform.h"
+}
 #ifdef __WIN32
 #include "platform_win.cpp"
 #else
@@ -13,4 +14,3 @@ extern "C" {
 #endif
 #endif
 #endif
-}

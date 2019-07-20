@@ -1,10 +1,10 @@
-#include <lua.h>
+#include <lua.hpp>
 #include <stdlib.h>
 #include <string.h>
 #include <wordexp.h>
 #include <stdio.h>
 #include <unistd.h>
-}
+#include <pthread.h>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -29,6 +29,7 @@ std::vector<std::string> split(std::string strToSplit, char delimeter)
     }
     return splittedStrings;
 }
+
 extern "C" {
 
 char * fixpath(const char * path) {
@@ -38,11 +39,11 @@ char * fixpath(const char * path) {
         if (s == "..") {if (pathc.size() < 1) return NULL; else pathc.pop_back();}
         else if (s != "." && s != "") pathc.push_back(s);
     }
-    char * bp = expandEnvironment((pathc.size() > 0 && pathc[0] == "rom") ? rom_path : base_path);
+    const char * bp = (pathc.size() > 0 && pathc[0] == "rom") ? rom_path : expandEnvironment(base_path);
     std::stringstream ss;
     ss << bp;
     for (std::string s : pathc) ss << "/" << s;
-    if (bp != base_path_expanded) free(bp);
+    //if (bp != base_path_expanded) free(bp);
     std::string retstr = ss.str();
     char * retval = (char*)malloc(retstr.size() + 1);
     strcpy(retval, retstr.c_str());
@@ -62,6 +63,18 @@ char * expandEnvironment(const char * src) {
     return retval;
 }
 
+void * createThread(void*(*func)(void*)) {
+    pthread_t * tid = new pthread_t;
+    pthread_create(tid, NULL, func, NULL);
+    return (void*)tid;
+}
+
+void joinThread(void* thread) {
+    pthread_join(*(pthread_t*)thread, NULL);
+    delete (pthread_t*)thread;
+}
+
 int getUptime() {
     return clock() / CLOCKS_PER_SEC;
+}
 }

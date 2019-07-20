@@ -19,6 +19,7 @@ void err(lua_State *L, char * path, const char * err) {
     sprintf(msg, "%s: %s", path, err);
     free(path);
     lua_pushstring(L, msg);
+    free(msg);
     lua_error(L);
 }
 
@@ -63,7 +64,8 @@ int fs_isDir(lua_State *L) {
 
 int fs_isReadOnly(lua_State *L) {
     char * path = fixpath(lua_tostring(L, 1));
-    lua_pushboolean(L, access(path, W_OK) != 0);
+    struct stat st;
+    lua_pushboolean(L, stat(path, &st) == 0 && access(path, W_OK) != 0);
     free(path);
     return 1;
 }
@@ -242,6 +244,7 @@ int fs_combine(lua_State *L) {
     if (basePath[strlen(basePath)-1] == '/') localPath = localPath - 1;
     free(localPath);
     lua_pushstring(L, retval);
+    free(retval);
     return 1;
 }
 

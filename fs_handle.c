@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 int handle_close(lua_State *L) {
     fclose((FILE*)lua_touserdata(L, lua_upvalueindex(1)));
@@ -27,19 +28,27 @@ int handle_readAll(lua_State *L) {
     for (i = 0; !feof(fp) && i < size; i++)
         retval[i] = checkChar(fgetc(fp));
     lua_pushstring(L, retval);
+    free(retval);
     return 1;
 }
 
 int handle_readLine(lua_State *L) {
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
-    if (feof(fp)) return 0;
+    if (feof(fp) || ferror(fp)) {
+        lua_pushnil(L);
+        return 1;
+    }
     long size = 0;
-    while (fgetc(fp) != '\n' && !feof(fp)) size++;
-    fseek(fp, 0 - size - 1, SEEK_CUR);
-    char * retval = (char*)malloc(size + 1);
+    long lastpos = ftell(fp);
+    while (fgetc(fp) != '\n' && !ferror(fp) && !feof(fp)) size++;
+    long p = ftell(fp);
+    fseek(fp, lastpos, SEEK_SET);
+    char * retval = (char*)malloc(size);
     for (int i = 0; i < size; i++) retval[i] = checkChar(fgetc(fp));
     fgetc(fp);
-    lua_pushstring(L, retval);
+    assert(ftell(fp) == p);
+    lua_pushlstring(L, retval, size);
+    free(retval);
     return 1;
 }
 
