@@ -8,10 +8,11 @@
 #include <stdio.h>
 #include <chrono>
 #include <algorithm>
+#include <queue>
 
 TerminalWindow * term;
 bool canBlink = true;
-int colors = 0xF0;
+unsigned char colors = 0xF0;
 extern int os_queueEvent(lua_State *L);
 std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
 const std::unordered_map<int, unsigned char> keymap = {
@@ -197,7 +198,15 @@ void* termRenderLoop(void* unused) {
     return NULL;
 }
 
+std::queue<std::pair<event_provider, void*> > event_provider_queue;
+void termQueueProvider(event_provider p, void* data) {event_provider_queue.push(std::make_pair(p, data));}
+
 const char * termGetEvent(lua_State *L) {
+    if (event_provider_queue.size() > 0) {
+        std::pair<event_provider, void*> p = event_provider_queue.front();
+        event_provider_queue.pop();
+        return p.first(L, p.second);
+    }
     SDL_Event e;
     if (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) return "die";
@@ -237,13 +246,14 @@ const char * termGetEvent(lua_State *L) {
             lua_pushinteger(L, convertY(e.motion.y));
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            term->resize();
+            if (term->resize()) return "term_resize";
         }
     }
     return NULL;
 }
 
 int term_write(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     const char * str = lua_tostring(L, 1);
     #ifdef TESTING
     printf("%s\n", str);
@@ -256,6 +266,7 @@ int term_write(lua_State *L) {
 }
 
 int term_scroll(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int lines = lua_tointeger(L, 1);
     for (int i = lines; i < term->height; i++) {
         term->screen[i-lines] = term->screen[i];
@@ -263,18 +274,21 @@ int term_scroll(lua_State *L) {
     }
     for (int i = term->height; i < term->height + lines; i++) {
         term->screen[i-lines] = std::vector<char>(term->width, ' ');
-        term->colors[i-lines] = std::vector<char>(term->width, 0);
+        term->colors[i-lines] = std::vector<unsigned char>(term->width, 0);
     }
     return 0;
 }
 
 int term_setCursorPos(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     term->blinkX = lua_tointeger(L, 1) - 1;
     term->blinkY = lua_tointeger(L, 2) - 1;
     return 0;
 }
 
 int term_setCursorBlink(lua_State *L) {
+    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
     canBlink = lua_toboolean(L, 1);
     return 0;
 }
@@ -293,23 +307,25 @@ int term_getSize(lua_State *L) {
 
 int term_clear(lua_State *L) {
     term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
-    term->colors = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, colors));
+    term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
     return 0;
 }
 
 int term_clearLine(lua_State *L) {
     term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
-    term->colors[term->blinkY] = std::vector<char>(term->width, colors);
+    term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
     return 0;
 }
 
 int term_setTextColor(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int c = log2i(lua_tointeger(L, 1));
     colors = (colors & 0xf0) | c;
     return 0;
 }
 
 int term_setBackgroundColor(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int c = log2i(lua_tointeger(L, 1));
     colors = (colors & 0x0f) | (c << 4);
     return 0;
@@ -338,6 +354,9 @@ char htoi(char c) {
 }
 
 int term_blit(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
+    if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
@@ -358,6 +377,10 @@ int term_getPaletteColor(lua_State *L) {
 }
 
 int term_setPaletteColor(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
+    if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
     int color = log2i(lua_tointeger(L, 1));
     term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
     term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
@@ -366,6 +389,7 @@ int term_setPaletteColor(lua_State *L) {
 }
 
 int term_setGraphicsMode(lua_State *L) {
+    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
     term->isPixel = lua_toboolean(L, 1);
     return 0;
 }
@@ -376,6 +400,9 @@ int term_getGraphicsMode(lua_State *L) {
 }
 
 int term_setPixel(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
@@ -384,6 +411,8 @@ int term_setPixel(lua_State *L) {
 }
 
 int term_getPixel(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x > term->width || y > term->height || x < 0 || y < 0) return 0;

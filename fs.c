@@ -47,6 +47,7 @@ int fs_list(lua_State *L) {
 }
 
 int fs_exists(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     struct stat st;
     lua_pushboolean(L, stat(path, &st) == 0);
@@ -55,6 +56,7 @@ int fs_exists(lua_State *L) {
 }
 
 int fs_isDir(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     struct stat st;
     lua_pushboolean(L, stat(path, &st) == 0 && S_ISDIR(st.st_mode));
@@ -63,6 +65,7 @@ int fs_isDir(lua_State *L) {
 }
 
 int fs_isReadOnly(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     struct stat st;
     lua_pushboolean(L, stat(path, &st) == 0 && access(path, W_OK) != 0);
@@ -71,6 +74,7 @@ int fs_isReadOnly(lua_State *L) {
 }
 
 int fs_getName(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = unconst(lua_tostring(L, 1));
     lua_pushstring(L, basename(path));
     free(path);
@@ -136,6 +140,7 @@ int getmntpt(char *path, char *mount_point) {
 }
 
 int fs_getDrive(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     char mountpoint[PATH_MAX];
     if (!getmntpt(path, mountpoint)) {free(path); return 0;}
@@ -145,6 +150,7 @@ int fs_getDrive(lua_State *L) {
 }
 
 int fs_getSize(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     struct stat st;
     if (stat(path, &st) != 0) err(L, path, "No such file");
@@ -154,6 +160,7 @@ int fs_getSize(lua_State *L) {
 }
 
 int fs_getFreeSpace(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     struct statvfs st;
     if (statvfs(path, &st) != 0) err(L, path, "No such file or directory");
@@ -173,6 +180,7 @@ int recurse_mkdir(const char * path) {
 }
 
 int fs_makeDir(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     if (recurse_mkdir(path) != 0) err(L, path, strerror(errno));
     free(path);
@@ -180,6 +188,8 @@ int fs_makeDir(lua_State *L) {
 }
 
 int fs_move(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     char * fromPath = fixpath(lua_tostring(L, 1));
     char * toPath = fixpath(lua_tostring(L, 2));
     if (rename(fromPath, toPath) != 0) {
@@ -192,6 +202,8 @@ int fs_move(lua_State *L) {
 }
 
 int fs_copy(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     char * fromPath = fixpath(lua_tostring(L, 1));
     char * toPath = fixpath(lua_tostring(L, 2));
 
@@ -222,6 +234,7 @@ int fs_copy(lua_State *L) {
 }
 
 int fs_delete(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
     if (unlink(path) != 0) err(L, path, strerror(errno));
     free(path);
@@ -229,6 +242,8 @@ int fs_delete(lua_State *L) {
 }
 
 int fs_combine(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     const char * basePath = lua_tostring(L, 1);
     const char * localPathOrig = lua_tostring(L, 2);
     char * localPath = malloc(strlen(localPathOrig) + 2);
@@ -249,6 +264,8 @@ int fs_combine(lua_State *L) {
 }
 
 int fs_open(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     char * path = fixpath(lua_tostring(L, 1));
     const char * mode = lua_tostring(L, 2);
     FILE * fp = fopen(path, mode);
@@ -257,52 +274,52 @@ int fs_open(lua_State *L) {
     lua_newtable(L);
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, fp);
-    lua_pushcclosure(L, handle_close, 1);
+    lua_pushcclosure(L, fs_handle_close, 1);
     lua_settable(L, -3);
     if (strcmp(mode, "r") == 0) {
         lua_pushstring(L, "readAll");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_readAll, 1);
+        lua_pushcclosure(L, fs_handle_readAll, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "readLine");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_readLine, 1);
+        lua_pushcclosure(L, fs_handle_readLine, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "read");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_readChar, 1);
+        lua_pushcclosure(L, fs_handle_readChar, 1);
         lua_settable(L, -3);
     } else if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) {
         lua_pushstring(L, "write");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_writeString, 1);
+        lua_pushcclosure(L, fs_handle_writeString, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "writeLine");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_writeLine, 1);
+        lua_pushcclosure(L, fs_handle_writeLine, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "flush");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_flush, 1);
+        lua_pushcclosure(L, fs_handle_flush, 1);
         lua_settable(L, -3);
     } else if (strcmp(mode, "rb") == 0) {
         lua_pushstring(L, "read");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_readByte, 1);
+        lua_pushcclosure(L, fs_handle_readByte, 1);
         lua_settable(L, -3);
     } else if (strcmp(mode, "wb") == 0) {
         lua_pushstring(L, "write");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_writeByte, 1);
+        lua_pushcclosure(L, fs_handle_writeByte, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "flush");
         lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, handle_flush, 1);
+        lua_pushcclosure(L, fs_handle_flush, 1);
         lua_settable(L, -3);
     } else {
         lua_remove(L, -1);
@@ -312,6 +329,7 @@ int fs_open(lua_State *L) {
 }
 
 int fs_find(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     glob_t g;
     int rval = 0;
     const char * wildcard = lua_tostring(L, 1);
@@ -329,6 +347,7 @@ int fs_find(lua_State *L) {
 }
 
 int fs_getDir(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = unconst(lua_tostring(L, 1));
     lua_pushstring(L, dirname(path));
     free(path);

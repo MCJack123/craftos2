@@ -28,20 +28,22 @@ int getNextEvent(lua_State *L, const char * filter) {
         while (eventQueue.size() == 0) {
             if (timers.size() > 0 && timers.back() == 0) timers.pop_back();
             if (alarms.size() > 0 && alarms.back() == -1) alarms.pop_back();
-            time_t t = time(NULL);
-            struct tm tm = *localtime(&t);
-            for (int i = 0; i < timers.size(); i++) {
-                if (t == timers[i]) {
-                    lua_State *param = lua_newthread(L);
-                    lua_pushinteger(param, i);
-                    eventQueue.push(std::make_pair("timer", param));
+            if (timers.size() > 0 || alarms.size() > 0) {
+                time_t t = time(NULL);
+                struct tm tm = *localtime(&t);
+                for (int i = 0; i < timers.size(); i++) {
+                    if (t == timers[i]) {
+                        lua_State *param = lua_newthread(L);
+                        lua_pushinteger(param, i);
+                        eventQueue.push(std::make_pair("timer", param));
+                    }
                 }
-            }
-            for (int i = 0; i < alarms.size(); i++) {
-                if ((double)tm.tm_hour + ((double)tm.tm_min/60.0) + ((double)tm.tm_sec/3600.0) == alarms[i]) {
-                    lua_State *param = lua_newthread(L);
-                    lua_pushinteger(param, i);
-                    eventQueue.push(std::make_pair("alarm", param));
+                for (int i = 0; i < alarms.size(); i++) {
+                    if ((double)tm.tm_hour + ((double)tm.tm_min/60.0) + ((double)tm.tm_sec/3600.0) == alarms[i]) {
+                        lua_State *param = lua_newthread(L);
+                        lua_pushinteger(param, i);
+                        eventQueue.push(std::make_pair("alarm", param));
+                    }
                 }
             }
             lua_State *param = lua_newthread(L);
@@ -60,10 +62,10 @@ int getNextEvent(lua_State *L, const char * filter) {
         ev = eventQueue.front();
         eventQueue.pop();
     } while (strlen(filter) > 0 && strcmp(std::get<0>(ev), filter) != 0);
-    lua_State *param = std::get<1>(ev);
+    lua_State *param = ev.second;
     int count = lua_gettop(param);
     if (!lua_checkstack(L, count + 1)) printf("Could not allocate\n");
-    lua_pushstring(L, std::get<0>(ev));
+    lua_pushstring(L, ev.first);
     lua_xmove(param, L, count);
     //lua_close(param);
     return count + 1;
@@ -77,12 +79,14 @@ int os_getComputerLabel(lua_State *L) {
 }
 
 int os_setComputerLabel(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     label = lua_tostring(L, 1);
     label_defined = true;
     return 0;
 }
 
 int os_queueEvent(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     int count = lua_gettop(L);
     const char * name = lua_tostring(L, 1);
     lua_State *param = lua_newthread(L);
@@ -99,12 +103,14 @@ int os_clock(lua_State *L) {
 }
 
 int os_startTimer(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     timers.push_back(time(0) + lua_tointeger(L, 1));
     lua_pushinteger(L, timers.size() - 1);
     return 1;
 }
 
 int os_cancelTimer(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int id = lua_tointeger(L, 1);
     if (id == timers.size() - 1) timers.pop_back();
     else timers[id] = 0xFFFFFFFF;
@@ -113,7 +119,7 @@ int os_cancelTimer(lua_State *L) {
 
 int os_time(lua_State *L) {
     const char * type = "ingame";
-    if (lua_gettop(L) > 0) type = lua_tostring(L, 1);
+    if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
     time_t t = time(NULL);
     struct tm rightNow;
     if (strcmp(type, "utc") == 0) rightNow = *gmtime(&t);
@@ -127,7 +133,7 @@ int os_time(lua_State *L) {
 
 int os_epoch(lua_State *L) {
     const char * type = "ingame";
-    if (lua_gettop(L) > 0) type = lua_tostring(L, 1);
+    if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
     if (strcmp(type, "utc") == 0) {
         lua_pushinteger(L, (long long)time(NULL) * 1000LL);
     } else if (strcmp(type, "local") == 0) {
@@ -148,7 +154,7 @@ int os_epoch(lua_State *L) {
 
 int os_day(lua_State *L) {
     const char * type = "ingame";
-    if (lua_gettop(L) > 0) type = lua_tostring(L, 1);
+    if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
     time_t t = time(NULL);
     if (strcmp(type, "ingame") == 0) {
         struct tm rightNow = *localtime(&t);
@@ -160,12 +166,14 @@ int os_day(lua_State *L) {
 }
 
 int os_setAlarm(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     alarms.push_back(lua_tonumber(L, 1));
     lua_pushinteger(L, alarms.size() - 1);
     return 1;
 }
 
 int os_cancelAlarm(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int id = lua_tointeger(L, 1);
     if (id == alarms.size() - 1) alarms.pop_back();
     else alarms[id] = -1;
@@ -187,6 +195,7 @@ int os_reboot(lua_State *L) {
 }
 
 int os_system(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     system(lua_tostring(L, 1));
     return 0;
 }

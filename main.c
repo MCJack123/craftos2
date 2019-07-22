@@ -4,7 +4,9 @@
 #include <string.h>
 #include <signal.h>
 #include "bit.h"
+#include "config.h"
 #include "fs.h"
+#include "http.h"
 #include "os.h"
 #include "term.h"
 #include "redstone.h"
@@ -36,9 +38,12 @@ start:
 
     coro = lua_newthread(L);
 
-    luaL_openlibs(coro); /* Load Lua libraries */
+    // Load libraries
+    luaL_openlibs(coro);
     load_library(coro, bit_lib);
+    load_library(coro, config_lib);
     load_library(coro, fs_lib);
+    load_library(coro, http_lib);
     load_library(coro, os_lib);
     load_library(coro, rs_lib);
     lua_getglobal(coro, "redstone");
@@ -46,9 +51,30 @@ start:
     load_library(coro, term_lib);
     termInit();
 
+    // Delete unwanted globals
+    lua_pushnil(L);
+    lua_setglobal(L, "collectgarbage");
+    lua_pushnil(L);
+    lua_setglobal(L, "dofile");
+    lua_pushnil(L);
+    lua_setglobal(L, "loadfile");
+    lua_pushnil(L);
+    lua_setglobal(L, "module");
+    lua_pushnil(L);
+    lua_setglobal(L, "require");
+    lua_pushnil(L);
+    lua_setglobal(L, "package");
+    lua_pushnil(L);
+    lua_setglobal(L, "io");
+    lua_pushnil(L);
+    lua_setglobal(L, "print");
+    lua_pushnil(L);
+    lua_setglobal(L, "newproxy");
+
+    // Set default globals
     lua_pushstring(L, "");
     lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
-    lua_pushstring(L, "Linux i386 4.18");
+    lua_pushstring(L, "Linux i386 4.18"); // TODO: get real host string
     lua_setglobal(L, "_HOST");
 
     /* Load the file containing the script we are going to run */
@@ -59,7 +85,7 @@ start:
         fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
         exit(1);
     }
-    tid = createThread(&termRenderLoop);
+    tid = createThread(&termRenderLoop, NULL);
     signal(SIGINT, sighandler);
 
     /* Ask Lua to run our little script */

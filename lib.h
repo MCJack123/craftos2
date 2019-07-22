@@ -10,5 +10,6 @@ typedef struct library {
     lua_CFunction * values;
 } library_t;
 
-void load_library(lua_State *L, library_t lib);
+extern void load_library(lua_State *L, library_t lib);
+extern void bad_argument(lua_State *L, const char * type, int pos);
 #endif

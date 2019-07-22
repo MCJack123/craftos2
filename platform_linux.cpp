@@ -65,9 +65,9 @@ char * expandEnvironment(const char * src) {
     return retval;
 }
 
-void * createThread(void*(*func)(void*)) {
+void * createThread(void*(*func)(void*), void* arg) {
     pthread_t * tid = new pthread_t;
-    pthread_create(tid, NULL, func, NULL);
+    pthread_create(tid, NULL, func, arg);
     return (void*)tid;
 }
 

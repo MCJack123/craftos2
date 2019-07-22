@@ -1,4 +1,5 @@
 #include "TerminalWindow.hpp"
+#include <assert.h>
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
@@ -24,7 +25,7 @@ TerminalWindow::TerminalWindow(std::string title) {
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
-    win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+    win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
     if (win == nullptr) throw window_exception("Failed to create window");
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (ren == nullptr) {
@@ -62,7 +63,7 @@ TerminalWindow::TerminalWindow(std::string title) {
     palette[1] = {0xf2, 0xb2, 0x33};
     palette[0] = {0xf0, 0xf0, 0xf0};
     screen = std::vector<std::vector<char> >(height, std::vector<char>(width, ' '));
-    colors = std::vector<std::vector<char> >(height, std::vector<char>(width, 0xF0));
+    colors = std::vector<std::vector<unsigned char> >(height, std::vector<unsigned char>(width, 0xF0));
     pixels = std::vector<std::vector<char> >(height*fontHeight, std::vector<char>(width*fontWidth, 0));
 }
 
@@ -92,7 +93,7 @@ void TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool tra
         fontHeight * fontScale * charScale * dpiScale
     };
     if (!transparent) {
-        SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF);
+        assert(SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF) == 0);
         SDL_RenderFillRect(ren, &destrect);
     }
     SDL_SetTextureColorMod(font, fg.r, fg.g, fg.b);
@@ -108,11 +109,12 @@ SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
 }
 
 void TerminalWindow::render() {
+    while (locked);
+    locked = true;
+    SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF);
     SDL_RenderClear(ren);
     SDL_Rect rect;
     if (isPixel) {
-        SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF);
-        SDL_RenderFillRect(ren, setRect(&rect, 0, 0, (width+1)*charWidth, (height+1)*charHeight));
         for (int y = 0; y < height * charHeight; y+=fontScale*charScale) {
             for (int x = 0; x < width * charWidth; x+=fontScale*charScale) {
                 char c = pixels[y / fontScale / charScale][x / fontScale / charScale];
@@ -157,6 +159,7 @@ void TerminalWindow::render() {
         // later
     }
     SDL_RenderPresent(ren);
+    locked = false;
 }
 
 void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {
@@ -182,12 +185,17 @@ SDL_Rect TerminalWindow::getCharacterRect(char c) {
     return retval;
 }
 
-void TerminalWindow::resize() {
+bool TerminalWindow::resize() {
+    while (locked);
+    locked = true;
     int w = 0, h = 0;
     SDL_GetWindowSize(win, &w, &h);
     int newWidth = (w - 4*fontScale*charScale) / charWidth;
     int newHeight = (h - 4*fontScale*charScale) / charHeight;
-    if (newWidth == width && newHeight == height) return;
+    if (newWidth == width && newHeight == height) {
+        locked = false;
+        return false;
+    }
     screen.resize(newHeight);
     if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<char>(newWidth, ' '));
     for (int i = 0; i < screen.size(); i++) {
@@ -195,7 +203,7 @@ void TerminalWindow::resize() {
         if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
     }
     colors.resize(newHeight);
-    if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<char>(newWidth, ' '));
+    if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<unsigned char>(newWidth, ' '));
     for (int i = 0; i < colors.size(); i++) {
         colors[i].resize(newWidth);
         if (newWidth > width) std::fill(colors[i].begin() + width, colors[i].end(), 0xF0);
@@ -208,4 +216,6 @@ void TerminalWindow::resize() {
     }
     width = newWidth;
     height = newHeight;
+    locked = false;
+    return true;
 }

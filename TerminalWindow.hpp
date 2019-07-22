@@ -3,9 +3,9 @@
 #include <vector>
 
 typedef struct color {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
+    Uint8 r;
+    Uint8 g;
+    Uint8 b;
 } Color;
 
 class window_exception: public std::exception {
@@ -35,7 +35,7 @@ public:
     int charWidth = fontWidth * fontScale * charScale;
     int charHeight = fontHeight * fontScale * charScale;
     std::vector<std::vector<char> > screen;
-    std::vector<std::vector<char> > colors;
+    std::vector<std::vector<unsigned char> > colors;
     std::vector<std::vector<char> > pixels;
     bool isPixel = false;
     Color palette[16];
@@ -53,11 +53,12 @@ public:
     void setCharScale(int scale);
     void drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render();
-    void resize();
+    bool resize();
     void getMouse(int *x, int *y);
 
 private:
     const char * fontPath = "craftos.bmp";
+    bool locked = false;
     SDL_Window *win;
     SDL_Renderer *ren;
     SDL_Texture *font;

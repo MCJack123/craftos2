@@ -4,8 +4,8 @@ A rewrite of [CraftOS-PC](https://github.com/MCJack123/craftos) using C and the 
 ## Tasklist
 - [x] Port ComputerCraft API (from [craftos-native](https://github.com/MCJack123/craftos-native))
 - [x] Fix paths
-- [ ] Add HTTP API
-- [ ] Add mount support
+- [x] Add HTTP API
+- [ ] Add configuration
 - [ ] Add peripheral emulation
 - [ ] Fix graphics mode
-- [ ] Add configuration
+- [ ] Add mount support
