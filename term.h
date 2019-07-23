@@ -1,3 +1,5 @@
+#ifndef TERM_H
+#define TERM_H
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,7 +10,9 @@ extern void termInit();
 extern void termClose();
 extern const char * termGetEvent(lua_State *L);
 extern void* termRenderLoop(void*);
+extern void termHook(lua_State *L, lua_Debug *ar);
 extern void termQueueProvider(event_provider p, void* data);
 #ifdef __cplusplus
 }
+#endif
 #endif

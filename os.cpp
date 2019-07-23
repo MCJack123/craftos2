@@ -19,11 +19,14 @@ bool label_defined = false;
 std::queue<std::pair<const char *, lua_State*> > eventQueue;
 std::vector<time_t> timers;
 std::vector<double> alarms;
+extern "C" void gettingEvent(void);
+extern "C" void gotEvent(void);
 
 void queueEvent(const char * name, lua_State *param) {eventQueue.push(std::make_pair(name, param));}
 
 int getNextEvent(lua_State *L, const char * filter) {
     std::pair<const char *, lua_State*> ev;
+    gettingEvent();
     do {
         while (eventQueue.size() == 0) {
             if (timers.size() > 0 && timers.back() == 0) timers.pop_back();
@@ -68,6 +71,7 @@ int getNextEvent(lua_State *L, const char * filter) {
     lua_pushstring(L, ev.first);
     lua_xmove(param, L, count);
     //lua_close(param);
+    gotEvent();
     return count + 1;
 }
 

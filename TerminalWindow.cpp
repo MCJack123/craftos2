@@ -78,6 +78,7 @@ void TerminalWindow::setPalette(Color * p) {
 }
 
 void TerminalWindow::setCharScale(int scale) {
+    if (scale < 1) scale = 1;
     charScale = scale;
     charWidth = fontWidth * fontScale * charScale;
     charHeight = fontHeight * fontScale * charScale;

@@ -1,5 +1,6 @@
 #include "term.h"
 #include "os.h"
+#include "config.h"
 #include "TerminalWindow.hpp"
 #include <unordered_map>
 #include <errno.h>
@@ -14,7 +15,10 @@ TerminalWindow * term;
 bool canBlink = true;
 unsigned char colors = 0xF0;
 extern int os_queueEvent(lua_State *L);
+extern "C" void peripheral_update();
 std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
+std::chrono::high_resolution_clock::time_point last_event = std::chrono::high_resolution_clock::now();
+bool getting_event = false;
 const std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
     {SDL_SCANCODE_1, 2},
@@ -186,7 +190,16 @@ int log2i(int num) {
     return retval;
 }
 
-void* termRenderLoop(void* unused) {
+void termHook(lua_State *L, lua_Debug *ar) {
+    if (!getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - last_event).count() > config.abortTimeout) {
+        printf("Too long without yielding\n");
+        last_event = std::chrono::high_resolution_clock::now();
+        lua_pushstring(L, "Too long without yielding");
+        lua_error(L);
+    }
+}
+
+void* termRenderLoop(void* arg) {
     while (running == 1) {
         if (!canBlink) term->blink = false;
         else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - last_blink).count() > 500) {
@@ -194,12 +207,15 @@ void* termRenderLoop(void* unused) {
             last_blink = std::chrono::high_resolution_clock::now();
         }
         term->render();
+        peripheral_update();
     }
     return NULL;
 }
 
 std::queue<std::pair<event_provider, void*> > event_provider_queue;
 void termQueueProvider(event_provider p, void* data) {event_provider_queue.push(std::make_pair(p, data));}
+extern "C" void gettingEvent(void) {getting_event = true;}
+extern "C" void gotEvent(void) {last_event = std::chrono::high_resolution_clock::now(); getting_event = false;}
 
 const char * termGetEvent(lua_State *L) {
     if (event_provider_queue.size() > 0) {

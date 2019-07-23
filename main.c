@@ -10,6 +10,8 @@
 #include "os.h"
 #include "term.h"
 #include "redstone.h"
+#include "peripheral/peripheral.h"
+#include "periphemu.h"
 #include "platform.h"
 
 void * tid;
@@ -40,11 +42,14 @@ start:
 
     // Load libraries
     luaL_openlibs(coro);
+    lua_sethook(coro, termHook, LUA_MASKCOUNT, 100);
     load_library(coro, bit_lib);
     load_library(coro, config_lib);
     load_library(coro, fs_lib);
-    load_library(coro, http_lib);
+    if (config.http_enable) load_library(coro, http_lib);
     load_library(coro, os_lib);
+    load_library(coro, peripheral_lib);
+    load_library(coro, periphemu_lib);
     load_library(coro, rs_lib);
     lua_getglobal(coro, "redstone");
     lua_setglobal(coro, "rs");
@@ -85,7 +90,7 @@ start:
         fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
         exit(1);
     }
-    tid = createThread(&termRenderLoop, NULL);
+    tid = createThread(&termRenderLoop, coro);
     signal(SIGINT, sighandler);
 
     /* Ask Lua to run our little script */

@@ -1,3 +1,5 @@
+#ifndef TERMINALWINDOW_HPP
+#define TERMINALWINDOW_HPP
 #include <SDL2/SDL.h>
 #include <string>
 #include <vector>
@@ -65,3 +67,4 @@ private:
 
     static SDL_Rect getCharacterRect(char c);
 };
+#endif

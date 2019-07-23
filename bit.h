@@ -1,3 +1,5 @@
+#ifndef BIT_H
+#define BIT_H
 #include "lib.h"
 
 static int bit_band(lua_State *L) {
@@ -82,3 +84,4 @@ static lua_CFunction bit_values[7] = {
 };
 
 static library_t bit_lib = {"bit", 7, bit_keys, bit_values};
+#endif

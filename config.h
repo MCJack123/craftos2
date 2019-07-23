@@ -1,3 +1,5 @@
+#ifndef CONFIG_H
+#define CONFIG_H
 #include "lib.h"
 #include <stdbool.h>
 extern library_t config_lib;
@@ -17,3 +19,4 @@ struct configuration {
     int clockSpeed;
 };
 extern struct configuration config;
+#endif

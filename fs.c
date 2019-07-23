@@ -1,6 +1,7 @@
 #include "fs.h"
 #include "fs_handle.h"
 #include "platform.h"
+#include "config.h"
 #include <lauxlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,8 @@
 #include <glob.h>
 #include <dirent.h>
 #include <stdbool.h>
+
+int files_open = 0;
 
 void err(lua_State *L, char * path, const char * err) {
     char * msg = (char*)malloc(strlen(path) + strlen(err) + 3);
@@ -268,6 +271,7 @@ int fs_open(lua_State *L) {
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     char * path = fixpath(lua_tostring(L, 1));
     const char * mode = lua_tostring(L, 2);
+    if (files_open >= config.maximumFilesOpen) err(L, path, "Too many files open");
     FILE * fp = fopen(path, mode);
     if (fp == NULL) err(L, path, strerror(errno));
     free(path);
@@ -325,6 +329,7 @@ int fs_open(lua_State *L) {
         lua_remove(L, -1);
         err(L, unconst(mode), "Invalid mode");
     }
+    files_open++;
     return 1;
 }
 

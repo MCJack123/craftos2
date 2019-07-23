@@ -1,7 +1,19 @@
 #include "config.h"
 #include <string.h>
 
-struct configuration config;
+struct configuration config = {
+    true,
+    false,
+    "",
+    false,
+    false,
+    false,
+    1000000,
+    128,
+    17000,
+    8,
+    20
+};
 
 int config_get(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
@@ -70,47 +82,47 @@ int config_list(lua_State *L) {
     lua_newtable(L);
     lua_pushnumber(L, 1);
     lua_pushstring(L, "http_enable");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 2);
     lua_pushstring(L, "disable_lua51_features");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 3);
     lua_pushstring(L, "default_computer_settings");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 4);
     lua_pushstring(L, "logPeripheralErrors");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 5);
     lua_pushstring(L, "computerSpaceLimit");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 6);
     lua_pushstring(L, "maximumFilesOpen");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 7);
     lua_pushstring(L, "maxNotesPerTick");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 8);
     lua_pushstring(L, "clockSpeed");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 9);
     lua_pushstring(L, "showFPS");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 10);
     lua_pushstring(L, "readFail");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
 
     lua_pushnumber(L, 11);
     lua_pushstring(L, "abortTimeout");
-    lua_settable(L, -2);
+    lua_settable(L, -3);
     return 1;
 }
 

@@ -2,46 +2,38 @@ CC=gcc
 CXX=g++
 CFLAGS=-c -g
 CXXFLAGS= -std=c++11
+ODIR=obj
 LIBS=-L/usr/local/include -llua -lm -ldl -lSDL2 -lpthread -lcurl
 
-craftos: obj obj/config.o obj/fs_handle.o obj/fs.o obj/http.o obj/http_handle.o obj/lib.o obj/main.o obj/os.o obj/platform.o obj/term.o obj/TerminalWindow.o
-	$(CXX) -o craftos obj/config.o obj/fs_handle.o obj/fs.o obj/http.o obj/http_handle.o obj/lib.o obj/main.o obj/os.o obj/platform.o obj/term.o obj/TerminalWindow.o $(LIBS)
+_OBJ=config.o fs_handle.o fs.o http_handle.o http.o lib.o main.o os.o periphemu.o platform.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o
+OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-obj:
+craftos: $(OBJ)
+	$(CXX) -o $@ $^ $(LIBS)
+
+$(ODIR):
 	mkdir obj
 
-obj/config.o: config.c config.h lib.h
-	$(CC) -o obj/config.o $(CFLAGS) config.c
+$(ODIR)/main.o: main.c bit.h config.h fs.h http.h os.h term.h redstone.h peripheral/peripheral.h periphemu.h platform.h
+	$(CC) -o $@ $(CFLAGS) $<
 
-obj/fs_handle.o: fs_handle.c fs_handle.h
-	$(CC) -o obj/fs_handle.o $(CFLAGS) fs_handle.c
+$(ODIR)/platform.o: platform.cpp platform.h platform_linux.cpp platform_darwin.cpp
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-obj/fs.o: fs.c fs.h fs_handle.h lib.h platform.h
-	$(CC) -o obj/fs.o $(CFLAGS) fs.c
+$(ODIR)/TerminalWindow.o: TerminalWindow.cpp TerminalWindow.hpp
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-obj/http.o: http.c http.h http_handle.h lib.h platform.h term.h
-	$(CC) -o obj/http.o $(CFLAGS) http.c
+$(ODIR)/peripheral.o: peripheral/peripheral.cpp peripheral/peripheral.h lib.h
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-obj/http_handle.o: http_handle.c http_handle.h
-	$(CC) -o obj/http_handle.o $(CFLAGS) http_handle.c
+$(ODIR)/%.o: %.c %.h lib.h
+	$(CC) -o $@ $(CFLAGS) $<
 
-obj/lib.o: lib.c lib.h
-	$(CC) -o obj/lib.o $(CFLAGS) lib.c
+$(ODIR)/%.o: %.cpp %.h lib.h
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-obj/main.o: main.c lib.h fs.h os.h bit.h redstone.h http.h
-	$(CC) -o obj/main.o $(CFLAGS) main.c
-
-obj/os.o: os.cpp os.h lib.h
-	$(CXX) -o obj/os.o $(CXXFLAGS) $(CFLAGS) os.cpp
-
-obj/platform.o: platform.cpp platform.h platform_linux.cpp platform_darwin.cpp
-	$(CXX) -o obj/platform.o $(CXXFLAGS) $(CFLAGS) platform.cpp
-
-obj/term.o: term.cpp term.h TerminalWindow.hpp lib.h
-	$(CXX) -o obj/term.o $(CXXFLAGS) $(CFLAGS) term.cpp
-
-obj/TerminalWindow.o: TerminalWindow.cpp TerminalWindow.hpp
-	$(CXX) -o obj/TerminalWindow.o $(CXXFLAGS) $(CFLAGS) TerminalWindow.cpp
+$(ODIR)/peripheral_%.o: peripheral/%.cpp peripheral/%.hpp peripheral/peripheral.h
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 clean:
 	rm obj/*
