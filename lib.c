@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <lauxlib.h>
 
 void load_library(lua_State *L, library_t lib) {
     lua_newtable(L); // create table
@@ -15,10 +16,5 @@ void load_library(lua_State *L, library_t lib) {
 }
 
 void bad_argument(lua_State *L, const char * type, int pos) {
-    const char * gtype = lua_typename(L, lua_type(L, pos));
-    char * retval = (char*)malloc(strlen("bad argument # (expected , got )") + strlen(type) + strlen(gtype) + (int)log10(pos) + 2);
-    sprintf(retval, "bad argument #%i (expected %s, got %s)", pos, type, gtype);
-    lua_pushstring(L, retval);
-    free(retval);
-    lua_error(L);
+    luaL_error(L, "bad argument #%i (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
 }

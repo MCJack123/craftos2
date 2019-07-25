@@ -3,7 +3,7 @@
 extern "C" int log2i(int);
 extern "C" char htoi(char c);
 
-monitor::monitor(lua_State *L, const char * side): term("CraftOS Terminal: Monitor " + std::string(side)) {}
+monitor::monitor(lua_State *L, const char * side): term("CraftOS Terminal: Monitor " + std::string(side)) {canBlink = false;}
 
 int monitor::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
@@ -49,6 +49,11 @@ int monitor::getCursorPos(lua_State *L) {
     return 2;
 }
 
+int monitor::getCursorBlink(lua_State *L) {
+    lua_pushboolean(L, canBlink);
+    return 1;
+}
+
 int monitor::getSize(lua_State *L) {
     lua_pushinteger(L, term.width);
     lua_pushinteger(L, term.height);
@@ -87,12 +92,12 @@ int monitor::isColor(lua_State *L) {
 }
 
 int monitor::getTextColor(lua_State *L) {
-    lua_pushinteger(L, 1 >> (colors & 0x0f));
+    lua_pushinteger(L, 1 << ((int)colors & 0x0f));
     return 1;
 }
 
 int monitor::getBackgroundColor(lua_State *L) {
-    lua_pushinteger(L, 1 >> (colors >> 4));
+    lua_pushinteger(L, 1 << ((int)colors >> 4));
     return 1;
 }
 
@@ -211,12 +216,13 @@ void monitor::update() {
     term.render();
 }
 
-const char * monitor_keys[28] = {
+const char * monitor_keys[29] = {
     "write",
     "scroll",
     "setCursorPos",
     "setCursorBlink",
     "getCursorPos",
+    "getCursorBlink",
     "getSize",
     "clear",
     "clearLine",
@@ -242,4 +248,4 @@ const char * monitor_keys[28] = {
     "setTextScale"
 };
 
-library_t monitor::methods = {"monitor", 28, monitor_keys, NULL};
+library_t monitor::methods = {"monitor", 29, monitor_keys, NULL};

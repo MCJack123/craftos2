@@ -185,6 +185,7 @@ int convertY(int x) {
 }
 
 int log2i(int num) {
+    if (num == 0) return 0;
     int retval;
     for (retval = 0; (num & 1) == 0; retval++) num = num >> 1;
     return retval;
@@ -315,6 +316,11 @@ int term_getCursorPos(lua_State *L) {
     return 2;
 }
 
+int term_getCursorBlink(lua_State *L) {
+    lua_pushboolean(L, canBlink);
+    return 1;
+}
+
 int term_getSize(lua_State *L) {
     lua_pushinteger(L, term->width);
     lua_pushinteger(L, term->height);
@@ -353,12 +359,12 @@ int term_isColor(lua_State *L) {
 }
 
 int term_getTextColor(lua_State *L) {
-    lua_pushinteger(L, 1 >> (colors & 0x0f));
+    lua_pushinteger(L, 1 << (colors & 0x0f));
     return 1;
 }
 
 int term_getBackgroundColor(lua_State *L) {
-    lua_pushinteger(L, 1 >> (colors >> 4));
+    lua_pushinteger(L, 1 << (colors >> 4));
     return 1;
 }
 
@@ -438,12 +444,13 @@ int term_getPixel(lua_State *L) {
 
 } // extern "C"
 
-const char * term_keys[27] = {
+const char * term_keys[28] = {
     "write",
     "scroll",
     "setCursorPos",
     "setCursorBlink",
     "getCursorPos",
+    "getCursorBlink",
     "getSize",
     "clear",
     "clearLine",
@@ -468,12 +475,13 @@ const char * term_keys[27] = {
     "getPixel"
 };
 
-lua_CFunction term_values[27] = {
+lua_CFunction term_values[28] = {
     term_write,
     term_scroll,
     term_setCursorPos,
     term_setCursorBlink,
     term_getCursorPos,
+    term_getCursorBlink,
     term_getSize,
     term_clear,
     term_clearLine,
@@ -498,4 +506,4 @@ lua_CFunction term_values[27] = {
     term_getPixel
 };
 
-library_t term_lib = {"term", 27, term_keys, term_values};
+library_t term_lib = {"term", 28, term_keys, term_values};

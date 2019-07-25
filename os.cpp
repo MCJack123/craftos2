@@ -7,7 +7,7 @@ extern "C" {
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
-#include <time.h>
+#include <chrono>
 #include <queue>
 #include <utility>
 #include <vector>
@@ -17,7 +17,7 @@ int running = 1;
 const char * label;
 bool label_defined = false;
 std::queue<std::pair<const char *, lua_State*> > eventQueue;
-std::vector<time_t> timers;
+std::vector<std::chrono::high_resolution_clock::time_point> timers;
 std::vector<double> alarms;
 extern "C" void gettingEvent(void);
 extern "C" void gotEvent(void);
@@ -29,23 +29,29 @@ int getNextEvent(lua_State *L, const char * filter) {
     gettingEvent();
     do {
         while (eventQueue.size() == 0) {
-            if (timers.size() > 0 && timers.back() == 0) timers.pop_back();
+            if (running != 1) return 0;
+            if (timers.size() > 0 && timers.back().time_since_epoch().count() == 0) timers.pop_back();
             if (alarms.size() > 0 && alarms.back() == -1) alarms.pop_back();
-            if (timers.size() > 0 || alarms.size() > 0) {
-                time_t t = time(NULL);
-                struct tm tm = *localtime(&t);
+            if (timers.size() > 0) {
+                std::chrono::high_resolution_clock::time_point t = std::chrono::high_resolution_clock::now();
                 for (int i = 0; i < timers.size(); i++) {
-                    if (t == timers[i]) {
+                    if (t >= timers[i] && timers[i].time_since_epoch().count() > 0) {
                         lua_State *param = lua_newthread(L);
                         lua_pushinteger(param, i);
                         eventQueue.push(std::make_pair("timer", param));
+                        timers[i] = std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
                     }
                 }
+            }
+            if (alarms.size() > 0) {
+                time_t t = time(NULL);
+                struct tm tm = *localtime(&t);
                 for (int i = 0; i < alarms.size(); i++) {
                     if ((double)tm.tm_hour + ((double)tm.tm_min/60.0) + ((double)tm.tm_sec/3600.0) == alarms[i]) {
                         lua_State *param = lua_newthread(L);
                         lua_pushinteger(param, i);
                         eventQueue.push(std::make_pair("alarm", param));
+                        alarms[i] = -1;
                     }
                 }
             }
@@ -108,7 +114,7 @@ int os_clock(lua_State *L) {
 
 int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    timers.push_back(time(0) + lua_tointeger(L, 1));
+    timers.push_back(std::chrono::high_resolution_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, timers.size() - 1);
     return 1;
 }
@@ -117,7 +123,7 @@ int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int id = lua_tointeger(L, 1);
     if (id == timers.size() - 1) timers.pop_back();
-    else timers[id] = 0xFFFFFFFF;
+    else timers[id] = std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
     return 0;
 }
 

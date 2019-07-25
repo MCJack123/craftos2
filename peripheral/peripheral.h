@@ -11,12 +11,12 @@ extern void peripheral_update();
 }
 class peripheral {
 public:
-    static library_t methods;
     peripheral() {} // unused
     peripheral(lua_State *L, const char * side) {}
     ~peripheral() {}
     virtual int call(lua_State *L, const char * method)=0;
     virtual void update()=0;
+    virtual library_t getMethods()=0;
 };
 #endif
 #endif

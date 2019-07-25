@@ -15,6 +15,7 @@ private:
     int setCursorPos(lua_State *L);
     int setCursorBlink(lua_State *L);
     int getCursorPos(lua_State *L);
+    int getCursorBlink(lua_State *L);
     int getSize(lua_State *L);
     int clear(lua_State *L);
     int clearLine(lua_State *L);
@@ -33,6 +34,7 @@ private:
     int setTextScale(lua_State *L);
 public:
     static library_t methods;
+    library_t getMethods() {return methods;}
     monitor(lua_State *L, const char * side);
     int call(lua_State *L, const char * method);
     void update();

@@ -3,7 +3,7 @@ CXX=g++
 CFLAGS=-c -g
 CXXFLAGS= -std=c++11
 ODIR=obj
-LIBS=-L/usr/local/include -llua -lm -ldl -lSDL2 -lpthread -lcurl
+LIBS=-L/usr/local/include -llua -lm -ldl -lSDL2 -lpthread -lcurl -lharu
 
 _OBJ=config.o fs_handle.o fs.o http_handle.o http.o lib.o main.o os.o periphemu.o platform.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))

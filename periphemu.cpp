@@ -10,8 +10,8 @@ extern std::unordered_map<std::string, peripheral*> peripherals;
 extern "C" {
 
 int periphemu_create(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", -1);
-    if (!lua_isstring(L, 2)) bad_argument(L, "string", -2);
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     std::string side = lua_tostring(L, 1);
     std::string type = lua_tostring(L, 2);
     if (peripherals.find(side) != peripherals.end()) {

@@ -36,6 +36,19 @@
         "tuple": "cpp",
         "typeinfo": "cpp",
         "utility": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "__bit_reference": "cpp",
+        "__debug": "cpp",
+        "__functional_base": "cpp",
+        "__nullptr": "cpp",
+        "__split_buffer": "cpp",
+        "bit": "cpp",
+        "cstddef": "cpp",
+        "cstring": "cpp",
+        "queue": "cpp",
+        "functional": "cpp",
+        "iterator": "cpp",
+        "memory": "cpp",
+        "random": "cpp"
     }
 }
