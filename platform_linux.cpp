@@ -3,8 +3,10 @@
 #include <string.h>
 #include <wordexp.h>
 #include <stdio.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <sys/sysinfo.h>
+#include <sys/stat.h>
 #include <pthread.h>
 #include <string>
 #include <vector>
@@ -75,9 +77,26 @@ void joinThread(void* thread) {
     pthread_join(*(pthread_t*)thread, NULL);
 }
 
+int createDirectory(const char * path) {
+    if (mkdir(path, 0777) != 0) {
+        if (errno == ENOENT && strcmp(path, "/") != 0) {
+            char * dir = (char*)malloc(strlen(path) + 1);
+            strcpy(dir, path);
+            if (createDirectory(dirname(dir))) return 1;
+            free(dir);
+            mkdir(path, 0777);
+        } else return 1;
+    }
+    return 0;
+}
+
 int getUptime() {
     struct sysinfo info;
     sysinfo(&info);
     return info.uptime;
+}
+
+void msleep(unsigned long time) {
+    usleep(time * 1000);
 }
 }

@@ -17,11 +17,23 @@
 void * tid;
 lua_State *L;
 
+library_t * libraries[] = {
+    &bit_lib,
+    &config_lib,
+    &fs_lib,
+    &os_lib,
+    &peripheral_lib,
+    &periphemu_lib,
+    &rs_lib,
+    &term_lib
+};
+
 void sighandler(int sig) {
     if (sig == SIGINT) {
         running = 0;
         joinThread(tid);
-        termClose();
+        for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
+            if (libraries[i]->deinit != NULL) libraries[i]->deinit();
         lua_close(L);   /* Cya, Lua */
         exit(SIGINT);
     }
@@ -43,17 +55,10 @@ start:
     // Load libraries
     luaL_openlibs(coro);
     lua_sethook(coro, termHook, LUA_MASKCOUNT, 100);
-    load_library(coro, bit_lib);
-    load_library(coro, config_lib);
-    load_library(coro, fs_lib);
+    for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(coro, *libraries[i]);
     if (config.http_enable) load_library(coro, http_lib);
-    load_library(coro, os_lib);
-    load_library(coro, peripheral_lib);
-    load_library(coro, periphemu_lib);
-    load_library(coro, rs_lib);
     lua_getglobal(coro, "redstone");
     lua_setglobal(coro, "rs");
-    load_library(coro, term_lib);
     termInit();
 
     // Delete unwanted globals
@@ -105,7 +110,8 @@ start:
             running = 0;
             joinThread(tid);
             //usleep(5000000);
-            termClose();
+            for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
+                if (libraries[i]->deinit != NULL) libraries[i]->deinit();
             printf("%s\n", lua_tostring(coro, -1));
             lua_close(L);
             exit(1);
@@ -113,7 +119,8 @@ start:
     }
 
     joinThread(tid);
-    termClose();
+    for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
+        if (libraries[i]->deinit != NULL) libraries[i]->deinit();
     lua_close(L);   /* Cya, Lua */
 
     if (running == 2) {

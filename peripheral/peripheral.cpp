@@ -48,7 +48,7 @@ int peripheral_call(lua_State *L) {
     int retval = peripherals[side]->call(param, func.c_str());
     lua_xmove(param, L, lua_gettop(param));
     lua_remove(L, 3);
-    assert(lua_gettop(L) == top + retval);
+    //assert(lua_gettop(L) == top + retval);
     return retval;
 }
 
@@ -70,4 +70,4 @@ lua_CFunction peripheral_values[4] = {
     peripheral_call
 };
 
-library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values};
+library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values, NULL, NULL};

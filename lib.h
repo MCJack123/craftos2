@@ -11,6 +11,8 @@ typedef struct library {
     int count;
     const char ** keys;
     lua_CFunction * values;
+    void (*init)(void);
+    void (*deinit)(void);
 } library_t;
 
 extern void load_library(lua_State *L, library_t lib);

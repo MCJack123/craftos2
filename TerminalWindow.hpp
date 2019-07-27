@@ -32,6 +32,7 @@ public:
 private:
     static const int fontScale = 1;
 public:
+    bool locked = false;
     int charScale = 2;
     int dpiScale = 1;
     int charWidth = fontWidth * fontScale * charScale;
@@ -60,7 +61,6 @@ public:
 
 private:
     const char * fontPath = "craftos.bmp";
-    bool locked = false;
     SDL_Window *win;
     SDL_Renderer *ren;
     SDL_Texture *font;

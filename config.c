@@ -157,6 +157,14 @@ int config_getType(lua_State *L) {
     return 1;
 }
 
+void config_init() {
+    // todo
+}
+
+void config_deinit() {
+    // todo
+}
+
 const char * config_keys[4] = {
     "get",
     "set",
@@ -171,4 +179,4 @@ lua_CFunction config_values[4] = {
     config_getType
 };
 
-library_t config_lib = {"config", 4, config_keys, config_values};
+library_t config_lib = {"config", 4, config_keys, config_values, config_init, config_deinit};

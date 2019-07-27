@@ -246,4 +246,4 @@ lua_CFunction os_values[15] = {
     os_system
 };
 
-library_t os_lib = {"os", 15, os_keys, os_values};
+library_t os_lib = {"os", 15, os_keys, os_values, NULL, NULL};

@@ -4,6 +4,8 @@
 #include <wordexp.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <libgen.h>
 #include <pthread.h>
 #include <string>
 #include <vector>
@@ -76,5 +78,22 @@ void joinThread(void* thread) {
 
 int getUptime() {
     return clock() / CLOCKS_PER_SEC;
+}
+
+int createDirectory(const char * path) {
+    if (mkdir(path, 0777) != 0) {
+        if (errno == ENOENT && strcmp(path, "/") != 0) {
+            char * dir = (char*)malloc(strlen(path) + 1);
+            strcpy(dir, path);
+            if (createDirectory(dirname(dir))) return 1;
+            free(dir);
+            mkdir(path, 0777);
+        } else return 1;
+    }
+    return 0;
+}
+
+void msleep(unsigned long time) {
+    usleep(time * 1000);
 }
 }

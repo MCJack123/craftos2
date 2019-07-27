@@ -13,8 +13,10 @@ void load_library(lua_State *L, library_t lib) {
         lua_settable(L, -3); // add index/value to table
     }
     lua_setglobal(L, lib.name); // add table as global
+    if (lib.init != NULL) lib.init();
 }
 
 void bad_argument(lua_State *L, const char * type, int pos) {
-    luaL_error(L, "bad argument #%i (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
+    lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
+    lua_error(L);
 }

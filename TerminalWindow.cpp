@@ -85,6 +85,10 @@ void TerminalWindow::setCharScale(int scale) {
     SDL_SetWindowSize(win, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale));
 }
 
+bool operator!=(Color lhs, Color rhs) {
+    return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b;
+}
+
 void TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
@@ -93,12 +97,14 @@ void TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool tra
         fontWidth * fontScale * charScale * dpiScale, 
         fontHeight * fontScale * charScale * dpiScale
     };
-    if (!transparent) {
-        assert(SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF) == 0);
+    if (!transparent && bg != palette[15]) {
+        SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF);
         SDL_RenderFillRect(ren, &destrect);
     }
-    SDL_SetTextureColorMod(font, fg.r, fg.g, fg.b);
-    SDL_RenderCopy(ren, font, &srcrect, &destrect);
+    if (c != ' ' && c != '\0') {
+        SDL_SetTextureColorMod(font, fg.r, fg.g, fg.b);
+        SDL_RenderCopy(ren, font, &srcrect, &destrect);
+    }
 }
 
 SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {

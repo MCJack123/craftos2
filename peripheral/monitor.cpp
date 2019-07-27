@@ -34,6 +34,8 @@ int monitor::setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     term.blinkX = lua_tointeger(L, 1) - 1;
     term.blinkY = lua_tointeger(L, 2) - 1;
+    if (term.blinkX >= term.width) term.blinkX = term.width - 1;
+    if (term.blinkY >= term.height) term.blinkY = term.height - 1;
     return 0;
 }
 
@@ -248,4 +250,4 @@ const char * monitor_keys[29] = {
     "setTextScale"
 };
 
-library_t monitor::methods = {"monitor", 29, monitor_keys, NULL};
+library_t monitor::methods = {"monitor", 29, monitor_keys, NULL, NULL, NULL};

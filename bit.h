@@ -83,5 +83,5 @@ static lua_CFunction bit_values[7] = {
     bit_blogic_rshift
 };
 
-static library_t bit_lib = {"bit", 7, bit_keys, bit_values};
+static library_t bit_lib = {"bit", 7, bit_keys, bit_values, NULL, NULL};
 #endif

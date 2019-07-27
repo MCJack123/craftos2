@@ -26,12 +26,6 @@ void err(lua_State *L, char * path, const char * err) {
     lua_error(L);
 }
 
-char * unconst(const char * str) {
-    char * retval = malloc(strlen(str) + 1);
-    strcpy(retval, str);
-    return retval;
-}
-
 int fs_list(lua_State *L) {
     struct dirent *dir;
     char * path = fixpath(lua_tostring(L, 1));
@@ -78,7 +72,8 @@ int fs_isReadOnly(lua_State *L) {
 
 int fs_getName(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = unconst(lua_tostring(L, 1));
+    char * path = (char*)malloc(lua_strlen(L, 1) + 1);
+    strcpy(path, lua_tostring(L, 1));
     lua_pushstring(L, basename(path));
     free(path);
     return 1;
@@ -172,20 +167,10 @@ int fs_getFreeSpace(lua_State *L) {
     return 1;
 }
 
-int recurse_mkdir(const char * path) {
-    if (mkdir(path, 0777) != 0) {
-        if (errno == ENOENT && strcmp(path, "/") != 0) {
-            if (recurse_mkdir(dirname(unconst(path)))) return 1;
-            mkdir(path, 0777);
-        } else return 1;
-    }
-    return 0;
-}
-
 int fs_makeDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
-    if (recurse_mkdir(path) != 0) err(L, path, strerror(errno));
+    if (createDirectory(path) != 0) err(L, path, strerror(errno));
     free(path);
     return 0;
 }
@@ -327,7 +312,9 @@ int fs_open(lua_State *L) {
         lua_settable(L, -3);
     } else {
         lua_remove(L, -1);
-        err(L, unconst(mode), "Invalid mode");
+        char * tmp = (char*)malloc(strlen(mode) + 1);
+        strcpy(tmp, mode);
+        err(L, tmp, "Invalid mode");
     }
     files_open++;
     return 1;
@@ -353,7 +340,8 @@ int fs_find(lua_State *L) {
 
 int fs_getDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = unconst(lua_tostring(L, 1));
+    char * path = (char*)malloc(lua_strlen(L, 1) + 1);
+    strcpy(path, lua_tostring(L, 1));
     lua_pushstring(L, dirname(path));
     free(path);
     return 1;
@@ -397,4 +385,4 @@ lua_CFunction fs_values[16] = {
     fs_getDir
 };
 
-library_t fs_lib = {"fs", 16, fs_keys, fs_values};
+library_t fs_lib = {"fs", 16, fs_keys, fs_values, NULL, NULL};

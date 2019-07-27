@@ -1,6 +1,7 @@
 #include "term.h"
 #include "os.h"
 #include "config.h"
+#include "platform.h"
 #include "TerminalWindow.hpp"
 #include <unordered_map>
 #include <errno.h>
@@ -207,8 +208,12 @@ void* termRenderLoop(void* arg) {
             term->blink = !term->blink;
             last_blink = std::chrono::high_resolution_clock::now();
         }
+        std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         term->render();
+        printf("Render took %d ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
         peripheral_update();
+        long t = (1000/config.clockSpeed) - std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
+        if (t > 0) msleep(t);
     }
     return NULL;
 }
@@ -271,6 +276,8 @@ const char * termGetEvent(lua_State *L) {
 
 int term_write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    while (term->locked);
+    term->locked = true;
     const char * str = lua_tostring(L, 1);
     #ifdef TESTING
     printf("%s\n", str);
@@ -279,11 +286,14 @@ int term_write(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;
     }
+    term->locked = false;
     return 0;
 }
 
 int term_scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    while (term->locked);
+    term->locked = true;
     int lines = lua_tointeger(L, 1);
     for (int i = lines; i < term->height; i++) {
         term->screen[i-lines] = term->screen[i];
@@ -293,14 +303,20 @@ int term_scroll(lua_State *L) {
         term->screen[i-lines] = std::vector<char>(term->width, ' ');
         term->colors[i-lines] = std::vector<unsigned char>(term->width, 0);
     }
+    term->locked = false;
     return 0;
 }
 
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    while (term->locked);
+    term->locked = true;
     term->blinkX = lua_tointeger(L, 1) - 1;
     term->blinkY = lua_tointeger(L, 2) - 1;
+    if (term->blinkX >= term->width) term->blinkX = term->width - 1;
+    if (term->blinkY >= term->height) term->blinkY = term->height - 1;
+    term->locked = false;
     return 0;
 }
 
@@ -328,14 +344,20 @@ int term_getSize(lua_State *L) {
 }
 
 int term_clear(lua_State *L) {
+    while (term->locked);
+    term->locked = true;
     term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
     term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
+    term->locked = false;
     return 0;
 }
 
 int term_clearLine(lua_State *L) {
+    while (term->locked);
+    term->locked = true;
     term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
+    term->locked = false;
     return 0;
 }
 
@@ -379,6 +401,8 @@ int term_blit(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
+    while (term->locked);
+    term->locked = true;
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
@@ -387,6 +411,7 @@ int term_blit(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;
     }
+    term->locked = false;
     return 0;
 }
 
@@ -506,4 +531,4 @@ lua_CFunction term_values[28] = {
     term_getPixel
 };
 
-library_t term_lib = {"term", 28, term_keys, term_values};
+library_t term_lib = {"term", 28, term_keys, term_values, termInit, termClose};

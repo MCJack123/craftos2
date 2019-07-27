@@ -1,6 +1,7 @@
 #include "periphemu.h"
 #include "peripheral/peripheral.h"
 #include "peripheral/monitor.hpp"
+#include "peripheral/printer.hpp"
 #include "TerminalWindow.hpp"
 #include <unordered_map>
 #include <string>
@@ -18,8 +19,9 @@ int periphemu_create(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    lua_pop(L, 2);
+    //lua_pop(L, 2);
     if (type == std::string("monitor")) peripherals[side] = new monitor(L, side.c_str());
+    else if (type == std::string("printer")) peripherals[side] = new printer(L, side.c_str());
     else {
         printf("not found: %s\n", type.c_str());
         lua_pushboolean(L, false);
@@ -54,4 +56,4 @@ lua_CFunction periphemu_values[2] = {
     periphemu_remove
 };
 
-library_t periphemu_lib = {"periphemu", 2, periphemu_keys, periphemu_values};
+library_t periphemu_lib = {"periphemu", 2, periphemu_keys, periphemu_values, NULL, NULL};

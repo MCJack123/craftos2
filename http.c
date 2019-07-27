@@ -214,4 +214,4 @@ lua_CFunction http_values[1] = {
     http_request
 };
 
-library_t http_lib = {"http", 1, http_keys, http_values};
+library_t http_lib = {"http", 1, http_keys, http_values, NULL, NULL};

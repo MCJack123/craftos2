@@ -52,5 +52,5 @@ static lua_CFunction rs_values[11] = {
     rs_none,
     rs_false
 };
-static library_t rs_lib = {"redstone", 11, rs_keys, rs_values};
+static library_t rs_lib = {"redstone", 11, rs_keys, rs_values, NULL, NULL};
 #endif

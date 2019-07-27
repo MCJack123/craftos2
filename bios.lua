@@ -6,33 +6,32 @@ if _VERSION == "Lua 5.1" then
     local nativeloadstring = loadstring
     local nativesetfenv = setfenv
     _G.xpcall = function( _fn, _fnErrorHandler )
-    local typeT = type( _fn )
-    assert( typeT == "function", "bad argument #1 to xpcall (function expected, got "..typeT..")" )
-    local co = coroutine.create( _fn )
-    local tResults = { coroutine.resume( co ) }
-    while coroutine.status( co ) ~= "dead" do
-        tResults = { coroutine.resume( co, coroutine.yield() ) }
-    end
-    if tResults[1] == true then
-        return true, unpack( tResults, 2 )
-    else
-        return false, _fnErrorHandler( tResults[2] )
-    end
-end
-
-    _G.pcall = function( _fn, ... )
-    local typeT = type( _fn )
-    assert( typeT == "function", "bad argument #1 to pcall (function expected, got "..typeT..")" )
-    local tArgs = { ... }
-    return xpcall(
-        function()
-            return _fn( unpack( tArgs ) )
-        end,
-        function( _error )
-            return _error
+        local typeT = type( _fn )
+        assert( typeT == "function", "bad argument #1 to xpcall (function expected, got "..typeT..")" )
+        local co = coroutine.create( _fn )
+        local tResults = { coroutine.resume( co ) }
+        while coroutine.status( co ) ~= "dead" do
+            tResults = { coroutine.resume( co, coroutine.yield() ) }
         end
-    )
-end
+        if tResults[1] == true then
+            return true, unpack( tResults, 2 )
+        else
+            return false, _fnErrorHandler( tResults[2] )
+        end
+    end
+    _G.pcall = function( _fn, ... )
+        local typeT = type( _fn )
+        assert( typeT == "function", "bad argument #1 to pcall (function expected, got "..typeT..")" )
+        local tArgs = { ... }
+        return xpcall(
+            function()
+                return _fn( unpack( tArgs ) )
+            end,
+            function( _error )
+                return _error
+            end
+        )
+    end
     function load( x, name, mode, env )
         if type( x ) ~= "string" and type( x ) ~= "function" then
             error( "bad argument #1 (expected string or function, got " .. type( x ) .. ")", 2 ) 
