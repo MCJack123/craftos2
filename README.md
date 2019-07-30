@@ -6,21 +6,25 @@ A rewrite of [CraftOS-PC](https://github.com/MCJack123/craftos) using C and the 
 - [x] Fix paths
 - [x] Add HTTP API
 - [x] Add configuration
-- [ ] Add peripheral emulation
+- [x] Add Windows support
+- [x] Add peripheral emulation
 - [ ] Fix graphics mode
 - [ ] Add mount support
-- [ ] Add Windows support
 
 ## Building
 ### Requirements
-* GCC, G++, make
+* Compiler
+  * Linux: GCC, G++, make
+  * Mac: Xcode CLI tools
+  * Windows: Visual Studio 2019
 * liblua 5.1
 * SDL 2.0+
 * libcurl with SSL
+* Windows: dirent.h
 * [libharu/libhpdf](https://github.com/libharu/libharu)
   * This library is optional if built with -DPRINT_TYPE=html or -DPRINT_TYPE=txt
-* Currently only supports Mac & Linux
-  * Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev`
+* Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev`
+* The VS solution includes all packages required except libcurl (build yourself)
 
 ### Instructions
 ```bash
