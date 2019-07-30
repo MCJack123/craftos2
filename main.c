@@ -40,8 +40,7 @@ void sighandler(int sig) {
 }
 
 int main() {
-    int status, result, i;
-    double sum;
+    int status;
     lua_State *coro;
 start:
     /*
@@ -59,7 +58,6 @@ start:
     if (config.http_enable) load_library(coro, http_lib);
     lua_getglobal(coro, "redstone");
     lua_setglobal(coro, "rs");
-    termInit();
 
     // Delete unwanted globals
     lua_pushnil(L);
@@ -88,11 +86,14 @@ start:
     lua_setglobal(L, "_HOST");
 
     /* Load the file containing the script we are going to run */
-    status = luaL_loadfile(coro, bios_path);
+	char* bios_path_expanded = expandEnvironment(bios_path);
+    status = luaL_loadfile(coro, bios_path_expanded);
+	free(bios_path_expanded);
     if (status) {
         /* If something went wrong, error message is at the top of */
         /* the stack */
         fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
+		msleep(5000);
         exit(1);
     }
     tid = createThread(&termRenderLoop, coro);
@@ -110,9 +111,9 @@ start:
             running = 0;
             joinThread(tid);
             //usleep(5000000);
+            printf("%s\n", lua_tostring(coro, -1));
             for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
                 if (libraries[i]->deinit != NULL) libraries[i]->deinit();
-            printf("%s\n", lua_tostring(coro, -1));
             lua_close(L);
             exit(1);
         }

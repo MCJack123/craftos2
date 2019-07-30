@@ -154,6 +154,10 @@ void TerminalWindow::render() {
                 drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4]);
             }
         }
+		if (blinkX >= width) blinkX = width - 1;
+		if (blinkY >= height) blinkY = height - 1;
+		if (blinkX < 0) blinkX = 0;
+		if (blinkY < 0) blinkY = 0;
         if (blink) drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true);
     }
     currentFPS++;

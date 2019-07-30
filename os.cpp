@@ -4,7 +4,6 @@ extern "C" {
 #include <lauxlib.h>
 }
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
 #include <chrono>
@@ -13,15 +12,16 @@ extern "C" {
 #include <vector>
 #include "term.h"
 
-int running = 1;
 const char * label;
 bool label_defined = false;
 std::queue<std::pair<const char *, lua_State*> > eventQueue;
-std::vector<std::chrono::high_resolution_clock::time_point> timers;
+std::vector<std::chrono::steady_clock::time_point> timers;
 std::vector<double> alarms;
 extern "C" void gettingEvent(void);
 extern "C" void gotEvent(void);
 
+extern "C" {
+int running = 1;
 void queueEvent(const char * name, lua_State *param) {eventQueue.push(std::make_pair(name, param));}
 
 int getNextEvent(lua_State *L, const char * filter) {
@@ -33,13 +33,13 @@ int getNextEvent(lua_State *L, const char * filter) {
             if (timers.size() > 0 && timers.back().time_since_epoch().count() == 0) timers.pop_back();
             if (alarms.size() > 0 && alarms.back() == -1) alarms.pop_back();
             if (timers.size() > 0) {
-                std::chrono::high_resolution_clock::time_point t = std::chrono::high_resolution_clock::now();
+                std::chrono::steady_clock::time_point t = std::chrono::steady_clock::now();
                 for (int i = 0; i < timers.size(); i++) {
                     if (t >= timers[i] && timers[i].time_since_epoch().count() > 0) {
                         lua_State *param = lua_newthread(L);
                         lua_pushinteger(param, i);
                         eventQueue.push(std::make_pair("timer", param));
-                        timers[i] = std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
+                        timers[i] = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(0));
                     }
                 }
             }
@@ -114,7 +114,7 @@ int os_clock(lua_State *L) {
 
 int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    timers.push_back(std::chrono::high_resolution_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
+    timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, timers.size() - 1);
     return 1;
 }
@@ -123,7 +123,7 @@ int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int id = lua_tointeger(L, 1);
     if (id == timers.size() - 1) timers.pop_back();
-    else timers[id] = std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
+    else timers[id] = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(0));
     return 0;
 }
 
@@ -191,16 +191,12 @@ int os_cancelAlarm(lua_State *L) {
 }
 
 int os_shutdown(lua_State *L) {
-    sync();
     running = 0;
-    //reboot(LINUX_REBOOT_CMD_POWER_OFF);
     return 0;
 }
 
 int os_reboot(lua_State *L) {
-    sync();
     running = 2;
-    //reboot(LINUX_REBOOT_CMD_RESTART);
     return 0;
 }
 
@@ -210,9 +206,11 @@ int os_system(lua_State *L) {
     return 0;
 }
 
-const char * os_keys[15] = {
+const char * os_keys[17] = {
     "getComputerID",
+    "computerID",
     "getComputerLabel",
+    "computerLabel",
     "setComputerLabel",
     "queueEvent",
     "clock",
@@ -228,8 +226,10 @@ const char * os_keys[15] = {
     "system"
 };
 
-lua_CFunction os_values[15] = {
+lua_CFunction os_values[17] = {
     os_getComputerID,
+    os_getComputerID,
+    os_getComputerLabel,
     os_getComputerLabel,
     os_setComputerLabel,
     os_queueEvent,
@@ -246,4 +246,5 @@ lua_CFunction os_values[15] = {
     os_system
 };
 
-library_t os_lib = {"os", 15, os_keys, os_values, NULL, NULL};
+library_t os_lib = {"os", 17, os_keys, os_values, NULL, NULL};
+}

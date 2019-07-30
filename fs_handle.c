@@ -16,9 +16,12 @@ int fs_handle_close(lua_State *L) {
 }
 
 char checkChar(char c) {
-    if (c == 127) return '?';
-    if ((c >= 32 && c < 127) || c == '\n' || c == '\t' || c == '\r') return c;
-    else return '?';
+	if ((c >= 32 && c < 127) || c == '\n' || c == '\t') return c;
+	else if (c == EOF) return '\0';
+	else {
+		//printf("Unknown char %d\n", c);
+		return '?';
+	}
 }
 
 int fs_handle_readAll(lua_State *L) {
@@ -46,16 +49,16 @@ int fs_handle_readLine(lua_State *L) {
         lua_pushnil(L);
         return 1;
     }
-    long size = 0;
-    long lastpos = ftell(fp);
-    while (fgetc(fp) != '\n' && !ferror(fp) && !feof(fp)) size++;
-    long p = ftell(fp);
-    fseek(fp, lastpos, SEEK_SET);
-    char * retval = (char*)malloc(size);
-    for (int i = 0; i < size; i++) retval[i] = checkChar(fgetc(fp));
-    fgetc(fp);
-    assert(ftell(fp) == p);
-    lua_pushlstring(L, retval, size);
+	char* retval = (char*)malloc(256);
+	for (int i = 0; 1; i += 256) {
+		if (fgets(&retval[i], 256, fp) == NULL) break;
+		if (strlen(retval) < i + 255) break;
+		char* tmp = (char*)malloc(i + 512);
+		memcpy(tmp, retval, i + 256);
+		free(retval);
+		retval = tmp;
+	}
+    lua_pushlstring(L, retval, strlen(retval) - (retval[strlen(retval)-1] == '\n'));
     free(retval);
     return 1;
 }

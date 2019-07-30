@@ -73,7 +73,7 @@ size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
         return size * nitems;
     }
     int s = 0, e = 0;
-    for (int i = 0; i < size * nitems; i++) {
+    for (size_t i = 0; i < size * nitems; i++) {
         if (buffer[i] == ':' && s == 0) s = 2 - i, e = i + 1;
         else if (buffer[i] == ' ' && s < 0) s = abs(s);
     }
@@ -175,7 +175,7 @@ void* downloadThread(void* arg) {
         handle->buf.size = handle->buf.offset;
         handle->buf.offset = 0;
         termQueueProvider(http_success, handle);
-    } else termQueueProvider(http_failure, NULL);
+    } else termQueueProvider(http_failure, handle);
     free(param);
     return NULL;
 }

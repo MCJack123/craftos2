@@ -52,9 +52,7 @@ int peripheral_call(lua_State *L) {
     return retval;
 }
 
-extern "C" void peripheral_update() {for (auto p : peripherals) p.second->update();}
-
-}
+void peripheral_update() {for (auto p : peripherals) p.second->update();}
 
 const char * peripheral_keys[4] = {
     "isPresent",
@@ -71,3 +69,4 @@ lua_CFunction peripheral_values[4] = {
 };
 
 library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values, NULL, NULL};
+}

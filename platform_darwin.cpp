@@ -1,4 +1,6 @@
-#include <lua.hpp>
+extern "C" {
+#include <lua.h>
+}
 #include <stdlib.h>
 #include <string.h>
 #include <wordexp.h>
@@ -95,5 +97,25 @@ int createDirectory(const char * path) {
 
 void msleep(unsigned long time) {
     usleep(time * 1000);
+}
+
+unsigned long long getFreeSpace(char* path) {
+	struct statvfs st;
+	if (statvfs(path, &st) != 0) err(L, path, "No such file or directory");
+	return st.f_bavail * st.f_bsize;
+}
+
+void platform_fs_find(lua_State* L, char* wildcard) {
+	glob_t g;
+	int rval = 0;
+	rval = glob(wildcard, 0, NULL, &g);
+	if (rval == 0) {
+		for (int i = 0; i < g.gl_pathc; i++) {
+			lua_pushnumber(L, i + 1);
+			lua_pushstring(L, g.gl_pathv[i]);
+			lua_settable(L, -3);
+		}
+		globfree(&g);
+	}
 }
 }

@@ -1,7 +1,7 @@
 extern "C" {
 #include "platform.h"
 }
-#ifdef __WIN32
+#ifdef WIN32
 #include "platform_win.cpp"
 #else
 #ifdef __APPLE__

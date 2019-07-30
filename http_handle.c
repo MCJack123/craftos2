@@ -46,10 +46,11 @@ extern char checkChar(char c);
 int http_handle_readAll(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed || handle->buf.offset >= handle->buf.size) return 0;
-    char * retval = (char*)malloc(handle->buf.size - handle->buf.offset);
-    for (int i = handle->buf.offset; i < handle->buf.size; i++)
-        retval[i-handle->buf.offset] = handle->buf.data[i];
-    lua_pushlstring(L, retval, handle->buf.size - handle->buf.offset);
+    char * retval = (char*)malloc(handle->buf.size - handle->buf.offset + 1);
+    size_t j = 0;
+    for (size_t i = handle->buf.offset; i < handle->buf.size; i++)
+        if (handle->buf.data[i] != '\r') retval[j++] = handle->buf.data[i];
+    lua_pushlstring(L, retval, j);
     handle->buf.offset = handle->buf.size;
     free(retval);
     return 1;
@@ -59,10 +60,11 @@ int http_handle_readLine(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed || handle->buf.offset >= handle->buf.size) return 0;
     size_t size = 0;
-    for (int i = handle->buf.offset; i < handle->buf.size && handle->buf.data[i] != '\n'; i++) size++;
-    char * retval = (char*)malloc(size);
-    for (int i = 0; i < size; i++) retval[i] = checkChar(handle->buf.data[handle->buf.offset+i]);
-    lua_pushlstring(L, retval, size);
+    for (size_t i = handle->buf.offset; i < handle->buf.size && handle->buf.data[i] != '\n'; i++) size++;
+    char * retval = (char*)malloc(size+1);
+    size_t j = 0;
+    for (size_t i = 0; i < size; i++) if (handle->buf.data[handle->buf.offset + i] != '\r') retval[j++] = checkChar(handle->buf.data[handle->buf.offset+i]);
+    lua_pushlstring(L, retval, j);
     handle->buf.offset += size + 1;
     free(retval);
     return 1;

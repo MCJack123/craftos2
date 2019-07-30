@@ -1,2 +1,6 @@
 obj
 craftos
+/.vs
+/Debug
+/packages
+/x64/Debug

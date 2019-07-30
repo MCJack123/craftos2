@@ -1,8 +1,13 @@
 #ifndef TERMINALWINDOW_HPP
 #define TERMINALWINDOW_HPP
+#ifdef WIN32
+#include <SDL.h>
+#else
 #include <SDL2/SDL.h>
+#endif
 #include <string>
 #include <vector>
+#include <ctime>
 
 typedef struct color {
     Uint8 r;

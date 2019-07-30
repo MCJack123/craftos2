@@ -1,5 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "lib.h"
 #include <stdbool.h>
 extern library_t config_lib;
@@ -19,4 +22,7 @@ struct configuration {
     int clockSpeed;
 };
 extern struct configuration config;
+#ifdef __cplusplus
+}
+#endif
 #endif

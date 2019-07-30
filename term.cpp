@@ -210,7 +210,7 @@ void* termRenderLoop(void* arg) {
         }
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         term->render();
-        printf("Render took %d ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
+        //printf("Render took %d ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
         peripheral_update();
         long t = (1000/config.clockSpeed) - std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
         if (t > 0) msleep(t);
@@ -467,8 +467,6 @@ int term_getPixel(lua_State *L) {
     return 1;
 }
 
-} // extern "C"
-
 const char * term_keys[28] = {
     "write",
     "scroll",
@@ -532,3 +530,4 @@ lua_CFunction term_values[28] = {
 };
 
 library_t term_lib = {"term", 28, term_keys, term_values, termInit, termClose};
+}

@@ -6,14 +6,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
-#include <sys/statvfs.h>
-#include <libgen.h>
 #include <errno.h>
-#include <glob.h>
 #include <dirent.h>
 #include <stdbool.h>
+#ifdef WIN32
+#include <io.h>
+#define access(p, m) _access(p, m)
+#define E_OK 0x00
+#define W_OK 0x02
+#define R_OK 0x04
+#define RW_OK 0x06
+#else
+#include <unistd.h>
+#endif
 
 int files_open = 0;
 
@@ -29,11 +35,13 @@ void err(lua_State *L, char * path, const char * err) {
 int fs_list(lua_State *L) {
     struct dirent *dir;
     char * path = fixpath(lua_tostring(L, 1));
+	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     DIR * d = opendir(path);
     if (d) {
         lua_newtable(L);
         for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-            lua_pushinteger(L, i);
+            if (dir->d_name[0] == '.' && (dir->d_namlen == 1 || (dir->d_name[1] == '.' && dir->d_namlen == 2))) { i--; continue; }
+            lua_pushinteger(L, i + 1);
             lua_pushstring(L, dir->d_name);
             lua_settable(L, -3);
         }
@@ -46,6 +54,10 @@ int fs_list(lua_State *L) {
 int fs_exists(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
+	if (path == NULL) {
+		lua_pushboolean(L, false);
+		return 1;
+	}
     struct stat st;
     lua_pushboolean(L, stat(path, &st) == 0);
     free(path);
@@ -55,6 +67,10 @@ int fs_exists(lua_State *L) {
 int fs_isDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
+	if (path == NULL) {
+		lua_pushboolean(L, false);
+		return 1;
+	}
     struct stat st;
     lua_pushboolean(L, stat(path, &st) == 0 && S_ISDIR(st.st_mode));
     free(path);
@@ -64,8 +80,9 @@ int fs_isDir(lua_State *L) {
 int fs_isReadOnly(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
-    struct stat st;
-    lua_pushboolean(L, stat(path, &st) == 0 && access(path, W_OK) != 0);
+	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	struct stat st;
+	lua_pushboolean(L, stat(path, &st) == 0 && !access(path, W_OK));
     free(path);
     return 1;
 }
@@ -79,77 +96,21 @@ int fs_getName(lua_State *L) {
     return 1;
 }
 
-#define ERROR 0
-#define SUCCESS 1
-
-int getmntpt(char *path, char *mount_point) {
-    struct stat cur_stat;
-    struct stat last_stat;
-
-    char dir_name[PATH_MAX];
-    char *dirname_p = dir_name;
-    char cur_cwd[255];
-    char *cur_cwd_p = cur_cwd;
-    char saved_cwd[PATH_MAX];
-    if (getcwd(saved_cwd, PATH_MAX) == NULL) {
-        errno = EIO;
-        return ERROR;
-    }
-
-    if (lstat(path, &cur_stat) < 0) {
-        errno = EIO;
-        return ERROR;
-    }
-
-    if (S_ISDIR (cur_stat.st_mode)) {
-        last_stat = cur_stat;
-        if (chdir("..") < 0)
-            return ERROR;
-        if (getcwd(cur_cwd_p, 255) == NULL) {
-            errno = EIO;
-            return ERROR;
-        }
-    } else { /* path is a file */
-        size_t path_len, suffix_len, dir_len;
-        path_len = strlen(path);
-        suffix_len = strlen(strrchr(path, 47)); /* 47 = '/' */
-        dir_len = path_len - suffix_len;
-        dirname_p = strncpy(dirname_p, path, dir_len);
-        if (chdir(dirname_p) < 0) 
-            return ERROR;
-        if (lstat(".", &last_stat) < 0)
-            return ERROR;
-    }
-
-    for (;;) {
-        if (lstat("..", &cur_stat) < 0)
-            return ERROR;
-        if (cur_stat.st_dev != last_stat.st_dev || cur_stat.st_ino == last_stat.st_ino)
-            break; /* this is the mount point */
-        if (chdir("..") < 0)
-            return ERROR;
-        last_stat = cur_stat;
-    }
-    if (getcwd(mount_point, PATH_MAX) == NULL)
-        return ERROR;
-    if (chdir(saved_cwd) < 0)
-        return ERROR;
-    return SUCCESS;
-}
-
 int fs_getDrive(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = fixpath(lua_tostring(L, 1));
-    char mountpoint[PATH_MAX];
-    if (!getmntpt(path, mountpoint)) {free(path); return 0;}
-    lua_pushstring(L, mountpoint);
-    free(path);
+    const char * path = lua_tostring(L, 1);
+    // basic mountpoint check, will remove when adding mounter
+	int s = path[0] == '/';
+    if (path[s] == 'r' && path[s+1] == 'o' && path[s+2] == 'm' && path[s+3] == '/')
+        lua_pushstring(L, "rom");
+    else lua_pushstring(L, "hdd");
     return 1;
 }
 
 int fs_getSize(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
+	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     struct stat st;
     if (stat(path, &st) != 0) err(L, path, "No such file");
     lua_pushinteger(L, st.st_size);
@@ -160,9 +121,8 @@ int fs_getSize(lua_State *L) {
 int fs_getFreeSpace(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
-    struct statvfs st;
-    if (statvfs(path, &st) != 0) err(L, path, "No such file or directory");
-    lua_pushinteger(L, st.f_bavail * st.f_bsize);
+	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	lua_pushinteger(L, getFreeSpace(path));
     free(path);
     return 1;
 }
@@ -170,6 +130,7 @@ int fs_getFreeSpace(lua_State *L) {
 int fs_makeDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
+	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     if (createDirectory(path) != 0) err(L, path, strerror(errno));
     free(path);
     return 0;
@@ -180,6 +141,8 @@ int fs_move(lua_State *L) {
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     char * fromPath = fixpath(lua_tostring(L, 1));
     char * toPath = fixpath(lua_tostring(L, 2));
+	if (fromPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	if (toPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 2));
     if (rename(fromPath, toPath) != 0) {
         free(toPath);
         err(L, fromPath, strerror(errno));
@@ -194,8 +157,9 @@ int fs_copy(lua_State *L) {
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     char * fromPath = fixpath(lua_tostring(L, 1));
     char * toPath = fixpath(lua_tostring(L, 2));
-
-    FILE * fromfp = fopen(fromPath, "r");
+	if (fromPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	if (toPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 2));
+	FILE * fromfp = fopen(fromPath, "r");
     if (fromfp == NULL) {
         free(toPath);
         err(L, fromPath, "Cannot read file");
@@ -224,7 +188,9 @@ int fs_copy(lua_State *L) {
 int fs_delete(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
-    if (unlink(path) != 0) err(L, path, strerror(errno));
+	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	int res = removeDirectory(path);
+	if (res != 0) err(L, path, "Failed to remove");
     free(path);
     return 0;
 }
@@ -255,10 +221,17 @@ int fs_open(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     char * path = fixpath(lua_tostring(L, 1));
+	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     const char * mode = lua_tostring(L, 2);
     if (files_open >= config.maximumFilesOpen) err(L, path, "Too many files open");
-    FILE * fp = fopen(path, mode);
-    if (fp == NULL) err(L, path, strerror(errno));
+	printf("fs.open(\"%s\", \"%s\")\n", path, mode);
+	FILE * fp = fopen(path, mode);
+	if (fp == NULL) { 
+		free(path);
+		lua_pushnil(L);
+		lua_pushfstring(L, "%s: File does not exist", lua_tostring(L, 1));
+		return 2; 
+	}
     free(path);
     lua_newtable(L);
     lua_pushstring(L, "close");
@@ -300,7 +273,7 @@ int fs_open(lua_State *L) {
         lua_pushlightuserdata(L, fp);
         lua_pushcclosure(L, fs_handle_readByte, 1);
         lua_settable(L, -3);
-    } else if (strcmp(mode, "wb") == 0) {
+    } else if (strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
         lua_pushstring(L, "write");
         lua_pushlightuserdata(L, fp);
         lua_pushcclosure(L, fs_handle_writeByte, 1);
@@ -312,6 +285,7 @@ int fs_open(lua_State *L) {
         lua_settable(L, -3);
     } else {
         lua_remove(L, -1);
+		fclose(fp);
         char * tmp = (char*)malloc(strlen(mode) + 1);
         strcpy(tmp, mode);
         err(L, tmp, "Invalid mode");
@@ -322,19 +296,11 @@ int fs_open(lua_State *L) {
 
 int fs_find(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    glob_t g;
-    int rval = 0;
-    const char * wildcard = lua_tostring(L, 1);
-    lua_newtable(L);
-    rval = glob(wildcard, 0, NULL, &g);
-    if (rval == 0) {
-        for (int i = 0; i < g.gl_pathc; i++) {
-            lua_pushnumber(L, i + 1);
-            lua_pushstring(L, g.gl_pathv[i]);
-            lua_settable(L, -3);
-        }
-        globfree(&g);
-    }
+	char* wildcard = fixpath(lua_tostring(L, 1));
+	if (wildcard == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	lua_newtable(L);
+	platform_fs_find(L, wildcard);
+	free(wildcard);
     return 1;
 }
 

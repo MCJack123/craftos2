@@ -157,11 +157,11 @@ int config_getType(lua_State *L) {
     return 1;
 }
 
-void config_init() {
+void config_init(void) {
     // todo
 }
 
-void config_deinit() {
+void config_deinit(void) {
     // todo
 }
 

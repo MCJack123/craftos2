@@ -1,0 +1,526 @@
+-- Tests compliance of CraftOS APIs
+term.setTextColor(colors.lightBlue)
+print("CraftOSTest 1.8")
+term.setTextColor(colors.white)
+if os.version() ~= "CraftOS 1.8" then error("This test is for CraftOS 1.8.") end
+
+local api_tests = {}
+local api = nil
+local logfile = fs.open("CraftOSTest.log", "w")
+
+function compare(a, b)
+	if type(a) ~= type(b) then return false
+	elseif type(a) == "number" then return math.abs(a - b) < 0.000001
+	elseif type(a) == "table" then
+		if #a ~= #b then return false end
+		for k,v in pairs(a) do if b[k] == nil or not compare(v, b[k]) then return false end end
+		return true
+	else return a == b end
+end
+
+local function tostr(v)
+	if type(v) == "boolean" then return v and "true" or "false"
+	elseif v == nil then return "nil"
+	elseif type(v) == "string" then return "\"" .. v .. "\""
+	elseif type(v) == "number" then return tostring(v)
+	elseif type(v) == "table" then 
+		local ok, res = pcall(textutils.serialize, v)
+		if ok then return res else return "[table]" end
+	else return "[" .. type(v) .. "]" end
+end
+
+local function testStart(tapi)
+	term.setTextColor(colors.yellow)
+	write("=>  ")
+	print("Testing " .. tapi .. " API...")
+	logfile.writeLine("=>  Testing " .. tapi .. " API...")
+	term.setTextColor(colors.white)
+	api = tapi
+	if _ENV[api] == nil then
+		term.setTextColor(colors.red)
+		print("[x] API " .. api .. " does not exist!")
+		logfile.writeLine("[x] API " .. api .. " does not exist!")
+		term.setTextColor(colors.white)
+		return
+	end
+	api_tests[api] = 0
+end
+
+local function testEnd()
+	if api_tests[api] == nil then return end
+	if api_tests[api] == 0 then
+		term.setTextColor(colors.green)
+		write("=>  ")
+		print("Test of " .. api .. " API succeeded")
+		logfile.writeLine("=>  Test of " .. api .. " API succeeded")
+		term.setTextColor(colors.white)
+	else
+		term.setTextColor(colors.red)
+		write("=>  ")
+		print("Test of " .. api .. " API failed " .. api_tests[api] .. " times")
+		logfile.writeLine("=>  Test of " .. api .. " API failed " .. api_tests[api] .. " times")
+		term.setTextColor(colors.white)
+	end
+	logfile.flush()
+	api = nil
+end
+
+local function test(name, expected, ...)
+	if api_tests[api] == nil then return end
+	if _ENV[api][name] == nil then
+		term.setTextColor(colors.red)
+		print("[x] " .. api .. "." .. name .. " does not exist!")
+		logfile.writeLine("[x] " .. api .. "." .. name .. " does not exist!")
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+		return false
+	end
+	local res = {pcall(_ENV[api][name], ...)}
+	if not res[1] then
+		term.setTextColor(colors.red)
+		print("[x] " .. api .. "." .. name .. " threw an error: " .. res[2])
+		logfile.writeLine("[x] " .. api .. "." .. name .. " threw an error: " .. res[2])
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+		return false
+	end
+	table.remove(res, 1)
+	local good = true
+	if type(expected) == "table" then good = compare(res, expected) else
+		res = res[1]
+		good = res == expected 
+	end
+	if not good then
+		term.setTextColor(colors.red)
+		print("[x] " .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		logfile.writeLine("[x] " .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+	end
+	return good
+end
+
+local function testValue(name, expected)
+	if api_tests[api] == nil then return end
+	local res = _ENV[api][name]
+	if not compare(res, expected) then
+		term.setTextColor(colors.red)
+		print("[x] " .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		logfile.writeLine("[x] " .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+		return false
+	end
+	return true
+end
+
+local function testLocal(name, res, expected)
+	if api_tests[api] == nil then return end
+	if not compare(res, expected) then
+		term.setTextColor(colors.red)
+		print("[x] " .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		logfile.writeLine("[x] " .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+		return false
+	end
+	return true
+end
+
+local function call(name, ...)
+	if api_tests[api] == nil then return end
+	if _ENV[api][name] == nil then
+		term.setTextColor(colors.red)
+		print("[x] " .. api .. "." .. name .. " does not exist!")
+		logfile.writeLine("[x] " .. api .. "." .. name .. " does not exist!")
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+		return false
+	end
+	local res = {pcall(_ENV[api][name], ...)}
+	if not res[1] then
+		term.setTextColor(colors.red)
+		print("[x] " .. api .. "." .. name .. " threw an error: " .. res[2])
+		logfile.writeLine("[x] " .. api .. "." .. name .. " threw an error: " .. res[2])
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+		return
+	end
+	table.remove(res, 1)
+	return table.unpack(res)
+end
+
+local function callLocal(name, f, ...)
+	if api_tests[api] == nil then return end
+	local res = {pcall(f, ...)}
+	if not res[1] then
+		term.setTextColor(colors.red)
+		print("[x] " .. name .. " threw an error: " .. res[2])
+		logfile.writeLine("[x] " .. name .. " threw an error: " .. res[2])
+		term.setTextColor(colors.white)
+		api_tests[api] = api_tests[api] + 1
+		return
+	end
+	table.remove(res, 1)
+	return table.unpack(res)
+end
+
+testStart("bit")
+	test("blshift", 96, 6, 4)
+	test("brshift", 0xFFFFF000, 0xFFFF0000, 4)
+	test("blogic_rshift", 0x0FFFF000, 0xFFFF0000, 4)
+	test("bxor", 2, 7, 5)
+	test("bor", 13, 5, 8)
+	test("band", 2, 14, 3)
+	test("bnot", 0x0F0FF0F0, 0xF0F00F0F)
+	testValue("tobits", nil)
+	testValue("tonumb", nil)
+testEnd()
+
+testStart("colors")
+	testValue("white", 0x1)
+	testValue("orange", 0x2)
+	testValue("magenta", 0x4)
+	testValue("lightBlue", 0x8)
+	testValue("yellow", 0x10)
+	testValue("lime", 0x20)
+	testValue("pink", 0x40)
+	testValue("gray", 0x80)
+	testValue("lightGray", 0x100)
+	testValue("cyan", 0x200)
+	testValue("purple", 0x400)
+	testValue("blue", 0x800)
+	testValue("brown", 0x1000)
+	testValue("green", 0x2000)
+	testValue("red", 0x4000)
+	testValue("black", 0x8000)
+	test("combine", colors.white, colors.white, colors.white)
+	test("subtract", colors.orange, 0x3, colors.white)
+	test("test", true, 0x3, colors.white)
+testEnd()
+
+testStart("colours")
+	testValue("white", 0x1)
+	testValue("black", 0x8000)
+	testValue("gray", nil)
+	testValue("lightGray", nil)
+	testValue("grey", 0x80)
+	testValue("lightGrey", 0x100)
+testEnd()
+
+testStart("coroutine")
+	local coro
+	local function coro_func(v1, v2)
+		testLocal("variable 1", v1, "test")
+		testLocal("variable 2", v2, 17)
+		test("status", "running", coro)
+		test("running", coro)
+		test("yield", 50, 40)
+		return "done"
+	end
+	coro = call("create", coro_func)
+	testLocal("type(coro)", type(coro), "thread")
+	test("status", "suspended", coro)
+	test("resume", {true, 40}, coro, "test", 17)
+	test("status", "suspended", coro)
+	test("resume", {true, "done"}, coro, 50)
+	test("status", "dead", coro)
+	-- TODO: add wrap tests
+testEnd()
+
+testStart("fs")
+	test("list", {{"apis", "autorun", "fonts", "help", "modules", "programs", "startup.lua"}}, "/rom")
+	test("exists", true, "/rom/programs/shell.lua")
+	test("exists", true, "/rom/programs")
+	test("isDir", true, "/rom/programs")
+	test("isDir", false, "/rom/programs/shell.lua")
+	test("isReadOnly", true, "/rom/programs")
+	test("isReadOnly", true, "/rom/programs/shell.lua")
+	test("isReadOnly", false, "/")
+	test("getName", "shell.lua", "/rom/programs/shell.lua")
+	test("getDir", "rom/programs", "/rom/programs/shell.lua")
+	test("getDrive", "rom", "/rom/programs/shell.lua")
+	test("getSize", 2189, "/rom/apis/colors.lua")
+	call("makeDir", "test_dir")
+	test("isDir", true, "test_dir")
+	call("delete", "test_dir")
+	local file = call("open", "test_file.txt", "w")
+	callLocal("file.writeLine", file.writeLine, "This is a test")
+	callLocal("file.flush", file.flush)
+	callLocal("file.write", file.write, "Line 2")
+	callLocal("file.close", file.close)
+	test("exists", true, "test_file.txt")
+	call("copy", "test_file.txt", "test_file_new.txt")
+	test("exists", true, "test_file_new.txt")
+	call("move", "test_file_new.txt", "test_file_new2.txt")
+	test("exists", false, "test_file_new.txt")
+	test("exists", true, "test_file_new2.txt")
+	file = call("open", "test_file_new2.txt", "r")
+	testLocal("file.readLine", callLocal("file.readLine", file.readLine), "This is a test")
+	testLocal("file.readLine", callLocal("file.readLine", file.readLine), "Line 2")
+	testLocal("file.readLine", callLocal("file.readLine", file.readLine), nil)
+	callLocal("file.close", file.close)
+	call("delete", "test_file_new2.txt")
+	test("exists", false, "test_file_new2.txt")
+	file = call("open", "test_file.txt", "ab")
+	callLocal("file.write", file.write, string.byte("\n"))
+	callLocal("file.write", file.write, string.byte("H"))
+	callLocal("file.write", file.write, string.byte("i"))
+	callLocal("file.close", file.close)
+	file = call("open", "test_file.txt", "r")
+	testLocal("file.readAll", callLocal("file.readAll", file.readAll), "This is a test\nLine 2\nHi")
+	callLocal("file.close", file.close)
+	file = call("open", "test_file.txt", "rb")
+	testLocal("file.read", callLocal("file.read", file.read), string.byte("T"))
+	testLocal("file.read", callLocal("file.read", file.read), string.byte("h"))
+	testLocal("file.read", callLocal("file.read", file.read), string.byte("i"))
+	testLocal("file.read", callLocal("file.read", file.read), string.byte("s"))
+	callLocal("file.close", file.close)
+	call("delete", "test_file.txt")
+	test("exists", false, "test_file.txt")
+	test("combine", "rom/programs/shell.lua", "/rom/programs", "shell.lua")
+	test("find", {{"rom/apis/command", "rom/modules/command", "rom/programs/command"}}, "/rom/*/command")
+	test("complete", {{"abel.lua", "ist.lua", "ua.lua"}}, "l", "/rom/programs")
+testEnd()
+
+testStart("help")
+	fs.makeDir("help")
+	file = fs.open("help/test.txt", "w")
+	if file then
+		file.writeLine("This is a test help topic.")
+		file.close()
+	end
+	local oldPath = call("path")
+	call("setPath", "/rom/help:/help")
+	test("path", "/rom/help:/help")
+	test("lookup", "help/test.txt", "test")
+	test("lookup", "rom/help/shell.txt", "shell")
+	testLocal("type(help.topics)", type(call("topics")), "table")
+	test("completeTopic", {{"abel", "ist", "ua"}}, "l")
+	call("setPath", oldPath)
+	fs.delete("help")
+testEnd()
+
+testStart("http")
+	local handle = call("get", "https://pastebin.com/raw/yY9StxvU")
+	if testLocal("handle", type(handle), "table") then
+		testLocal("handle.getResponseCode", callLocal("handle.getResponseCode", handle.getResponseCode), 200)
+		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'print("Downloading latest installer...")')
+		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'local file = http.get("https://raw.githubusercontent.com/MCJack123/CCKernel2/master/CCKernel2Installer.lua")')
+		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'local out = fs.open("install.lua", "w")')
+		testLocal("handle.readAll", callLocal("handle.readAll", handle.readAll), [[out.write(file.readAll())
+file.close()
+out.close()
+shell.run("/install.lua")
+fs.delete("/install.lua")]])
+		callLocal("handle.close", handle.close)
+	end
+	test("checkURL", {true, nil}, "https://pastebin.com/raw/yY9StxvU")
+	test("checkURL", {false, "URL malformed"}, "qwertyuiop")
+	test("checkURL", {false, "URL not http"}, "ftp://example.com")
+	test("checkURL", {false, "Domain not permitted"}, "http://192.168.1.1")
+testEnd()
+
+testStart("io")
+	-- TODO: test IO API
+testEnd()
+
+testStart("keys")
+	testValue("a", 30)
+	testValue("z", 44)
+	testValue("zero", 11)
+	testValue("rightCtrl", 157)
+	test("getName", "a", 30)
+	test("getName", "z", 44)
+	test("getName", "zero", 11)
+	test("getName", "rightCtrl", 157)
+testEnd()
+
+testStart("math")
+	local function testF(name, expected, ...) return testLocal(api.."."..name, math.floor(call(name, ...) * 1000000) / 1000000, expected) end
+	test("abs", 7, -7)
+	test("acos", math.pi / 2, 0)
+	test("asin", math.pi / 2, 1)
+	testF("atan", 0.785398, 1)
+	testF("atan2", 0.927295, 4, 3)
+	test("ceil", 6, 5.2654535)
+	testF("cos", 0, math.pi / 2)
+	test("cosh", 1, 0)
+	test("deg", 90, math.pi / 2)
+	testF("exp", 2.718281, 1)
+	test("floor", 5, 5.2654535)
+	test("fmod", 1, 7, 3)
+	test("frexp", {0.625, 3}, 5)
+	testLocal("math.huge", math.huge > 9E99, true)
+	test("ldexp", 5, 0.625, 3)
+	test("log", 2, math.exp(2))
+	test("log10", 2, 100)
+	test("max", 10, 2, 4, 6, 8, 10)
+	test("min", 2, 2, 4, 6, 8, 10)
+	test("modf", {5, 0.26545}, 5.26545)
+	testLocal("math.pi", math.floor(math.pi * 1000000) / 1000000, 3.141592)
+	test("pow", 8, 2, 3)
+	test("rad", math.pi / 2, 90)
+	--[[call("randomseed", 15)
+	testF("random", 0.729982)
+	call("randomseed", 15)
+	test("random", 7, 15)
+	call("randomseed", 15)
+	test("random", 26, 15, 30)]]
+	test("sin", 1, math.pi / 2)
+	testF("sinh", 1.175201, 1)
+	test("sqrt", 3, 9)
+	testF("tan", 1.557407, 1)
+	test("tanh", 1, 1000000)
+testEnd()
+
+testStart("multishell")
+	test("getCurrent", 1)
+	test("getCount", 1)
+	call("setTitle", 1, "Title")
+	test("getTitle", "Title", 1)
+	file = fs.open("multishell_test.lua", "w")
+	file.write([[args = {...}
+	print("This is a test of the multishell API.")
+	sleep(3)
+	print("done")]])
+	file.close()
+	local env = {args = {}}
+	test("launch", 2, env, "multishell_test.lua", "test")
+	test("getFocus", 1)
+	test("getCount", 2)
+	call("setTitle", 2, "test")
+	test("getTitle", "test", 2)
+	test("setFocus", true, 2)
+	test("getFocus", 2)
+	test("getCurrent", 1)
+	testLocal("env.args[1]", env.args[1], "test")
+	print("If stuck, press any key.")
+	while call("getCount") ~= 1 do os.pullEvent() end
+	test("getFocus", 1)
+	fs.delete("multishell_test.lua")
+testEnd()
+
+testStart("os")
+	testLocal("os.getComputerID", type(os.getComputerID()), "number")
+	testLocal("os.computerID", type(os.getComputerID()), "number")
+	call("setComputerLabel", "Computer")
+	test("getComputerLabel", "Computer")
+	test("computerLabel", "Computer")
+	call("queueEvent", "test", "test1", 2, true)
+	test("pullEvent", {"test", "test1", 2, true}, "test")
+	call("queueEvent", "terminate")
+	test("pullEventRaw", "terminate", "terminate")
+	testLocal("os.clock", type(os.clock()), "number")
+	testLocal("os.time", type(os.time()), "number")
+	testLocal("os.day", type(os.day()), "number")
+	local id = call("startTimer", 3)
+	local ev = {call("pullEvent")}
+	while ev[1] ~= "timer" or ev[2] ~= id do ev = {call("pullEvent")} end
+	id = call("startTimer", 3)
+	call("cancelTimer", id)
+	local id = call("setAlarm", os.time() + .01)
+	print("Waiting for alarm, this may take a few minutes.")
+	local ev = {call("pullEvent")}
+	--while ev[1] ~= "alarm" or ev[2] ~= id do ev = {call("pullEvent")} end
+	id = call("setAlarm", 3)
+	call("cancelAlarm", id)
+	call("sleep", 3)
+	file = fs.open("run_test.lua", "w")
+	file.write([[print("This is a second program.")
+	function func(a) return a*3 end
+	if test then test("getComputerLabel", ({...})[1]) end]])
+	file.close()
+	test("run", true, {test = test}, "run_test.lua", "Computer")
+	test("loadAPI", true, "run_test.lua")
+	testLocal("type(run_test)", type(run_test), "table")
+	testLocal("run_test.func", callLocal("run_test.func", run_test.func, 2), 6)
+	call("unloadAPI", "run_test")
+	fs.delete("run_test.lua")
+testEnd()
+
+testStart("parallel")
+	test("waitForAny", 2, function() sleep(3) end, function() sleep(1) end, function() sleep(5) end)
+	local i = 0
+	local function getParallelFunc(n) return function()
+		sleep(n)
+		i=i+n
+	end end
+	call("waitForAll", getParallelFunc(3), getParallelFunc(1), getParallelFunc(5))
+	testLocal("i", i, 9)
+testEnd()
+
+testStart("settings")
+	test("save", true, "old_settings.ltn")
+	call("clear")
+	call("set", "test", 3)
+	test("get", 3, "test")
+	call("set", "test2", "hello")
+	test("getNames", {{"test", "test2"}})
+	call("unset", "test")
+	test("get", "none", "test", "none")
+	test("save", true, "new_settings.ltn")
+	test("load", true, "new_settings.ltn")
+	test("get", "hello", "test2")
+	call("unset", "test2")
+	test("load", true, "new_settings.ltn")
+	test("get", "hello", "test2")
+	test("load", true, "old_settings.ltn")
+	fs.delete("old_settings.ltn")
+	fs.delete("new_settings.ltn")
+testEnd()
+
+testStart("shell")
+	local oldDir = call("dir")
+	call("setDir", "rom")
+	test("dir", "rom")
+	local oldPath = call("path")
+	call("setPath", "/rom/programs:/rom/programs/fun")
+	test("path", "/rom/programs:/rom/programs/fun")
+	test("resolve", "rom/apis/colors.lua", "apis/colors.lua")
+	test("resolveProgram", "rom/programs/shell.lua", "shell")
+	testLocal("shell.aliases", type(call("aliases")), "table")
+	call("setAlias", "del", "delete")
+	test("resolveProgram", "rom/programs/delete.lua", "del")
+	call("clearAlias", "del")
+	testLocal("shell.programs", type(call("programs")), "table")
+	testLocal("shell.getRunningProgram", callLocal("fs.getName", fs.getName, call("getRunningProgram")), "CraftOSTest.lua")
+	test("completeProgram", {{"abel", "ist", "s", "ua"}}, "l")
+	call("setDir", oldDir)
+	call("setPath", oldPath)
+	test("complete", {{"pis/", "pis", "utorun/", "utorun"}}, "cd rom/a")
+	file = fs.open("shell_test.lua", "w")
+	file.write([[args = {...}
+	print("This is a test of the shell API: " .. args[1] .. ".")
+	sleep(3)]])
+	file.close()
+	test("run", true, "shell_test.lua current_tab")
+	test("openTab", 2, "shell_test.lua new_tab")
+	call("switchTab", 2)
+	testLocal("shell.switchTab", callLocal("multishell.getCount", multishell.getCount), 2)
+	print("If stuck, press any key.")
+	while callLocal("multishell.getCount", multishell.getCount) == 2 do os.pullEvent()	end
+	-- TODO: add setCompletionFunction test
+	fs.delete("shell_test.lua")
+testEnd()
+
+local failed = {}
+for k,v in pairs(api_tests) do if v > 0 then table.insert(failed, k) end end
+if #failed > 0 then
+	term.setTextColor(colors.red)
+	print("!!! " .. #failed .. " tests failed")
+	logfile.writeLine("!!! " .. #failed .. " tests failed")
+	term.setTextColor(colors.white)
+	print("=>  Tests that failed:")
+	logfile.writeLine("=>  Tests that failed:")
+	for k,v in pairs(failed) do 
+		print("    " .. v .. " (" .. api_tests[v] .. " failed tests)")
+		logfile.writeLine("    " .. v .. " (" .. api_tests[v] .. " failed tests)")
+	end
+else
+	term.setTextColor(colors.lime)
+	print("==> All tests passed.")
+	logfile.writeLine("==> All tests passed.")
+	term.setTextColor(colors.white)
+end
+logfile.close()
