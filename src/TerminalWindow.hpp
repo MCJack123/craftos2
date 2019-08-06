@@ -68,7 +68,6 @@ public:
     void getMouse(int *x, int *y);
 
 private:
-    std::string fontPath = std::string(expandEnvironment(rom_path)) + "/craftos.bmp";
     SDL_Window *win;
     SDL_Renderer *ren;
     SDL_Texture *font;

@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <stdbool.h>
+#include <assert.h>
 #ifdef WIN32
 #include <io.h>
 #define access(p, m) _access(p, m)
@@ -19,6 +20,7 @@
 #define RW_OK 0x06
 #else
 #include <unistd.h>
+#include <libgen.h>
 #endif
 
 int files_open = 0;
@@ -46,6 +48,16 @@ int fs_list(lua_State *L) {
             lua_settable(L, -3);
         }
         closedir(d);
+        lua_getglobal(L, "table");
+        assert(lua_istable(L, -1));
+        lua_pushstring(L, "sort");
+        lua_gettable(L, -2);
+        assert(lua_isfunction(L, -1));
+        lua_pushvalue(L, -3);
+        // L: [path, retval, table api, table.sort, retval]
+        assert(lua_pcall(L, 1, 0, 0) == 0);
+        // L: [path, retval, table api]
+        lua_pop(L, 1);
     } else err(L, path, "Not a directory");
     free(path);
     return 1;
@@ -321,7 +333,7 @@ int fs_getDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = (char*)malloc(lua_strlen(L, 1) + 1);
     strcpy(path, lua_tostring(L, 1));
-    lua_pushstring(L, dirname(path));
+    lua_pushstring(L, dirname(path[0] == '/' ? &path[1] : path));
     free(path);
     return 1;
 }

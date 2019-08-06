@@ -1,5 +1,6 @@
 extern "C" {
 #include <lua.h>
+#include "platform.h"
 }
 #include <stdlib.h>
 #include <string.h>
@@ -7,11 +8,15 @@ extern "C" {
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <libgen.h>
 #include <pthread.h>
+#include <glob.h>
+#include <dirent.h>
 #include <string>
 #include <vector>
 #include <sstream>
+#import <Foundation/Foundation.h>
 
 const char * rom_path = "/usr/local/share/craftos";
 const char * bios_path = "/usr/local/share/craftos/bios.lua";
@@ -56,6 +61,17 @@ char * fixpath(const char * path) {
 
 char * expandEnvironment(const char * src) {
     if (base_path_expanded != NULL && std::string(src) == std::string(base_path)) return base_path_expanded;
+    if (src == rom_path) {
+        NSString * path = [NSBundle mainBundle].resourcePath;
+        char * retval = (char*)malloc(path.length + 1);
+        [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+        return retval;
+    } else if (src == bios_path) {
+        NSString * path = [[NSBundle mainBundle] pathForResource:@"bios" ofType:@"lua"];
+        char * retval = (char*)malloc(path.length + 1);
+        [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+        return retval;
+    }
     wordexp_t p;
     wordexp(src, &p, 0);
     int size = 0;
@@ -95,13 +111,47 @@ int createDirectory(const char * path) {
     return 0;
 }
 
+int removeDirectory(char *path) {
+    struct stat statbuf;
+    if (!stat(path, &statbuf)) {
+        if (S_ISDIR(statbuf.st_mode)) {
+            DIR *d = opendir(path);
+            size_t path_len = strlen(path);
+            int r = -1;
+            if (d) {
+                struct dirent *p;
+                r = 0;
+                while (!r && (p=readdir(d))) {
+                    int r2 = -1;
+                    char *buf;
+                    size_t len;
+
+                    /* Skip the names "." and ".." as we don't want to recurse on them. */
+                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+                    len = path_len + strlen(p->d_name) + 2; 
+                    buf = (char*)malloc(len);
+                    if (buf) {
+                        snprintf(buf, len, "%s/%s", path, p->d_name);
+                        r2 = removeDirectory(buf);
+                        free(buf);
+                    }
+                    r = r2;
+                }
+                closedir(d);
+            }
+            if (!r) r = rmdir(path);
+            return r;
+        } else return unlink(path);
+    } else return -1;
+}
+
 void msleep(unsigned long time) {
     usleep(time * 1000);
 }
 
 unsigned long long getFreeSpace(char* path) {
 	struct statvfs st;
-	if (statvfs(path, &st) != 0) err(L, path, "No such file or directory");
+	if (statvfs(path, &st) != 0) return 0;
 	return st.f_bavail * st.f_bsize;
 }
 
@@ -112,7 +162,7 @@ void platform_fs_find(lua_State* L, char* wildcard) {
 	if (rval == 0) {
 		for (int i = 0; i < g.gl_pathc; i++) {
 			lua_pushnumber(L, i + 1);
-			lua_pushstring(L, g.gl_pathv[i]);
+			lua_pushstring(L, &g.gl_pathv[i][strlen(rom_path) + 1]);
 			lua_settable(L, -3);
 		}
 		globfree(&g);

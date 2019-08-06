@@ -8,7 +8,7 @@ extern "C" {
 #if PRINT_TYPE == PRINT_TYPE_PDF
 #include <unordered_map>
 #include <cmath>
-static std::unordered_map<HPDF_STATUS, std::string> pdf_errors = {
+static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
     {HPDF_ARRAY_COUNT_ERR, "Internal error. Data consistency was lost."},
     {HPDF_ARRAY_ITEM_NOT_FOUND, "Internal error. Data consistency was lost."},
     {HPDF_ARRAY_ITEM_UNEXPECTED_TYPE, "Internal error. Data consistency was lost."},

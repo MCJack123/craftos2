@@ -3,7 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#ifdef WIN32
 #include <SDL_main.h>
+#else
+#include <SDL2/SDL_main.h>
+#endif
 #include "bit.h"
 #include "config.h"
 #include "fs.h"

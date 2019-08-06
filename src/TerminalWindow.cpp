@@ -32,7 +32,10 @@ TerminalWindow::TerminalWindow(std::string title) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer");
     }
+    char * fontPathCStr = expandEnvironment(rom_path);
+    std::string fontPath = std::string(fontPathCStr) + "/craftos.bmp";
     SDL_Surface *bmp = SDL_LoadBMP(fontPath.c_str());
+    free(fontPathCStr);
     if (bmp == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);

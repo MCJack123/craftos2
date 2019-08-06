@@ -95,9 +95,10 @@ local function test(name, expected, ...)
 		good = res == expected 
 	end
 	if not good then
+		local line = ({pcall(function() error("", 3) end)})[2]
 		term.setTextColor(colors.red)
-		print("[x] " .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
-		logfile.writeLine("[x] " .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		print("[x] " .. line .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
+		logfile.writeLine("[x] " .. line .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
 		term.setTextColor(colors.white)
 		api_tests[api] = api_tests[api] + 1
 	end

@@ -1,4 +1,7 @@
+extern "C" {
 #include <lua.h>
+#include "platform.h"
+}
 #include <stdlib.h>
 #include <string.h>
 #include <wordexp.h>
@@ -7,6 +10,9 @@
 #include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <glob.h>
+#include <dirent.h>
 #include <pthread.h>
 #include <string>
 #include <vector>
@@ -88,6 +94,40 @@ int createDirectory(const char * path) {
         } else return 1;
     }
     return 0;
+}
+
+int removeDirectory(char *path) {
+    struct stat statbuf;
+    if (!stat(path, &statbuf)) {
+        if (S_ISDIR(statbuf.st_mode)) {
+            DIR *d = opendir(path);
+            size_t path_len = strlen(path);
+            int r = -1;
+            if (d) {
+                struct dirent *p;
+                r = 0;
+                while (!r && (p=readdir(d))) {
+                    int r2 = -1;
+                    char *buf;
+                    size_t len;
+
+                    /* Skip the names "." and ".." as we don't want to recurse on them. */
+                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+                    len = path_len + strlen(p->d_name) + 2; 
+                    buf = (char*)malloc(len);
+                    if (buf) {
+                        snprintf(buf, len, "%s/%s", path, p->d_name);
+                        r2 = removeDirectory(buf);
+                        free(buf);
+                    }
+                    r = r2;
+                }
+                closedir(d);
+            }
+            if (!r) r = rmdir(path);
+            return r;
+        } else return unlink(path);
+    } else return -1;
 }
 
 int getUptime() {
