@@ -1,4 +1,3 @@
-
 local nativegetfenv = getfenv
 if _VERSION == "Lua 5.1" then
     -- If we're on Lua 5.1, install parts of the Lua 5.2/5.3 API so that programs can be written against it
@@ -11,7 +10,7 @@ if _VERSION == "Lua 5.1" then
         local co = coroutine.create( _fn )
         local tResults = { coroutine.resume( co ) }
         while coroutine.status( co ) ~= "dead" do
-            tResults = { coroutine.resume( co, coroutine.yield() ) }
+            tResults = { coroutine.resume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }
         end
         if tResults[1] == true then
             return true, unpack( tResults, 2 )
@@ -19,6 +18,7 @@ if _VERSION == "Lua 5.1" then
             return false, _fnErrorHandler( tResults[2] )
         end
     end
+    
     _G.pcall = function( _fn, ... )
         local typeT = type( _fn )
         assert( typeT == "function", "bad argument #1 to pcall (function expected, got "..typeT..")" )
@@ -314,7 +314,7 @@ function printError( ... )
     local oldColour
     if term.isColour() then
         oldColour = term.getTextColour()
-        term.setTextColour( 16384 )
+        term.setTextColour( colors.red )
     end
     print( ... )
     if term.isColour() then
@@ -950,8 +950,8 @@ end
 if bAPIError then
     print( "Press any key to continue" )
     os.pullEvent( "key" )
-    --term.clear()
-    --term.setCursorPos( 1,1 )
+    term.clear()
+    term.setCursorPos( 1,1 )
 end
 
 -- Set default settings
