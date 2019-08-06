@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <SDL_main.h>
 #include "bit.h"
 #include "config.h"
 #include "fs.h"
@@ -39,7 +40,7 @@ void sighandler(int sig) {
     }
 }
 
-int main() {
+int main(int argc, char*argv[]) {
     int status;
     lua_State *coro;
 start:

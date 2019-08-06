@@ -26,14 +26,14 @@ TerminalWindow::TerminalWindow(std::string title) {
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
     win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == nullptr) throw window_exception("Failed to create window");
+    if (win == NULL) throw window_exception("Failed to create window");
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (ren == nullptr) {
+    if (ren == NULL) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer");
     }
-    SDL_Surface *bmp = SDL_LoadBMP(fontPath);
-    if (bmp == nullptr) {
+    SDL_Surface *bmp = SDL_LoadBMP(fontPath.c_str());
+    if (bmp == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load font");
@@ -41,7 +41,7 @@ TerminalWindow::TerminalWindow(std::string title) {
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
     font = SDL_CreateTextureFromSurface(ren, bmp);
     SDL_FreeSurface(bmp);
-    if (font == nullptr) {
+    if (font == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font");

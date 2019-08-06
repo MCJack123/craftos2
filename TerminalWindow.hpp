@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 #include <ctime>
+extern "C" {
+#include "platform.h"
+}
 
 typedef struct color {
     Uint8 r;
@@ -65,7 +68,7 @@ public:
     void getMouse(int *x, int *y);
 
 private:
-    const char * fontPath = "craftos.bmp";
+    std::string fontPath = std::string(expandEnvironment(rom_path)) + "/craftos.bmp";
     SDL_Window *win;
     SDL_Renderer *ren;
     SDL_Texture *font;

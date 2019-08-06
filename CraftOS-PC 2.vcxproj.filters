@@ -131,6 +131,9 @@
     <None Include="CraftOSTest.lua">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Makefile">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="craftos.bmp">

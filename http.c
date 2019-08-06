@@ -2,6 +2,7 @@
 #include "http_handle.h"
 #include "term.h"
 #include "platform.h"
+#include "config.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -36,6 +37,11 @@ typedef struct {
     int headers_size;
     dict_val_t * headers;
 } http_handle_t;
+
+typedef struct {
+    const char * url;
+    const char * status;
+} http_check_t;
 
 size_t read_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
     buffer_t* buf = (buffer_t*)userdata;
@@ -136,6 +142,16 @@ const char * http_failure(lua_State *L, void* data) {
     return "http_failure";
 }
 
+const char * http_check(lua_State *L, void* data) {
+    http_check_t * res = (http_check_t*)data;
+    lua_pushstring(L, res->url);
+    lua_pushboolean(L, res->status == NULL);
+    if (res->status == NULL) lua_pushnil(L);
+    else lua_pushstring(L, res->status);
+    free(res);
+    return "http_check";
+}
+
 void* downloadThread(void* arg) {
     http_param_t* param = (http_param_t*)arg;
     http_handle_t * handle = (http_handle_t*)malloc(sizeof(http_handle_t));
@@ -180,7 +196,25 @@ void* downloadThread(void* arg) {
     return NULL;
 }
 
+void* checkThread(void* arg) {
+    http_param_t * param = (http_param_t*)arg;
+    const char * status = NULL;
+    if (strstr(param->url, "://") == NULL) status = "URL malformed";
+    else if (strstr(param->url, "http") == NULL) status = "URL not http";
+    else if (strstr(param->url, "192.168.") != NULL || strstr(param->url, "10.0.") != NULL) status = "Domain not permitted";
+    http_check_t * res = (http_check_t*)malloc(sizeof(http_check_t));
+    res->url = param->url;
+    res->status = status;
+    termQueueProvider(http_check, res);
+    free(param);
+    return NULL;
+}
+
 int http_request(lua_State *L) {
+    if (!config.http_enable) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
     param->url = lua_tostring(L, 1);
@@ -206,12 +240,28 @@ int http_request(lua_State *L) {
     return 1;
 }
 
-const char * http_keys[1] = {
-    "request"
+int http_checkURL(lua_State *L) {
+    if (!config.http_enable) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
+    param->L = L;
+    param->url = lua_tostring(L, 1);
+    createThread(checkThread, param);
+    lua_pushboolean(L, true);
+    return 1;
+}
+
+const char * http_keys[2] = {
+    "request",
+    "checkURL"
 };
 
-lua_CFunction http_values[1] = {
-    http_request
+lua_CFunction http_values[2] = {
+    http_request,
+    http_checkURL
 };
 
-library_t http_lib = {"http", 1, http_keys, http_values, NULL, NULL};
+library_t http_lib = {"http", 2, http_keys, http_values, NULL, NULL};

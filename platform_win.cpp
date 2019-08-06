@@ -117,7 +117,12 @@ char* basename(char* path) {
 }
 
 char* dirname(char* path) {
-	PathRemoveFileSpecA(path);
+	if (path[0] == '/') strcpy(path, &path[1]);
+    char tch;
+    if (strrchr(path, '/') != NULL) tch = '/';
+    else if (strrchr(path, '\\') != NULL) tch = '\\';
+    else return path;
+    path[strrchr(path, tch) - path] = '\0';
 	return path;
 }
 

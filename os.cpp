@@ -97,12 +97,13 @@ int os_setComputerLabel(lua_State *L) {
 
 int os_queueEvent(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    int count = lua_gettop(L);
     const char * name = lua_tostring(L, 1);
     lua_State *param = lua_newthread(L);
+    lua_remove(L, 1);
+    int count = lua_gettop(L);
     lua_checkstack(param, count);
-    lua_pushstring(L, name);
-    lua_xmove(L, param, count - 1);
+    lua_xmove(L, param, count);
+    lua_xmove(param, L, 1);
     eventQueue.push(std::make_pair(name, param));
     return 0;
 }

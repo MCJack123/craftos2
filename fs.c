@@ -82,7 +82,20 @@ int fs_isReadOnly(lua_State *L) {
     char * path = fixpath(lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	struct stat st;
-	lua_pushboolean(L, stat(path, &st) == 0 && !access(path, W_OK));
+    if (stat(path, &st) != 0) lua_pushboolean(L, false);
+#ifdef WIN32
+    else if (S_ISDIR(st.st_mode)) {
+        char * file = (char*)malloc(strlen(path) + 3);
+        strcpy(file, path);
+        strcat(file, "\\a");
+        FILE * fp = fopen(file, "a");
+        lua_pushboolean(L, fp == NULL);
+        if (fp != NULL) fclose(fp);
+        if (stat(file, &st) == 0) remove(file);
+        free(file);
+    }
+#endif
+	else lua_pushboolean(L, access(path, W_OK) != 0);
     free(path);
     return 1;
 }
@@ -224,7 +237,7 @@ int fs_open(lua_State *L) {
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     const char * mode = lua_tostring(L, 2);
     if (files_open >= config.maximumFilesOpen) err(L, path, "Too many files open");
-	printf("fs.open(\"%s\", \"%s\")\n", path, mode);
+	//printf("fs.open(\"%s\", \"%s\")\n", path, mode);
 	FILE * fp = fopen(path, mode);
 	if (fp == NULL) { 
 		free(path);

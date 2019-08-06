@@ -1,4 +1,6 @@
 -- Tests compliance of CraftOS APIs
+term.clear()
+term.setCursorPos(1, 1)
 term.setTextColor(colors.lightBlue)
 print("CraftOSTest 1.8")
 term.setTextColor(colors.white)
@@ -7,8 +9,9 @@ if os.version() ~= "CraftOS 1.8" then error("This test is for CraftOS 1.8.") end
 local api_tests = {}
 local api = nil
 local logfile = fs.open("CraftOSTest.log", "w")
+local main_thread = coroutine.running()
 
-function compare(a, b)
+local function compare(a, b)
 	if type(a) ~= type(b) then return false
 	elseif type(a) == "number" then return math.abs(a - b) < 0.000001
 	elseif type(a) == "table" then
@@ -26,7 +29,8 @@ local function tostr(v)
 	elseif type(v) == "table" then 
 		local ok, res = pcall(textutils.serialize, v)
 		if ok then return res else return "[table]" end
-	else return "[" .. type(v) .. "]" end
+	elseif type(v) == "thread" and v == main_thread then return "[main thread]"
+	else return "[" .. tostring(v) .. "]" end
 end
 
 local function testStart(tapi)
@@ -229,7 +233,7 @@ testStart("coroutine")
 testEnd()
 
 testStart("fs")
-	test("list", {{"apis", "autorun", "fonts", "help", "modules", "programs", "startup.lua"}}, "/rom")
+	test("list", {{"apis", "autorun", "help", "modules", "programs", "startup.lua"}}, "/rom")
 	test("exists", true, "/rom/programs/shell.lua")
 	test("exists", true, "/rom/programs")
 	test("isDir", true, "/rom/programs")
@@ -240,7 +244,8 @@ testStart("fs")
 	test("getName", "shell.lua", "/rom/programs/shell.lua")
 	test("getDir", "rom/programs", "/rom/programs/shell.lua")
 	test("getDrive", "rom", "/rom/programs/shell.lua")
-	test("getSize", 2189, "/rom/apis/colors.lua")
+	local s = call("getSize", "/rom/apis/colors.lua")
+	if s ~= 2189 and s ~= 2120 then testLocal("fs.getSize", {2189, 2120}, s) end -- CRLF or LF
 	call("makeDir", "test_dir")
 	test("isDir", true, "test_dir")
 	call("delete", "test_dir")
@@ -284,11 +289,11 @@ testStart("fs")
 testEnd()
 
 testStart("help")
-	fs.makeDir("help")
-	file = fs.open("help/test.txt", "w")
+	callLocal("fs.makeDir", fs.makeDir, "help")
+	file = callLocal("fs.open", fs.open, "help/test.txt", "w")
 	if file then
-		file.writeLine("This is a test help topic.")
-		file.close()
+		callLocal("file.writeLine", file.writeLine, "This is a test help topic.")
+		callLocal("file.close", file.close)
 	end
 	local oldPath = call("path")
 	call("setPath", "/rom/help:/help")
@@ -298,7 +303,7 @@ testStart("help")
 	testLocal("type(help.topics)", type(call("topics")), "table")
 	test("completeTopic", {{"abel", "ist", "ua"}}, "l")
 	call("setPath", oldPath)
-	fs.delete("help")
+	callLocal("fs.delete", fs.delete, "help")
 testEnd()
 
 testStart("http")
@@ -374,17 +379,17 @@ testStart("math")
 	test("tanh", 1, 1000000)
 testEnd()
 
-testStart("multishell")
+if multishell ~= nil then testStart("multishell")
 	test("getCurrent", 1)
 	test("getCount", 1)
 	call("setTitle", 1, "Title")
 	test("getTitle", "Title", 1)
-	file = fs.open("multishell_test.lua", "w")
-	file.write([[args = {...}
-	print("This is a test of the multishell API.")
-	sleep(3)
-	print("done")]])
-	file.close()
+	file = callLocal("fs.open", fs.open, "multishell_test.lua", "w")
+	callLocal("file.write", file.write, [[args = {...}
+print("This is a test of the multishell API.")
+sleep(3)
+print("done")]])
+	callLocal("file.close", file.close)
 	local env = {args = {}}
 	test("launch", 2, env, "multishell_test.lua", "test")
 	test("getFocus", 1)
@@ -398,8 +403,8 @@ testStart("multishell")
 	print("If stuck, press any key.")
 	while call("getCount") ~= 1 do os.pullEvent() end
 	test("getFocus", 1)
-	fs.delete("multishell_test.lua")
-testEnd()
+	callLocal("fs.delete", fs.delete, "multishell_test.lua")
+testEnd() end
 
 testStart("os")
 	testLocal("os.getComputerID", type(os.getComputerID()), "number")
@@ -426,24 +431,24 @@ testStart("os")
 	id = call("setAlarm", 3)
 	call("cancelAlarm", id)
 	call("sleep", 3)
-	file = fs.open("run_test.lua", "w")
-	file.write([[print("This is a second program.")
-	function func(a) return a*3 end
-	if test then test("getComputerLabel", ({...})[1]) end]])
-	file.close()
+	file = callLocal("fs.open", fs.open, "run_test.lua", "w")
+	callLocal("file.write", file.write, [[print("This is a second program.")
+function func(a) return a*3 end
+if test then test("getComputerLabel", ({...})[1]) end]])
+	callLocal("file.close", file.close)
 	test("run", true, {test = test}, "run_test.lua", "Computer")
 	test("loadAPI", true, "run_test.lua")
 	testLocal("type(run_test)", type(run_test), "table")
 	testLocal("run_test.func", callLocal("run_test.func", run_test.func, 2), 6)
 	call("unloadAPI", "run_test")
-	fs.delete("run_test.lua")
+	callLocal("fs.delete", fs.delete, "run_test.lua")
 testEnd()
 
 testStart("parallel")
-	test("waitForAny", 2, function() sleep(3) end, function() sleep(1) end, function() sleep(5) end)
+	test("waitForAny", 2, function() callLocal("sleep", sleep, 3) end, function() callLocal("sleep", sleep, 1) end, function() callLocal("sleep", sleep, 5) end)
 	local i = 0
 	local function getParallelFunc(n) return function()
-		sleep(n)
+		callLocal("sleep", sleep, n)
 		i=i+n
 	end end
 	call("waitForAll", getParallelFunc(3), getParallelFunc(1), getParallelFunc(5))
@@ -466,8 +471,8 @@ testStart("settings")
 	test("load", true, "new_settings.ltn")
 	test("get", "hello", "test2")
 	test("load", true, "old_settings.ltn")
-	fs.delete("old_settings.ltn")
-	fs.delete("new_settings.ltn")
+	callLocal("fs.delete", fs.delete, "old_settings.ltn")
+	callLocal("fs.delete", fs.delete, "new_settings.ltn")
 testEnd()
 
 testStart("shell")
@@ -489,19 +494,197 @@ testStart("shell")
 	call("setDir", oldDir)
 	call("setPath", oldPath)
 	test("complete", {{"pis/", "pis", "utorun/", "utorun"}}, "cd rom/a")
-	file = fs.open("shell_test.lua", "w")
-	file.write([[args = {...}
-	print("This is a test of the shell API: " .. args[1] .. ".")
-	sleep(3)]])
-	file.close()
+	file = callLocal("fs.open", fs.open, "shell_test.lua", "w")
+	callLocal("file.write", file.write, [[args = {...}
+print("This is a test of the shell API: " .. args[1] .. ".")
+sleep(3)]])
+	callLocal("file.close", file.close)
 	test("run", true, "shell_test.lua current_tab")
 	test("openTab", 2, "shell_test.lua new_tab")
 	call("switchTab", 2)
 	testLocal("shell.switchTab", callLocal("multishell.getCount", multishell.getCount), 2)
-	print("If stuck, press any key.")
-	while callLocal("multishell.getCount", multishell.getCount) == 2 do os.pullEvent()	end
+	callLocal("print", print, "If stuck, press any key.")
+	while callLocal("multishell.getCount", multishell.getCount) == 2 do callLocal("os.pullEvent", os.pullEvent) end
 	-- TODO: add setCompletionFunction test
-	fs.delete("shell_test.lua")
+	callLocal("fs.delete", fs.delete, "shell_test.lua")
+testEnd()
+
+-- might add string tests later, assuming it'll work since it's Lua standard
+
+testStart("table")
+	test("concat", "is:a", {"this", "is", "a", "test"}, ":", 2, 3)
+	test("concat", "", {"this", "is", "a", "test"}, ":", 4, 1)
+	local t = {"this", "is", "a", "test"}
+	call("insert", t, "hello")
+	testLocal("table.insert", t, {"this", "is", "a", "test", "hello"})
+	call("insert", t, 4, "real")
+	testLocal("table.insert", t, {"this", "is", "a", "real", "test", "hello"})
+	test("maxn", 4, {"this", "is", "a", "test"})
+	test("pack", {{"this", "is", "a", "test", n = 4}}, "this", "is", "a", "test")
+	test("remove", "this", t, 1)
+	testLocal("table.remove", t, {"is", "a", "real", "test", "hello"})
+	test("remove", "hello", t, call("maxn", t))
+	testLocal("table.remove", t, {"is", "a", "real", "test"})
+	t = {9, 3, 5, 1, 7}
+	call("sort", t)
+	testLocal("table.sort", t, {1, 3, 5, 7, 9})
+	t = {"dragonfruit", "carrot", "apple", "eggplant", "banana"}
+	call("sort", t, function(a, b) return string.byte(a, 1) < string.byte(b, 1) end)
+	testLocal("table.sort", t, {"apple", "banana", "carrot", "dragonfruit", "eggplant"})
+	test("unpack", {"this", "is", "a", "test"}, {"this", "is", "a", "test"})
+testEnd()
+
+testStart("term")
+	test("getSize", {51, 19})
+	call("clear")
+	call("setCursorPos", 1, 1)
+	test("getCursorPos", {1, 1})
+	call("write", "This terminal " .. (call("isColor") and "supports" or "does not support") .. " color.")
+	call("setCursorPos", 1, 2)
+	call("write", "This text should overflow the boundaries of the terminal as long as the terminal is 51x19.")
+	call("setCursorPos", 1, 3)
+	call("write", "The following text should be the color it says:")
+	call("setCursorPos", 1, 4)
+	call("blit", "red orange yellow green blue purple white black", "eeee11111114444444ddddddbbbbbaaaaaaa000000fffff", "ffffffffffffffffffffffffffffffffffffffffff00000")
+	call("setCursorPos", 1, 5)
+	call("write", "The following text BG should be its color:")
+	call("setCursorPos", 1, 6)
+	call("blit", "red orange yellow green blue purple white black", "ffffffffffffffffffffffffffffffffffffffffff00000", "eeee11111114444444ddddddbbbbbaaaaaaa000000fffff")
+	call("setCursorBlink", false)
+	if term.getCursorBlink == nil then
+		call("setCursorPos", 1, 7)
+		call("write", "The cursor should not be blinking.")
+	else test("getCursorBlink", false) end
+	callLocal("sleep", sleep, 3)
+	call("setCursorPos", 1, 8)
+	call("write", "Type exactly 'y' if all statements are true.")
+	call("setCursorPos", 1, 9)
+	testLocal("term_sectionA", callLocal("read", read), "y")
+	call("write", "The screen should scroll 2 lines.")
+	call("scroll", 2)
+	call("write", "The top line should be erased.")
+	call("setCursorPos", 1, 1)
+	call("clearLine")
+	call("setCursorPos", 1, 10)
+	call("write", "The entire screen should clear to white in 3 secs.")
+	call("setBackgroundColor", colors.white)
+	call("setTextColor", colors.black)
+	test("getBackgroundColor", colors.white)
+	test("getTextColor", colors.black)
+	callLocal("sleep", sleep, 3)
+	call("clear")
+	local r, g, b
+	if call("isColor") then
+		call("setCursorPos", 1, 1)
+		call("write", "The screen should turn bright purple in 3 seconds.")
+		callLocal("sleep", sleep, 3)
+		r, g, b = call("getPaletteColor", colors.white)
+		call("setPaletteColor", colors.white, .5, .5, 1)
+		test("getPaletteColor", {.5, .5, 1}, colors.white)
+	end
+	call("setCursorPos", 1, 2)
+	call("write", "Type exactly 'y' if all statements were true.")
+	call("setCursorPos", 1, 3)
+	testLocal("term_sectionB", callLocal("read", read), "y")
+	if call("isColor") then
+		call("setPaletteColor", colors.white, r, g, b)
+		test("getPaletteColor", {r, g, b}, colors.white)
+	end
+	call("setBackgroundColor", colors.black)
+	call("setTextColor", colors.white)
+	call("setCursorPos", 1, 1)
+	call("setCursorBlink", true)
+	call("clear")
+	test("getBackgroundColor", colors.black)
+	test("getTextColor", colors.white)
+	test("getCursorPos", {1, 1})
+	if term.getCursorBlink then test("getCursorBlink", true) end
+	testLocal("term.current", type(call("current")), "table")
+	testLocal("term.native", type(call("native")), "table")
+	testLocal("term.redirect", type(call("redirect", call("native"))), "table")
+	test("current", {call("native")})
+	testValue("restore", nil)
+testEnd()
+
+testStart("textutils")
+	call("slowWrite", "This should write slowly: ")
+	call("slowPrint", "And even slower this time...", 10)
+	call("slowPrint", "Very slow...", 2)
+	call("tabulate", {"First", "Last", "Balance"}, colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"})
+	callLocal("print", print, "The following text should be paged:")
+	call("pagedTabulate", 
+		{"First", "Last", "Balance"}, colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"},
+		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"},
+		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"},
+		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"},
+		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"},
+		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"},
+		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"},
+		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"}
+	)
+	callLocal("term.setTextColor", term.setTextColor, colors.white)
+	call("pagedPrint", [[Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae urna viverra justo viverra placerat.
+Quisque sollicitudin sem mi, ultrices ullamcorper ante aliquet eu. Vivamus condimentum sem libero, vitae porta dolor dictum vitae. 
+Proin eleifend ipsum elit. Ut finibus magna quis quam dapibus, at bibendum ligula gravida. 
+Nam neque nibh, pretium eget libero ac, iaculis finibus elit. Vivamus ipsum massa, pharetra semper velit eu, condimentum dictum metus. 
+Vestibulum a nibh vitae magna euismod faucibus eu vel diam. In cursus laoreet vehicula. In feugiat, sem eu tristique malesuada, 
+mi elit consequat nibh, finibus fringilla elit elit eget tellus. Morbi non ante ornare, hendrerit enim et, imperdiet enim. 
+Nunc non pulvinar magna, id tempus erat. Nunc eget magna non quam dapibus gravida in at lacus. Donec dignissim pellentesque enim, eu placerat ligula accumsan in.]], 3)
+	local ser = call("serialize", {"this", "is", "a", "test", results = {first = "this", last = "test"}})
+	test("unserialize", {{"this", "is", "a", "test", results = {last = "test", first = "this"}}}, ser)
+	testLocal("textutils.serializeJSON", type(call("serializeJSON", {"this", "is", "a", "test", results = {first = "this", last = "test"}})), "string")
+	test("urlEncode", "this+is+a+%2Ftest+%24hello+%25hi", "this is a /test $hello %hi")
+	test("complete", {{"able.", "erm.", "extutils.", "onumber(", "ostring(", "ype("}}, "t", _ENV)
+testEnd()
+
+testStart("vector")
+	local va = call("new", 1, 2, 3)
+	local vb = call("new", 10, 5, 3)
+	local vc = callLocal("vector:add", va.add, va, vb)
+	testLocal("vector:add", {vc.x, vc.y, vc.z}, {11, 7, 6})
+	vc = callLocal("vector:sub", vb.sub, vb, va)
+	testLocal("vector:sub", {vc.x, vc.y, vc.z}, {9, 3, 0})
+	vc = callLocal("vector:mul", vb.mul, vb, 3)
+	testLocal("vector:mul", {vc.x, vc.y, vc.z}, {30, 15, 9})
+	testLocal("vector:dot", callLocal("vector:dot", va.dot, va, vb), 29)
+	vc = callLocal("vector:cross", va.cross, va, vb)
+	testLocal("vector:cross", {vc.x, vc.y, vc.z}, {-9, 27, -15})
+	testLocal("vector:length", callLocal("vector:length", vb.length, vb), 11.575837)
+	vc = callLocal("vector:normalize", vb.normalize, vb)
+	testLocal("vector:normalize", {vc.x, vc.y, vc.z}, {0.8638684, 0.4319342, 0.25916052})
+	vc = callLocal("vector:round", vc.round, vc)
+	testLocal("vector:round", {vc.x, vc.y, vc.z}, {1, 0, 0})
+	testLocal("vector:tostring", callLocal("vector:tostring", vb.tostring, vb), "10,5,3")
+testEnd()
+
+testStart("window")
+	local x, y = callLocal("term.getCursorPos", term.getCursorPos)
+	local win = call("create", term.native(), 5, 5, 12, 5)
+	testLocal("window.getPosition", {callLocal("window.getPosition", win.getPosition)}, {5, 5})
+	testLocal("window.getSize", {callLocal("window.getSize", win.getSize)}, {12, 5})
+	callLocal("window.setBackgroundColor", win.setBackgroundColor, colors.red)
+	callLocal("window.setTextColor", win.setTextColor, colors.cyan)
+	testLocal("window.getBackgroundColor", callLocal("window.getBackgroundColor", win.getBackgroundColor), colors.red)
+	testLocal("window.getTextColor", callLocal("window.getTextColor", win.getTextColor), colors.cyan)
+	callLocal("window.clear", win.clear)
+	callLocal("window.write", win.write, "Window Test ")
+	callLocal("window.setCursorPos", win.setCursorPos, 1, 2)
+	testLocal("window.getCursorPos", {callLocal("window.getCursorPos", win.getCursorPos)}, {1, 2})
+	callLocal("term.redirect", term.redirect, win)
+	callLocal("print", print, "This is a long string of text")
+	callLocal("sleep", sleep, 1)
+	callLocal("window.reposition", win.reposition, 15, 10)
+	testLocal("window.getPosition", {callLocal("window.getPosition", win.getPosition)}, {15, 10})
+	testLocal("window.getSize", {callLocal("window.getSize", win.getSize)}, {12, 5})
+	callLocal("window.setCursorPos", win.setCursorPos, 1, 1)
+	callLocal("window.redraw", win.redraw)
+	callLocal("term.redirect", term.redirect, callLocal("term.native", term.native))
+	callLocal("term.setCursorPos", term.setCursorPos, 1, 1)
+	callLocal("window.restoreCursor", win.restoreCursor)
+	testLocal("term.getCursorPos", {callLocal("term.getCursorPos", term.getCursorPos)}, {15, 10})
+	callLocal("window.setVisible", win.setVisible, false)
+	callLocal("window.redraw", win.redraw)
+	callLocal("term.setCursorPos", term.setCursorPos, x, y)
 testEnd()
 
 local failed = {}

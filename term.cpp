@@ -276,6 +276,7 @@ const char * termGetEvent(lua_State *L) {
 
 int term_write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    int dummy = 0;
     while (term->locked);
     term->locked = true;
     const char * str = lua_tostring(L, 1);
@@ -292,7 +293,7 @@ int term_write(lua_State *L) {
 
 int term_scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    while (term->locked);
+    while (term->locked) if (!term->locked) break;
     term->locked = true;
     int lines = lua_tointeger(L, 1);
     for (int i = lines; i < term->height; i++) {
@@ -344,7 +345,7 @@ int term_getSize(lua_State *L) {
 }
 
 int term_clear(lua_State *L) {
-    while (term->locked);
+    while (term->locked) if (!term->locked) break;
     term->locked = true;
     term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
     term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
@@ -353,7 +354,7 @@ int term_clear(lua_State *L) {
 }
 
 int term_clearLine(lua_State *L) {
-    while (term->locked);
+    while (term->locked) if (!term->locked) break;
     term->locked = true;
     term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
@@ -401,7 +402,7 @@ int term_blit(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
-    while (term->locked);
+    while (term->locked) if (!term->locked) break;
     term->locked = true;
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
