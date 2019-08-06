@@ -453,8 +453,9 @@ int term_setPixel(lua_State *L) {
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
+    if (x >= term->width * 6 || y >= term->height * 9 || x < 0 || y < 0) return 0;
     term->pixels[y][x] = log2i(lua_tointeger(L, 3));
+    printf("Wrote pixel %ld = %d\n", lua_tointeger(L, 3), term->pixels[y][x]);
     return 0;
 }
 

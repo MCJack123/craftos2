@@ -1,5 +1,11 @@
+extern "C" {
 #include "config.h"
+#include "platform.h"
+}
 #include <string.h>
+#include <json/json.h>
+#include <fstream>
+#include <string>
 
 struct configuration config = {
     true,
@@ -14,6 +20,46 @@ struct configuration config = {
     8,
     20
 };
+
+void config_init(void) {
+    char * base_path = fixpath("");
+    std::ifstream in(std::string(base_path) + "/../../config.json");
+    if (!in.is_open()) {config.readFail = true; free(base_path); return;}
+    Json::Value root;
+    in >> root;
+    in.close();
+    free(base_path);
+    config.http_enable = root["http_enable"].asBool();
+    config.disable_lua51_features = root["disable_lua51_features"].asBool();
+    config.default_computer_settings = root["default_computer_settings"].asCString();
+    config.logPeripheralErrors = root["logPeripheralErrors"].asBool();
+    config.showFPS = root["showFPS"].asBool();
+    config.readFail = false;
+    config.computerSpaceLimit = root["computerSpaceLimit"].asInt();
+    config.maximumFilesOpen = root["maximumFilesOpen"].asInt();
+    config.abortTimeout = root["abortTimeout"].asInt();
+    config.maxNotesPerTick = root["maxNotesPerTick"].asInt();
+    config.clockSpeed = root["clockSpeed"].asInt();
+}
+
+void config_deinit(void) {
+    Json::Value root(Json::objectValue);
+    root["http_enable"] = Json::Value(config.http_enable);
+    root["disable_lua51_features"] = Json::Value(config.disable_lua51_features);
+    root["default_computer_settings"] = Json::Value(config.default_computer_settings);
+    root["logPeripheralErrors"] = Json::Value(config.logPeripheralErrors);
+    root["showFPS"] = Json::Value(config.showFPS);
+    root["computerSpaceLimit"] = Json::Value(config.computerSpaceLimit);
+    root["maximumFilesOpen"] = Json::Value(config.maximumFilesOpen);
+    root["abortTimeout"] = Json::Value(config.abortTimeout);
+    root["maxNotesPerTick"] = Json::Value(config.maxNotesPerTick);
+    root["clockSpeed"] = Json::Value(config.clockSpeed);
+    char * base_path = fixpath("");
+    std::ofstream out(std::string(base_path) + "/../../config.json");
+    out << root;
+    out.close();
+    free(base_path);
+}
 
 int config_get(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
@@ -75,6 +121,7 @@ int config_set(lua_State *L) {
         config.showFPS = lua_tointeger(L, 2);
     else if (strcmp(name, "abortTimeout") == 0)
         config.abortTimeout = lua_tointeger(L, 2);
+    config_deinit();
     return 0;
 }
 
@@ -155,14 +202,6 @@ int config_getType(lua_State *L) {
         lua_pushinteger(L, 2);
     else lua_pushinteger(L, -1);
     return 1;
-}
-
-void config_init(void) {
-    // todo
-}
-
-void config_deinit(void) {
-    // todo
 }
 
 const char * config_keys[4] = {

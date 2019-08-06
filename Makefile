@@ -4,7 +4,7 @@ CFLAGS=-c -g
 CXXFLAGS= -std=c++11
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -llua -lm -ldl -lSDL2 -lSDL2main -lpthread -lcurl -lhpdf
+LIBS=-L/usr/local/include -llua -lm -ldl -lSDL2 -lSDL2main -lpthread -lcurl -lhpdf -ljsoncpp
 
 _OBJ=config.o fs_handle.o fs.o http_handle.o http.o lib.o main.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
@@ -13,10 +13,8 @@ craftos: $(OBJ) $(ODIR)/platform.o
 	$(CXX) -o $@ $^ $(LIBS)
 
 macapp: $(OBJ) $(ODIR)/platform_macapp.o
-	mkdir CraftOS-PC.app
-	mkdir CraftOS-PC.app/Contents
-	mkdir CraftOS-PC.app/Contents/MacOS
-	mkdir CraftOS-PC.app/Contents/Resources
+	mkdir -p CraftOS-PC.app/Contents/MacOS
+	mkdir -p CraftOS-PC.app/Contents/Resources
 	clang++ -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -framework Foundation
 	cp Info.plist CraftOS-PC.app/Contents/
 	cp craftos.bmp bios.lua CraftOS-PC.app/Contents/Resources/

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/utsname.h>
 #ifdef WIN32
 #include <SDL_main.h>
 #else
@@ -85,9 +86,11 @@ start:
     lua_setglobal(L, "newproxy");
 
     // Set default globals
-    lua_pushstring(L, "");
+    lua_pushstring(L, config.default_computer_settings);
     lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
-    lua_pushstring(L, "Linux i386 4.18"); // TODO: get real host string
+    struct utsname host;
+    uname(&host);
+    lua_pushfstring(L, "%s %s %s", host.sysname, "i386", host.release);
     lua_setglobal(L, "_HOST");
 
     /* Load the file containing the script we are going to run */
@@ -131,6 +134,7 @@ start:
 
     if (running == 2) {
         //usleep(1000000);
+        running = 1;
         goto start;
     }
 

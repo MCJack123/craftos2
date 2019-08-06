@@ -67,7 +67,7 @@ TerminalWindow::TerminalWindow(std::string title) {
     palette[0] = {0xf0, 0xf0, 0xf0};
     screen = std::vector<std::vector<char> >(height, std::vector<char>(width, ' '));
     colors = std::vector<std::vector<unsigned char> >(height, std::vector<unsigned char>(width, 0xF0));
-    pixels = std::vector<std::vector<char> >(height*fontHeight, std::vector<char>(width*fontWidth, 0));
+    pixels = std::vector<std::vector<char> >(height*fontHeight, std::vector<char>(width*fontWidth, 0x0F));
 }
 
 TerminalWindow::~TerminalWindow() {
@@ -125,11 +125,11 @@ void TerminalWindow::render() {
     SDL_RenderClear(ren);
     SDL_Rect rect;
     if (isPixel) {
-        for (int y = 0; y < height * charHeight; y+=fontScale*charScale) {
-            for (int x = 0; x < width * charWidth; x+=fontScale*charScale) {
-                char c = pixels[y / fontScale / charScale][x / fontScale / charScale];
+        for (int y = 0; y < height * charHeight * dpiScale; y+=fontScale*charScale*dpiScale) {
+            for (int x = 0; x < width * charWidth * dpiScale; x+=fontScale*charScale*dpiScale) {
+                char c = pixels[y / fontScale / charScale / dpiScale][x / fontScale / charScale / dpiScale];
                 SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF);
-                SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale), y + (2 * fontScale * charScale), fontScale * charScale, fontScale * charScale));
+                SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale * dpiScale), y + (2 * fontScale * charScale * dpiScale), fontScale * charScale * dpiScale, fontScale * charScale * dpiScale));
             }
         }
     } else {
@@ -226,7 +226,7 @@ bool TerminalWindow::resize() {
     if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<char>(newWidth * fontWidth, 0));
     for (int i = 0; i < pixels.size(); i++) {
         pixels[i].resize(newWidth * fontWidth);
-        if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0);
+        if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0x0F);
     }
     width = newWidth;
     height = newHeight;
