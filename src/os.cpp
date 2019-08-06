@@ -207,7 +207,32 @@ int os_system(lua_State *L) {
     return 0;
 }
 
-const char * os_keys[17] = {
+int os_about(lua_State *L) {
+    lua_pushstring(L, "CraftOS-PC v2.0.0-b1\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
+\n\
+Copyright (c) 2019 JackMacWindows\n\
+\n\
+Permission is hereby granted, free of charge, to any person obtaining a copy\n\
+of this software and associated documentation files (the \"Software\"), to deal\n\
+in the Software without restriction, including without limitation the rights\n\
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n\
+copies of the Software, and to permit persons to whom the Software is\n\
+furnished to do so, subject to the following conditions:\n\
+\n\
+The above copyright notice and this permission notice shall be included in all\n\
+copies or substantial portions of the Software.\n\
+\n\
+THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n\
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n\
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n\
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n\
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n\
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n\
+SOFTWARE.");
+    return 1;
+}
+
+const char * os_keys[18] = {
     "getComputerID",
     "computerID",
     "getComputerLabel",
@@ -224,10 +249,11 @@ const char * os_keys[17] = {
     "cancelAlarm",
     "shutdown",
     "reboot",
-    "system"
+    "system",
+    "about"
 };
 
-lua_CFunction os_values[17] = {
+lua_CFunction os_values[18] = {
     os_getComputerID,
     os_getComputerID,
     os_getComputerLabel,
@@ -244,8 +270,9 @@ lua_CFunction os_values[17] = {
     os_cancelAlarm,
     os_shutdown,
     os_reboot,
-    os_system
+    os_system,
+    os_about
 };
 
-library_t os_lib = {"os", 17, os_keys, os_values, NULL, NULL};
+library_t os_lib = {"os", 18, os_keys, os_values, NULL, NULL};
 }
