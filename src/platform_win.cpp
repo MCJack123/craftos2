@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <cstring>
+#include <unordered_map>
 #include <processenv.h>
 #include <shlwapi.h>
 
@@ -172,5 +173,29 @@ int removeDirectory(char* path) {
         }
         return RemoveDirectoryA(path) ? 0 : GetLastError();
 	} else return DeleteFileA(path) ? 0 : GetLastError();
+}
+
+std::unordered_map<double, const char *> windows_version_map = {
+    {10.0, "Windows 10"},
+    {6.3, "Windows 8.1"},
+    {6.2, "Windows 8"},
+    {6.1, "Windows 7"},
+    {6.0, "Windows Vista"},
+    {5.1, "Windows XP"},
+    {5.0, "Windows 2000"},
+    {4.0, "Windows NT 4"},
+    {3.51, "Windows NT 3.51"},
+    {3.5, "Windows NT 3.5"},
+    {3.1, "Windows NT 3.1"}
+};
+
+void pushHostString(lua_State *L) {
+    OSVERSIONINFOA info;
+    ZeroMemory(&info, sizeof(OSVERSIONINFOA));
+    info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOA);
+    GetVersionEx(&info);
+    double version = info.dwMajorVersion
+        + (info.dwMinorVersion / 10.0);
+    lua_pushfstring(L, "%s i386 %d.%d", windows_version_map[version], info.dwMajorVersion, info.dwMinorVersion);
 }
 }

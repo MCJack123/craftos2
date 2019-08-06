@@ -8,6 +8,7 @@ extern "C" {
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/utsname.h>
 #include <libgen.h>
 #include <pthread.h>
 #include <glob.h>
@@ -154,5 +155,11 @@ void platform_fs_find(lua_State* L, char* wildcard) {
 		}
 		globfree(&g);
 	}
+}
+
+void pushHostString(lua_State *L) {
+    struct utsname host;
+    uname(&host);
+    lua_pushfstring(L, "%s %s %s", host.sysname, "i386", host.release);
 }
 }

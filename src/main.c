@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
-#include <sys/utsname.h>
 #ifdef WIN32
 #include <SDL_main.h>
 #else
@@ -88,9 +87,7 @@ start:
     // Set default globals
     lua_pushstring(L, config.default_computer_settings);
     lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
-    struct utsname host;
-    uname(&host);
-    lua_pushfstring(L, "%s %s %s", host.sysname, "i386", host.release);
+    pushHostString(L);
     lua_setglobal(L, "_HOST");
 
     /* Load the file containing the script we are going to run */
