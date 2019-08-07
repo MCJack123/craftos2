@@ -235,7 +235,11 @@ int http_request(lua_State *L) {
         }
         lua_pop(L, 1);
     }
+#ifdef WIN32
+    createThread(downloadThread, param);
+#else
     free(createThread(downloadThread, param));
+#endif
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -249,7 +253,11 @@ int http_checkURL(lua_State *L) {
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
     param->L = L;
     param->url = lua_tostring(L, 1);
+#ifdef WIN32
+    createThread(checkThread, param);
+#else
     free(createThread(checkThread, param));
+#endif
     lua_pushboolean(L, true);
     return 1;
 }
