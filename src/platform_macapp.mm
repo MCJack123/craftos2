@@ -9,6 +9,7 @@ extern "C" {
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/utsname.h>
 #include <libgen.h>
 #include <pthread.h>
 #include <glob.h>
@@ -48,11 +49,11 @@ char * fixpath(const char * path) {
         if (s == "..") {if (pathc.size() < 1) return NULL; else pathc.pop_back();}
         else if (s != "." && s != "") pathc.push_back(s);
     }
-    const char * bp = (pathc.size() > 0 && pathc[0] == "rom") ? rom_path : expandEnvironment(base_path);
+    char * bp = (pathc.size() > 0 && pathc[0] == "rom") ? expandEnvironment(rom_path) : expandEnvironment(base_path);
     std::stringstream ss;
     ss << bp;
     for (std::string s : pathc) ss << "/" << s;
-    //if (bp != base_path_expanded) free(bp);
+    if (bp != base_path_expanded) free(bp);
     std::string retstr = ss.str();
     char * retval = (char*)malloc(retstr.size() + 1);
     strcpy(retval, retstr.c_str());
@@ -160,12 +161,19 @@ void platform_fs_find(lua_State* L, char* wildcard) {
 	int rval = 0;
 	rval = glob(wildcard, 0, NULL, &g);
 	if (rval == 0) {
+        int l = [NSBundle mainBundle].resourcePath.length;
 		for (int i = 0; i < g.gl_pathc; i++) {
 			lua_pushnumber(L, i + 1);
-			lua_pushstring(L, &g.gl_pathv[i][strlen(rom_path) + 1]);
+			lua_pushstring(L, &g.gl_pathv[i][l + 1]);
 			lua_settable(L, -3);
 		}
 		globfree(&g);
 	}
+}
+
+void pushHostString(lua_State *L) {
+    struct utsname host;
+    uname(&host);
+    lua_pushfstring(L, "%s %s %s", host.sysname, "i386", host.release);
 }
 }
