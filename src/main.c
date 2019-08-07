@@ -47,6 +47,9 @@ void sighandler(int sig) {
 int main(int argc, char*argv[]) {
     int status;
     lua_State *coro;
+    char * bp = fixpath("");
+    createDirectory(bp);
+    free(bp);
 start:
     /*
      * All Lua contexts are held in this structure. We work with it almost

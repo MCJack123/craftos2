@@ -143,7 +143,7 @@ void msleep(unsigned long time) {
 
 unsigned long long getFreeSpace(char* path) {
 	struct statvfs st;
-	if (statvfs(path, &st) != 0) err(L, path, "No such file or directory");
+	if (statvfs(path, &st) != 0) return 0;
 	return st.f_bavail * st.f_bsize;
 }
 

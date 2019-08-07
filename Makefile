@@ -1,10 +1,10 @@
 CC=gcc
 CXX=g++
-CFLAGS=-c -g
+CFLAGS=-c -g -I/usr/include/lua5.1 -I/usr/include/jsoncpp
 CXXFLAGS= -std=c++11
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -llua -lm -ldl -lSDL2 -lSDL2main -lpthread -lcurl -lhpdf -ljsoncpp
+LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lSDL2 -lSDL2main -lpthread -lcurl -lhpdf -ljsoncpp
 
 _OBJ=config.o fs_handle.o fs.o http_handle.o http.o lib.o main.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))

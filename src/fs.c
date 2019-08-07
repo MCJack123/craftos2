@@ -42,7 +42,7 @@ int fs_list(lua_State *L) {
     if (d) {
         lua_newtable(L);
         for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-            if (dir->d_name[0] == '.' && (dir->d_namlen == 1 || (dir->d_name[1] == '.' && dir->d_namlen == 2))) { i--; continue; }
+            if (dir->d_name[0] == '.' && (strlen(dir->d_name) == 1 || (dir->d_name[1] == '.' && strlen(dir->d_name) == 2))) { i--; continue; }
             lua_pushinteger(L, i + 1);
             lua_pushstring(L, dir->d_name);
             lua_settable(L, -3);

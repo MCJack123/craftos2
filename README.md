@@ -28,7 +28,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * Windows: dirent.h
 * [libharu/libhpdf](https://github.com/libharu/libharu)
   * This library is optional if built with -DPRINT_TYPE=html or -DPRINT_TYPE=txt
-* Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev`
+* Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev`
 * The VS solution includes all packages required except libcurl (build yourself)
 
 ### Instructions
