@@ -33,7 +33,8 @@ TerminalWindow::TerminalWindow(std::string title) {
         throw window_exception("Failed to create renderer");
     }
     char * fontPathCStr = expandEnvironment(rom_path);
-    std::string fontPath = std::string(fontPathCStr) + "/craftos.bmp";
+	std::string fontPath = std::string(fontPathCStr);
+	fontPath += std::string(fontPath.find('\\') != std::string::npos ? "\\" : "/") + "craftos.bmp";
     SDL_Surface *bmp = SDL_LoadBMP(fontPath.c_str());
     free(fontPathCStr);
     if (bmp == NULL) {

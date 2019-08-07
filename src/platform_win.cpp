@@ -9,8 +9,8 @@
 #include <shlwapi.h>
 
 const char * base_path = "%USERPROFILE%\\.craftos\\computer\\0";
-const char * rom_path = "%USERPROFILE%\\AppData\\Local\\craftos";
-const char * bios_path = "%USERPROFILE%\\AppData\\Local\\craftos\\bios.lua";
+const char * rom_path = "%ProgramFiles(x86)%\\CraftOS-PC";
+const char * bios_path = "%ProgramFiles(x86)%\\CraftOS-PC\\bios.lua";
 char * base_path_expanded;
 char * rom_path_expanded;
 char expand_tmp[32767];
