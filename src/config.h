@@ -20,8 +20,15 @@ struct configuration {
     int abortTimeout;
     int maxNotesPerTick;
     int clockSpeed;
+    bool ignoreHotkeys;
+};
+struct computer_configuration {
+    const char * label;
+    bool isColor;
 };
 extern struct configuration config;
+extern struct computer_configuration getComputerConfig(int id);
+extern void setComputerConfig(int id, struct computer_configuration cfg);
 #ifdef __cplusplus
 }
 #endif

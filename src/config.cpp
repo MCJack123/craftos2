@@ -6,6 +6,9 @@ extern "C" {
 #include <json/json.h>
 #include <fstream>
 #include <string>
+#include <unordered_map>
+
+std::unordered_map<int, struct computer_configuration> comp_config;
 
 struct configuration config = {
     true,
@@ -18,8 +21,19 @@ struct configuration config = {
     128,
     17000,
     8,
-    20
+    20,
+    false
 };
+
+struct computer_configuration getComputerConfig(int id) {
+    if (comp_config.find(id) != comp_config.end()) return {NULL, true};
+    return comp_config[id];
+}
+
+void setComputerConfig(int id, struct computer_configuration cfg) {
+    comp_config[id] = cfg;
+    // save
+}
 
 void config_init(void) {
     char * base_path = fixpath("");
@@ -29,17 +43,18 @@ void config_init(void) {
     in >> root;
     in.close();
     free(base_path);
-    config.http_enable = root["http_enable"].asBool();
-    config.disable_lua51_features = root["disable_lua51_features"].asBool();
-    config.default_computer_settings = root["default_computer_settings"].asCString();
-    config.logPeripheralErrors = root["logPeripheralErrors"].asBool();
-    config.showFPS = root["showFPS"].asBool();
+    if (root.isMember("http_enable")) config.http_enable = root["http_enable"].asBool();
+    if (root.isMember("disable_lua51_features")) config.disable_lua51_features = root["disable_lua51_features"].asBool();
+    if (root.isMember("default_computer_settings")) config.default_computer_settings = root["default_computer_settings"].asCString();
+    if (root.isMember("logPeripheralErrors")) config.logPeripheralErrors = root["logPeripheralErrors"].asBool();
+    if (root.isMember("showFPS")) config.showFPS = root["showFPS"].asBool();
     config.readFail = false;
-    config.computerSpaceLimit = root["computerSpaceLimit"].asInt();
-    config.maximumFilesOpen = root["maximumFilesOpen"].asInt();
-    config.abortTimeout = root["abortTimeout"].asInt();
-    config.maxNotesPerTick = root["maxNotesPerTick"].asInt();
-    config.clockSpeed = root["clockSpeed"].asInt();
+    if (root.isMember("computerSpaceLimit")) config.computerSpaceLimit = root["computerSpaceLimit"].asInt();
+    if (root.isMember("maximumFilesOpen")) config.maximumFilesOpen = root["maximumFilesOpen"].asInt();
+    if (root.isMember("abortTimeout")) config.abortTimeout = root["abortTimeout"].asInt();
+    if (root.isMember("maxNotesPerTick")) config.maxNotesPerTick = root["maxNotesPerTick"].asInt();
+    if (root.isMember("clockSpeed")) config.clockSpeed = root["clockSpeed"].asInt();
+    if (root.isMember("ignoreHotkeys")) config.ignoreHotkeys = root["ignoreHotkeys"].asBool();
 }
 
 void config_deinit(void) {
@@ -90,6 +105,8 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.readFail);
     else if (strcmp(name, "abortTimeout") == 0)
         lua_pushinteger(L, config.abortTimeout);
+    else if (strcmp(name, "ignoreHotkeys") == 0)
+        lua_pushboolean(L, config.ignoreHotkeys);
     else return 0;
     return 1;
 }
@@ -121,6 +138,8 @@ int config_set(lua_State *L) {
         config.showFPS = lua_tointeger(L, 2);
     else if (strcmp(name, "abortTimeout") == 0)
         config.abortTimeout = lua_tointeger(L, 2);
+    else if (strcmp(name, "ignoreHotkeys") == 0)
+        config.ignoreHotkeys = lua_toboolean(L, 2);
     config_deinit();
     return 0;
 }
@@ -170,6 +189,10 @@ int config_list(lua_State *L) {
     lua_pushnumber(L, 11);
     lua_pushstring(L, "abortTimeout");
     lua_settable(L, -3);
+
+    lua_pushnumber(L, 12);
+    lua_pushstring(L, "ignoreHotkeys");
+    lua_settable(L, -3);
     return 1;
 }
 
@@ -200,6 +223,8 @@ int config_getType(lua_State *L) {
         lua_pushinteger(L, 0);
     else if (strcmp(name, "abortTimeout") == 0)
         lua_pushinteger(L, 2);
+    else if (strcmp(name, "ignoreHotkeys") == 0)
+        lua_pushboolean(L, 0);
     else lua_pushinteger(L, -1);
     return 1;
 }

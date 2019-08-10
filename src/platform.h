@@ -17,6 +17,7 @@ extern int removeDirectory(char* path);
 extern void pushHostString(lua_State *L);
 extern const char * rom_path;
 extern const char * bios_path;
+extern const char * base_path;
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

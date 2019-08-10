@@ -39,6 +39,10 @@ public:
     static const int fontHeight = 9;
 private:
     static const int fontScale = 1;
+    bool shouldScreenshot = false;
+    bool gotResizeEvent = false;
+    int newWidth, newHeight;
+    std::string screenshotPath;
 public:
     bool locked = false;
     int charScale = 2;
@@ -64,8 +68,9 @@ public:
     void setCharScale(int scale);
     void drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render();
-    bool resize();
+    bool resize(int w, int h);
     void getMouse(int *x, int *y);
+    void screenshot(std::string path = ""); // asynchronous; captures on next render
 
 private:
     SDL_Window *win;

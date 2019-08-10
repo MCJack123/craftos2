@@ -11,6 +11,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 - [x] Ensure full compliance with CraftOS
 - [x] Clean up repository, finish readme
 - [x] Fix graphics mode
+- [ ] Add screenshot/recording support
 - [ ] Add mount support
 - [ ] Add HTTP server
 - [ ] Implement CCEmuX and CC: Tweaked functionality (WebSockets, multiple computers, real IO API)
@@ -25,9 +26,12 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * SDL 2.0+
 * libcurl with SSL
 * jsoncpp
-* Windows: dirent.h
+* png++ (+libpng)
+  * Can be disabled with NO_PNG=1, will save as BMP instead
+  * Is disabled by default on Windows (since all of the NuGet pkgs suck on VS2019)
 * [libharu/libhpdf](https://github.com/libharu/libharu)
-  * This library is optional if built with -DPRINT_TYPE=html or -DPRINT_TYPE=txt
+  * This library is optional if built with PRINT_TYPE=1 (html) or PRINT_TYPE=2 (txt)
+* Windows: dirent.h
 * Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev`
 * The VS solution includes all packages required except libcurl (build yourself)
 

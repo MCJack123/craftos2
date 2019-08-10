@@ -135,6 +135,8 @@ extern "C" {
 
 void termInit() {
     SDL_Init(SDL_INIT_VIDEO);
+    SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
+    SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
     term = new TerminalWindow("CraftOS Terminal");
 }
 
@@ -233,12 +235,17 @@ const char * termGetEvent(lua_State *L) {
     if (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
-            lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
-            lua_pushboolean(L, false);
-            return "key";
+            if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) term->screenshot();
+            else {
+                lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
+                lua_pushboolean(L, false);
+                return "key";
+            }
         } else if (e.type == SDL_KEYUP && keymap.find(e.key.keysym.scancode) != keymap.end()) {
-            lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
-            return "key_up";
+            if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
+                lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
+                return "key_up";
+            }
         } else if (e.type == SDL_TEXTINPUT) {
             char tmp[2];
             tmp[0] = e.text.text[0];
@@ -268,7 +275,7 @@ const char * termGetEvent(lua_State *L) {
             lua_pushinteger(L, convertY(e.motion.y));
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            if (term->resize()) return "term_resize";
+            if (term->resize(e.window.data1, e.window.data2)) return "term_resize";
         }
     }
     return NULL;
@@ -469,7 +476,13 @@ int term_getPixel(lua_State *L) {
     return 1;
 }
 
-const char * term_keys[28] = {
+int term_screenshot(lua_State *L) {
+    if (lua_isstring(L, 1)) term->screenshot(lua_tostring(L, 1));
+    else term->screenshot();
+    return 0;
+}
+
+const char * term_keys[29] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -497,10 +510,11 @@ const char * term_keys[28] = {
     "setGraphicsMode",
     "getGraphicsMode",
     "setPixel",
-    "getPixel"
+    "getPixel",
+    "screenshot"
 };
 
-lua_CFunction term_values[28] = {
+lua_CFunction term_values[29] = {
     term_write,
     term_scroll,
     term_setCursorPos,
@@ -528,8 +542,9 @@ lua_CFunction term_values[28] = {
     term_setGraphicsMode,
     term_getGraphicsMode,
     term_setPixel,
-    term_getPixel
+    term_getPixel,
+    term_screenshot
 };
 
-library_t term_lib = {"term", 28, term_keys, term_values, termInit, termClose};
+library_t term_lib = {"term", 29, term_keys, term_values, termInit, termClose};
 }

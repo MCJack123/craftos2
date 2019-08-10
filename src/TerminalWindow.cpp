@@ -1,4 +1,7 @@
 #include "TerminalWindow.hpp"
+#ifndef NO_PNG
+#include <png++/png.hpp>
+#endif
 #include <assert.h>
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
@@ -26,9 +29,9 @@ TerminalWindow::TerminalWindow(std::string title) {
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
     win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == NULL) throw window_exception("Failed to create window");
-    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (ren == NULL) {
+    if (win == nullptr || win == NULL) throw window_exception("Failed to create window");
+    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE/* | SDL_RENDERER_PRESENTVSYNC*/);
+    if (ren == nullptr || ren == NULL) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer");
     }
@@ -122,6 +125,29 @@ SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
 void TerminalWindow::render() {
     while (locked);
     locked = true;
+    if (gotResizeEvent) {
+        gotResizeEvent = false;
+        this->screen.resize(newHeight);
+        if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<char>(newWidth, ' '));
+        for (int i = 0; i < screen.size(); i++) {
+            screen[i].resize(newWidth);
+            if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
+        }
+        this->colors.resize(newHeight);
+        if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<unsigned char>(newWidth, ' '));
+        for (int i = 0; i < colors.size(); i++) {
+            colors[i].resize(newWidth);
+            if (newWidth > width) std::fill(colors[i].begin() + width, colors[i].end(), 0xF0);
+        }
+        this->pixels.resize(newHeight * fontHeight);
+        if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<char>(newWidth * fontWidth, 0));
+        for (int i = 0; i < pixels.size(); i++) {
+            pixels[i].resize(newWidth * fontWidth);
+            if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0x0F);
+        }
+        this->width = newWidth;
+        this->height = newHeight;
+    }
     SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF);
     SDL_RenderClear(ren);
     SDL_Rect rect;
@@ -173,7 +199,22 @@ void TerminalWindow::render() {
     if (/*showFPS*/ false) {
         // later
     }
-    SDL_RenderPresent(ren);
+    if (shouldScreenshot) {
+        shouldScreenshot = false;
+        int w, h;
+        SDL_GetRendererOutputSize(ren, &w, &h);
+#ifdef PNGPP_PNG_HPP_INCLUDED
+        png::image<png::rgba_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
+        SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGBA8888, &(img.get_pixbuf().fetch_bytes()[0]), w * 4);
+        img.write(screenshotPath);
+#else
+        SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+        SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch);
+        SDL_SaveBMP(sshot, screenshotPath.c_str());
+        SDL_FreeSurface(sshot);
+#endif
+    }
+    if (!gotResizeEvent) SDL_RenderPresent(ren);
     locked = false;
 }
 
@@ -200,37 +241,35 @@ SDL_Rect TerminalWindow::getCharacterRect(char c) {
     return retval;
 }
 
-bool TerminalWindow::resize() {
-    while (locked);
-    locked = true;
-    int w = 0, h = 0;
-    SDL_GetWindowSize(win, &w, &h);
-    int newWidth = (w - 4*fontScale*charScale) / charWidth;
-    int newHeight = (h - 4*fontScale*charScale) / charHeight;
-    if (newWidth == width && newHeight == height) {
-        locked = false;
-        return false;
+bool TerminalWindow::resize(int w, int h) {
+    newWidth = (w - 4*fontScale*charScale) / charWidth;
+    newHeight = (h - 4*fontScale*charScale) / charHeight;
+    gotResizeEvent = (newWidth != width || newHeight != height);
+    return gotResizeEvent;
+}
+
+void TerminalWindow::screenshot(std::string path) {
+    shouldScreenshot = true;
+    if (path != "") screenshotPath = path;
+    else {
+        time_t now = time(0);
+        struct tm * nowt = localtime(&now);
+        char * p = fixpath("");
+        char * cpath = (char*)malloc(strlen(p) + 42);
+        strcpy(cpath, p);
+#ifdef WIN32
+        strcat(cpath, "\\..\\..\\screenshots\\");
+#else
+        strcat(cpath, "/../../screenshots/");
+#endif
+        createDirectory(cpath);
+        strftime(&cpath[strlen(p)+19], 24, "%F_%H.%M.%S.", nowt);
+#ifdef NO_PNG
+        screenshotPath = std::string((const char*)cpath) + "bmp";
+#else
+        screenshotPath = std::string((const char*)cpath) + "png";
+#endif
+        free(cpath);
+        free(p);
     }
-    screen.resize(newHeight);
-    if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<char>(newWidth, ' '));
-    for (int i = 0; i < screen.size(); i++) {
-        screen[i].resize(newWidth);
-        if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
-    }
-    colors.resize(newHeight);
-    if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<unsigned char>(newWidth, ' '));
-    for (int i = 0; i < colors.size(); i++) {
-        colors[i].resize(newWidth);
-        if (newWidth > width) std::fill(colors[i].begin() + width, colors[i].end(), 0xF0);
-    }
-    pixels.resize(newHeight * fontHeight);
-    if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<char>(newWidth * fontWidth, 0));
-    for (int i = 0; i < pixels.size(); i++) {
-        pixels[i].resize(newWidth * fontWidth);
-        if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0x0F);
-    }
-    width = newWidth;
-    height = newHeight;
-    locked = false;
-    return true;
 }
