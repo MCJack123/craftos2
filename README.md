@@ -15,6 +15,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 - [x] Add mount support
 - [ ] Add HTTP server
 - [ ] Implement CCEmuX and CC: Tweaked functionality (WebSockets, multiple computers, real IO API)
+- [ ] Add recording support (OpenCV, putting this off since it's a large dependency)
 
 ## Building
 ### Requirements
