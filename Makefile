@@ -17,7 +17,7 @@ ifdef NO_PNG
 CXXFLAGS=$(CXXFLAGS) -DNO_PNG
 endif
 
-_OBJ=config.o fs_handle.o fs.o http_handle.o http.o lib.o main.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o
+_OBJ=config.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 craftos: $(OBJ) $(ODIR)/platform.o

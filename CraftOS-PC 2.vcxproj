@@ -153,6 +153,7 @@
   <ItemGroup>
     <None Include="bios.lua" />
     <None Include="CraftOSTest.lua" />
+    <None Include="DOCUMENTATION.md" />
     <None Include="Makefile" />
     <None Include="packages.config" />
     <None Include="README.md" />
@@ -171,6 +172,7 @@
     <ClInclude Include="src\fs.h" />
     <ClInclude Include="src\fs_handle.h" />
     <ClInclude Include="src\http.h" />
+    <ClInclude Include="src\httplib.h" />
     <ClInclude Include="src\http_handle.h" />
     <ClInclude Include="src\lib.h" />
     <ClInclude Include="src\mounter.h" />
@@ -190,6 +192,7 @@
     <ClCompile Include="src\fs_handle.c" />
     <ClCompile Include="src\http.c" />
     <ClCompile Include="src\http_handle.c" />
+    <ClCompile Include="src\http_server.cpp" />
     <ClCompile Include="src\lib.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\mounter.cpp" />

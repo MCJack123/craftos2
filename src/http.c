@@ -262,14 +262,33 @@ int http_checkURL(lua_State *L) {
     return 1;
 }
 
-const char * http_keys[2] = {
+extern void http_startServer(int port);
+extern void http_stopServer(int port);
+
+int http_addListener(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    http_startServer(lua_tointeger(L, 1));
+    return 0;
+}
+
+int http_removeListener(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    http_stopServer(lua_tointeger(L, 1));
+    return 0;
+}
+
+const char * http_keys[4] = {
     "request",
-    "checkURL"
+    "checkURL",
+    "addListener",
+    "removeListener"
 };
 
-lua_CFunction http_values[2] = {
+lua_CFunction http_values[4] = {
     http_request,
-    http_checkURL
+    http_checkURL,
+    http_addListener,
+    http_removeListener
 };
 
-library_t http_lib = {"http", 2, http_keys, http_values, NULL, NULL};
+library_t http_lib = {"http", 4, http_keys, http_values, NULL, NULL};
