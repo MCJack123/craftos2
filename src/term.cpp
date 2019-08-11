@@ -224,6 +224,7 @@ std::queue<std::pair<event_provider, void*> > event_provider_queue;
 void termQueueProvider(event_provider p, void* data) {event_provider_queue.push(std::make_pair(p, data));}
 extern "C" void gettingEvent(void) {getting_event = true;}
 extern "C" void gotEvent(void) {last_event = std::chrono::high_resolution_clock::now(); getting_event = false;}
+int waitingForTerminate = 0;
 
 const char * termGetEvent(lua_State *L) {
     if (event_provider_queue.size() > 0) {
@@ -236,13 +237,20 @@ const char * termGetEvent(lua_State *L) {
         if (e.type == SDL_QUIT) return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) term->screenshot();
-            else {
+            else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
+                if (waitingForTerminate == 1) {
+                    waitingForTerminate = 2;
+                    return "terminate";
+                } else if (waitingForTerminate == 0) waitingForTerminate = 1;
+            } else {
+                waitingForTerminate = 0;
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 lua_pushboolean(L, false);
                 return "key";
             }
         } else if (e.type == SDL_KEYUP && keymap.find(e.key.keysym.scancode) != keymap.end()) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
+                waitingForTerminate = 0;
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 return "key_up";
             }
