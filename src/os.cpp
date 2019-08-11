@@ -115,7 +115,7 @@ int os_queueEvent(lua_State *L) {
 }
 
 int os_clock(lua_State *L) {
-    lua_pushinteger(L, getUptime());
+    lua_pushinteger(L, clock() / CLOCKS_PER_SEC);
     return 1;
 }
 

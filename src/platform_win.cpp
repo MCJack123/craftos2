@@ -1,5 +1,6 @@
 #include <windows.h>
 #include "platform.h"
+#include "mounter.h"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -8,24 +9,11 @@
 #include <processenv.h>
 #include <shlwapi.h>
 
-const char * base_path = "%USERPROFILE%\\.craftos\\computer\\0";
+const char * base_path = "%USERPROFILE%\\.craftos";
 const char * rom_path = "%ProgramFiles(x86)%\\CraftOS-PC";
-const char * bios_path = "%ProgramFiles(x86)%\\CraftOS-PC\\bios.lua";
 char * base_path_expanded;
 char * rom_path_expanded;
 char expand_tmp[32767];
-
-std::vector<std::string> split(std::string strToSplit, char delimeter) 
-{
-    std::stringstream ss(strToSplit);
-    std::string item;
-    std::vector<std::string> splittedStrings;
-    while (std::getline(ss, item, delimeter))
-    {
-       splittedStrings.push_back(item);
-    }
-    return splittedStrings;
-}
 
 std::wstring s2ws(const std::string& str) {
 	int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
@@ -36,34 +24,60 @@ std::wstring s2ws(const std::string& str) {
 
 extern "C" {
 
-char * expandEnvironment(const char * src) {
+void platformInit() {
+    if (rom_path_expanded == NULL) {
+        DWORD size = ExpandEnvironmentStringsA(rom_path, expand_tmp, 32767);
+        rom_path_expanded = (char*)malloc(size + 1);
+        memcpy(rom_path_expanded, expand_tmp, size);
+        rom_path_expanded[size] = 0;
+    }
+    addMount((std::string(rom_path_expanded) + "\\rom").c_str(), "rom", true);
+}
+
+void platformFree() {
+    if (base_path_expanded != NULL) free(base_path_expanded);
+    if (rom_path_expanded != NULL) free(rom_path_expanded);
+}
+
+const char * getBasePath() {
+    if (base_path_expanded != NULL) return base_path_expanded;
+    DWORD size = ExpandEnvironmentStringsA(base_path, expand_tmp, 32767);
+    char* dest = (char*)malloc(size + 1);
+    memcpy(dest, expand_tmp, size);
+    dest[size] = 0;
+    base_path_expanded = dest;
+    return dest;
+}
+
+const char * getROMPath() {
+    if (rom_path_expanded != NULL) return rom_path_expanded;
+    DWORD size = ExpandEnvironmentStringsA(rom_path, expand_tmp, 32767);
+    char* dest = (char*)malloc(size + 1);
+    memcpy(dest, expand_tmp, size);
+    dest[size] = 0;
+    rom_path_expanded = dest;
+    return dest;
+}
+
+char * getBIOSPath() {
+    const char * rp = getROMPath();
+    char * retval = (char*)malloc(strlen(rp) + 10);
+    strcpy(retval, rp);
+    strcat(retval, "\\bios.lua");
+    return retval;
+}
+
+/*char * expandEnvironment(const char * src) {
     if (base_path_expanded != NULL && std::string(src) == std::string(base_path)) return base_path_expanded;
 	if (rom_path_expanded != NULL && std::string(src) == std::string(rom_path)) return rom_path_expanded;
 	DWORD size = ExpandEnvironmentStringsA(src, expand_tmp, 32767);
 	char* dest = (char*)malloc(size + 1);
 	memcpy(dest, expand_tmp, size);
 	dest[size] = 0;
+    if (std::string(src) == std::string(base_path)) base_path_expanded = dest;
+    else if (std::string(src) == std::string(rom_path)) rom_path_expanded = dest;
 	return dest;
-}
-
-char * fixpath(const char * path) {
-    std::vector<std::string> elems = split(path, '/');
-    std::vector<std::string> pathc;
-    for (std::string s : elems) {
-        if (s == "..") {if (pathc.size() < 1) return NULL; else pathc.pop_back();}
-        else if (s != "." && s != "") pathc.push_back(s);
-    }
-    const char * bp = expandEnvironment((pathc.size() > 0 && pathc[0] == "rom") ? rom_path : base_path);
-    std::stringstream ss;
-    ss << bp;
-    for (std::string s : pathc) ss << "\\" << s;
-    //if (bp != base_path_expanded) free(bp);
-    std::string retstr = ss.str();
-    char * retval = (char*)malloc(retstr.size() + 1);
-    strcpy(retval, retstr.c_str());
-    //printf("%s\n", retval);
-    return retval;
-}
+}*/
 
 struct thread_param {
     void*(*func)(void*);
@@ -86,10 +100,6 @@ void * createThread(void*(*func)(void*), void* arg) {
 
 void joinThread(void * thread) {
     WaitForSingleObject((HANDLE)thread, 0);
-}
-
-int getUptime() {
-    return GetTickCount64() / 1000;
 }
 
 int createDirectory(const char* path) {

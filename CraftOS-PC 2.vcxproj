@@ -129,6 +129,8 @@
       <AdditionalIncludeDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatSpecificWarningsAsErrors>4013</TreatSpecificWarningsAsErrors>
+      <WarningLevel>Level1</WarningLevel>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -154,6 +156,9 @@
     <None Include="Makefile" />
     <None Include="packages.config" />
     <None Include="README.md" />
+    <None Include="src\platform_macapp.mm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\Ccblink.ico" />
@@ -168,6 +173,7 @@
     <ClInclude Include="src\http.h" />
     <ClInclude Include="src\http_handle.h" />
     <ClInclude Include="src\lib.h" />
+    <ClInclude Include="src\mounter.h" />
     <ClInclude Include="src\os.h" />
     <ClInclude Include="src\periphemu.h" />
     <ClInclude Include="src\peripheral\monitor.hpp" />
@@ -186,6 +192,7 @@
     <ClCompile Include="src\http_handle.c" />
     <ClCompile Include="src\lib.c" />
     <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\mounter.cpp" />
     <ClCompile Include="src\os.cpp" />
     <ClCompile Include="src\periphemu.cpp" />
     <ClCompile Include="src\peripheral\monitor.cpp" />

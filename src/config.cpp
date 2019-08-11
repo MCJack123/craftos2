@@ -36,13 +36,11 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
 }
 
 void config_init(void) {
-    char * base_path = fixpath("");
-    std::ifstream in(std::string(base_path) + "/../../config.json");
-    if (!in.is_open()) {config.readFail = true; free(base_path); return;}
+    std::ifstream in(std::string(getBasePath()) + "/config.json");
+    if (!in.is_open()) {config.readFail = true; return;}
     Json::Value root;
     in >> root;
     in.close();
-    free(base_path);
     if (root.isMember("http_enable")) config.http_enable = root["http_enable"].asBool();
     if (root.isMember("disable_lua51_features")) config.disable_lua51_features = root["disable_lua51_features"].asBool();
     if (root.isMember("default_computer_settings")) config.default_computer_settings = root["default_computer_settings"].asCString();
@@ -69,11 +67,9 @@ void config_deinit(void) {
     root["abortTimeout"] = Json::Value(config.abortTimeout);
     root["maxNotesPerTick"] = Json::Value(config.maxNotesPerTick);
     root["clockSpeed"] = Json::Value(config.clockSpeed);
-    char * base_path = fixpath("");
-    std::ofstream out(std::string(base_path) + "/../../config.json");
+    std::ofstream out(std::string(getBasePath()) + "/config.json");
     out << root;
     out.close();
-    free(base_path);
 }
 
 int config_get(lua_State *L) {

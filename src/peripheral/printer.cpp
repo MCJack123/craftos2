@@ -143,7 +143,7 @@ int printer::write(lua_State *L) {
     for (i = 0; i < strlen(str) && i + cursorX < width; i++) 
         body[cursorY][i+cursorX] = str[i] == '\n' ? '?' : str[i];
     cursorX += i;
-    printf("%s\n", &body[cursorY][0]);
+    //printf("%s\n", &body[cursorY][0]);
     return 0;
 }
 
@@ -152,7 +152,7 @@ int printer::setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     cursorX = (lua_tointeger(L, 1)-1);
     cursorY = (lua_tointeger(L, 2)-1);
-    printf("(%d, %d)\n", cursorX, cursorY);
+    //printf("(%d, %d)\n", cursorX, cursorY);
     return 0;
 }
 

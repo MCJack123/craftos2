@@ -5,6 +5,7 @@
 #include <signal.h>
 #ifdef WIN32
 #include <SDL_main.h>
+#pragma warning(1:4431)
 #else
 #include <SDL2/SDL_main.h>
 #endif
@@ -12,12 +13,13 @@
 #include "config.h"
 #include "fs.h"
 #include "http.h"
+#include "mounter.h"
 #include "os.h"
-#include "term.h"
 #include "redstone.h"
 #include "peripheral/peripheral.h"
 #include "periphemu.h"
 #include "platform.h"
+#include "term.h"
 
 void * tid;
 lua_State *L;
@@ -26,6 +28,7 @@ library_t * libraries[] = {
     &bit_lib,
     &config_lib,
     &fs_lib,
+    &mounter_lib,
     &os_lib,
     &peripheral_lib,
     &periphemu_lib,
@@ -44,12 +47,12 @@ void sighandler(int sig) {
     }
 }
 
+extern char * getBIOSPath();
+
 int main(int argc, char*argv[]) {
     int status;
     lua_State *coro;
-    char * bp = fixpath("");
-    createDirectory(bp);
-    free(bp);
+    createDirectory(getBasePath());
 start:
     /*
      * All Lua contexts are held in this structure. We work with it almost
@@ -94,7 +97,7 @@ start:
     lua_setglobal(L, "_HOST");
 
     /* Load the file containing the script we are going to run */
-	char* bios_path_expanded = expandEnvironment(bios_path);
+	char* bios_path_expanded = getBIOSPath();
     status = luaL_loadfile(coro, bios_path_expanded);
 	free(bios_path_expanded);
     if (status) {

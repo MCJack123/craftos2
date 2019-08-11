@@ -1,6 +1,7 @@
 #include "fs.h"
 #include "fs_handle.h"
 #include "platform.h"
+#include "mounter.h"
 #include "config.h"
 #include <lauxlib.h>
 #include <stdio.h>
@@ -24,6 +25,7 @@
 #endif
 
 int files_open = 0;
+extern void injectMounts(lua_State *L, const char * comp_path, int idx);
 
 void err(lua_State *L, char * path, const char * err) {
     char * msg = (char*)malloc(strlen(path) + strlen(err) + 3);
@@ -41,13 +43,15 @@ int fs_list(lua_State *L) {
     DIR * d = opendir(path);
     if (d) {
         lua_newtable(L);
-        for (int i = 0; (dir = readdir(d)) != NULL; i++) {
+        int i;
+        for (i = 0; (dir = readdir(d)) != NULL; i++) {
             if (dir->d_name[0] == '.' && (strlen(dir->d_name) == 1 || (dir->d_name[1] == '.' && strlen(dir->d_name) == 2))) { i--; continue; }
             lua_pushinteger(L, i + 1);
             lua_pushstring(L, dir->d_name);
             lua_settable(L, -3);
         }
         closedir(d);
+        injectMounts(L, lua_tostring(L, 1), i);
         lua_getglobal(L, "table");
         assert(lua_istable(L, -1));
         lua_pushstring(L, "sort");
@@ -91,6 +95,10 @@ int fs_isDir(lua_State *L) {
 
 int fs_isReadOnly(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (fixpath_ro(lua_tostring(L, 1))) {
+        lua_pushboolean(L, true);
+        return 1;
+    }
     char * path = fixpath(lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	struct stat st;
@@ -237,8 +245,10 @@ int fs_combine(lua_State *L) {
     strcat(retval, localPath);
     if (basePath[strlen(basePath)-1] == '/') localPath = localPath - 1;
     free(localPath);
-    lua_pushstring(L, retval);
+    char * realRetval = fixpath_Ex(retval, false);
     free(retval);
+    lua_pushstring(L, realRetval);
+    free(realRetval);
     return 1;
 }
 

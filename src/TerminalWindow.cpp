@@ -35,11 +35,9 @@ TerminalWindow::TerminalWindow(std::string title) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer");
     }
-    char * fontPathCStr = expandEnvironment(rom_path);
-	std::string fontPath = std::string(fontPathCStr);
+	std::string fontPath = std::string(getROMPath());
 	fontPath += std::string(fontPath.find('\\') != std::string::npos ? "\\" : "/") + "craftos.bmp";
     SDL_Surface *bmp = SDL_LoadBMP(fontPath.c_str());
-    free(fontPathCStr);
     if (bmp == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
@@ -254,22 +252,21 @@ void TerminalWindow::screenshot(std::string path) {
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        char * p = fixpath("");
-        char * cpath = (char*)malloc(strlen(p) + 42);
+        const char * p = getBasePath();
+        char * cpath = (char*)malloc(strlen(p) + 36);
         strcpy(cpath, p);
 #ifdef WIN32
-        strcat(cpath, "\\..\\..\\screenshots\\");
+        strcat(cpath, "\\screenshots\\");
 #else
-        strcat(cpath, "/../../screenshots/");
+        strcat(cpath, "/screenshots/");
 #endif
         createDirectory(cpath);
-        strftime(&cpath[strlen(p)+19], 24, "%F_%H.%M.%S.", nowt);
+        strftime(&cpath[strlen(p)+13], 24, "%F_%H.%M.%S.", nowt);
 #ifdef NO_PNG
         screenshotPath = std::string((const char*)cpath) + "bmp";
 #else
         screenshotPath = std::string((const char*)cpath) + "png";
 #endif
         free(cpath);
-        free(p);
     }
 }
