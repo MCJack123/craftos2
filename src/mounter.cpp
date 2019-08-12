@@ -50,7 +50,7 @@ char * fixpath_Ex(const char * path, bool addExt) {
     }
     std::stringstream ss;
     if (addExt) {
-        std::pair<int, std::string> max_path = std::make_pair(0, std::string(getBasePath()) + PATH_SEP + "computer" + PATH_SEP + "0");
+        std::pair<int, std::string> max_path = std::make_pair(0, std::string(getBasePath()) + PATH_SEP + "computer" + PATH_SEP + "0"); // TODO: use real computer ID instead of "0"
         for (auto it = mounts.begin(); it != mounts.end(); it++)
             if (pathc.size() >= std::get<0>(*it).size() && std::get<0>(*it).size() > max_path.first && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
                 max_path = std::make_pair(std::get<0>(*it).size(), std::get<1>(*it));

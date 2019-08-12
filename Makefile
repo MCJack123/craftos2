@@ -33,7 +33,7 @@ macapp: $(OBJ) $(ODIR)/platform_macapp.o
 $(ODIR):
 	mkdir obj
 
-$(ODIR)/main.o: $(SDIR)/main.c $(SDIR)/bit.h $(SDIR)/config.h $(SDIR)/fs.h $(SDIR)/http.h $(SDIR)/os.h $(SDIR)/term.h $(SDIR)/redstone.h $(SDIR)/peripheral/peripheral.h $(SDIR)/periphemu.h $(SDIR)/platform.h
+$(ODIR)/main.o: $(SDIR)/main.c $(SDIR)/bit.h $(SDIR)/config.h $(SDIR)/fs.h $(SDIR)/http.h $(SDIR)/mounter.h $(SDIR)/os.h $(SDIR)/term.h $(SDIR)/redstone.h $(SDIR)/peripheral/peripheral.h $(SDIR)/periphemu.h $(SDIR)/platform.h
 	$(CC) -o $@ $(CFLAGS) $<
 
 $(ODIR)/platform_macapp.o: $(SDIR)/platform_macapp.mm $(SDIR)/platform.h

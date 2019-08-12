@@ -23,6 +23,7 @@
 
 void * tid;
 lua_State *L;
+extern lua_State * paramQueue;
 
 library_t * libraries[] = {
     &bit_lib,
@@ -61,6 +62,7 @@ start:
     L = luaL_newstate();
 
     coro = lua_newthread(L);
+    paramQueue = lua_newthread(L);
 
     // Load libraries
     luaL_openlibs(coro);
@@ -89,6 +91,10 @@ start:
     lua_setglobal(L, "print");
     lua_pushnil(L);
     lua_setglobal(L, "newproxy");
+    if (!config.debug_enable) {
+        lua_pushnil(L);
+        lua_setglobal(L, "debug");
+    }
 
     // Set default globals
     lua_pushstring(L, config.default_computer_settings);

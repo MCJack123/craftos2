@@ -77,7 +77,7 @@ int fs_handle_readByte(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp)) return 0;
-    char retval = fgetc(fp);
+    unsigned char retval = (unsigned)fgetc(fp);
     lua_pushinteger(L, retval);
     return 1;
 }

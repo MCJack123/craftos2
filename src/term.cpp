@@ -3,6 +3,8 @@
 #include "config.h"
 #include "platform.h"
 #include "TerminalWindow.hpp"
+#include "periphemu.h"
+#include "peripheral/monitor.hpp"
 #include <unordered_map>
 #include <errno.h>
 #include <string.h>
@@ -16,6 +18,7 @@ TerminalWindow * term;
 bool canBlink = true;
 unsigned char colors = 0xF0;
 extern int os_queueEvent(lua_State *L);
+extern monitor * findMonitorFromWindowID(int id, std::string& sideReturn);
 extern "C" void peripheral_update();
 std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
 std::chrono::high_resolution_clock::time_point last_event = std::chrono::high_resolution_clock::now();
@@ -132,12 +135,12 @@ const std::unordered_map<int, unsigned char> keymap = {
 };
 
 extern "C" {
-
+extern int computerID;
 void termInit() {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
-    term = new TerminalWindow("CraftOS Terminal");
+    term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(computerID));
 }
 
 void termClose() {
@@ -283,7 +286,25 @@ const char * termGetEvent(lua_State *L) {
             lua_pushinteger(L, convertY(e.motion.y));
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            if (term->resize(e.window.data1, e.window.data2)) return "term_resize";
+            if (e.window.windowID == term->id && term->resize(e.window.data1, e.window.data2)) return "term_resize";
+            else {
+                std::string side;
+                monitor * m = findMonitorFromWindowID(e.window.windowID, side);
+                if (m != NULL && m->term.resize(e.window.data1, e.window.data2)) {
+                    lua_pushstring(L, side.c_str());
+                    return "monitor_resize";
+                }
+            }
+        } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
+            if (e.window.windowID == term->id) return "die";
+            else {
+                std::string side;
+                monitor * m = findMonitorFromWindowID(e.window.windowID, side);
+                if (m != NULL) {
+                    lua_pushstring(L, side.c_str());
+                    lua_pop(L, periphemu_lib.values[1](L) + 1);
+                }
+            }
         }
     }
     return NULL;
@@ -317,7 +338,7 @@ int term_scroll(lua_State *L) {
     }
     for (int i = term->height; i < term->height + lines; i++) {
         term->screen[i-lines] = std::vector<char>(term->width, ' ');
-        term->colors[i-lines] = std::vector<unsigned char>(term->width, 0);
+        term->colors[i-lines] = std::vector<unsigned char>(term->width, colors);
     }
     term->locked = false;
     return 0;
@@ -392,7 +413,9 @@ int term_setBackgroundColor(lua_State *L) {
 }
 
 int term_isColor(lua_State *L) {
-    lua_pushboolean(L, true);
+    struct computer_configuration cfg = getComputerConfig(computerID);
+    lua_pushboolean(L, cfg.isColor);
+    freeComputerConfig(cfg);
     return 1;
 }
 

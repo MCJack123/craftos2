@@ -8,10 +8,11 @@ extern "C" {
 extern library_t config_lib;
 struct configuration {
     bool http_enable;
+    bool debug_enable;
     //String[] http_whitelist;
     //String[] http_blacklist;
     bool disable_lua51_features;
-    const char * default_computer_settings;
+    char * default_computer_settings;
     bool logPeripheralErrors;
     bool showFPS;
     bool readFail;
@@ -23,12 +24,13 @@ struct configuration {
     bool ignoreHotkeys;
 };
 struct computer_configuration {
-    const char * label;
+    char * label;
     bool isColor;
 };
 extern struct configuration config;
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, struct computer_configuration cfg);
+extern void freeComputerConfig(struct computer_configuration cfg);
 #ifdef __cplusplus
 }
 #endif

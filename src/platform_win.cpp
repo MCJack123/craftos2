@@ -35,8 +35,14 @@ void platformInit() {
 }
 
 void platformFree() {
-    if (base_path_expanded != NULL) free(base_path_expanded);
-    if (rom_path_expanded != NULL) free(rom_path_expanded);
+    if (base_path_expanded != NULL) {
+        free(base_path_expanded);
+        base_path_expanded = NULL;
+    }
+    if (rom_path_expanded != NULL) {
+        free(rom_path_expanded);
+        rom_path_expanded = NULL;
+    }
 }
 
 const char * getBasePath() {

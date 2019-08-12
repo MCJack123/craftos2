@@ -8,13 +8,13 @@ extern "C" {
 #include <stdbool.h>
 #include <chrono>
 #include <queue>
+#include <string>
 #include <utility>
 #include <vector>
 #include "term.h"
+#include "config.h"
 
-char * label;
-bool label_defined = false;
-std::queue<std::pair<const char *, lua_State*> > eventQueue;
+std::queue<std::string> eventQueue;
 std::vector<std::chrono::steady_clock::time_point> timers;
 std::vector<double> alarms;
 extern "C" void gettingEvent(void);
@@ -22,23 +22,34 @@ extern "C" void gotEvent(void);
 
 extern "C" {
 int running = 1;
-void queueEvent(const char * name, lua_State *param) {eventQueue.push(std::make_pair(name, param));}
+int computerID = 0;
+lua_State * paramQueue;
+void queueEvent(const char * name, lua_State *param) {
+    lua_State *nparam = lua_newthread(paramQueue);
+    lua_xmove(param, nparam, lua_gettop(param));
+    eventQueue.push(name);
+}
 
 int getNextEvent(lua_State *L, const char * filter) {
-    std::pair<const char *, lua_State*> ev;
+    if (paramQueue == NULL) paramQueue = lua_newthread(L);
+    std::string ev;
     gettingEvent();
     do {
         while (eventQueue.size() == 0) {
             if (running != 1) return 0;
+            if (!lua_checkstack(paramQueue, 1)) {
+                lua_pushstring(L, "Could not allocate space for event");
+                lua_error(L);
+            }
             if (timers.size() > 0 && timers.back().time_since_epoch().count() == 0) timers.pop_back();
             if (alarms.size() > 0 && alarms.back() == -1) alarms.pop_back();
             if (timers.size() > 0) {
                 std::chrono::steady_clock::time_point t = std::chrono::steady_clock::now();
                 for (int i = 0; i < timers.size(); i++) {
                     if (t >= timers[i] && timers[i].time_since_epoch().count() > 0) {
-                        lua_State *param = lua_newthread(L);
+                        lua_State *param = lua_newthread(paramQueue);
                         lua_pushinteger(param, i);
-                        eventQueue.push(std::make_pair("timer", param));
+                        eventQueue.push("timer");
                         timers[i] = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(0));
                     }
                 }
@@ -48,69 +59,84 @@ int getNextEvent(lua_State *L, const char * filter) {
                 struct tm tm = *localtime(&t);
                 for (int i = 0; i < alarms.size(); i++) {
                     if ((double)tm.tm_hour + ((double)tm.tm_min/60.0) + ((double)tm.tm_sec/3600.0) == alarms[i]) {
-                        lua_State *param = lua_newthread(L);
+                        lua_State *param = lua_newthread(paramQueue);
                         lua_pushinteger(param, i);
-                        eventQueue.push(std::make_pair("alarm", param));
+                        eventQueue.push("alarm");
                         alarms[i] = -1;
                     }
                 }
             }
-            lua_State *param = lua_newthread(L);
-            if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
-            const char * name = termGetEvent(param);
-            if (name != NULL) {
-                if (strcmp(name, "die") == 0) running = 0;
-                eventQueue.push(std::make_pair(name, param));
-            } else if (param) {
-                lua_pop(L, -1);
-                lua_pushnil(param);
-                //lua_close(param); 
-                param = NULL;
+            if (eventQueue.size() == 0) {
+                lua_State *param = lua_newthread(paramQueue);
+                if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
+                const char * name = termGetEvent(param);
+                if (name != NULL) {
+                    if (strcmp(name, "die") == 0) running = 0;
+                    eventQueue.push(name);
+                } else if (param) {
+                    lua_pop(paramQueue, -1);
+                    //lua_close(param); 
+                    param = NULL;
+                }
             }
         }
         ev = eventQueue.front();
         eventQueue.pop();
-    } while (strlen(filter) > 0 && strcmp(std::get<0>(ev), filter) != 0);
-    lua_State *param = ev.second;
+    } while (strlen(filter) > 0 && ev != std::string(filter));
+    lua_State *param = lua_tothread(paramQueue, 1);
+    if (param == NULL) return 0;
     int count = lua_gettop(param);
-    if (!lua_checkstack(L, count + 1)) printf("Could not allocate\n");
-    lua_pushstring(L, ev.first);
+    if (!lua_checkstack(L, count + 1)) {
+        printf("Could not allocate enough space in the stack for %d elements, skipping event \"%s\"\n", count, ev.c_str());
+        return 0;
+    }
+    lua_pushstring(L, ev.c_str());
     lua_xmove(param, L, count);
+    lua_remove(paramQueue, 1);
     //lua_close(param);
     gotEvent();
     return count + 1;
 }
 
-int os_getComputerID(lua_State *L) {lua_pushinteger(L, 0); return 1;}
+int os_getComputerID(lua_State *L) {lua_pushinteger(L, computerID); return 1;}
 int os_getComputerLabel(lua_State *L) {
-    if (!label_defined) return 0;
-    lua_pushstring(L, label);
+    struct computer_configuration cfg = getComputerConfig(computerID);
+    if (cfg.label == NULL) return 0;
+    lua_pushstring(L, cfg.label);
+    freeComputerConfig(cfg);
     return 1;
 }
 
 int os_setComputerLabel(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (label_defined) free(label);
-    label = (char*)malloc(lua_strlen(L, 1) + 1);
+    struct computer_configuration cfg = getComputerConfig(computerID);
+    if (cfg.label != NULL) free((char*)cfg.label);
+    char * label = (char*)malloc(lua_strlen(L, 1) + 1);
     strcpy(label, lua_tostring(L, 1));
-    label_defined = true;
+    cfg.label = label;
+    setComputerConfig(computerID, cfg);
+    freeComputerConfig(cfg);
     return 0;
 }
 
 void os_free() {
-    if (label_defined) free(label);
+
 }
 
 int os_queueEvent(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    //if (paramQueue == NULL) paramQueue = lua_newthread(L);
     const char * name = lua_tostring(L, 1);
-    lua_State *param = lua_newthread(L);
+    if (!lua_checkstack(paramQueue, 1)) {
+        lua_pushstring(L, "Could not allocate space for event");
+        lua_error(L);
+    }
+    lua_State *param = lua_newthread(paramQueue);
     lua_remove(L, 1);
     int count = lua_gettop(L);
     lua_checkstack(param, count);
     lua_xmove(L, param, count);
-    lua_xmove(param, L, 1);
-    eventQueue.push(std::make_pair(name, param));
+    eventQueue.push(name);
     return 0;
 }
 

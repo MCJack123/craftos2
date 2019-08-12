@@ -8,6 +8,19 @@
 
 extern std::unordered_map<std::string, peripheral*> peripherals;
 
+monitor * findMonitorFromWindowID(int id, std::string& sideReturn) {
+    for (auto p : peripherals) {
+        if (strcmp(p.second->getMethods().name, "monitor") == 0) {
+            monitor * m = (monitor*)p.second;
+            if (m->term.id == id) {
+                sideReturn.assign(p.first);
+                return m;
+            }
+        }
+    }
+    return NULL;
+}
+
 extern "C" {
 
 int periphemu_create(lua_State* L) {

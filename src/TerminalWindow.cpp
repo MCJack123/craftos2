@@ -29,7 +29,9 @@ TerminalWindow::TerminalWindow(std::string title) {
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
     win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == nullptr || win == NULL) throw window_exception("Failed to create window");
+    if (win == nullptr || win == NULL) 
+        throw window_exception("Failed to create window");
+    id = SDL_GetWindowID(win);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE/* | SDL_RENDERER_PRESENTVSYNC*/);
     if (ren == nullptr || ren == NULL) {
         SDL_DestroyWindow(win);
@@ -38,7 +40,7 @@ TerminalWindow::TerminalWindow(std::string title) {
 	std::string fontPath = std::string(getROMPath());
 	fontPath += std::string(fontPath.find('\\') != std::string::npos ? "\\" : "/") + "craftos.bmp";
     SDL_Surface *bmp = SDL_LoadBMP(fontPath.c_str());
-    if (bmp == NULL) {
+    if (bmp == nullptr || bmp == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load font");
@@ -46,7 +48,7 @@ TerminalWindow::TerminalWindow(std::string title) {
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
     font = SDL_CreateTextureFromSurface(ren, bmp);
     SDL_FreeSurface(bmp);
-    if (font == NULL) {
+    if (font == nullptr || font == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font");
@@ -132,13 +134,13 @@ void TerminalWindow::render() {
             if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
         }
         this->colors.resize(newHeight);
-        if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<unsigned char>(newWidth, ' '));
+        if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<unsigned char>(newWidth, 0xF0));
         for (int i = 0; i < colors.size(); i++) {
             colors[i].resize(newWidth);
             if (newWidth > width) std::fill(colors[i].begin() + width, colors[i].end(), 0xF0);
         }
         this->pixels.resize(newHeight * fontHeight);
-        if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<char>(newWidth * fontWidth, 0));
+        if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<char>(newWidth * fontWidth, 0x0F));
         for (int i = 0; i < pixels.size(); i++) {
             pixels[i].resize(newWidth * fontWidth);
             if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0x0F);

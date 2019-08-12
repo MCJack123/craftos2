@@ -33,6 +33,7 @@ public:
 
 class TerminalWindow {
 public:
+    int id;
     int width = 51;
     int height = 19;
     static const int fontWidth = 6;

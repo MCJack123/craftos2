@@ -78,7 +78,9 @@ int res_write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (res == NULL || !res->open) return 0;
-    res->body += lua_tostring(L, 1);
+    size_t len = 0;
+    const char * buf = lua_tolstring(L, 1, &len);
+    res->body += std::string(buf, len);
     return 0;
 }
 
@@ -86,7 +88,9 @@ int res_writeLine(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (res == NULL || !res->open) return 0;
-    res->body += lua_tostring(L, 1);
+    size_t len = 0;
+    const char * buf = lua_tolstring(L, 1, &len);
+    res->body += std::string(buf, len);
     res->body += "\n";
     return 0;
 }
@@ -95,7 +99,7 @@ int res_close(lua_State *L) {
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (res == NULL || !res->open) return 0;
     if (res->res->has_header("Content-Type")) res->res->set_content(res->body, res->res->get_header_value("Content-Type").c_str());
-    else res->res->set_content(res->body, "text/plain");
+    else res->res->set_content(res->body, "");
     res->open = false;
     return 0;
 }

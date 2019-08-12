@@ -36,6 +36,8 @@ int monitor::setCursorPos(lua_State *L) {
     term.blinkY = lua_tointeger(L, 2) - 1;
     if (term.blinkX >= term.width) term.blinkX = term.width - 1;
     if (term.blinkY >= term.height) term.blinkY = term.height - 1;
+    if (term.blinkX < 0) term.blinkX = 0;
+    if (term.blinkY < 0) term.blinkY = 0;
     return 0;
 }
 

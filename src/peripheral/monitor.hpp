@@ -6,7 +6,6 @@
 
 class monitor : public peripheral {
 private:
-    TerminalWindow term;
     unsigned char colors = 0xF0;
     bool canBlink = true;
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
@@ -33,6 +32,7 @@ private:
     int getPixel(lua_State *L);
     int setTextScale(lua_State *L);
 public:
+    TerminalWindow term;
     static library_t methods;
     library_t getMethods() {return methods;}
     monitor(lua_State *L, const char * side);
