@@ -18,6 +18,7 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <sstream>
+#include "mounter.h"
 
 const char * rom_path = "/usr/share/craftos";
 #ifdef FS_ROOT
@@ -28,6 +29,10 @@ const char * base_path = "$HOME/.craftos";
 char * base_path_expanded = NULL;
 
 extern "C" {
+void platformInit() {
+    addMount((std::string(rom_path) + "/rom").c_str(), "rom", true);
+}
+
 void platformFree() {
     if (base_path_expanded != NULL) free(base_path_expanded);
 }
@@ -50,7 +55,7 @@ const char * getROMPath() { return rom_path; }
 char * getBIOSPath() {
     char * retval = (char*)malloc(strlen(rom_path) + 10);
     strcpy(retval, rom_path);
-    strcat(retval, "\\bios.lua");
+    strcat(retval, "/bios.lua");
     return retval;
 }
 

@@ -1,3 +1,12 @@
+/*
+ * monitor.hpp
+ * CraftOS-PC 2
+ * 
+ * This file defines the class for the monitor peripheral.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
 #ifndef PERIPHERAL_MONITOR_HPP
 #define PERIPHERAL_MONITOR_HPP
 #include "peripheral.h"

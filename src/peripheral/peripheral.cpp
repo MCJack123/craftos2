@@ -1,3 +1,13 @@
+/*
+ * peripheral.cpp
+ * CraftOS-PC 2
+ * 
+ * This file defines the functions in the peripheral API.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "peripheral.h"
 #include <unordered_map>
 #include <string>

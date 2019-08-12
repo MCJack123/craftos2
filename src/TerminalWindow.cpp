@@ -99,10 +99,10 @@ bool operator!=(Color lhs, Color rhs) {
 void TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        x * charWidth * dpiScale + 2 * charScale * dpiScale * fontScale, 
-        y * charHeight * dpiScale + 2 * charScale * dpiScale * fontScale, 
-        fontWidth * fontScale * charScale * dpiScale, 
-        fontHeight * fontScale * charScale * dpiScale
+        x * charWidth + 2 * charScale * fontScale, 
+        y * charHeight + 2 * charScale * fontScale, 
+        fontWidth * fontScale * charScale, 
+        fontHeight * fontScale * charScale
     };
     if (!transparent && bg != palette[15]) {
         SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF);
@@ -152,11 +152,11 @@ void TerminalWindow::render() {
     SDL_RenderClear(ren);
     SDL_Rect rect;
     if (isPixel) {
-        for (int y = 0; y < height * charHeight * dpiScale; y+=fontScale*charScale*dpiScale) {
-            for (int x = 0; x < width * charWidth * dpiScale; x+=fontScale*charScale*dpiScale) {
-                char c = pixels[y / fontScale / charScale / dpiScale][x / fontScale / charScale / dpiScale];
+        for (int y = 0; y < height * charHeight; y+=fontScale*charScale) {
+            for (int x = 0; x < width * charWidth; x+=fontScale*charScale) {
+                char c = pixels[y / fontScale / charScale][x / fontScale / charScale];
                 SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF);
-                SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale * dpiScale), y + (2 * fontScale * charScale * dpiScale), fontScale * charScale * dpiScale, fontScale * charScale * dpiScale));
+                SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale), y + (2 * fontScale * charScale), fontScale * charScale, fontScale * charScale));
             }
         }
     } else {
@@ -204,8 +204,10 @@ void TerminalWindow::render() {
         int w, h;
         SDL_GetRendererOutputSize(ren, &w, &h);
 #ifdef PNGPP_PNG_HPP_INCLUDED
-        png::image<png::rgba_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
-        SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGBA8888, &(img.get_pixbuf().fetch_bytes()[0]), w * 4);
+        png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
+        SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3);
+        png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
+        img.set_pixbuf(pixbuf);
         img.write(screenshotPath);
 #else
         SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);

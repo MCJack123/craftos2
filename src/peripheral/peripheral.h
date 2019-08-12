@@ -1,3 +1,14 @@
+/*
+ * peripheral.h
+ * CraftOS-PC 2
+ * 
+ * This file defines the peripheral API, and creates the base class for
+ * peripherals to inherit.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef PERIPHERAL_H
 #define PERIPHERAL_H
 #ifdef __cplusplus

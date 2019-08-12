@@ -1,3 +1,13 @@
+/*
+ * monitor.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for the monitor peripheral.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "monitor.hpp"
 
 extern "C" int log2i(int);

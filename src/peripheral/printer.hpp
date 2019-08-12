@@ -1,3 +1,13 @@
+/*
+ * printer.hpp
+ * CraftOS-PC 2
+ * 
+ * This file defines the class for the printer peripheral.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "peripheral.h"
 #include <string>
 #include <vector>

@@ -1,20 +1,20 @@
 CC=gcc
 CXX=g++
 PRINT_TYPE?=pdf
-CFLAGS=$(CFLAGS) -c -g -I/usr/include/lua5.1 -I/usr/include/jsoncpp
-CXXFLAGS= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
+CFLAGS:=$(CFLAGS) -c -g -I/usr/include/lua5.1 -I/usr/include/jsoncpp
+CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
 LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lSDL2 -lSDL2main -lpthread -lcurl -ljsoncpp
 
 ifeq ($(PRINT_TYPE), pdf)
-LIBS=$(LIBS) -lhpdf
+LIBS:=$(LIBS) -lhpdf
 endif
 ifndef NO_PNG
-LIBS=$(LIBS) -lpng++
+LIBS:=$(LIBS) -lpng
 endif
 ifdef NO_PNG
-CXXFLAGS=$(CXXFLAGS) -DNO_PNG
+CXXFLAGS:=$(CXXFLAGS) -DNO_PNG
 endif
 
 _OBJ=config.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o
@@ -46,6 +46,9 @@ $(ODIR)/TerminalWindow.o: $(SDIR)/TerminalWindow.cpp $(SDIR)/TerminalWindow.hpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/peripheral.h $(SDIR)/lib.h
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
+
+$(ODIR)/http_server.o: $(SDIR)/http_server.cpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/%.o: $(SDIR)/%.c $(SDIR)/%.h $(SDIR)/lib.h

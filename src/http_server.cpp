@@ -222,7 +222,9 @@ public:
 std::unordered_map<unsigned short, HTTPListener*> listeners;
 
 void * httpListener(void* data) {
-    int port = (int)data;
+    int* ptr = (int*)data;
+    int port = *ptr;
+    delete ptr;
     HTTPListener * listener = new HTTPListener();
     listeners[port] = listener;
     listener->port = port;
@@ -236,7 +238,9 @@ void * httpListener(void* data) {
 
 extern "C" void http_startServer(int port) {
     if (port < 0 || port > 65535) return;
-    createThread(httpListener, (void*)port);
+    int * ptr = new int;
+    *ptr = port;
+    createThread(httpListener, ptr);
 }
 
 extern "C" void http_stopServer(int port) {

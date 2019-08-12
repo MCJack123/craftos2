@@ -1,3 +1,13 @@
+/*
+ * printer.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for the printer peripheral.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "printer.hpp"
 #include "../platform.h"
 extern "C" {

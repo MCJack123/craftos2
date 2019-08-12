@@ -20,7 +20,7 @@ struct computer_configuration getComputerConfig(int id) {
     in >> root;
     in.close();
     cfg.isColor = root["isColor"].asBool();
-    if (root["label"].asString() != "") {
+    if (root.isMember("label") && root["label"].asString() != "") {
         cfg.label = (char*)malloc(root["label"].asString().size() + 1);
         strcpy(cfg.label, root["label"].asCString());
     }
@@ -29,7 +29,7 @@ struct computer_configuration getComputerConfig(int id) {
 
 void setComputerConfig(int id, struct computer_configuration cfg) {
     Json::Value root(Json::objectValue);
-    root["label"] = Json::Value(cfg.label == NULL ? "" : cfg.label);
+    if (cfg.label != NULL) root["label"] = Json::Value(cfg.label);
     root["isColor"] = Json::Value(cfg.isColor);
     std::ofstream out(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     out << root;
@@ -85,7 +85,7 @@ void config_save(bool deinit) {
     root["http_enable"] = Json::Value(config.http_enable);
     root["debug_enable"] = Json::Value(config.debug_enable);
     root["disable_lua51_features"] = Json::Value(config.disable_lua51_features);
-    root["default_computer_settings"] = Json::Value(config.default_computer_settings);
+    if (config.default_computer_settings != NULL) root["default_computer_settings"] = Json::Value(config.default_computer_settings);
     root["logPeripheralErrors"] = Json::Value(config.logPeripheralErrors);
     root["showFPS"] = Json::Value(config.showFPS);
     root["computerSpaceLimit"] = Json::Value(config.computerSpaceLimit);

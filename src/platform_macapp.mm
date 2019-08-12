@@ -1,6 +1,7 @@
 extern "C" {
 #include <lua.h>
 #include "platform.h"
+#include "mounter.h"
 }
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,9 @@ char * base_path_expanded = NULL;
 char * rom_path_expanded = NULL;
 
 extern "C" {
+void platformInit() {
+    addMount((std::string(getROMPath()) + "/rom").c_str(), "rom", true);
+}
 
 void platformFree() {
     if (base_path_expanded != NULL) free(base_path_expanded);

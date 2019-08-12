@@ -31,7 +31,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * SDL 2.0+
 * libcurl with SSL
 * jsoncpp
-* png++ (+libpng)
+* png++ 0.2.7+ (+libpng)
   * Can be disabled with NO_PNG=1, will save as BMP instead
   * Is disabled by default on Windows (since all of the NuGet pkgs suck on VS2019)
 * [libharu/libhpdf](https://github.com/libharu/libharu)
