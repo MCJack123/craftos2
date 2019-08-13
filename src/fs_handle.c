@@ -32,7 +32,6 @@ int fs_handle_readAll(lua_State *L) {
     fseek(fp, 0, SEEK_END);
     long size = ftell(fp) - pos;
     char * retval = (char*)malloc(size + 1);
-    bzero(retval, size + 1);
     memset(retval, 0, size + 1);
     fseek(fp, pos, SEEK_SET);
     int i;
