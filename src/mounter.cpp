@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <sys/stat.h>
 #include <cassert>
+#include <cstring>
 #ifdef WIN32
 #include <dirent.h>
 #define PATH_SEP "\\"

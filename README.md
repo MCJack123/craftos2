@@ -37,7 +37,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * [libharu/libhpdf](https://github.com/libharu/libharu)
   * This library is optional if built with PRINT_TYPE=1 (html) or PRINT_TYPE=2 (txt)
 * Windows: dirent.h
-* Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev`
+* Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev`
 * The VS solution includes all packages required except libcurl (build yourself)
 
 ### Instructions
@@ -77,7 +77,11 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 6. `sudo cp bios.lua craftos.bmp /usr/share/craftos/`
 7. Copy the ComputerCraft `rom` into `/usr/share/craftos/`
 
-## Why C/C++?
+## FAQ
+### Why is the ComputerCraft ROM/BIOS not included with the source?
+ComputerCraft and its assets are licensed under a copyleft license that requires anything using its code to be under the same license. Since I want CraftOS-PC 2 to remain under only the MIT license, I will not be distributing any original ComputerCraft files with the CraftOS-PC 2 source.
+
+### Why did you choose C/C++?
 Since the original ComputerCraft code is written in Java, it may seem like a better idea to create an emulator based on the original mod code. But I found that using native C and C++ lets the emulator run much better.
 
 **1. It runs much faster**

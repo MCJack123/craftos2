@@ -3,6 +3,7 @@
 #include <png++/png.hpp>
 #endif
 #include <assert.h>
+#include "favicon.h"
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
@@ -33,6 +34,13 @@ TerminalWindow::TerminalWindow(std::string title) {
     if (win == nullptr || win == NULL) 
         throw window_exception("Failed to create window");
     id = SDL_GetWindowID(win);
+    char * icon_pixels = (char*)malloc(favicon_width * favicon_height * 4);
+    memset(icon_pixels, 0xFF, favicon_width * favicon_height * 4);
+    const char * icon_data = header_data;
+    for (int i = 0; i < favicon_width * favicon_height; i++) HEADER_PIXEL(icon_data, (&icon_pixels[i*4]));
+    SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(icon_pixels, favicon_width, favicon_height, 32, favicon_width * 4, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+    SDL_SetWindowIcon(win, icon);
+    SDL_FreeSurface(icon);
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 #else
