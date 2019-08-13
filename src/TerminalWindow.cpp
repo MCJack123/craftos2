@@ -25,6 +25,7 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 }
 
 TerminalWindow::TerminalWindow(std::string title) {
+    locked.store(false);
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
@@ -32,14 +33,19 @@ TerminalWindow::TerminalWindow(std::string title) {
     if (win == nullptr || win == NULL) 
         throw window_exception("Failed to create window");
     id = SDL_GetWindowID(win);
-    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE/* | SDL_RENDERER_PRESENTVSYNC*/);
+#ifdef HARDWARE_RENDERER
+    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+#else
+    ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
+    dpiScale = 1;
+#endif
     if (ren == nullptr || ren == NULL) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer");
     }
 	std::string fontPath = std::string(getROMPath());
 	fontPath += std::string(fontPath.find('\\') != std::string::npos ? "\\" : "/") + "craftos.bmp";
-    SDL_Surface *bmp = SDL_LoadBMP(fontPath.c_str());
+    bmp = SDL_LoadBMP(fontPath.c_str());
     if (bmp == nullptr || bmp == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
@@ -47,7 +53,6 @@ TerminalWindow::TerminalWindow(std::string title) {
     }
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
     font = SDL_CreateTextureFromSurface(ren, bmp);
-    SDL_FreeSurface(bmp);
     if (font == nullptr || font == NULL) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
@@ -76,6 +81,7 @@ TerminalWindow::TerminalWindow(std::string title) {
 
 TerminalWindow::~TerminalWindow() {
     SDL_DestroyTexture(font);
+    SDL_FreeSurface(bmp);
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
 }
@@ -96,22 +102,27 @@ bool operator!=(Color lhs, Color rhs) {
     return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b;
 }
 
-void TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        x * charWidth + 2 * charScale * fontScale, 
-        y * charHeight + 2 * charScale * fontScale, 
-        fontWidth * fontScale * charScale, 
-        fontHeight * fontScale * charScale
+        x * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale, 
+        y * charHeight * dpiScale + 2 * charScale * fontScale * dpiScale, 
+        fontWidth * fontScale * charScale * dpiScale, 
+        fontHeight * fontScale * charScale * dpiScale
     };
     if (!transparent && bg != palette[15]) {
-        SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF);
-        SDL_RenderFillRect(ren, &destrect);
+        if (gotResizeEvent) return false;
+        if (SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF) != 0) return false;
+        if (gotResizeEvent) return false;
+        if (SDL_RenderFillRect(ren, &destrect) != 0) return false;
     }
     if (c != ' ' && c != '\0') {
-        SDL_SetTextureColorMod(font, fg.r, fg.g, fg.b);
-        SDL_RenderCopy(ren, font, &srcrect, &destrect);
+        if (gotResizeEvent) return false;
+        if (SDL_SetTextureColorMod(font, fg.r, fg.g, fg.b) != 0) return false;
+        if (gotResizeEvent) return false;
+        if (SDL_RenderCopy(ren, font, &srcrect, &destrect) != 0) return false;
     }
+    return true;
 }
 
 SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
@@ -147,16 +158,20 @@ void TerminalWindow::render() {
         }
         this->width = newWidth;
         this->height = newHeight;
+        /*SDL_DestroyRenderer(ren);
+        //ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
+        ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        font = SDL_CreateTextureFromSurface(ren, bmp);*/
     }
-    SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF);
-    SDL_RenderClear(ren);
+    if (SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF) != 0) {locked = false; return;}
+    if (SDL_RenderClear(ren) != 0) {locked = false; return;}
     SDL_Rect rect;
     if (isPixel) {
         for (int y = 0; y < height * charHeight; y+=fontScale*charScale) {
             for (int x = 0; x < width * charWidth; x+=fontScale*charScale) {
                 char c = pixels[y / fontScale / charScale][x / fontScale / charScale];
-                SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF);
-                SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale), y + (2 * fontScale * charScale), fontScale * charScale, fontScale * charScale));
+                if (SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF) != 0) {locked = false; return;}
+                if (SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale), y + (2 * fontScale * charScale), fontScale * charScale, fontScale * charScale)) != 0) {locked = false; return;}
             }
         }
     } else {
@@ -181,14 +196,16 @@ void TerminalWindow::render() {
                 if (x + 1 == width && y + 1 == height)
                     SDL_RenderFillRect(ren, setRect(&rect, (x + 1) * charWidth + (2 * fontScale * charScale), (y + 1) * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, 2 * fontScale * charScale));
                 */
-                drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4]);
+                if (gotResizeEvent) {locked = false; return;}
+                if (!drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4])) {locked = false; return;}
             }
         }
 		if (blinkX >= width) blinkX = width - 1;
 		if (blinkY >= height) blinkY = height - 1;
 		if (blinkX < 0) blinkX = 0;
 		if (blinkY < 0) blinkY = 0;
-        if (blink) drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true);
+        if (gotResizeEvent) {locked = false; return;}
+        if (blink) if (!drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true)) {locked = false; return;}
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -200,23 +217,30 @@ void TerminalWindow::render() {
         // later
     }
     if (shouldScreenshot) {
-        shouldScreenshot = false;
         int w, h;
-        SDL_GetRendererOutputSize(ren, &w, &h);
+        if (gotResizeEvent) {locked = false; return;}
+        if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) {locked = false; return;}
 #ifdef PNGPP_PNG_HPP_INCLUDED
         png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
-        SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3);
+        if (gotResizeEvent) {locked = false; return;}
+        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) {locked = false; return;}
         png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
         img.set_pixbuf(pixbuf);
         img.write(screenshotPath);
 #else
         SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-        SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch);
+        if (gotResizeEvent) {locked = false; return;}
+        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) {locked = false; return;}
         SDL_SaveBMP(sshot, screenshotPath.c_str());
         SDL_FreeSurface(sshot);
 #endif
+        shouldScreenshot = false;
     }
-    if (!gotResizeEvent) SDL_RenderPresent(ren);
+    if (gotResizeEvent) {locked = false; return;}
+    SDL_RenderPresent(ren);
+#ifndef HARDWARE_RENDERER
+    SDL_UpdateWindowSurface(win);
+#endif
     locked = false;
 }
 
@@ -244,6 +268,13 @@ SDL_Rect TerminalWindow::getCharacterRect(char c) {
 }
 
 bool TerminalWindow::resize(int w, int h) {
+    SDL_DestroyRenderer(ren);
+#ifdef HARDWARE_RENDERER
+    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+#else
+    ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
+#endif
+    font = SDL_CreateTextureFromSurface(ren, bmp);
     newWidth = (w - 4*fontScale*charScale) / charWidth;
     newHeight = (h - 4*fontScale*charScale) / charHeight;
     gotResizeEvent = (newWidth != width || newHeight != height);

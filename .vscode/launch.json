@@ -12,7 +12,12 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "environment": [
+                {
+                    "name": "HOME",
+                    "value": "${env:HOME}"
+                }
+            ],
             "externalConsole": false,
             "MIMode": "lldb",
             "preLaunchTask": "Build"

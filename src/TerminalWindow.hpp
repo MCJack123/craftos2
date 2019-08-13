@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <atomic>
 extern "C" {
 #include "platform.h"
 }
@@ -45,7 +46,7 @@ private:
     int newWidth, newHeight;
     std::string screenshotPath;
 public:
-    bool locked = false;
+    std::atomic_bool locked;
     int charScale = 2;
     int dpiScale = 1;
     int charWidth = fontWidth * fontScale * charScale;
@@ -67,7 +68,7 @@ public:
     ~TerminalWindow();
     void setPalette(Color * p);
     void setCharScale(int scale);
-    void drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
+    bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render();
     bool resize(int w, int h);
     void getMouse(int *x, int *y);
@@ -76,6 +77,7 @@ public:
 private:
     SDL_Window *win;
     SDL_Renderer *ren;
+    SDL_Surface *bmp;
     SDL_Texture *font;
 
     static SDL_Rect getCharacterRect(char c);

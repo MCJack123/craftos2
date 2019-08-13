@@ -215,7 +215,7 @@ void* termRenderLoop(void* arg) {
         }
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         term->render();
-        //printf("Render took %d ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
+        //printf("Render took %lld ms\n", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
         peripheral_update();
         long t = (1000/config.clockSpeed) - std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
         if (t > 0) msleep(t);
@@ -228,6 +228,7 @@ void termQueueProvider(event_provider p, void* data) {event_provider_queue.push(
 extern "C" void gettingEvent(void) {getting_event = true;}
 extern "C" void gotEvent(void) {last_event = std::chrono::high_resolution_clock::now(); getting_event = false;}
 int waitingForTerminate = 0;
+bool lastResizeEvent = false;
 
 const char * termGetEvent(lua_State *L) {
     if (event_provider_queue.size() > 0) {
@@ -235,6 +236,11 @@ const char * termGetEvent(lua_State *L) {
         event_provider_queue.pop();
         return p.first(L, p.second);
     }
+    if (lastResizeEvent) {
+        lastResizeEvent = false;
+        return "term_resize";
+    }
+    if (running != 1) return NULL;
     SDL_Event e;
     if (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) return "die";
@@ -286,8 +292,10 @@ const char * termGetEvent(lua_State *L) {
             lua_pushinteger(L, convertY(e.motion.y));
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            if (e.window.windowID == term->id && term->resize(e.window.data1, e.window.data2)) return "term_resize";
-            else {
+            if (e.window.windowID == term->id && term->resize(e.window.data1, e.window.data2)) {
+                lastResizeEvent = true;
+                return "term_resize";
+            } else {
                 std::string side;
                 monitor * m = findMonitorFromWindowID(e.window.windowID, side);
                 if (m != NULL && m->term.resize(e.window.data1, e.window.data2)) {

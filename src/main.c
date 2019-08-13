@@ -102,6 +102,40 @@ start:
     pushHostString(L);
     lua_setglobal(L, "_HOST");
 
+    // Load patched pcall/xpcall
+    luaL_loadstring(L, "return function( _fn, _fnErrorHandler )\n\
+    local typeT = type( _fn )\n\
+    assert( typeT == \"function\", \"bad argument #1 to xpcall (function expected, got \"..typeT..\")\" )\n\
+    local co = coroutine.create( _fn )\n\
+    local tResults = { coroutine.resume( co ) }\n\
+    while coroutine.status( co ) ~= \"dead\" do\n\
+        tResults = { coroutine.resume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }\n\
+    end\n\
+    if tResults[1] == true then\n\
+        return true, unpack( tResults, 2 )\n\
+    else\n\
+        return false, _fnErrorHandler( tResults[2] )\n\
+    end\n\
+end");
+    lua_call(L, 0, 1);
+    lua_setglobal(L, "xpcall");
+    
+    luaL_loadstring(L, "return function( _fn, ... )\n\
+    local typeT = type( _fn )\n\
+    assert( typeT == \"function\", \"bad argument #1 to pcall (function expected, got \"..typeT..\")\" )\n\
+    local tArgs = { ... }\n\
+    return xpcall(\n\
+        function()\n\
+            return _fn( unpack( tArgs ) )\n\
+        end,\n\
+        function( _error )\n\
+            return _error\n\
+        end\n\
+    )\n\
+end");
+    lua_call(L, 0, 1);
+    lua_setglobal(L, "pcall");
+
     /* Load the file containing the script we are going to run */
 	char* bios_path_expanded = getBIOSPath();
     status = luaL_loadfile(coro, bios_path_expanded);

@@ -19,7 +19,6 @@ extern "C" {
 #include "mounter.h"
 
 const char * rom_path = "/usr/local/share/craftos";
-const char * bios_path = "/usr/local/share/craftos/bios.lua";
 const char * base_path = "$HOME/.craftos";
 char * base_path_expanded = NULL;
 
@@ -39,11 +38,10 @@ const char * getBasePath() {
     wordexp(base_path, &p, 0);
     int size = 0;
     for (int i = 0; i < p.we_wordc; i++) size += strlen(p.we_wordv[i]);
-    char * retval = (char*)malloc(size + 1);
-    strcpy(retval, p.we_wordv[0]);
-    for (int i = 1; i < p.we_wordc; i++) strcat(retval, p.we_wordv[i]);
-    base_path_expanded = retval;
-    return retval;
+    base_path_expanded = (char*)malloc(size + 1);
+    strcpy(base_path_expanded, p.we_wordv[0]);
+    for (int i = 1; i < p.we_wordc; i++) strcat(base_path_expanded, p.we_wordv[i]);
+    return base_path_expanded;
 }
 
 const char * getROMPath() {return rom_path;}
@@ -52,19 +50,6 @@ char * getBIOSPath() {
     char * retval = (char*)malloc(strlen(rom_path) + 10);
     strcpy(retval, rom_path);
     strcat(retval, "/bios.lua");
-    return retval;
-}
-
-char * expandEnvironment(const char * src) {
-    if (base_path_expanded != NULL && std::string(src) == std::string(base_path)) return base_path_expanded;
-    wordexp_t p;
-    wordexp(src, &p, 0);
-    int size = 0;
-    for (int i = 0; i < p.we_wordc; i++) size += strlen(p.we_wordv[i]);
-    char * retval = (char*)malloc(size + 1);
-    strcpy(retval, p.we_wordv[0]);
-    for (int i = 1; i < p.we_wordc; i++) strcat(retval, p.we_wordv[i]);
-    if (std::string(src) == std::string(base_path)) base_path_expanded = retval;
     return retval;
 }
 
@@ -84,7 +69,7 @@ int createDirectory(const char * path) {
         if (errno == ENOENT && strcmp(path, "/") != 0) {
             char * dir = (char*)malloc(strlen(path) + 1);
             strcpy(dir, path);
-            if (createDirectory(dirname(dir))) return 1;
+            if (createDirectory(dirname(dir))) {free(dir); return 1;}
             free(dir);
             mkdir(path, 0777);
         } else return 1;

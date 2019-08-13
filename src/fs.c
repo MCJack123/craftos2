@@ -36,6 +36,13 @@ void err(lua_State *L, char * path, const char * err) {
     lua_error(L);
 }
 
+const char * ignored_files[4] = {
+    ".",
+    "..",
+    ".DS_Store",
+    "desktop.ini"
+};
+
 int fs_list(lua_State *L) {
     struct dirent *dir;
     char * path = fixpath(lua_tostring(L, 1));
@@ -45,7 +52,10 @@ int fs_list(lua_State *L) {
         lua_newtable(L);
         int i;
         for (i = 0; (dir = readdir(d)) != NULL; i++) {
-            if (dir->d_name[0] == '.' && (strlen(dir->d_name) == 1 || (dir->d_name[1] == '.' && strlen(dir->d_name) == 2))) { i--; continue; }
+            int found = 0;
+            for (int j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++) 
+                if (strcmp(dir->d_name, ignored_files[j]) == 0) { i--; found = 1; }
+            if (found) continue;
             lua_pushinteger(L, i + 1);
             lua_pushstring(L, dir->d_name);
             lua_settable(L, -3);
@@ -164,7 +174,7 @@ int fs_makeDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     char * path = fixpath(lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
-    if (createDirectory(path) != 0) err(L, path, strerror(errno));
+    if (createDirectory(path) != 0 && errno != EEXIST) err(L, path, strerror(errno));
     free(path);
     return 0;
 }

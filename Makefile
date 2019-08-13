@@ -1,7 +1,7 @@
 CC=gcc
 CXX=g++
 PRINT_TYPE?=pdf
-CFLAGS:=$(CFLAGS) -c -g -I/usr/include/lua5.1 -I/usr/include/jsoncpp
+CFLAGS:=$(CFLAGS) -c -I/usr/include/lua5.1 -I/usr/include/jsoncpp
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
@@ -28,7 +28,7 @@ macapp: $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/Resources
 	clang++ -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -framework Foundation
 	cp Info.plist CraftOS-PC.app/Contents/
-	cp craftos.bmp bios.lua CraftOS-PC.app/Contents/Resources/
+	cp craftos.bmp CraftOS-PC.app/Contents/Resources/
 
 $(ODIR):
 	mkdir obj
