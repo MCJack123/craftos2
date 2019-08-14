@@ -1,26 +1,6 @@
 # CraftOS-PC 2
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using a mixture of C/C++ and the original Lua API, as well as SDL for drawing.
 
-## Tasklist
-- [x] Port ComputerCraft API (from [craftos-native](https://github.com/MCJack123/craftos-native))
-- [x] Fix paths
-- [x] Add HTTP API
-- [x] Add configuration
-- [x] Add Windows support
-- [x] Add peripheral emulation
-- [x] Ensure full compliance with CraftOS
-- [x] Clean up repository, finish readme
-- [x] Fix graphics mode
-- [x] Add screenshot support
-- [x] Add mount support
-- [x] Add HTTP server
-- [ ] Add GIF recording support
-- [ ] Implement CCEmuX and CC: Tweaked functionality 
-  - [ ] Multiple computers
-  - [ ] Modem & Computer peripherals
-  - [ ] WebSockets
-- [ ] Read CC:T changelog & implement applicable features
-
 ## Building
 ### Requirements
 * Compiler
