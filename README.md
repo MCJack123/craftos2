@@ -1,6 +1,15 @@
 # CraftOS-PC 2
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using a mixture of C/C++ and the original Lua API, as well as SDL for drawing.
 
+## Requirements for released builds
+* 64-bit operating system
+  * 64-bit Windows
+  * macOS 10.7+
+  * Linux amd64
+* Administrator privileges
+* 7 MB free space
+* Windows: [Visual C++ 2015 Redistributable](https://aka.ms/vs/16/release/vc_redist.x64.exe)
+
 ## Building
 ### Requirements
 * Compiler
