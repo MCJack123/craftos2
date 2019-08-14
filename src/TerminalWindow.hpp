@@ -9,6 +9,7 @@
 #include <vector>
 #include <ctime>
 #include <atomic>
+#include <mutex>
 extern "C" {
 #include "platform.h"
 }
@@ -42,9 +43,15 @@ public:
 private:
     static const int fontScale = 1;
     bool shouldScreenshot = false;
+    bool shouldRecord = false;
     bool gotResizeEvent = false;
     int newWidth, newHeight;
     std::string screenshotPath;
+    std::string recordingPath;
+    int recordedFrames = 0;
+    int frameWait = 0;
+    std::vector<SDL_Surface*> recording;
+    std::mutex recorderMutex;
 public:
     std::atomic_bool locked;
     int charScale = 2;
@@ -69,10 +76,14 @@ public:
     void setPalette(Color * p);
     void setCharScale(int scale);
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
+    bool drawCharSurface(SDL_Surface* surf, char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render();
     bool resize(int w, int h);
     void getMouse(int *x, int *y);
     void screenshot(std::string path = ""); // asynchronous; captures on next render
+    void record(std::string path = ""); // asynchronous; captures on next render
+    void stopRecording();
+    void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
 
 private:
     SDL_Window *win;

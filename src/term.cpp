@@ -246,6 +246,7 @@ const char * termGetEvent(lua_State *L) {
         if (e.type == SDL_QUIT) return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) term->screenshot();
+            else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && !config.ignoreHotkeys) term->toggleRecording();
             else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (waitingForTerminate == 1) {
                     waitingForTerminate = 2;

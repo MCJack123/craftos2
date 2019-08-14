@@ -4,6 +4,8 @@
 #endif
 #include <assert.h>
 #include "favicon.h"
+#include "config.h"
+#include "gif.h"
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
@@ -141,6 +143,19 @@ SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
     return rect;
 }
 
+static char circlePix[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0,
+    0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255,
+    0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255,
+    0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255,
+    0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255,
+    0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
+
 void TerminalWindow::render() {
     while (locked);
     locked = true;
@@ -244,6 +259,25 @@ void TerminalWindow::render() {
 #endif
         shouldScreenshot = false;
     }
+    if (shouldRecord && --frameWait < 1) {
+        if (recordedFrames >= 150) stopRecording();
+        else {
+            recorderMutex.lock();
+            int w, h;
+            if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) { locked = false; return; }
+            SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ABGR8888, sshot->pixels, sshot->pitch) != 0) { locked = false; return; }
+            recording.push_back(sshot);
+            recordedFrames++;
+            frameWait = config.clockSpeed / 10;
+            SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
+            if (circle == NULL) { printf("Error: %s\n", SDL_GetError()); assert(false); }
+            SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, circle);
+            if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, 2 * charScale * fontScale * dpiScale, 10, 10)) != 0) { locked = false; return; }
+            SDL_FreeSurface(circle);
+            recorderMutex.unlock();
+        }
+    }
     if (gotResizeEvent) {locked = false; return;}
     SDL_RenderPresent(ren);
 #ifndef HARDWARE_RENDERER
@@ -312,4 +346,40 @@ void TerminalWindow::screenshot(std::string path) {
 #endif
         free(cpath);
     }
+}
+
+void TerminalWindow::record(std::string path) {
+    shouldRecord = true;
+    recordedFrames = 0;
+    frameWait = 0;
+    if (path != "") recordingPath = path;
+    else {
+        time_t now = time(0);
+        struct tm * nowt = localtime(&now);
+        const char * p = getBasePath();
+        char * cpath = (char*)malloc(strlen(p) + 36);
+        strcpy(cpath, p);
+#ifdef WIN32
+        strcat(cpath, "\\screenshots\\");
+#else
+        strcat(cpath, "/screenshots/");
+#endif
+        createDirectory(cpath);
+        strftime(&cpath[strlen(p) + 13], 24, "%F_%H.%M.%S.", nowt);
+        recordingPath = std::string((const char*)cpath) + "gif";
+        free(cpath);
+    }
+}
+
+void TerminalWindow::stopRecording() {
+    shouldRecord = false;
+    recorderMutex.lock();
+    if (recording.size() < 1) return;
+    GifWriter g;
+    GifBegin(&g, recordingPath.c_str(), recording[0]->w, recording[0]->h, 10);
+    for (SDL_Surface* s : recording) GifWriteFrame(&g, (uint8_t*)s->pixels, s->w, s->h, 10);
+    GifEnd(&g);
+    for (SDL_Surface* s : recording) SDL_FreeSurface(s);
+    recording.clear();
+    recorderMutex.unlock();
 }

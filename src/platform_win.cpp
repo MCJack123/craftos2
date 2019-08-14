@@ -204,6 +204,41 @@ std::unordered_map<double, const char *> windows_version_map = {
     {3.5, "Windows NT 3.5"},
     {3.1, "Windows NT 3.1"}
 };
+#ifdef _MSC_VER
+
+#if defined(_M_IX86__)
+#define ARCHITECTURE "i386"
+#elif defined(_M_AMD64)
+#define ARCHITECTURE "amd64"
+#elif defined(_M_X64)
+#define ARCHITECTURE "x86_64"
+#elif defined(_M_ARM)
+#define ARCHITECTURE "armv7"
+#elif defined(_M_ARM64)
+#define ARCHITECTURE "arm64"
+#else
+#define ARCHITECTURE "unknown"
+#endif
+
+#else
+
+#if defined(__i386__) || defined(__i386) || defined(i386)
+#define ARCHITECTURE "i386"
+#elif defined(__amd64__) || defined(__amd64)
+#define ARCHITECTURE "amd64"
+#elif defined(__x86_64__) || defined(__x86_64)
+#define ARCHITECTURE "x86_64"
+#elif defined(__arm__) || defined(__arm)
+#define ARCHITECTURE "armv7"
+#elif defined(__arm64__) || defined(__arm64)
+#define ARCHITECTURE "arm64"
+#elif defined(__aarch64__) || defined(__aarch64)
+#define ARCHITECTURE "aarch64"
+#else
+#define ARCHITECTURE "unknown"
+#endif
+
+#endif
 
 void pushHostString(lua_State *L) {
     OSVERSIONINFOA info;
@@ -212,6 +247,6 @@ void pushHostString(lua_State *L) {
     GetVersionEx(&info);
     double version = info.dwMajorVersion
         + (info.dwMinorVersion / 10.0);
-    lua_pushfstring(L, "%s i386 %d.%d", windows_version_map[version], info.dwMajorVersion, info.dwMinorVersion);
+    lua_pushfstring(L, "%s %s %d.%d", windows_version_map[version], ARCHITECTURE, info.dwMajorVersion, info.dwMinorVersion);
 }
 }
