@@ -3,7 +3,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 
 ## Requirements for released builds
 * 64-bit operating system
-  * 64-bit Windows
+  * 64-bit Windows 7+ (might work on Vista)
   * macOS 10.7+
   * Linux amd64
 * Administrator privileges
