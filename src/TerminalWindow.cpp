@@ -408,7 +408,6 @@ void TerminalWindow::stopRecording() {
     if (recording.size() < 1) return;
     GifWriter g;
     GifBegin(&g, recordingPath.c_str(), ((uint32_t*)(&recording[0][0]))[0], ((uint32_t*)(&recording[0][0]))[1], 10);
-    std::vector<uint32_t*> frames;
     for (std::string s : recording) {
         uint32_t w = ((uint32_t*)&s[0])[0], h = ((uint32_t*)&s[0])[1];
         uint32_t* ipixels = (uint32_t*)malloc(w * h * 4);
@@ -417,12 +416,10 @@ void TerminalWindow::stopRecording() {
             uint32_t c = ((uint32_t*)&s[0])[i];
             lp = memset_int(lp, c & 0xFFFFFF, ((c & 0xFF000000) >> 24) + 1);
         }
-        //assert(lp == &ipixels[w*h]);
         GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 10);
-        frames.push_back(ipixels);
+        free(ipixels);
     }
     GifEnd(&g);
-    for (uint32_t* f : frames) free(f);
     recording.clear();
     recorderMutex.unlock();
 }
