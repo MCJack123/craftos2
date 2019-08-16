@@ -3,7 +3,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 
 ## Requirements for released builds
 * 64-bit operating system
-  * 64-bit Windows 7+ (might work on Vista)
+  * Windows 7+ (might work on Vista)
   * macOS 10.7+
   * Linux amd64
 * Administrator privileges
@@ -12,9 +12,10 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 
 ## Building
 ### Requirements
+* [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
 * Compiler
   * Linux: GCC, G++, make
-  * Mac: Xcode CLI tools
+  * Mac: Xcode CLI tools ()
   * Windows: Visual Studio 2019
 * liblua 5.1
 * SDL 2.0+
@@ -26,45 +27,44 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * [libharu/libhpdf](https://github.com/libharu/libharu)
   * This library is optional if built with PRINT_TYPE=1 (html) or PRINT_TYPE=2 (txt)
 * Windows: dirent.h
-* Ubuntu: `sudo apt install build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev`
-* The VS solution includes all packages required except libcurl (build yourself)
+
+You can get all of these dependencies with:
+  * Windows: The VS solution includes all packages required except libcurl (build yourself)
+  * Mac (Homebrew): `git clone https://github.com/MCJack123/craftos2-rom; brew install lua@5.1 sdl2 curl jsoncpp png++ libharu`
+  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev; git clone https://github.com/MCJack123/craftos2-rom`
 
 ### Instructions
 #### Windows
-1. Download the ComputerCraft ROM directory from the [official repo](https://github.com/dan200/ComputerCraft/tree/master/src/main/resources/assets/computercraft/lua/rom)
-2. [Build libcurl from source](https://medium.com/@chuy.max/compile-libcurl-on-windows-with-visual-studio-2017-x64-and-ssl-winssl-cff41ac7971d).
-3. Download [Visual Studio 2019](https://visualstudio.microsoft.com/) if not already installed.
-4. Open `CraftOS-PC 2.sln` with VS.
-5. Ensure all NuGet packages are installed.
-6. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the libcurl/lib directory
-7. Ensure the project is set to the Debug configuration.
-8. Build (Ctrl-Shift-B)
-9. Open a new Explorer window in your home directory
-10. Go to AppData/Local
-11. Create a directory named `craftos`
-12. Copy bios.lua and craftos.bmp from this repo into `craftos`
-13. Copy the ComputerCraft `rom` into `craftos`
-14. Build & Run
+1. Download [Visual Studio 2019](https://visualstudio.microsoft.com/) if not already installed
+2. [Build libcurl from source](https://medium.com/@chuy.max/compile-libcurl-on-windows-with-visual-studio-2017-x64-and-ssl-winssl-cff41ac7971d)
+3. Open a new Explorer window in %ProgramFiles% (Win-R, %ProgramFiles%)
+4. Create a directory named `CraftOS-PC`
+5. Copy craftos.bmp from this repo into the directory
+6. Copy the contents of the CraftOS ROM into the directory
+7. Open `CraftOS-PC 2.sln` with VS
+8. Ensure all NuGet packages are installed
+9. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the libcurl/lib directory
+10. Ensure the project is set to the Debug configuration
+11. Build & Run
 
 #### Mac
-1. Download the ComputerCraft ROM directory from the [official repo](https://github.com/dan200/ComputerCraft/tree/master/src/main/resources/assets/computercraft/lua/rom)
-2. Open a new Terminal window
-3. `cd` to the cloned repository
-4. `make macapp`
-5. Open the repository in a new Finder window
-6. Right click on CraftOS-PC.app -> Show Package Contents
-7. Open Contents -> Resources
-8. Copy the `rom` directory inside
-9. Run CraftOS-PC.app
+1. Open a new Terminal window
+2. `cd` to the cloned repository
+3. `make macapp`
+4. Open the repository in a new Finder window
+5. Right click on CraftOS-PC.app -> Show Package Contents
+6. Open Contents -> Resources
+7. Copy the ROM package inside
+8. Run CraftOS-PC.app
 
 #### Linux
-1. Download the ComputerCraft ROM directory from the [official repo](https://github.com/dan200/ComputerCraft/tree/master/src/main/resources/assets/computercraft/lua/rom)
-2. Open a new terminal
-3. `cd` to the cloned repository
-4. `make`
-5. `sudo mkdir /usr/share/craftos`
-6. `sudo cp bios.lua craftos.bmp /usr/share/craftos/`
-7. Copy the ComputerCraft `rom` into `/usr/share/craftos/`
+1. Open a new terminal
+2. `cd` to the cloned repository
+3. `make`
+4. `sudo mkdir /usr/share/craftos`
+5. `sudo cp craftos.bmp /usr/share/craftos/`
+6. Copy the ComputerCraft ROM into `/usr/share/craftos/`
+7. `./craftos`
 
 ## FAQ
 ### Why is the ComputerCraft ROM/BIOS not included with the source?

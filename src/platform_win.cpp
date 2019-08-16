@@ -21,7 +21,7 @@
 #include <shlwapi.h>
 
 const char * base_path = "%USERPROFILE%\\.craftos";
-const char * rom_path = "%ProgramFiles(x86)%\\CraftOS-PC";
+const char * rom_path = "%ProgramFiles%\\CraftOS-PC";
 char * base_path_expanded;
 char * rom_path_expanded;
 char expand_tmp[32767];
