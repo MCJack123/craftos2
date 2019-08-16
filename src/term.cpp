@@ -226,7 +226,7 @@ void* termRenderLoop(void* arg) {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         term->render();
         long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-        printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
+        //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
         peripheral_update();
         long t = (1000/config.clockSpeed) - count;
         if (t > 0) msleep(t);

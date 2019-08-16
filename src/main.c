@@ -63,7 +63,15 @@ extern char * getBIOSPath();
 int main(int argc, char*argv[]) {
     int status;
     lua_State *coro;
-    createDirectory(getBasePath());
+    char * tmpdirname = (char*)malloc(strlen(getBasePath()) + 12);
+    strcpy(tmpdirname, getBasePath());
+#ifdef _WIN32
+    strcat(tmpdirname, "\\computer\\0");
+#else
+    strcat(tmpdirname, "/computer/0");
+#endif
+    createDirectory(tmpdirname);
+    free(tmpdirname);
 start:
     /*
      * All Lua contexts are held in this structure. We work with it almost
