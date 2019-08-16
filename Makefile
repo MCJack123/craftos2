@@ -1,7 +1,7 @@
 CC=gcc
 CXX=g++
 PRINT_TYPE?=pdf
-CFLAGS:=$(CFLAGS) -c -I/usr/include/lua5.1 -I/usr/include/jsoncpp
+CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/include/jsoncpp
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
@@ -62,3 +62,5 @@ $(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR
 
 clean:
 	rm obj/*
+
+rebuild: clean craftos

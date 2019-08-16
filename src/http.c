@@ -138,6 +138,7 @@ const char * http_success(lua_State *L, void* data) {
 
 const char * http_failure(lua_State *L, void* data) {
     lua_pushstring(L, ((http_handle_t*)data)->url);
+    curl_easy_cleanup(((http_handle_t*)data)->handle);
     free(data);
     return "http_failure";
 }

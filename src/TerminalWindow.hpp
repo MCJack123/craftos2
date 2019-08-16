@@ -50,7 +50,7 @@ private:
     std::string recordingPath;
     int recordedFrames = 0;
     int frameWait = 0;
-    std::vector<SDL_Surface*> recording;
+    std::vector<std::string> recording;
     std::mutex recorderMutex;
 public:
     std::atomic_bool locked;

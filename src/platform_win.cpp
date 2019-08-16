@@ -1,3 +1,4 @@
+#if !defined(__INTELLISENSE__) || defined(_WIN32)
 #include <windows.h>
 #include "platform.h"
 #include "mounter.h"
@@ -250,3 +251,4 @@ void pushHostString(lua_State *L) {
     lua_pushfstring(L, "%s %s %d.%d", windows_version_map[version], ARCHITECTURE, info.dwMajorVersion, info.dwMinorVersion);
 }
 }
+#endif

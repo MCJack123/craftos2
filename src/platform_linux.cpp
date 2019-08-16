@@ -1,4 +1,4 @@
-#ifndef __INTELLISENSE__ // disable error checking on Windows
+#if !defined(__INTELLISENSE__) || defined(__linux__) // disable error checking on Windows
 extern "C" {
 #include <lua.h>
 #include "platform.h"
@@ -48,6 +48,7 @@ const char * getBasePath() {
     strcpy(retval, p.we_wordv[0]);
     for (int i = 1; i < p.we_wordc; i++) strcat(retval, p.we_wordv[i]);
     base_path_expanded = retval;
+    wordfree(&p);
     return retval;
 }
 
