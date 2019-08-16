@@ -1,3 +1,13 @@
+/*
+ * config.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for the config API.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 extern "C" {
 #include "config.h"
 #include "platform.h"

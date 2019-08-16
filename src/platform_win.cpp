@@ -1,4 +1,14 @@
-#if !defined(__INTELLISENSE__) || defined(_WIN32)
+/*
+ * platform_win.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements functions specific to Windows.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
+#ifdef _WIN32
 #include <windows.h>
 #include "platform.h"
 #include "mounter.h"

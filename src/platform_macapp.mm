@@ -1,3 +1,13 @@
+/*
+ * platform_macapp.mm
+ * CraftOS-PC 2
+ * 
+ * This file implements functions specific to macOS app binaries.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 extern "C" {
 #include <lua.h>
 #include "platform.h"

@@ -1,3 +1,13 @@
+/*
+ * favicon.h
+ * CraftOS-PC 2
+ * 
+ * This file defines the image data for the application icon.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 /*  GIMP header image file format (RGB): src/favicon.h  */
 
 static unsigned int favicon_width = 16;

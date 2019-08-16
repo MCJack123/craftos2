@@ -1,3 +1,13 @@
+/*
+ * bit.h
+ * CraftOS-PC 2
+ * 
+ * This file defines and implements the methods for the bit API.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef BIT_H
 #define BIT_H
 #include "lib.h"

@@ -1,3 +1,14 @@
+/*
+ * lib.h
+ * CraftOS-PC 2
+ * 
+ * This file defines the library structure and some convenience functions for
+ * libraries (APIs).
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef LIB_H
 #define LIB_H
 #ifdef __cplusplus

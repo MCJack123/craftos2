@@ -1,3 +1,14 @@
+/*
+ * platform.h
+ * CraftOS-PC 2
+ * 
+ * This file defines functions that differ based on the platform the program is
+ * built for.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef PLATFORM_H
 #define PLATFORM_H
 #ifdef __cplusplus

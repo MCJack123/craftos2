@@ -1,3 +1,13 @@
+/*
+ * main.c
+ * CraftOS-PC 2
+ * 
+ * This file controls the Lua VM, loads the CraftOS BIOS, and sends events back.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include <lauxlib.h>
 #include <stdlib.h>
 #include <stdio.h>

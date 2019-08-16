@@ -1,3 +1,12 @@
+/*
+ * TerminalWindow.hpp
+ * CraftOS-PC 2
+ * 
+ * This file defines the TerminalWindow class.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
 #ifndef TERMINALWINDOW_HPP
 #define TERMINALWINDOW_HPP
 #ifdef WIN32

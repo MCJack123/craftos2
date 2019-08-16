@@ -1,3 +1,13 @@
+/*
+ * fs.c
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for the fs API.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "fs.h"
 #include "fs_handle.h"
 #include "platform.h"

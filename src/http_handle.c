@@ -1,3 +1,13 @@
+/*
+ * http_handle.c
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for HTTP handles.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "http_handle.h"
 #include <stdio.h>
 #include <string.h>

@@ -1,3 +1,13 @@
+/*
+ * TerminalWindow.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements the TerminalWindow class.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "TerminalWindow.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>

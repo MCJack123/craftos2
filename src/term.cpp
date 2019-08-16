@@ -1,3 +1,13 @@
+/*
+ * term.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for the term API.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "term.h"
 #include "os.h"
 #include "config.h"

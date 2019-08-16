@@ -1,3 +1,13 @@
+/*
+ * mounter.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for the mounter API.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "mounter.h"
 #include "platform.h"
 #include <string>

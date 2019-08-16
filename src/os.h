@@ -1,3 +1,13 @@
+/*
+ * os.h
+ * CraftOS-PC 2
+ * 
+ * This file defines the methods for the os API.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef OS_H
 #define OS_H
 #include "lib.h"

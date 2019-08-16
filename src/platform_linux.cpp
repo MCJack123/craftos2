@@ -1,4 +1,14 @@
-#if !defined(__INTELLISENSE__) || defined(__linux__) // disable error checking on Windows
+/*
+ * platform_linux.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements functions specific to Linux.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
+#ifdef __linux__ // disable error checking on Windows
 extern "C" {
 #include <lua.h>
 #include "platform.h"

@@ -1,3 +1,13 @@
+/*
+ * http_handle.h
+ * CraftOS-PC 2
+ * 
+ * This file defines the methods for HTTP handles.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef HTTP_HANDLE_H
 #define HTTP_HANDLE_H
 #include <lua.h>

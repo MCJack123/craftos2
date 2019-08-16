@@ -1,4 +1,14 @@
-#if !defined(__INTELLISENSE__) || defined(__APPLE__) // disable error checking on Windows
+/*
+ * platform_darwin.cpp
+ * CraftOS-PC 2
+ * 
+ * This file implements functions specific to macOS.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
+#ifdef __APPLE__ // disable error checking on Windows
 extern "C" {
 #include <lua.h>
 }

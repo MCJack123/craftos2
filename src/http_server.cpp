@@ -1,3 +1,13 @@
+/*
+ * http_server.cpp
+ * CraftOS-PC 2
+ * 
+ * This file defines the functions required to run an HTTP server thread.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "httplib.h"
 #include "platform.h"
 #include "term.h"

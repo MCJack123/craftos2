@@ -1,3 +1,13 @@
+/*
+ * fd_handle.h
+ * CraftOS-PC 2
+ * 
+ * This file defines the methods for file handles.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef FS_HANDLE_H
 #define FS_HANDLE_H
 #include <lua.h>

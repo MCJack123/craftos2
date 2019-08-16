@@ -1,3 +1,13 @@
+/*
+ * lib.c
+ * CraftOS-PC 2
+ * 
+ * This file implements convenience functions for libraries.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "lib.h"
 #include <stdlib.h>
 #include <stdio.h>

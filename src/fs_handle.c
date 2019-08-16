@@ -1,3 +1,13 @@
+/*
+ * fs_handle.c
+ * CraftOS-PC 2
+ * 
+ * This file implements the methods for file handles.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #include "fs_handle.h"
 #include "lib.h"
 #include <stdio.h>
