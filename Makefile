@@ -17,7 +17,7 @@ ifdef NO_PNG
 CXXFLAGS:=$(CXXFLAGS) -DNO_PNG
 endif
 
-_OBJ=config.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o
+_OBJ=Computer.o config.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 craftos: $(OBJ) $(ODIR)/platform.o
@@ -33,31 +33,28 @@ macapp: $(OBJ) $(ODIR)/platform_macapp.o
 $(ODIR):
 	mkdir obj
 
-$(ODIR)/main.o: $(SDIR)/main.c $(SDIR)/bit.h $(SDIR)/config.h $(SDIR)/fs.h $(SDIR)/http.h $(SDIR)/mounter.h $(SDIR)/os.h $(SDIR)/term.h $(SDIR)/redstone.h $(SDIR)/peripheral/peripheral.h $(SDIR)/periphemu.h $(SDIR)/platform.h
-	$(CC) -o $@ $(CFLAGS) $<
+$(ODIR)/main.o: $(SDIR)/main.cpp $(SDIR)/Computer.hpp
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/platform_macapp.o: $(SDIR)/platform_macapp.mm $(SDIR)/platform.h
+$(ODIR)/platform_macapp.o: $(SDIR)/platform_macapp.mm $(SDIR)/platform.hpp
 	clang++ -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.h $(SDIR)/platform_linux.cpp $(SDIR)/platform_darwin.cpp
+$(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.hpp $(SDIR)/platform_linux.cpp $(SDIR)/platform_darwin.cpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/TerminalWindow.o: $(SDIR)/TerminalWindow.cpp $(SDIR)/TerminalWindow.hpp
-	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
-
-$(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/peripheral.h $(SDIR)/lib.h
+$(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/peripheral.hpp $(SDIR)/lib.hpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/http_server.o: $(SDIR)/http_server.cpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/%.o: $(SDIR)/%.c $(SDIR)/%.h $(SDIR)/lib.h
+$(ODIR)/%.o: $(SDIR)/%.c $(SDIR)/%.h
 	$(CC) -o $@ $(CFLAGS) $<
 
-$(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.h $(SDIR)/lib.h
+$(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(SDIR)/lib.hpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR)/peripheral/peripheral.h
+$(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR)/peripheral/peripheral.hpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 clean:

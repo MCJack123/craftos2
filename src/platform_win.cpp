@@ -10,8 +10,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include "platform.h"
-#include "mounter.h"
+#include "platform.hpp"
+#include "mounter.hpp"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -33,16 +33,14 @@ std::wstring s2ws(const std::string& str) {
 	return wstrTo;
 }
 
-extern "C" {
-
-void platformInit() {
+void platformInit(Computer *comp) {
     if (rom_path_expanded == NULL) {
         DWORD size = ExpandEnvironmentStringsA(rom_path, expand_tmp, 32767);
         rom_path_expanded = (char*)malloc(size + 1);
         memcpy(rom_path_expanded, expand_tmp, size);
         rom_path_expanded[size] = 0;
     }
-    addMount((std::string(rom_path_expanded) + "\\rom").c_str(), "rom", true);
+    addMount(comp, (std::string(rom_path_expanded) + "\\rom").c_str(), "rom", true);
 }
 
 void platformFree() {
@@ -260,5 +258,5 @@ void pushHostString(lua_State *L) {
         + (info.dwMinorVersion / 10.0);
     lua_pushfstring(L, "%s %s %d.%d", windows_version_map[version], ARCHITECTURE, info.dwMajorVersion, info.dwMinorVersion);
 }
-}
+
 #endif

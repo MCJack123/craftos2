@@ -27,16 +27,15 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <sstream>
-#include "mounter.h"
+#include "mounter.hpp"
+#include "platform.hpp"
 
 const char * rom_path = "/usr/local/share/craftos";
 const char * base_path = "$HOME/.craftos";
 char * base_path_expanded = NULL;
 
-extern "C" {
-
-void platformInit() {
-    addMount((std::string(rom_path) + "/rom").c_str(), "rom", true);
+void platformInit(Computer *comp) {
+    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", true);
 }
 
 void platformFree() {
@@ -172,5 +171,5 @@ void pushHostString(lua_State *L) {
     uname(&host);
     lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
 }
-}
+
 #endif // __INTELLISENSE__

@@ -8,7 +8,7 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "peripheral.h"
+#include "peripheral.hpp"
 #include <string>
 #include <vector>
 

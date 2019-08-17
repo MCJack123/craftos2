@@ -8,9 +8,7 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-extern "C" {
-#include "platform.h"
-}
+#include "platform.hpp"
 #ifdef WIN32
 #include "platform_win.cpp"
 #else

@@ -8,18 +8,16 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "periphemu.h"
-#include "peripheral/peripheral.h"
+#include "periphemu.hpp"
+#include "peripheral/peripheral.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/printer.hpp"
 #include "TerminalWindow.hpp"
 #include <unordered_map>
 #include <string>
 
-extern std::unordered_map<std::string, peripheral*> peripherals;
-
-monitor * findMonitorFromWindowID(int id, std::string& sideReturn) {
-    for (auto p : peripherals) {
+monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn) {
+    for (auto p : comp->peripherals) {
         if (strcmp(p.second->getMethods().name, "monitor") == 0) {
             monitor * m = (monitor*)p.second;
             if (m->term.id == id) {
@@ -31,20 +29,19 @@ monitor * findMonitorFromWindowID(int id, std::string& sideReturn) {
     return NULL;
 }
 
-extern "C" {
-
 int periphemu_create(lua_State* L) {
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
 	if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
+	Computer * computer = get_comp(L);
 	std::string side = lua_tostring(L, 1);
 	std::string type = lua_tostring(L, 2);
-	if (peripherals.find(side) != peripherals.end()) {
+	if (computer->peripherals.find(side) != computer->peripherals.end()) {
 		lua_pushboolean(L, false);
 		return 1;
 	}
 	//lua_pop(L, 2);
-	if (type == std::string("monitor")) peripherals[side] = new monitor(L, side.c_str());
-	else if (type == std::string("printer")) peripherals[side] = new printer(L, side.c_str());
+	if (type == std::string("monitor")) computer->peripherals[side] = new monitor(L, side.c_str());
+	else if (type == std::string("printer")) computer->peripherals[side] = new printer(L, side.c_str());
 	else {
 		printf("not found: %s\n", type.c_str());
 		lua_pushboolean(L, false);
@@ -56,13 +53,14 @@ int periphemu_create(lua_State* L) {
 
 int periphemu_remove(lua_State* L) {
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+	Computer * computer = get_comp(L);
 	std::string side = lua_tostring(L, 1);
-	if (peripherals.find(side) == peripherals.end()) {
+	if (computer->peripherals.find(side) == computer->peripherals.end()) {
 		lua_pushboolean(L, false);
 		return 1;
 	}
-	delete peripherals[side];
-	peripherals.erase(side);
+	delete computer->peripherals[side];
+	computer->peripherals.erase(side);
 	lua_pushboolean(L, true);
 	return 1;
 }
@@ -78,4 +76,3 @@ lua_CFunction periphemu_values[2] = {
 };
 
 library_t periphemu_lib = { "periphemu", 2, periphemu_keys, periphemu_values, NULL, NULL };
-}

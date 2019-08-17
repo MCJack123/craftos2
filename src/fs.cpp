@@ -1,5 +1,5 @@
 /*
- * fs.c
+ * fs.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the fs API.
@@ -8,12 +8,14 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "fs.h"
-#include "fs_handle.h"
-#include "platform.h"
-#include "mounter.h"
-#include "config.h"
+#include "fs.hpp"
+#include "fs_handle.hpp"
+#include "platform.hpp"
+#include "mounter.hpp"
+#include "config.hpp"
+extern "C" {
 #include <lauxlib.h>
+}
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +36,6 @@
 #include <libgen.h>
 #endif
 
-int files_open = 0;
 extern void injectMounts(lua_State *L, const char * comp_path, int idx);
 
 void err(lua_State *L, char * path, const char * err) {
@@ -55,7 +56,7 @@ const char * ignored_files[4] = {
 
 int fs_list(lua_State *L) {
     struct dirent *dir;
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     DIR * d = opendir(path);
     if (d) {
@@ -89,7 +90,7 @@ int fs_list(lua_State *L) {
 
 int fs_exists(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) {
 		lua_pushboolean(L, false);
 		return 1;
@@ -102,7 +103,7 @@ int fs_exists(lua_State *L) {
 
 int fs_isDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) {
 		lua_pushboolean(L, false);
 		return 1;
@@ -115,11 +116,11 @@ int fs_isDir(lua_State *L) {
 
 int fs_isReadOnly(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (fixpath_ro(lua_tostring(L, 1))) {
+    if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) {
         lua_pushboolean(L, true);
         return 1;
     }
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	struct stat st;
     if (stat(path, &st) != 0) lua_pushboolean(L, false);
@@ -162,7 +163,7 @@ int fs_getDrive(lua_State *L) {
 
 int fs_getSize(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     struct stat st;
     if (stat(path, &st) != 0) err(L, path, "No such file");
@@ -173,7 +174,7 @@ int fs_getSize(lua_State *L) {
 
 int fs_getFreeSpace(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	lua_pushinteger(L, getFreeSpace(path));
     free(path);
@@ -182,7 +183,7 @@ int fs_getFreeSpace(lua_State *L) {
 
 int fs_makeDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     if (createDirectory(path) != 0 && errno != EEXIST) err(L, path, strerror(errno));
     free(path);
@@ -192,8 +193,8 @@ int fs_makeDir(lua_State *L) {
 int fs_move(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
-    char * fromPath = fixpath(lua_tostring(L, 1));
-    char * toPath = fixpath(lua_tostring(L, 2));
+    char * fromPath = fixpath(get_comp(L), lua_tostring(L, 1));
+    char * toPath = fixpath(get_comp(L), lua_tostring(L, 2));
 	if (fromPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	if (toPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 2));
     if (rename(fromPath, toPath) != 0) {
@@ -208,8 +209,8 @@ int fs_move(lua_State *L) {
 int fs_copy(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
-    char * fromPath = fixpath(lua_tostring(L, 1));
-    char * toPath = fixpath(lua_tostring(L, 2));
+    char * fromPath = fixpath(get_comp(L), lua_tostring(L, 1));
+    char * toPath = fixpath(get_comp(L), lua_tostring(L, 2));
 	if (fromPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	if (toPath == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 2));
 	FILE * fromfp = fopen(fromPath, "r");
@@ -240,7 +241,7 @@ int fs_copy(lua_State *L) {
 
 int fs_delete(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * path = fixpath(lua_tostring(L, 1));
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	int res = removeDirectory(path);
 	if (res != 0) err(L, path, "Failed to remove");
@@ -253,7 +254,7 @@ int fs_combine(lua_State *L) {
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     const char * basePath = lua_tostring(L, 1);
     const char * localPathOrig = lua_tostring(L, 2);
-    char * localPath = malloc(strlen(localPathOrig) + 2);
+    char * localPath = (char*)malloc(strlen(localPathOrig) + 2);
     if (localPathOrig[0] != '/') {
         localPath[0] = '/';
         strcpy(&localPath[1], localPathOrig);
@@ -265,7 +266,7 @@ int fs_combine(lua_State *L) {
     strcat(retval, localPath);
     if (basePath[strlen(basePath)-1] == '/') localPath = localPath - 1;
     free(localPath);
-    char * realRetval = fixpath_Ex(retval, false);
+    char * realRetval = fixpath(get_comp(L), retval, false);
     free(retval);
     lua_pushstring(L, realRetval);
     free(realRetval);
@@ -275,10 +276,11 @@ int fs_combine(lua_State *L) {
 int fs_open(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
-    char * path = fixpath(lua_tostring(L, 1));
+    Computer * computer = get_comp(L);
+    char * path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     const char * mode = lua_tostring(L, 2);
-    if (files_open >= config.maximumFilesOpen) err(L, path, "Too many files open");
+    if (computer->files_open >= config.maximumFilesOpen) err(L, path, "Too many files open");
 	//printf("fs.open(\"%s\", \"%s\")\n", path, mode);
 	FILE * fp = fopen(path, mode);
 	if (fp == NULL) { 
@@ -345,13 +347,13 @@ int fs_open(lua_State *L) {
         strcpy(tmp, mode);
         err(L, tmp, "Invalid mode");
     }
-    files_open++;
+    computer->files_open++;
     return 1;
 }
 
 int fs_find(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-	char* wildcard = fixpath(lua_tostring(L, 1));
+	char* wildcard = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (wildcard == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	lua_newtable(L);
 	platform_fs_find(L, wildcard);

@@ -8,17 +8,13 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-extern "C" {
-#include "config.h"
-#include "platform.h"
-}
+#include "config.hpp"
+#include "platform.hpp"
 #include <string.h>
 #include <json/json.h>
 #include <fstream>
 #include <string>
 #include <unordered_map>
-
-extern "C" {extern int computerID;}
 
 struct configuration config;
 
@@ -50,7 +46,7 @@ void freeComputerConfig(struct computer_configuration cfg) {
     if (cfg.label != NULL) free(cfg.label);
 }
 
-void config_init(void) {
+void config_init() {
     createDirectory((std::string(getBasePath()) + "/config").c_str());
     config = {
         true,
@@ -112,10 +108,11 @@ void config_save(bool deinit) {
     }
 }
 
-void config_deinit() { config_save(true); }
+void config_deinit(Computer *comp) { config_save(false); }
 
 int config_get(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    Computer * computer = get_comp(L);
     const char * name = lua_tostring(L, 1);
     if (strcmp(name, "http_enable") == 0)
         lua_pushboolean(L, config.http_enable);
@@ -148,7 +145,7 @@ int config_get(lua_State *L) {
     else if (strcmp(name, "ignoreHotkeys") == 0)
         lua_pushboolean(L, config.ignoreHotkeys);
     else if (strcmp(name, "isColor") == 0) {
-        struct computer_configuration cfg = getComputerConfig(computerID);
+        struct computer_configuration cfg = getComputerConfig(computer->id);
         lua_pushboolean(L, cfg.isColor);
         freeComputerConfig(cfg);
     }
@@ -158,6 +155,7 @@ int config_get(lua_State *L) {
 
 int config_set(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    Computer * computer = get_comp(L);
     const char * name = lua_tostring(L, 1);
     if (strcmp(name, "http_enable") == 0)
         config.http_enable = lua_toboolean(L, 2);
@@ -190,9 +188,9 @@ int config_set(lua_State *L) {
     else if (strcmp(name, "ignoreHotkeys") == 0)
         config.ignoreHotkeys = lua_toboolean(L, 2);
     else if (strcmp(name, "isColor") == 0) {
-        struct computer_configuration cfg = getComputerConfig(computerID);
+        struct computer_configuration cfg = getComputerConfig(computer->id);
         cfg.isColor = lua_toboolean(L, 2);
-        setComputerConfig(computerID, cfg);
+        setComputerConfig(computer->id, cfg);
     }
     config_save(false);
     return 0;
@@ -309,4 +307,4 @@ lua_CFunction config_values[4] = {
     config_getType
 };
 
-library_t config_lib = {"config", 4, config_keys, config_values, config_init, config_deinit};
+library_t config_lib = {"config", 4, config_keys, config_values, NULL, config_deinit};

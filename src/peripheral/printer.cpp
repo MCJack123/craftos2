@@ -9,7 +9,7 @@
  */
 
 #include "printer.hpp"
-#include "../platform.h"
+#include "../platform.hpp"
 extern "C" {
 #include <lauxlib.h>
 }

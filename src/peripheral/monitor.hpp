@@ -9,7 +9,7 @@
  */
 #ifndef PERIPHERAL_MONITOR_HPP
 #define PERIPHERAL_MONITOR_HPP
-#include "peripheral.h"
+#include "peripheral.hpp"
 #include "../TerminalWindow.hpp"
 #include <chrono>
 

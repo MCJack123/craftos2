@@ -1,5 +1,5 @@
 /*
- * config.h
+ * config.hpp
  * CraftOS-PC 2
  * 
  * This file defines the methods for the config API.
@@ -8,13 +8,9 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#ifndef CONFIG_H
-#define CONFIG_H
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "lib.h"
-#include <stdbool.h>
+#ifndef CONFIG_HPP
+#define CONFIG_HPP
+#include "lib.hpp"
 extern library_t config_lib;
 struct configuration {
     bool http_enable;
@@ -41,7 +37,4 @@ extern struct configuration config;
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, struct computer_configuration cfg);
 extern void freeComputerConfig(struct computer_configuration cfg);
-#ifdef __cplusplus
-}
-#endif
 #endif

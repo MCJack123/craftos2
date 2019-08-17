@@ -9,8 +9,8 @@
  */
 
 #include "httplib.h"
-#include "platform.h"
-#include "term.h"
+#include "platform.hpp"
+#include "term.hpp"
 #include <unordered_map>
 #include <chrono>
 
@@ -246,14 +246,14 @@ void * httpListener(void* data) {
     return NULL;
 }
 
-extern "C" void http_startServer(int port) {
+void http_startServer(int port) {
     if (port < 0 || port > 65535) return;
     int * ptr = new int;
     *ptr = port;
     createThread(httpListener, ptr);
 }
 
-extern "C" void http_stopServer(int port) {
+void http_stopServer(int port) {
     if (port < 0 || port > 65535 || listeners.find(port) == listeners.end()) return;
     listeners[port]->running = false;
     listeners[port]->server.stop();

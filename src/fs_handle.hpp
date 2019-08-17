@@ -1,5 +1,5 @@
 /*
- * fd_handle.h
+ * fs_handle.hpp
  * CraftOS-PC 2
  * 
  * This file defines the methods for file handles.
@@ -8,9 +8,9 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#ifndef FS_HANDLE_H
-#define FS_HANDLE_H
-#include <lua.h>
+#ifndef FS_HANDLE_HPP
+#define FS_HANDLE_HPP
+#include <lua.hpp>
 extern int fs_handle_close(lua_State *L);
 extern int fs_handle_readAll(lua_State *L);
 extern int fs_handle_readLine(lua_State *L);

@@ -1,5 +1,5 @@
 /*
- * http.h
+ * http.hpp
  * CraftOS-PC 2
  * 
  * This file defines the methods for the http API.
@@ -8,14 +8,8 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#ifndef HTTP_H
-#define HTTP_H
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "lib.h"
+#ifndef HTTP_HPP
+#define HTTP_HPP
+#include "lib.hpp"
 extern library_t http_lib;
-#ifdef __cplusplus
-}
-#endif
 #endif

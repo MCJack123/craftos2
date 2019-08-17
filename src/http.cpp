@@ -1,5 +1,5 @@
 /*
- * http.c
+ * http.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the http API.
@@ -8,11 +8,11 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "http.h"
+#include "http.hpp"
 #include "http_handle.h"
-#include "term.h"
-#include "platform.h"
-#include "config.h"
+#include "term.hpp"
+#include "platform.hpp"
+#include "config.hpp"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -109,7 +109,7 @@ size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
 }
 
 const char * http_success(lua_State *L, void* data) {
-    http_handle_t * handle = (data);
+    http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
     lua_pushstring(L, handle->url);
     lua_newtable(L);

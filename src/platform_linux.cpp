@@ -11,7 +11,6 @@
 #ifdef __linux__ // disable error checking on Windows
 extern "C" {
 #include <lua.h>
-#include "platform.h"
 }
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +18,7 @@ extern "C" {
 #include <stdio.h>
 #include <libgen.h>
 #include <unistd.h>
-#include <sys/sysinfo.h>
+//#include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/utsname.h>
@@ -29,7 +28,8 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <sstream>
-#include "mounter.h"
+#include "mounter.hpp"
+#include "platform.hpp"
 
 const char * rom_path = "/usr/share/craftos";
 #ifdef FS_ROOT
@@ -39,9 +39,8 @@ const char * base_path = "$HOME/.craftos";
 #endif
 char * base_path_expanded = NULL;
 
-extern "C" {
-void platformInit() {
-    addMount((std::string(rom_path) + "/rom").c_str(), "rom", true);
+void platformInit(Computer *comp) {
+    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", true);
 }
 
 void platformFree() {
@@ -179,5 +178,5 @@ void pushHostString(lua_State *L) {
     uname(&host);
     lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
 }
-}
+
 #endif // __INTELLISENSE__

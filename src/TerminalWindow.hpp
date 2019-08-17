@@ -7,6 +7,8 @@
  * This code is licensed under the MIT license.
  * Copyright (c) 2019 JackMacWindows.
  */
+
+class TerminalWindow;
 #ifndef TERMINALWINDOW_HPP
 #define TERMINALWINDOW_HPP
 #ifdef WIN32
@@ -19,9 +21,7 @@
 #include <ctime>
 #include <atomic>
 #include <mutex>
-extern "C" {
-#include "platform.h"
-}
+#include "platform.hpp"
 
 typedef struct color {
     Uint8 r;

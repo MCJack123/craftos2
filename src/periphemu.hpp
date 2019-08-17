@@ -1,5 +1,5 @@
 /*
- * periphemu.h
+ * periphemu.hpp
  * CraftOS-PC 2
  * 
  * This file defines the methods for the periphemu API.
@@ -8,14 +8,8 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#ifndef PERIPHEMU_H
-#define PERIPHEMU_H
-#include "lib.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef PERIPHEMU_HPP
+#define PERIPHEMU_HPP
+#include "lib.hpp"
 extern library_t periphemu_lib;
-#ifdef __cplusplus
-}
-#endif
 #endif
