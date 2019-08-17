@@ -23,7 +23,7 @@ int fs_handle_close(lua_State *L) {
     return 0;
 }
 
-extern "C" char checkChar(char c) {
+char checkChar(char c) {
 	if ((c >= 32 && c < 127) || c == '\n' || c == '\t' || c == '\r') return c;
 	else if (c == EOF) return '\0';
 	else {

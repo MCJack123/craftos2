@@ -15,7 +15,7 @@
 #include <assert.h>
 #include "favicon.h"
 #include "config.hpp"
-#include "gif.h"
+#include "gif.hpp"
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {

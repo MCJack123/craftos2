@@ -9,7 +9,7 @@
  */
 
 #include "http.hpp"
-#include "http_handle.h"
+#include "http_handle.hpp"
 #include "term.hpp"
 #include "platform.hpp"
 #include "config.hpp"

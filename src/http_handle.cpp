@@ -1,5 +1,5 @@
 /*
- * http_handle.c
+ * http_handle.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for HTTP handles.
@@ -8,7 +8,7 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "http_handle.h"
+#include "http_handle.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
