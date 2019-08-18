@@ -48,7 +48,17 @@ computer::computer(lua_State *L, const char * side) {
     comp = NULL;
     for (Computer * c : computers) if (c->id == id) comp = c;
     if (comp == NULL) comp = (Computer*)queueTask([ ](void* arg)->void*{return startComputer(*(int*)arg);}, &id);
-    comp->referencers.push_back(get_comp(L));
+    thiscomp = get_comp(L);
+    comp->referencers.push_back(thiscomp);
+}
+
+computer::~computer() {
+    for (auto it = comp->referencers.begin(); it != comp->referencers.end(); it++) {
+        if (*it == thiscomp) {
+            it = comp->referencers.erase(it);
+            if (it == comp->referencers.end()) break;
+        }
+    }
 }
 
 int computer::call(lua_State *L, const char * method) {

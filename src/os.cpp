@@ -73,8 +73,7 @@ int getNextEvent(lua_State *L, const char * filter) {
                     if (strcmp(name, "die") == 0) computer->running = 0;
                     computer->eventQueue.push(name);
                 } else if (param) {
-                    lua_pop(computer->paramQueue, -1);
-                    //lua_close(param); 
+                    lua_pop(computer->paramQueue, 1);
                     param = NULL;
                 }
             }

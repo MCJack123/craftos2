@@ -53,6 +53,7 @@ Computer::Computer(int i) {
 
 Computer::~Computer() {
     delete term;
+    for (auto p : peripherals) delete p.second;
     for (Computer * c : referencers) {
         for (auto it = c->peripherals.begin(); it != c->peripherals.end(); it++) {
             if (std::string(it->second->getMethods().name) == "computer" && ((computer*)it->second)->comp == this) {
@@ -213,11 +214,15 @@ bool Computer::getEvent(SDL_Event* e) {
 
 void* computerThread(void* data) {
     Computer * comp = (Computer*)data;
-    int id = computers.size() - 1;
     comp->run();
     queueTask([ ](void* arg)->void*{delete (Computer*)arg; return NULL;}, comp);
     freedComputers.insert(comp);
-    computers.erase(computers.begin() + id);
+    for (auto it = computers.begin(); it != computers.end(); it++) {
+        if (*it == comp) {
+            it = computers.erase(it);
+            if (it == computers.end()) break;
+        }
+    }
     return NULL;
 }
 

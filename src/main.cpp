@@ -22,7 +22,6 @@ int main(int argc, char*argv[]) {
     config_init();
     startComputer(0);
     mainLoop();
-    printf("Done\n");
     termClose();
     platformFree();
     config_save(true);

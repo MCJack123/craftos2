@@ -17,6 +17,7 @@ class computer: public peripheral {
 private:
     friend class Computer;
     Computer * comp;
+    Computer * thiscomp;
     int turnOn(lua_State *L);
     int shutdown(lua_State *L);
     int reboot(lua_State *L);
@@ -26,6 +27,7 @@ public:
     static library_t methods;
     library_t getMethods() {return methods;}
     computer(lua_State *L, const char * side);
+    ~computer();
     int call(lua_State *L, const char * method);
     void update() {}
 };

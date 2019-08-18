@@ -20,9 +20,7 @@ class peripheral {
 public:
     peripheral() {} // unused
     peripheral(lua_State *L, const char * side) {}
-    virtual ~peripheral(){
-        
-    }
+    virtual ~peripheral(){}
     virtual int call(lua_State *L, const char * method)=0;
     virtual void update()=0;
     virtual library_t getMethods()=0;

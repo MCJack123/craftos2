@@ -11,6 +11,7 @@
 #include "periphemu.hpp"
 #include "peripheral/peripheral.hpp"
 #include "peripheral/computer.hpp"
+#include "peripheral/modem.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/printer.hpp"
 #include "TerminalWindow.hpp"
@@ -31,11 +32,12 @@ monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideRetur
 }
 
 int periphemu_create(lua_State* L) {
-	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+	if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "string", 1);
 	if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
 	Computer * computer = get_comp(L);
-	std::string side = lua_tostring(L, 1);
 	std::string type = lua_tostring(L, 2);
+	std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
+	if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
 	if (computer->peripherals.find(side) != computer->peripherals.end()) {
 		lua_pushboolean(L, false);
 		return 1;
@@ -45,6 +47,7 @@ int periphemu_create(lua_State* L) {
 		if (type == std::string("monitor")) computer->peripherals[side] = new monitor(L, side.c_str());
 		else if (type == std::string("printer")) computer->peripherals[side] = new printer(L, side.c_str());
 		else if (type == std::string("computer")) computer->peripherals[side] = new class computer(L, side.c_str());
+		else if (type == std::string("modem")) computer->peripherals[side] = new modem(L, side.c_str());
 		else {
 			printf("not found: %s\n", type.c_str());
 			lua_pushboolean(L, false);

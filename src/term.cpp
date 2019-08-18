@@ -259,7 +259,8 @@ void mainLoop() {
                     (e.type == SDL_MOUSEMOTION && e.motion.windowID == c->term->windowID()) ||
                     (e.type == SDL_MOUSEWHEEL && e.wheel.windowID == c->term->windowID()) || 
                     (e.type == SDL_TEXTINPUT && e.text.windowID == c->term->windowID()) ||
-                    (e.type == SDL_WINDOWEVENT && e.window.windowID == c->term->windowID())) 
+                    (e.type == SDL_WINDOWEVENT && e.window.windowID == c->term->windowID()) || 
+                    e.type == SDL_QUIT)
                     c->termEventQueue.push(e);
     }
 }
