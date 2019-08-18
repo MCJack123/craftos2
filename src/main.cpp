@@ -16,12 +16,16 @@ extern void termClose();
 extern void config_init();
 extern void config_save(bool deinit);
 extern void mainLoop();
+extern std::list<void*> computerThreads;
 
 int main(int argc, char*argv[]) {
     termInit();
     config_init();
     startComputer(0);
     mainLoop();
+#ifndef _WIN32
+    for (void* t : computerThreads) delete (pthread_t*)t;
+#endif
     termClose();
     platformFree();
     config_save(true);

@@ -226,9 +226,11 @@ void* computerThread(void* data) {
     return NULL;
 }
 
+std::list<void*> computerThreads;
+
 Computer * startComputer(int id) {
     Computer * comp = new Computer(id);
     computers.push_back(comp);
-    createThread(computerThread, comp);
+    computerThreads.push_back(createThread(computerThread, comp));
     return comp;
 }
