@@ -1,5 +1,5 @@
 /*
- * monitor.cpp
+ * peripheral/monitor.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the monitor peripheral.

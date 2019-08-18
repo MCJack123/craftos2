@@ -23,6 +23,7 @@
 #include <chrono>
 #include <algorithm>
 #include <queue>
+#include <tuple>
 
 extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
 extern void peripheral_update();
@@ -225,45 +226,76 @@ void* termRenderLoop(void* arg) {
     return NULL;
 }
 
-std::queue<std::pair<event_provider, void*> > event_provider_queue;
-void termQueueProvider(event_provider p, void* data) {event_provider_queue.push(std::make_pair(p, data));}
+void termQueueProvider(Computer *comp, event_provider p, void* data) {comp->event_provider_queue.push(std::make_pair(p, data));}
 void gettingEvent(Computer *comp) {comp->getting_event = true;}
 void gotEvent(Computer *comp) {comp->last_event = std::chrono::high_resolution_clock::now(); comp->getting_event = false;}
-int waitingForTerminate = 0;
-bool lastResizeEvent = false;
+
+int nextTaskID = 0;
+std::queue< std::tuple<int, void*(*)(void*), void*> > taskQueue;
+std::unordered_map<int, void*> taskQueueReturns;
+
+void* queueTask(void*(*func)(void*), void* arg) {
+    int myID = nextTaskID++;
+    taskQueue.push(std::make_tuple(myID, func, arg));
+    while (taskQueueReturns.find(myID) == taskQueueReturns.end());
+    void* retval = taskQueueReturns[myID];
+    taskQueueReturns.erase(myID);
+    return retval;
+}
+
+void mainLoop() {
+    SDL_Event e;
+    while (computers.size() > 0) {
+        while (taskQueue.size() > 0) {
+            auto v = taskQueue.front();
+            taskQueueReturns[std::get<0>(v)] = std::get<1>(v)(std::get<2>(v));
+            taskQueue.pop();
+        }
+        if (SDL_PollEvent(&e)) 
+            for (Computer * c : computers) 
+                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.windowID == c->term->windowID()) ||
+                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && e.drop.windowID == c->term->windowID()) ||
+                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && e.button.windowID == c->term->windowID()) ||
+                    (e.type == SDL_MOUSEMOTION && e.motion.windowID == c->term->windowID()) ||
+                    (e.type == SDL_MOUSEWHEEL && e.wheel.windowID == c->term->windowID()) || 
+                    (e.type == SDL_TEXTINPUT && e.text.windowID == c->term->windowID()) ||
+                    (e.type == SDL_WINDOWEVENT && e.window.windowID == c->term->windowID())) 
+                    c->termEventQueue.push(e);
+    }
+}
 
 const char * termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
-    if (event_provider_queue.size() > 0) {
-        std::pair<event_provider, void*> p = event_provider_queue.front();
-        event_provider_queue.pop();
+    if (computer->event_provider_queue.size() > 0) {
+        std::pair<event_provider, void*> p = computer->event_provider_queue.front();
+        computer->event_provider_queue.pop();
         return p.first(L, p.second);
     }
-    if (lastResizeEvent) {
-        lastResizeEvent = false;
+    if (computer->lastResizeEvent) {
+        computer->lastResizeEvent = false;
         return "term_resize";
     }
     if (computer->running != 1) return NULL;
     SDL_Event e;
-    if (SDL_PollEvent(&e)) {
+    if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) computer->term->screenshot();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && !config.ignoreHotkeys) computer->term->toggleRecording();
             else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
-                if (waitingForTerminate == 1) {
-                    waitingForTerminate = 2;
+                if (computer->waitingForTerminate == 1) {
+                    computer->waitingForTerminate = 2;
                     return "terminate";
-                } else if (waitingForTerminate == 0) waitingForTerminate = 1;
+                } else if (computer->waitingForTerminate == 0) computer->waitingForTerminate = 1;
             } else {
-                waitingForTerminate = 0;
+                computer->waitingForTerminate = 0;
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 lua_pushboolean(L, false);
                 return "key";
             }
         } else if (e.type == SDL_KEYUP && keymap.find(e.key.keysym.scancode) != keymap.end()) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
-                waitingForTerminate = 0;
+                computer->waitingForTerminate = 0;
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 return "key_up";
             }
@@ -297,7 +329,7 @@ const char * termGetEvent(lua_State *L) {
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             if (e.window.windowID == computer->term->id && computer->term->resize(e.window.data1, e.window.data2)) {
-                lastResizeEvent = true;
+                computer->lastResizeEvent = true;
                 return "term_resize";
             } else {
                 std::string side;

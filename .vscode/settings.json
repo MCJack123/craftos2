@@ -79,7 +79,9 @@
         "variant": "cpp",
         "codecvt": "cpp",
         "condition_variable": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "csignal": "cpp",
+        "unordered_set": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++14",
     "C_Cpp.default.cStandard": "c11"

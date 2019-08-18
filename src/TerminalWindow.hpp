@@ -93,6 +93,7 @@ public:
     void record(std::string path = ""); // asynchronous; captures on next render
     void stopRecording();
     void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
+    int windowID();
 
 private:
     SDL_Window *win;

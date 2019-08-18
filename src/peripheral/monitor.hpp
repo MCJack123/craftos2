@@ -1,5 +1,5 @@
 /*
- * monitor.hpp
+ * peripheral/monitor.hpp
  * CraftOS-PC 2
  * 
  * This file defines the class for the monitor peripheral.

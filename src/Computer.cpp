@@ -19,9 +19,12 @@
 #include "os.hpp"
 #include "redstone.hpp"
 #include "peripheral/peripheral.hpp"
+#include "peripheral/computer.hpp"
 #include "periphemu.hpp"
+#include <unordered_set>
 
 std::vector<Computer*> computers;
+std::unordered_set<Computer*> freedComputers; 
 
 library_t * libraries[] = {
     &bit_lib,
@@ -40,10 +43,26 @@ Computer::Computer(int i) {
     mounter_initializing = true;
     platformInit(this);
     mounter_initializing = false;
+#ifdef _WIN32
+    createDirectory((std::string(getBasePath()) + "\\computer\\" + std::to_string(id)).c_str());
+#else
+    createDirectory((std::string(getBasePath()) + "/computer/" + std::to_string(id)).c_str());
+#endif
     term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
 }
 
-Computer::~Computer() {delete term;}
+Computer::~Computer() {
+    delete term;
+    for (Computer * c : referencers) {
+        for (auto it = c->peripherals.begin(); it != c->peripherals.end(); it++) {
+            if (std::string(it->second->getMethods().name) == "computer" && ((computer*)it->second)->comp == this) {
+                delete (computer*)it->second;
+                it = c->peripherals.erase(it);
+                if (it == c->peripherals.end()) break;
+            }
+        }
+    }
+}
 
 void Computer::run() {
     running = 1;
@@ -51,6 +70,9 @@ void Computer::run() {
     while (running) {
         int status;
         lua_State *coro;
+        term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
+        term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
+        term->pixels = std::vector<std::vector<char> >(term->height*term->fontHeight, std::vector<char>(term->width*term->fontWidth, 0x0F));
 
         /*
         * All Lua contexts are held in this structure. We work with it almost
@@ -182,7 +204,26 @@ void Computer::run() {
     }
 }
 
+bool Computer::getEvent(SDL_Event* e) {
+    if (termEventQueue.size() == 0) return false;
+    memcpy(e, &termEventQueue.front(), sizeof(SDL_Event));
+    termEventQueue.pop();
+    return true;
+}
+
 void* computerThread(void* data) {
-    ((Computer*)data)->run();
+    Computer * comp = (Computer*)data;
+    int id = computers.size() - 1;
+    comp->run();
+    queueTask([ ](void* arg)->void*{delete (Computer*)arg; return NULL;}, comp);
+    freedComputers.insert(comp);
+    computers.erase(computers.begin() + id);
     return NULL;
+}
+
+Computer * startComputer(int id) {
+    Computer * comp = new Computer(id);
+    computers.push_back(comp);
+    createThread(computerThread, comp);
+    return comp;
 }

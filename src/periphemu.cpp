@@ -10,6 +10,7 @@
 
 #include "periphemu.hpp"
 #include "peripheral/peripheral.hpp"
+#include "peripheral/computer.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/printer.hpp"
 #include "TerminalWindow.hpp"
@@ -40,12 +41,18 @@ int periphemu_create(lua_State* L) {
 		return 1;
 	}
 	//lua_pop(L, 2);
-	if (type == std::string("monitor")) computer->peripherals[side] = new monitor(L, side.c_str());
-	else if (type == std::string("printer")) computer->peripherals[side] = new printer(L, side.c_str());
-	else {
-		printf("not found: %s\n", type.c_str());
-		lua_pushboolean(L, false);
-		return 1;
+	try {
+		if (type == std::string("monitor")) computer->peripherals[side] = new monitor(L, side.c_str());
+		else if (type == std::string("printer")) computer->peripherals[side] = new printer(L, side.c_str());
+		else if (type == std::string("computer")) computer->peripherals[side] = new class computer(L, side.c_str());
+		else {
+			printf("not found: %s\n", type.c_str());
+			lua_pushboolean(L, false);
+			return 1;
+		}
+	} catch (std::exception e) {
+		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
+		lua_error(L);
 	}
 	lua_pushboolean(L, true);
 	return 1;

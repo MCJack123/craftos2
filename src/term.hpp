@@ -16,5 +16,6 @@ extern library_t term_lib;
 extern const char * termGetEvent(lua_State *L);
 extern void* termRenderLoop(void*);
 extern void termHook(lua_State *L, lua_Debug *ar);
-extern void termQueueProvider(event_provider p, void* data);
+extern void termQueueProvider(Computer *comp, event_provider p, void* data);
+extern void* queueTask(void*(*func)(void*), void* arg);
 #endif

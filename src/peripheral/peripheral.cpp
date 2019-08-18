@@ -1,5 +1,5 @@
 /*
- * peripheral.cpp
+ * peripheral/peripheral.cpp
  * CraftOS-PC 2
  * 
  * This file defines the functions in the peripheral API.

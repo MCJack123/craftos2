@@ -18,6 +18,8 @@
 #include <list>
 #include <queue>
 #include <unordered_map>
+#include <atomic>
+#include <SDL2/SDL.h>
 #include "peripheral/peripheral.hpp"
 #include "TerminalWindow.hpp"
 
@@ -28,7 +30,7 @@ public:
     int id;
     int running = 0;
     int files_open = 0;
-    std::vector<std::tuple<std::list<std::string>, std::string, bool> > mounts;
+    std::vector< std::tuple<std::list<std::string>, std::string, bool> > mounts;
     bool mounter_initializing = false;
     std::queue<std::string> eventQueue;
     lua_State * paramQueue;
@@ -42,14 +44,20 @@ public:
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
     std::chrono::high_resolution_clock::time_point last_event = std::chrono::high_resolution_clock::now();
     bool getting_event = false;
+    bool lastResizeEvent = false;
+    int waitingForTerminate = 0;
+    std::queue<SDL_Event> termEventQueue;
     lua_State *L = NULL;
+    std::list<Computer*> referencers;
 
     Computer(int i);
-    void run();
     ~Computer();
+    void run();
+    bool getEvent(SDL_Event* e);
 };
 
 extern std::vector<Computer*> computers;
 extern void* computerThread(void* data);
+extern Computer* startComputer(int id);
 
 #endif

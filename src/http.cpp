@@ -201,8 +201,8 @@ void* downloadThread(void* arg) {
     if (curl_easy_perform(handle->handle) == CURLE_OK) {
         handle->buf.size = handle->buf.offset;
         handle->buf.offset = 0;
-        termQueueProvider(http_success, handle);
-    } else termQueueProvider(http_failure, handle);
+        termQueueProvider(get_comp(param->L), http_success, handle);
+    } else termQueueProvider(get_comp(param->L), http_failure, handle);
     free(param);
     return NULL;
 }
@@ -216,7 +216,7 @@ void* checkThread(void* arg) {
     http_check_t * res = (http_check_t*)malloc(sizeof(http_check_t));
     res->url = param->url;
     res->status = status;
-    termQueueProvider(http_check, res);
+    termQueueProvider(get_comp(param->L), http_check, res);
     free(param);
     return NULL;
 }
@@ -273,12 +273,12 @@ int http_checkURL(lua_State *L) {
     return 1;
 }
 
-extern void http_startServer(int port);
+extern void http_startServer(Computer *comp, int port);
 extern void http_stopServer(int port);
 
 int http_addListener(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    http_startServer(lua_tointeger(L, 1));
+    http_startServer(get_comp(L), lua_tointeger(L, 1));
     return 0;
 }
 

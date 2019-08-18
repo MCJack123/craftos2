@@ -1,5 +1,5 @@
 /*
- * peripheral.hpp
+ * peripheral/peripheral.hpp
  * CraftOS-PC 2
  * 
  * This file defines the peripheral API, and creates the base class for
