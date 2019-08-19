@@ -257,7 +257,7 @@ void http_startServer(Computer *comp, int port) {
     struct http_server_data * ptr = new struct http_server_data;
     ptr->port = port;
     ptr->comp = comp;
-    createThread(httpListener, ptr);
+    createThread(httpListener, ptr, std::string("HTTP Port " + std::to_string(port) + " Listener").c_str());
 }
 
 void http_stopServer(int port) {

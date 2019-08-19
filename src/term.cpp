@@ -248,7 +248,8 @@ void mainLoop() {
     while (computers.size() > 0) {
         while (taskQueue.size() > 0) {
             auto v = taskQueue.front();
-            taskQueueReturns[std::get<0>(v)] = std::get<1>(v)(std::get<2>(v));
+            void* retval = std::get<1>(v)(std::get<2>(v));
+            taskQueueReturns[std::get<0>(v)] = retval;
             taskQueue.pop();
         }
         if (SDL_PollEvent(&e)) 

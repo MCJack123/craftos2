@@ -70,9 +70,10 @@ char * getBIOSPath() {
     return retval;
 }
 
-void * createThread(void*(*func)(void*), void* arg) {
+void * createThread(void*(*func)(void*), void* arg, const char * name) {
     pthread_t * tid = new pthread_t;
     pthread_create(tid, NULL, func, arg);
+    if (name != NULL) pthread_setname_np(*tid, name);
     return (void*)tid;
 }
 

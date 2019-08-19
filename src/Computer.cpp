@@ -175,7 +175,7 @@ void Computer::run() {
             msleep(5000);
             exit(1);
         }
-        void * tid = createThread(&termRenderLoop, this);
+        void * tid = createThread(&termRenderLoop, this, std::string("Computer " + std::to_string(id) + " Render Thread").c_str());
         //signal(SIGINT, sighandler);
 
         /* Ask Lua to run our little script */
@@ -234,6 +234,6 @@ std::list<void*> computerThreads;
 Computer * startComputer(int id) {
     Computer * comp = new Computer(id);
     computers.push_back(comp);
-    computerThreads.push_back(createThread(computerThread, comp));
+    computerThreads.push_back(createThread(computerThread, comp, std::string("Computer " + std::to_string(id) + " Main Thread").c_str()));
     return comp;
 }

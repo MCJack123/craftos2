@@ -15,7 +15,7 @@ extern "C" {
 #include <lua.h>
 }
 #include "Computer.hpp"
-extern void * createThread(void*(*func)(void*), void* arg);
+extern void * createThread(void*(*func)(void*), void* arg, const char * name = NULL);
 extern void joinThread(void * thread);
 extern int createDirectory(const char * path);
 extern void msleep(unsigned long time);

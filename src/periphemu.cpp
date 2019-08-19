@@ -17,6 +17,7 @@
 #include "TerminalWindow.hpp"
 #include <unordered_map>
 #include <string>
+#include <algorithm>
 
 monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn) {
     for (auto p : comp->peripherals) {

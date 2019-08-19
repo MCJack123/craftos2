@@ -106,11 +106,13 @@ DWORD WINAPI WinThreadFunc(LPVOID lpParam) {
     return 0;
 }
 
-void * createThread(void*(*func)(void*), void* arg) {
+void * createThread(void*(*func)(void*), void* arg, const char * name) {
     struct thread_param* p = new struct thread_param;
     p->func = func;
     p->arg = arg;
-    return CreateThread(NULL, 0, WinThreadFunc, p, 0, NULL);
+    HANDLE retval = CreateThread(NULL, 0, WinThreadFunc, p, 0, NULL);
+    SetThreadDescription(retval, s2ws(std::string(name)).c_str());
+    return retval;
 }
 
 void joinThread(void * thread) {
