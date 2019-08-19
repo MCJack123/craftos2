@@ -22,6 +22,9 @@
 #include "peripheral/computer.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
+extern "C" {
+#include <lauxlib.h>
+}
 
 std::vector<Computer*> computers;
 std::unordered_set<Computer*> freedComputers; 
@@ -215,7 +218,6 @@ bool Computer::getEvent(SDL_Event* e) {
 void* computerThread(void* data) {
     Computer * comp = (Computer*)data;
     comp->run();
-    queueTask([ ](void* arg)->void*{delete (Computer*)arg; return NULL;}, comp);
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {
@@ -223,6 +225,7 @@ void* computerThread(void* data) {
             if (it == computers.end()) break;
         }
     }
+    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
     return NULL;
 }
 

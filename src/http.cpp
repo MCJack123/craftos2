@@ -16,7 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+extern "C" {
 #include <lauxlib.h>
+}
 #include <curl/curl.h>
 #include <curl/easy.h>
 

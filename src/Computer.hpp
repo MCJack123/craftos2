@@ -11,7 +11,9 @@
 
 #ifndef COMPUTER_HPP
 #define COMPUTER_HPP
-#include <lua.hpp>
+extern "C" {
+#include <lua.h>
+}
 #include <string>
 #include <vector>
 #include <tuple>
@@ -19,7 +21,11 @@
 #include <queue>
 #include <unordered_map>
 #include <atomic>
+#ifdef WIN32
+#include <SDL.h>
+#else
 #include <SDL2/SDL.h>
+#endif
 #include "peripheral/peripheral.hpp"
 #include "TerminalWindow.hpp"
 

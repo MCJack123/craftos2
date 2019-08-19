@@ -10,7 +10,9 @@
 
 #ifndef FS_HANDLE_HPP
 #define FS_HANDLE_HPP
-#include <lua.hpp>
+extern "C" {
+#include <lua.h>
+}
 extern int fs_handle_close(lua_State *L);
 extern int fs_handle_readAll(lua_State *L);
 extern int fs_handle_readLine(lua_State *L);

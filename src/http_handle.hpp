@@ -10,7 +10,9 @@
 
 #ifndef HTTP_HANDLE_HPP
 #define HTTP_HANDLE_HPP
-#include <lua.hpp>
+extern "C" {
+#include <lua.h>
+}
 extern int http_handle_close(lua_State *L);
 extern int http_handle_readAll(lua_State *L);
 extern int http_handle_readLine(lua_State *L);

@@ -11,7 +11,9 @@
 
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
-#include <lua.hpp>
+extern "C" {
+#include <lua.h>
+}
 #include "Computer.hpp"
 extern void * createThread(void*(*func)(void*), void* arg);
 extern void joinThread(void * thread);

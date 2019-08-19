@@ -41,49 +41,10 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\bit.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\config.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\fs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\fs_handle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\http.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\http_handle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\lib.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\os.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\periphemu.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\platform.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\redstone.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\term.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\TerminalWindow.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\peripheral\monitor.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\peripheral\peripheral.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\peripheral\printer.hpp">
@@ -92,10 +53,64 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\mounter.h">
+    <ClInclude Include="src\peripheral\computer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\httplib.h">
+    <ClInclude Include="src\peripheral\modem.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\peripheral.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bit.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Computer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\config.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\favicon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fs.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fs_handle.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gif.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\http.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\http_handle.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\httplib.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lib.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mounter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\os.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\periphemu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\platform.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redstone.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\term.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -110,24 +125,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\config.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fs.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fs_handle.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\http.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\http_handle.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\lib.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\os.cpp">
@@ -158,6 +155,33 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\http_server.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Computer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fs_handle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\http.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\http_handle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\modem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\computer_p.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

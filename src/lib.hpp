@@ -11,8 +11,8 @@
 
 #ifndef LIB_HPP
 #define LIB_HPP
-#include <lua.hpp>
 extern "C" {
+#include <lua.h>
 #include <lualib.h>
 }
 
