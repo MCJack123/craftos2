@@ -29,7 +29,7 @@ typedef struct {
 
 typedef struct {
     int closed;
-    const char * url;
+    char * url;
     CURL * handle;
     buffer_t buf;
     int headers_size;
@@ -46,6 +46,7 @@ int http_handle_close(lua_State *L) {
         free((void*)handle->headers[i].key);
         free((void*)handle->headers[i].value);
     }
+    free(handle->url);
     free(handle->headers);
     free(handle);
     return 0;

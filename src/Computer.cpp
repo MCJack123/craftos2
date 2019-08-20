@@ -139,13 +139,13 @@ void Computer::run() {
         }
 
         // Load patched pcall/xpcall
-        luaL_loadstring(L, "return function( _fn, _fnErrorHandler )\n\
+        luaL_loadstring(L, "local nativeResume = coroutine.resume; return function( _fn, _fnErrorHandler )\n\
         local typeT = type( _fn )\n\
         assert( typeT == \"function\", \"bad argument #1 to xpcall (function expected, got \"..typeT..\")\" )\n\
         local co = coroutine.create( _fn )\n\
-        local tResults = { coroutine.resume( co ) }\n\
+        local tResults = { nativeResume( co ) }\n\
         while coroutine.status( co ) ~= \"dead\" do\n\
-            tResults = { coroutine.resume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }\n\
+            tResults = { nativeResume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }\n\
         end\n\
         if tResults[1] == true then\n\
             return true, unpack( tResults, 2 )\n\

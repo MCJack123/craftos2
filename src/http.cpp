@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
     lua_State *L;
-    const char * url;
+    char * url;
     const char * postData;
     int headers_size;
     dict_val_t * headers;
@@ -43,7 +43,7 @@ typedef struct {
 
 typedef struct {
     int closed;
-    const char * url;
+    char * url;
     CURL * handle;
     buffer_t buf;
     int headers_size;
@@ -51,7 +51,7 @@ typedef struct {
 } http_handle_t;
 
 typedef struct {
-    const char * url;
+    char * url;
     const char * status;
 } http_check_t;
 
@@ -151,6 +151,7 @@ const char * http_success(lua_State *L, void* data) {
 const char * http_failure(lua_State *L, void* data) {
     lua_pushstring(L, ((http_handle_t*)data)->url);
     curl_easy_cleanup(((http_handle_t*)data)->handle);
+    free(((http_handle_t*)data)->url);
     free(data);
     return "http_failure";
 }
@@ -161,6 +162,7 @@ const char * http_check(lua_State *L, void* data) {
     lua_pushboolean(L, res->status == NULL);
     if (res->status == NULL) lua_pushnil(L);
     else lua_pushstring(L, res->status);
+    free(res->url);
     free(res);
     return "http_check";
 }
@@ -231,7 +233,8 @@ int http_request(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
     param->L = L;
-    param->url = lua_tostring(L, 1);
+    param->url = (char*)malloc(lua_strlen(L, 1) + 1); 
+    strcpy(param->url, lua_tostring(L, 1));
     param->postData = NULL;
     param->headers = NULL;
     param->headers_size = 0;
@@ -266,7 +269,8 @@ int http_checkURL(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
     param->L = L;
-    param->url = lua_tostring(L, 1);
+    param->url = (char*)malloc(lua_strlen(L, 1) + 1);
+    strcpy(param->url, lua_tostring(L, 1));
 #ifdef WIN32
     createThread(checkThread, param, "HTTP Check Thread");
 #else
