@@ -409,10 +409,11 @@ int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (headless) {
-        if (lua_tointeger(L, 1) < headlessCursorX) printf("\r");
-        if (lua_tointeger(L, 2) != headlessCursorY) printf("\n");
-        headlessCursorX = lua_tointeger(L, 1);
-        headlessCursorY = lua_tointeger(L, 2);
+        if (lua_tointeger(L, 1) < (headlessCursorX + 1)) printf("\r");
+        else if (lua_tointeger(L, 1) > (headlessCursorX + 1)) for (int i = headlessCursorX; i < lua_tointeger(L, 1); i++) printf(" ");
+        if (lua_tointeger(L, 2) != (headlessCursorY + 1)) printf("\n");
+        headlessCursorX = lua_tointeger(L, 1) - 1;
+        headlessCursorY = lua_tointeger(L, 2) - 1;
         return 0;
     }
     Computer * computer = get_comp(L);

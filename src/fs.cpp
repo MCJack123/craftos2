@@ -395,7 +395,12 @@ int fs_find(lua_State *L) {
     std::vector<std::string> elems = split(lua_tostring(L, 1), '/');
     std::list<std::string> pathc;
     for (std::string s : elems) {
-        if (s == "..") { if (pathc.size() < 1) return NULL; else pathc.pop_back(); } 
+        if (s == "..") { 
+            if (pathc.size() < 1) {
+                lua_pushstring(L, "Not a directory");
+                lua_error(L);
+            } else pathc.pop_back(); 
+        }
         else if (s != "." && s != "") pathc.push_back(s);
     }
     lua_State *tmp = lua_newthread(L);
