@@ -122,7 +122,7 @@
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\lib;$(SolutionDir)packages\sdl2.nuget.2.0.10\build\native\lib\x64\dynamic;$(SolutionDir)packages\lua51.5.1.5\build\native\lib\x64\v120\Debug;$(SolutionDir)packages\jsoncpp-vc140-static-64.1.8.0\lib\native\libs\x64\static\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;jsoncpp.lib;libcurl_a.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
     </Link>
     <ClCompile>
       <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;PRINT_TYPE=1;CURL_STATICLIB;NO_PNG</PreprocessorDefinitions>

@@ -20,6 +20,7 @@ extern "C" {
 #include <string>
 #include <utility>
 #include <vector>
+#include <algorithm>
 #include "os.hpp"
 #include "platform.hpp"
 #include "term.hpp"
