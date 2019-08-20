@@ -40,6 +40,7 @@ private:
     int setPixel(lua_State *L);
     int getPixel(lua_State *L);
     int setTextScale(lua_State *L);
+    int getTextScale(lua_State *L);
 public:
     TerminalWindow term;
     static library_t methods;
