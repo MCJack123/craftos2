@@ -67,4 +67,4 @@ clean:
 rebuild: clean craftos
 
 test: craftos
-	./craftos --headless --script $PWD/CraftOSTest.lua
+	./craftos --headless --script $(shell pwd)/CraftOSTest.lua
