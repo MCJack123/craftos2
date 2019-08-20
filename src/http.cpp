@@ -230,6 +230,7 @@ int http_request(lua_State *L) {
     }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
+    param->L = L;
     param->url = lua_tostring(L, 1);
     param->postData = NULL;
     param->headers = NULL;

@@ -27,6 +27,8 @@
 #define PATH_SEP "/"
 #endif
 
+extern std::string script_file;
+
 std::vector<std::string> split(std::string strToSplit, char delimeter) {
     std::stringstream ss(strToSplit);
     std::string item;
@@ -43,6 +45,11 @@ char * fixpath(Computer *comp, const char * path, bool addExt) {
     for (std::string s : elems) {
         if (s == "..") { if (pathc.size() < 1) return NULL; else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
+    }
+    if (script_file != "" && addExt && pathc.size() == 1 && pathc.front() == "startup.lua") {
+        char * retval = (char*)malloc(script_file.size() + 1);
+        strcpy(retval, script_file.c_str());
+        return retval;
     }
     std::stringstream ss;
     if (addExt) {

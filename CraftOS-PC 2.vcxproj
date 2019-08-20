@@ -151,6 +151,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include=".travis.yml" />
     <None Include="CraftOSTest.lua" />
     <None Include="DOCUMENTATION.md" />
     <None Include="Makefile" />

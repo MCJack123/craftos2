@@ -27,6 +27,7 @@
 
 extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
 extern void peripheral_update();
+extern bool headless;
 const std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
     {SDL_SCANCODE_1, 2},
@@ -252,7 +253,7 @@ void mainLoop() {
             taskQueueReturns[std::get<0>(v)] = retval;
             taskQueue.pop();
         }
-        if (SDL_PollEvent(&e)) 
+        if (!headless && SDL_PollEvent(&e)) 
             for (Computer * c : computers) 
                 if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.windowID == c->term->windowID()) ||
                     ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && e.drop.windowID == c->term->windowID()) ||
@@ -358,6 +359,10 @@ const char * termGetEvent(lua_State *L) {
 
 int term_write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (headless) {
+        printf("%s", lua_tostring(L, 1));
+        return 0;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     int dummy = 0;
@@ -377,6 +382,10 @@ int term_write(lua_State *L) {
 
 int term_scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (headless) {
+        for (int i = 0; i < lua_tointeger(L, 1); i++) printf("\n");
+        return 0;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
@@ -394,9 +403,18 @@ int term_scroll(lua_State *L) {
     return 0;
 }
 
+int headlessCursorX = 0, headlessCursorY = 0;
+
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (headless) {
+        if (lua_tointeger(L, 1) < headlessCursorX) printf("\r");
+        if (lua_tointeger(L, 2) != headlessCursorY) printf("\n");
+        headlessCursorX = lua_tointeger(L, 1);
+        headlessCursorY = lua_tointeger(L, 2);
+        return 0;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     while (term->locked);
@@ -416,6 +434,11 @@ int term_setCursorBlink(lua_State *L) {
 }
 
 int term_getCursorPos(lua_State *L) {
+    if (headless) {
+        lua_pushinteger(L, headlessCursorX);
+        lua_pushinteger(L, headlessCursorY);
+        return 2;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     lua_pushinteger(L, term->blinkX + 1);
@@ -429,6 +452,11 @@ int term_getCursorBlink(lua_State *L) {
 }
 
 int term_getSize(lua_State *L) {
+    if (headless) {
+        lua_pushinteger(L, 51);
+        lua_pushinteger(L, 19);
+        return 2;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     lua_pushinteger(L, term->width);
@@ -437,6 +465,10 @@ int term_getSize(lua_State *L) {
 }
 
 int term_clear(lua_State *L) {
+    if (headless) {
+        for (int i = 0; i < 30; i++) printf("\n");
+        return 0;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
@@ -448,6 +480,12 @@ int term_clear(lua_State *L) {
 }
 
 int term_clearLine(lua_State *L) {
+    if (headless) {
+        printf("\r");
+        for (int i = 0; i < 100; i++) printf(" ");
+        printf("\r");
+        return 0;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
@@ -475,6 +513,10 @@ int term_setBackgroundColor(lua_State *L) {
 }
 
 int term_isColor(lua_State *L) {
+    if (headless) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
     struct computer_configuration cfg = getComputerConfig(get_comp(L)->id);
     lua_pushboolean(L, cfg.isColor);
     freeComputerConfig(cfg);
@@ -502,6 +544,10 @@ int term_blit(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
+    if (headless) {
+        printf("%s", lua_tostring(L, 1));
+        return 0;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
@@ -519,6 +565,19 @@ int term_blit(lua_State *L) {
 }
 
 int term_getPaletteColor(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (headless) {
+        if (lua_tointeger(L, 1) == 0x1) {
+            lua_pushnumber(L, 0xF0 / 255.0);
+            lua_pushnumber(L, 0xF0 / 255.0);
+            lua_pushnumber(L, 0xF0 / 255.0);
+        } else {
+            lua_pushnumber(L, 0x19 / 255.0);
+            lua_pushnumber(L, 0x19 / 255.0);
+            lua_pushnumber(L, 0x19 / 255.0);
+        }
+        return 3;
+    }
     int color = log2i(lua_tointeger(L, 1));
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
@@ -533,6 +592,7 @@ int term_setPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
+    if (headless) return 0;
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     int color = log2i(lua_tointeger(L, 1));
@@ -544,11 +604,16 @@ int term_setPaletteColor(lua_State *L) {
 
 int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
+    if (headless) return 0;
     get_comp(L)->term->isPixel = lua_toboolean(L, 1);
     return 0;
 }
 
 int term_getGraphicsMode(lua_State *L) {
+    if (headless) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
     lua_pushboolean(L, get_comp(L)->term->isPixel);
     return 1;
 }
@@ -557,6 +622,7 @@ int term_setPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
+    if (headless) return 0;
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     int x = lua_tointeger(L, 1);
@@ -570,6 +636,10 @@ int term_setPixel(lua_State *L) {
 int term_getPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (headless) {
+        lua_pushinteger(L, 0x8000);
+        return 1;
+    }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     int x = lua_tointeger(L, 1);
@@ -580,6 +650,7 @@ int term_getPixel(lua_State *L) {
 }
 
 int term_screenshot(lua_State *L) {
+    if (headless) return 0;
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     if (lua_isstring(L, 1)) term->screenshot(lua_tostring(L, 1));

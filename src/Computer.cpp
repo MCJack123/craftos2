@@ -26,6 +26,7 @@ extern "C" {
 #include <lauxlib.h>
 }
 
+extern bool headless;
 std::vector<Computer*> computers;
 std::unordered_set<Computer*> freedComputers; 
 
@@ -51,11 +52,12 @@ Computer::Computer(int i) {
 #else
     createDirectory((std::string(getBasePath()) + "/computer/" + std::to_string(id)).c_str());
 #endif
-    term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
+    if (headless) term = NULL;
+    else term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
 }
 
 Computer::~Computer() {
-    delete term;
+    if (!headless) delete term;
     for (auto p : peripherals) delete p.second;
     for (Computer * c : referencers) {
         for (auto it = c->peripherals.begin(); it != c->peripherals.end(); it++) {
@@ -74,9 +76,11 @@ void Computer::run() {
     while (running) {
         int status;
         lua_State *coro;
-        term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
-        term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
-        term->pixels = std::vector<std::vector<char> >(term->height*term->fontHeight, std::vector<char>(term->width*term->fontWidth, 0x0F));
+        if (!headless) {
+            term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
+            term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
+            term->pixels = std::vector<std::vector<char> >(term->height * term->fontHeight, std::vector<char>(term->width * term->fontWidth, 0x0F));
+        }
 
         /*
         * All Lua contexts are held in this structure. We work with it almost
@@ -129,6 +133,10 @@ void Computer::run() {
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
         pushHostString(L);
         lua_setglobal(L, "_HOST");
+        if (headless) {
+            lua_pushboolean(L, true);
+            lua_setglobal(L, "_HEADLESS");
+        }
 
         // Load patched pcall/xpcall
         luaL_loadstring(L, "return function( _fn, _fnErrorHandler )\n\
@@ -175,7 +183,8 @@ void Computer::run() {
             msleep(5000);
             exit(1);
         }
-        void * tid = createThread(&termRenderLoop, this, std::string("Computer " + std::to_string(id) + " Render Thread").c_str());
+        void * tid;
+        if (!headless) tid = createThread(&termRenderLoop, this, std::string("Computer " + std::to_string(id) + " Render Thread").c_str());
         //signal(SIGINT, sighandler);
 
         /* Ask Lua to run our little script */
@@ -189,7 +198,7 @@ void Computer::run() {
                 else narg = getNextEvent(coro, "");
             } else if (status != 0) {
                 running = 0;
-                joinThread(tid);
+                if (!headless) joinThread(tid);
                 //usleep(5000000);
                 printf("%s\n", lua_tostring(coro, -1));
                 for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
@@ -200,7 +209,7 @@ void Computer::run() {
             }
         }
 
-        joinThread(tid);
+        if (!headless) joinThread(tid);
         for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
             if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
         lua_close(L);   /* Cya, Lua */

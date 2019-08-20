@@ -239,7 +239,7 @@ int os_system(lua_State *L) {
 }
 
 int os_about(lua_State *L) {
-    lua_pushstring(L, "CraftOS-PC v2.0.0-b1\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
+    lua_pushstring(L, "CraftOS-PC v2.0.0-b3\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
 \n\
 Copyright (c) 2019 JackMacWindows\n\
 \n\
@@ -263,7 +263,12 @@ SOFTWARE.");
     return 1;
 }
 
-const char * os_keys[18] = {
+extern bool headless;
+int os_exit(lua_State *L) {
+    if (headless) exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
+}
+
+const char * os_keys[19] = {
     "getComputerID",
     "computerID",
     "getComputerLabel",
@@ -281,10 +286,11 @@ const char * os_keys[18] = {
     "shutdown",
     "reboot",
     "system",
-    "about"
+    "about",
+    "exit"
 };
 
-lua_CFunction os_values[18] = {
+lua_CFunction os_values[19] = {
     os_getComputerID,
     os_getComputerID,
     os_getComputerLabel,
@@ -302,7 +308,8 @@ lua_CFunction os_values[18] = {
     os_shutdown,
     os_reboot,
     os_system,
-    os_about
+    os_about,
+    os_exit
 };
 
-library_t os_lib = {"os", 18, os_keys, os_values, NULL, NULL};
+library_t os_lib = {"os", 19, os_keys, os_values, NULL, NULL};
