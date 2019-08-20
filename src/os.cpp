@@ -160,9 +160,11 @@ int os_cancelTimer(lua_State *L) {
 int os_time(lua_State *L) {
     const char * type = "ingame";
     if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
+    std::string tmp(type);
+    std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c){return std::tolower(c);});
     time_t t = time(NULL);
     struct tm rightNow;
-    if (strcmp(type, "utc") == 0) rightNow = *gmtime(&t);
+    if (tmp == "utc") rightNow = *gmtime(&t);
     else rightNow = *localtime(&t);
     int hour = rightNow.tm_hour;
     int minute = rightNow.tm_min;
@@ -174,9 +176,11 @@ int os_time(lua_State *L) {
 int os_epoch(lua_State *L) {
     const char * type = "ingame";
     if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
-    if (strcmp(type, "utc") == 0) {
+    std::string tmp(type);
+    std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
+    if (tmp == "utc") {
         lua_pushinteger(L, (long long)time(NULL) * 1000LL);
-    } else if (strcmp(type, "local") == 0) {
+    } else if (tmp == "local") {
         time_t t = time(NULL);
         lua_pushinteger(L, (long long)mktime(localtime(&t)) * 1000LL);
     } else {
@@ -195,12 +199,14 @@ int os_epoch(lua_State *L) {
 int os_day(lua_State *L) {
     const char * type = "ingame";
     if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
+    std::string tmp(type);
+    std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     time_t t = time(NULL);
-    if (strcmp(type, "ingame") == 0) {
+    if (tmp == "ingame") {
         struct tm rightNow = *localtime(&t);
         lua_pushinteger(L, rightNow.tm_yday);
         return 1;
-    } else if (strcmp(type, "local")) t = mktime(localtime(&t));
+    } else if (tmp == "local") t = mktime(localtime(&t));
     lua_pushinteger(L, t/(60*60*24));
     return 1;
 }
