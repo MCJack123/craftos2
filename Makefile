@@ -5,7 +5,7 @@ CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/include/jsoncpp
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lSDL2 -lSDL2main -lpthread -lcurl -ljsoncpp
+LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lpthread -lcurl -ljsoncpp
 
 ifeq ($(PRINT_TYPE), pdf)
 LIBS:=$(LIBS) -lhpdf
@@ -23,12 +23,18 @@ OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 all: $(ODIR) craftos
 
 craftos: $(OBJ) $(ODIR)/platform.o
-	$(CXX) -o $@ $^ $(LIBS)
+	$(CXX) -o $@ $^ $(LIBS) -lSDL2 -lSDL2main
 
 macapp: $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
-	clang++ -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -framework Foundation
+	clang++ -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework SDL2
+	install_name_tool -add_rpath @executable_path/../Frameworks CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/lua@5.1/lib/liblua.5.1.dylib "@rpath/liblua.5.1.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/jsoncpp/lib/libjsoncpp.21.dylib "@rpath/libjsoncpp.1.9.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/libharu/lib/libhpdf-2.3.0.dylib "@rpath/libhpdf-2.3.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/libpng/lib/libpng16.16.dylib "@rpath/libpng16.16.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/lib/libcurl.4.dylib "@rpath/libcurl.4.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	cp Info.plist CraftOS-PC.app/Contents/
 	cp craftos.bmp CraftOS-PC.app/Contents/Resources/
 
