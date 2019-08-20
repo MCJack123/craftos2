@@ -662,7 +662,16 @@ int term_screenshot(lua_State *L) {
     return 0;
 }
 
-const char * term_keys[29] = {
+int term_nativePaletteColor(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    Color c = defaultPalette[log2i(lua_tointeger(L, 1))];
+    lua_pushnumber(L, c.r / 255.0);
+    lua_pushnumber(L, c.g / 255.0);
+    lua_pushnumber(L, c.b / 255.0);
+    return 3;
+}
+
+const char * term_keys[30] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -691,10 +700,11 @@ const char * term_keys[29] = {
     "getGraphicsMode",
     "setPixel",
     "getPixel",
-    "screenshot"
+    "screenshot",
+    "nativePaletteColor"
 };
 
-lua_CFunction term_values[29] = {
+lua_CFunction term_values[30] = {
     term_write,
     term_scroll,
     term_setCursorPos,
@@ -723,7 +733,8 @@ lua_CFunction term_values[29] = {
     term_getGraphicsMode,
     term_setPixel,
     term_getPixel,
-    term_screenshot
+    term_screenshot,
+    term_nativePaletteColor
 };
 
-library_t term_lib = {"term", 29, term_keys, term_values, NULL, NULL};
+library_t term_lib = {"term", 30, term_keys, term_values, NULL, NULL};

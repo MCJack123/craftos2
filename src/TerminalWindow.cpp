@@ -79,22 +79,7 @@ TerminalWindow::TerminalWindow(std::string title) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font");
     }
-    palette[15] = {0x11, 0x11, 0x11};
-    palette[14] = {0xcc, 0x4c, 0x4c};
-    palette[13] = {0x57, 0xa6, 0x4e};
-    palette[12] = {0x7f, 0x66, 0x4c};
-    palette[11] = {0x33, 0x66, 0xcc};
-    palette[10] = {0xb2, 0x66, 0xe5};
-    palette[9] = {0x4c, 0x99, 0xb2};
-    palette[8] = {0x99, 0x99, 0x99};
-    palette[7] = {0x4c, 0x4c, 0x4c};
-    palette[6] = {0xf2, 0xb2, 0xcc};
-    palette[5] = {0x7f, 0xcc, 0x19};
-    palette[4] = {0xde, 0xde, 0x6c};
-    palette[3] = {0x99, 0xb2, 0xf2};
-    palette[2] = {0xe5, 0x7f, 0xd8};
-    palette[1] = {0xf2, 0xb2, 0x33};
-    palette[0] = {0xf0, 0xf0, 0xf0};
+    memcpy(palette, defaultPalette, sizeof(defaultPalette));
     screen = std::vector<std::vector<char> >(height, std::vector<char>(width, ' '));
     colors = std::vector<std::vector<unsigned char> >(height, std::vector<unsigned char>(width, 0xF0));
     pixels = std::vector<std::vector<char> >(height*fontHeight, std::vector<char>(width*fontWidth, 0x0F));
