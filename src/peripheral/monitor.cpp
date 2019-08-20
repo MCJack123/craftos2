@@ -188,6 +188,11 @@ int monitor::setTextScale(lua_State *L) {
     return 0;
 }
 
+int monitor::getTextScale(lua_State *L) {
+    lua_pushnumber(L, term.charScale / 2.0);
+    return 1;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
@@ -218,6 +223,7 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "setPixel") return setPixel(L);
     else if (m == "getPixel") return getPixel(L);
     else if (m == "setTextScale") return setTextScale(L);
+    else if (m == "getTextScale") return getTextScale(L);
     else return 0;
 }
 
@@ -230,7 +236,7 @@ void monitor::update() {
     term.render();
 }
 
-const char * monitor_keys[29] = {
+const char * monitor_keys[30] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -259,7 +265,8 @@ const char * monitor_keys[29] = {
     "getGraphicsMode",
     "setPixel",
     "getPixel",
-    "setTextScale"
+    "setTextScale",
+    "getTextScale"
 };
 
-library_t monitor::methods = {"monitor", 29, monitor_keys, NULL, NULL, NULL};
+library_t monitor::methods = {"monitor", 30, monitor_keys, NULL, NULL, NULL};
