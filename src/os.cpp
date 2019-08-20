@@ -272,6 +272,7 @@ SOFTWARE.");
 extern bool headless;
 int os_exit(lua_State *L) {
     if (headless) exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
+    return 0;
 }
 
 const char * os_keys[19] = {
