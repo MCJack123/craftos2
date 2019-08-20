@@ -8,9 +8,9 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "httplib.h"
-#include "platform.h"
-#include "term.h"
+#include "httplib.hpp"
+#include "platform.hpp"
+#include "term.hpp"
 #include <unordered_map>
 #include <chrono>
 
@@ -211,6 +211,7 @@ class HTTPListener {
 public:
     httplib::Server server;
     bool running = true;
+    Computer *comp;
     int port;
     void callback(const httplib::Request& req, httplib::Response& res) {
         printf("Got request: %s\n", req.path.c_str());
@@ -218,7 +219,7 @@ public:
         struct http_req lreq = {0, &req};
         struct http_res lres = {true, "", &res};
         struct http_request_data evdata = {port, &lreq, &lres};
-        termQueueProvider(http_request_event, &evdata);
+        termQueueProvider(comp, http_request_event, &evdata);
         std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
         while (lres.open && std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count() < 15) {}
         if (lres.open) {
@@ -231,29 +232,35 @@ public:
 
 std::unordered_map<unsigned short, HTTPListener*> listeners;
 
+struct http_server_data {
+    int port;
+    Computer * comp;
+};
+
 void * httpListener(void* data) {
-    int* ptr = (int*)data;
-    int port = *ptr;
-    delete ptr;
+    struct http_server_data* ptr = (struct http_server_data*)data;
     HTTPListener * listener = new HTTPListener();
-    listeners[port] = listener;
-    listener->port = port;
+    listeners[ptr->port] = listener;
+    listener->comp = ptr->comp;
+    listener->port = ptr->port;
+    delete ptr;
     listener->server.Get(R"(.+)", [=](const httplib::Request& req, httplib::Response& res) { listener->callback(req, res);});
     listener->server.Post(R"(.+)", [=](const httplib::Request& req, httplib::Response& res) { listener->callback(req, res); });
-    printf("Listening on port %d\n", port);
-    listener->server.listen("localhost", port);
+    printf("Listening on port %d\n", ptr->port);
+    listener->server.listen("localhost", ptr->port);
     delete listener;
     return NULL;
 }
 
-extern "C" void http_startServer(int port) {
+void http_startServer(Computer *comp, int port) {
     if (port < 0 || port > 65535) return;
-    int * ptr = new int;
-    *ptr = port;
-    createThread(httpListener, ptr);
+    struct http_server_data * ptr = new struct http_server_data;
+    ptr->port = port;
+    ptr->comp = comp;
+    createThread(httpListener, ptr, std::string("HTTP Port " + std::to_string(port) + " Listener").c_str());
 }
 
-extern "C" void http_stopServer(int port) {
+void http_stopServer(int port) {
     if (port < 0 || port > 65535 || listeners.find(port) == listeners.end()) return;
     listeners[port]->running = false;
     listeners[port]->server.stop();

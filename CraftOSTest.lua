@@ -425,11 +425,11 @@ testStart("os")
 	while ev[1] ~= "timer" or ev[2] ~= id do ev = {call("pullEvent")} end
 	id = call("startTimer", 3)
 	call("cancelTimer", id)
-	local id = call("setAlarm", os.time() + .01)
-	print("Waiting for alarm, this may take a few minutes.")
-	local ev = {call("pullEvent")}
+	--local id = call("setAlarm", os.time() + .01)
+	--print("Waiting for alarm, this may take a few minutes.")
+	--local ev = {call("pullEvent")}
 	--while ev[1] ~= "alarm" or ev[2] ~= id do ev = {call("pullEvent")} end
-	id = call("setAlarm", 3)
+	local id = call("setAlarm", 3)
 	call("cancelAlarm", id)
 	call("sleep", 3)
 	file = callLocal("fs.open", fs.open, "run_test.lua", "w")
@@ -490,7 +490,8 @@ testStart("shell")
 	test("resolveProgram", "rom/programs/delete.lua", "del")
 	call("clearAlias", "del")
 	testLocal("shell.programs", type(call("programs")), "table")
-	testLocal("shell.getRunningProgram", callLocal("fs.getName", fs.getName, call("getRunningProgram")), "CraftOSTest.lua")
+	local runningProgram = callLocal("fs.getName", fs.getName, call("getRunningProgram"))
+	if runningProgram ~= "CraftOSTest.lua" and runningProgram ~= "startup.lua" then testLocal("shell.getRunningProgram", runningProgram, "CraftOSTest.lua or startup.lua") end
 	test("completeProgram", {{"abel", "ist", "s", "ua"}}, "l")
 	call("setDir", oldDir)
 	call("setPath", oldPath)
@@ -501,11 +502,13 @@ print("This is a test of the shell API: " .. args[1] .. ".")
 sleep(3)]])
 	callLocal("file.close", file.close)
 	test("run", true, "shell_test.lua current_tab")
-	test("openTab", 2, "shell_test.lua new_tab")
-	call("switchTab", 2)
-	testLocal("shell.switchTab", callLocal("multishell.getCount", multishell.getCount), 2)
-	callLocal("print", print, "If stuck, press any key.")
-	while callLocal("multishell.getCount", multishell.getCount) == 2 do callLocal("os.pullEvent", os.pullEvent) end
+	if callLocal("term.isColor", term.isColor) then
+		test("openTab", 2, "shell_test.lua new_tab")
+		call("switchTab", 2)
+		testLocal("shell.switchTab", callLocal("multishell.getCount", multishell.getCount), 2)
+		callLocal("print", print, "If stuck, press any key.")
+		while callLocal("multishell.getCount", multishell.getCount) == 2 do callLocal("os.pullEvent", os.pullEvent) end
+	end
 	-- TODO: add setCompletionFunction test
 	callLocal("fs.delete", fs.delete, "shell_test.lua")
 testEnd()
@@ -535,7 +538,7 @@ testStart("table")
 	test("unpack", {"this", "is", "a", "test"}, {"this", "is", "a", "test"})
 testEnd()
 
-testStart("term")
+if not _HEADLESS then testStart("term")
 	test("getSize", {51, 19})
 	call("clear")
 	call("setCursorPos", 1, 1)
@@ -605,7 +608,7 @@ testStart("term")
 	testLocal("term.redirect", type(call("redirect", call("native"))), "table")
 	test("current", {call("native")})
 	testValue("restore", nil)
-testEnd()
+testEnd() end
 
 testStart("textutils")
 	call("slowWrite", "This should write slowly: ")
@@ -624,13 +627,13 @@ testStart("textutils")
 		colors.white, {"John", "Doe", "$123.45"}, {"Jane", "Smith", "$13.37"}, colors.gray, {"Bob", "Johnson", "-$2.13"}
 	)
 	callLocal("term.setTextColor", term.setTextColor, colors.white)
-	call("pagedPrint", [[Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae urna viverra justo viverra placerat.
+	if not _HEADLESS then call("pagedPrint", [[Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae urna viverra justo viverra placerat.
 Quisque sollicitudin sem mi, ultrices ullamcorper ante aliquet eu. Vivamus condimentum sem libero, vitae porta dolor dictum vitae. 
 Proin eleifend ipsum elit. Ut finibus magna quis quam dapibus, at bibendum ligula gravida. 
 Nam neque nibh, pretium eget libero ac, iaculis finibus elit. Vivamus ipsum massa, pharetra semper velit eu, condimentum dictum metus. 
 Vestibulum a nibh vitae magna euismod faucibus eu vel diam. In cursus laoreet vehicula. In feugiat, sem eu tristique malesuada, 
 mi elit consequat nibh, finibus fringilla elit elit eget tellus. Morbi non ante ornare, hendrerit enim et, imperdiet enim. 
-Nunc non pulvinar magna, id tempus erat. Nunc eget magna non quam dapibus gravida in at lacus. Donec dignissim pellentesque enim, eu placerat ligula accumsan in.]], 3)
+Nunc non pulvinar magna, id tempus erat. Nunc eget magna non quam dapibus gravida in at lacus. Donec dignissim pellentesque enim, eu placerat ligula accumsan in.]], 3) end
 	local ser = call("serialize", {"this", "is", "a", "test", results = {first = "this", last = "test"}})
 	test("unserialize", {{"this", "is", "a", "test", results = {last = "test", first = "this"}}}, ser)
 	testLocal("textutils.serializeJSON", type(call("serializeJSON", {"this", "is", "a", "test", results = {first = "this", last = "test"}})), "string")
@@ -708,3 +711,4 @@ else
 	term.setTextColor(colors.white)
 end
 logfile.close()
+if _HEADLESS then os.exit(#failed) end

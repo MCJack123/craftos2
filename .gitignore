@@ -5,3 +5,8 @@ craftos
 /packages
 /x64
 CraftOS-PC.app
+/autoscan.log
+/configure
+/configure.ac
+/Makefile - Copy
+/autom4te.cache

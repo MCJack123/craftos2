@@ -1,5 +1,5 @@
 /*
- * monitor.cpp
+ * peripheral/monitor.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the monitor peripheral.
@@ -10,8 +10,8 @@
 
 #include "monitor.hpp"
 
-extern "C" int log2i(int);
-extern "C" char htoi(char c);
+int log2i(int);
+char htoi(char c);
 
 monitor::monitor(lua_State *L, const char * side): term("CraftOS Terminal: Monitor " + std::string(side)) {canBlink = false;}
 

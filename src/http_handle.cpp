@@ -1,5 +1,5 @@
 /*
- * http_handle.c
+ * http_handle.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for HTTP handles.
@@ -8,7 +8,7 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "http_handle.h"
+#include "http_handle.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -29,7 +29,7 @@ typedef struct {
 
 typedef struct {
     int closed;
-    const char * url;
+    char * url;
     CURL * handle;
     buffer_t buf;
     int headers_size;
@@ -46,6 +46,7 @@ int http_handle_close(lua_State *L) {
         free((void*)handle->headers[i].key);
         free((void*)handle->headers[i].value);
     }
+    free(handle->url);
     free(handle->headers);
     free(handle);
     return 0;

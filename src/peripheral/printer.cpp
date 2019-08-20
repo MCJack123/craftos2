@@ -1,5 +1,5 @@
 /*
- * printer.cpp
+ * peripheral/printer.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the printer peripheral.
@@ -9,7 +9,7 @@
  */
 
 #include "printer.hpp"
-#include "../platform.h"
+#include "../platform.hpp"
 extern "C" {
 #include <lauxlib.h>
 }

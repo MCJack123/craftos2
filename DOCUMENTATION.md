@@ -1,12 +1,17 @@
 # New feature documentation
 This file provides documentation for the new APIs in CraftOS-PC.
 
+## Creating new computers
+Computers can be created with `periphemu.create("computer_<id>", "computer")`, where `<id>` is the ID of the new computer. If a computer with the ID is already open, it will not create a new one. The `computer` peripheral for the new computer will also be attached.  
+If the peripheral is detached with `periphemu.remove`, the peripheral will be detached but the computer window will stay open. To close the computer from Lua, call `peripheral.call("computer_<id>", "shutdown")`, and the peripheral will automatically be detached.  
+Computers can also be attached and detached from the shell when using the CraftOS ROM with `attach computer_<id> computer` and `detach computer_<id>`, respectively.
+
 ## `periphemu`
 Creates and removes peripherals from the registry.
 ### Functions
 * *boolean* create(*string* side, *string* type\[, *string* path\]): Creates a new peripheral.
   * side: The side of the new peripheral
-  * type: One of `monitor`, `speaker`, `printer`
+  * type: One of `computer`, `monitor`, `speaker`, `printer`
   * path: If creating a printer, the local path to the output file
   * Returns: `true` on success, `false` on failure (already exists)
 * *boolean* remove(*string* side): Removes a peripheral.

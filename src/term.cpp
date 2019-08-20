@@ -8,12 +8,12 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "term.h"
-#include "os.h"
-#include "config.h"
-#include "platform.h"
+#include "term.hpp"
+#include "os.hpp"
+#include "config.hpp"
+#include "platform.hpp"
 #include "TerminalWindow.hpp"
-#include "periphemu.h"
+#include "periphemu.hpp"
 #include "peripheral/monitor.hpp"
 #include <unordered_map>
 #include <errno.h>
@@ -23,16 +23,11 @@
 #include <chrono>
 #include <algorithm>
 #include <queue>
+#include <tuple>
 
-TerminalWindow * term;
-bool canBlink = true;
-unsigned char colors = 0xF0;
-extern int os_queueEvent(lua_State *L);
-extern monitor * findMonitorFromWindowID(int id, std::string& sideReturn);
-extern "C" void peripheral_update();
-std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
-std::chrono::high_resolution_clock::time_point last_event = std::chrono::high_resolution_clock::now();
-bool getting_event = false;
+extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
+extern void peripheral_update();
+extern bool headless;
 const std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
     {SDL_SCANCODE_1, 2},
@@ -144,17 +139,13 @@ const std::unordered_map<int, unsigned char> keymap = {
     {SDL_SCANCODE_DELETE, 211}
 };
 
-extern "C" {
-extern int computerID;
 void termInit() {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
-    term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(computerID));
 }
 
 void termClose() {
-    delete term;
     SDL_Quit();
 }
 
@@ -172,7 +163,7 @@ int buttonConvert2(Uint32 state) {
     else return 1;
 }
 
-int convertX(int x) {
+int convertX(TerminalWindow * term, int x) {
     if (term->isPixel) {
         if (x < 2 * term->charScale) return 0;
         else if (x >= term->charWidth * term->width + 2 * term->charScale)
@@ -186,7 +177,7 @@ int convertX(int x) {
     }
 }
 
-int convertY(int x) {
+int convertY(TerminalWindow * term, int x) {
     if (term->isPixel) {
         if (x < 2 * term->charScale) return 0;
         else if (x >= term->charHeight * term->height + 2 * term->charScale)
@@ -208,70 +199,106 @@ int log2i(int num) {
 }
 
 void termHook(lua_State *L, lua_Debug *ar) {
-    if (!getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - last_event).count() > config.abortTimeout) {
+    Computer * computer = get_comp(L);
+    if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
         printf("Too long without yielding\n");
-        last_event = std::chrono::high_resolution_clock::now();
+        computer->last_event = std::chrono::high_resolution_clock::now();
         lua_pushstring(L, "Too long without yielding");
         lua_error(L);
     }
 }
 
 void* termRenderLoop(void* arg) {
-    while (running == 1) {
-        if (!canBlink) term->blink = false;
-        else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - last_blink).count() > 500) {
-            term->blink = !term->blink;
-            last_blink = std::chrono::high_resolution_clock::now();
+    Computer * comp = (Computer*)arg;
+    while (comp->running == 1) {
+        if (!comp->canBlink) comp->term->blink = false;
+        else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - comp->last_blink).count() > 500) {
+            comp->term->blink = !comp->term->blink;
+            comp->last_blink = std::chrono::high_resolution_clock::now();
         }
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-        term->render();
+        comp->term->render();
         long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
         //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
-        peripheral_update();
+        peripheral_update(comp);
         long t = (1000/config.clockSpeed) - count;
         if (t > 0) msleep(t);
     }
     return NULL;
 }
 
-std::queue<std::pair<event_provider, void*> > event_provider_queue;
-void termQueueProvider(event_provider p, void* data) {event_provider_queue.push(std::make_pair(p, data));}
-extern "C" void gettingEvent(void) {getting_event = true;}
-extern "C" void gotEvent(void) {last_event = std::chrono::high_resolution_clock::now(); getting_event = false;}
-int waitingForTerminate = 0;
-bool lastResizeEvent = false;
+void termQueueProvider(Computer *comp, event_provider p, void* data) {comp->event_provider_queue.push(std::make_pair(p, data));}
+void gettingEvent(Computer *comp) {comp->getting_event = true;}
+void gotEvent(Computer *comp) {comp->last_event = std::chrono::high_resolution_clock::now(); comp->getting_event = false;}
+
+int nextTaskID = 0;
+std::queue< std::tuple<int, void*(*)(void*), void*> > taskQueue;
+std::unordered_map<int, void*> taskQueueReturns;
+
+void* queueTask(void*(*func)(void*), void* arg) {
+    int myID = nextTaskID++;
+    taskQueue.push(std::make_tuple(myID, func, arg));
+    while (taskQueueReturns.find(myID) == taskQueueReturns.end());
+    void* retval = taskQueueReturns[myID];
+    taskQueueReturns.erase(myID);
+    return retval;
+}
+
+void mainLoop() {
+    SDL_Event e;
+    while (computers.size() > 0) {
+        while (taskQueue.size() > 0) {
+            auto v = taskQueue.front();
+            void* retval = std::get<1>(v)(std::get<2>(v));
+            taskQueueReturns[std::get<0>(v)] = retval;
+            taskQueue.pop();
+        }
+        if (!headless && SDL_PollEvent(&e)) 
+            for (Computer * c : computers) 
+                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.windowID == c->term->windowID()) ||
+                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && e.drop.windowID == c->term->windowID()) ||
+                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && e.button.windowID == c->term->windowID()) ||
+                    (e.type == SDL_MOUSEMOTION && e.motion.windowID == c->term->windowID()) ||
+                    (e.type == SDL_MOUSEWHEEL && e.wheel.windowID == c->term->windowID()) || 
+                    (e.type == SDL_TEXTINPUT && e.text.windowID == c->term->windowID()) ||
+                    (e.type == SDL_WINDOWEVENT && e.window.windowID == c->term->windowID()) || 
+                    e.type == SDL_QUIT)
+                    c->termEventQueue.push(e);
+    }
+}
 
 const char * termGetEvent(lua_State *L) {
-    if (event_provider_queue.size() > 0) {
-        std::pair<event_provider, void*> p = event_provider_queue.front();
-        event_provider_queue.pop();
+    Computer * computer = get_comp(L);
+    if (computer->event_provider_queue.size() > 0) {
+        std::pair<event_provider, void*> p = computer->event_provider_queue.front();
+        computer->event_provider_queue.pop();
         return p.first(L, p.second);
     }
-    if (lastResizeEvent) {
-        lastResizeEvent = false;
+    if (computer->lastResizeEvent) {
+        computer->lastResizeEvent = false;
         return "term_resize";
     }
-    if (running != 1) return NULL;
+    if (computer->running != 1) return NULL;
     SDL_Event e;
-    if (SDL_PollEvent(&e)) {
+    if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
-            if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) term->screenshot();
-            else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && !config.ignoreHotkeys) term->toggleRecording();
+            if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) computer->term->screenshot();
+            else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && !config.ignoreHotkeys) computer->term->toggleRecording();
             else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
-                if (waitingForTerminate == 1) {
-                    waitingForTerminate = 2;
+                if (computer->waitingForTerminate == 1) {
+                    computer->waitingForTerminate = 2;
                     return "terminate";
-                } else if (waitingForTerminate == 0) waitingForTerminate = 1;
+                } else if (computer->waitingForTerminate == 0) computer->waitingForTerminate = 1;
             } else {
-                waitingForTerminate = 0;
+                computer->waitingForTerminate = 0;
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 lua_pushboolean(L, false);
                 return "key";
             }
         } else if (e.type == SDL_KEYUP && keymap.find(e.key.keysym.scancode) != keymap.end()) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
-                waitingForTerminate = 0;
+                computer->waitingForTerminate = 0;
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 return "key_up";
             }
@@ -283,43 +310,43 @@ const char * termGetEvent(lua_State *L) {
             return "char";
         } else if (e.type == SDL_MOUSEBUTTONDOWN) {
             lua_pushinteger(L, buttonConvert(e.button.button));
-            lua_pushinteger(L, convertX(e.button.x));
-            lua_pushinteger(L, convertY(e.button.y));
+            lua_pushinteger(L, convertX(computer->term, e.button.x));
+            lua_pushinteger(L, convertY(computer->term, e.button.y));
             return "mouse_click";
         } else if (e.type == SDL_MOUSEBUTTONUP) {
             lua_pushinteger(L, buttonConvert(e.button.button));
-            lua_pushinteger(L, convertX(e.button.x));
-            lua_pushinteger(L, convertY(e.button.y));
+            lua_pushinteger(L, convertX(computer->term, e.button.x));
+            lua_pushinteger(L, convertY(computer->term, e.button.y));
             return "mouse_up";
         } else if (e.type == SDL_MOUSEWHEEL) {
             int x = 0, y = 0;
-            term->getMouse(&x, &y);
+            computer->term->getMouse(&x, &y);
             lua_pushinteger(L, e.button.y);
-            lua_pushinteger(L, convertX(x));
-            lua_pushinteger(L, convertY(y));
+            lua_pushinteger(L, convertX(computer->term, x));
+            lua_pushinteger(L, convertY(computer->term, y));
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && e.motion.state) {
             lua_pushinteger(L, buttonConvert2(e.motion.state));
-            lua_pushinteger(L, convertX(e.motion.x));
-            lua_pushinteger(L, convertY(e.motion.y));
+            lua_pushinteger(L, convertX(computer->term, e.motion.x));
+            lua_pushinteger(L, convertY(computer->term, e.motion.y));
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            if (e.window.windowID == term->id && term->resize(e.window.data1, e.window.data2)) {
-                lastResizeEvent = true;
+            if (e.window.windowID == computer->term->id && computer->term->resize(e.window.data1, e.window.data2)) {
+                computer->lastResizeEvent = true;
                 return "term_resize";
             } else {
                 std::string side;
-                monitor * m = findMonitorFromWindowID(e.window.windowID, side);
+                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
                 if (m != NULL && m->term.resize(e.window.data1, e.window.data2)) {
                     lua_pushstring(L, side.c_str());
                     return "monitor_resize";
                 }
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
-            if (e.window.windowID == term->id) return "die";
+            if (e.window.windowID == computer->term->id) return "die";
             else {
                 std::string side;
-                monitor * m = findMonitorFromWindowID(e.window.windowID, side);
+                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
                 if (m != NULL) {
                     lua_pushstring(L, side.c_str());
                     lua_pop(L, periphemu_lib.values[1](L) + 1);
@@ -330,8 +357,17 @@ const char * termGetEvent(lua_State *L) {
     return NULL;
 }
 
+int headlessCursorX = 1, headlessCursorY = 1;
+
 int term_write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (headless) {
+        printf("%s", lua_tostring(L, 1));
+        headlessCursorX += lua_strlen(L, 1);
+        return 0;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     int dummy = 0;
     while (term->locked);
     term->locked = true;
@@ -341,7 +377,7 @@ int term_write(lua_State *L) {
     #endif
     for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         term->screen[term->blinkY][term->blinkX] = str[i];
-        term->colors[term->blinkY][term->blinkX] = colors;
+        term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
     term->locked = false;
     return 0;
@@ -349,6 +385,12 @@ int term_write(lua_State *L) {
 
 int term_scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (headless) {
+        for (int i = 0; i < lua_tointeger(L, 1); i++) printf("\n");
+        return 0;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
     term->locked = true;
     int lines = lua_tointeger(L, 1);
@@ -358,7 +400,7 @@ int term_scroll(lua_State *L) {
     }
     for (int i = term->height; i < term->height + lines; i++) {
         term->screen[i-lines] = std::vector<char>(term->width, ' ');
-        term->colors[i-lines] = std::vector<unsigned char>(term->width, colors);
+        term->colors[i-lines] = std::vector<unsigned char>(term->width, computer->colors);
     }
     term->locked = false;
     return 0;
@@ -367,6 +409,17 @@ int term_scroll(lua_State *L) {
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (headless) {
+        if (lua_tointeger(L, 1) < headlessCursorX) printf("\r");
+        else if (lua_tointeger(L, 1) > headlessCursorX) for (int i = headlessCursorX; i < lua_tointeger(L, 1); i++) printf(" ");
+        if (lua_tointeger(L, 2) != headlessCursorY) printf("\n");
+        headlessCursorX = lua_tointeger(L, 1);
+        headlessCursorY = lua_tointeger(L, 2);
+        fflush(stdout);
+        return 0;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     while (term->locked);
     term->locked = true;
     term->blinkX = lua_tointeger(L, 1) - 1;
@@ -379,73 +432,107 @@ int term_setCursorPos(lua_State *L) {
 
 int term_setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    canBlink = lua_toboolean(L, 1);
+    get_comp(L)->canBlink = lua_toboolean(L, 1);
     return 0;
 }
 
 int term_getCursorPos(lua_State *L) {
+    if (headless) {
+        lua_pushinteger(L, headlessCursorX);
+        lua_pushinteger(L, headlessCursorY);
+        return 2;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     lua_pushinteger(L, term->blinkX + 1);
     lua_pushinteger(L, term->blinkY + 1);
     return 2;
 }
 
 int term_getCursorBlink(lua_State *L) {
-    lua_pushboolean(L, canBlink);
+    lua_pushboolean(L, get_comp(L)->canBlink);
     return 1;
 }
 
 int term_getSize(lua_State *L) {
+    if (headless) {
+        lua_pushinteger(L, 51);
+        lua_pushinteger(L, 19);
+        return 2;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     lua_pushinteger(L, term->width);
     lua_pushinteger(L, term->height);
     return 2;
 }
 
 int term_clear(lua_State *L) {
+    if (headless) {
+        for (int i = 0; i < 30; i++) printf("\n");
+        return 0;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
     term->locked = true;
     term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
-    term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
+    term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
     term->locked = false;
     return 0;
 }
 
 int term_clearLine(lua_State *L) {
+    if (headless) {
+        printf("\r");
+        for (int i = 0; i < 100; i++) printf(" ");
+        printf("\r");
+        return 0;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
     term->locked = true;
     term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
-    term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
+    term->colors[term->blinkY] = std::vector<unsigned char>(term->width, computer->colors);
     term->locked = false;
     return 0;
 }
 
 int term_setTextColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    Computer * computer = get_comp(L);
     int c = log2i(lua_tointeger(L, 1));
-    colors = (colors & 0xf0) | c;
+    computer->colors = (computer->colors & 0xf0) | c;
     return 0;
 }
 
 int term_setBackgroundColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    Computer * computer = get_comp(L);
     int c = log2i(lua_tointeger(L, 1));
-    colors = (colors & 0x0f) | (c << 4);
+    computer->colors = (computer->colors & 0x0f) | (c << 4);
     return 0;
 }
 
 int term_isColor(lua_State *L) {
-    struct computer_configuration cfg = getComputerConfig(computerID);
+    if (headless) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    struct computer_configuration cfg = getComputerConfig(get_comp(L)->id);
     lua_pushboolean(L, cfg.isColor);
     freeComputerConfig(cfg);
     return 1;
 }
 
 int term_getTextColor(lua_State *L) {
-    lua_pushinteger(L, 1 << (colors & 0x0f));
+    lua_pushinteger(L, 1 << (get_comp(L)->colors & 0x0f));
     return 1;
 }
 
 int term_getBackgroundColor(lua_State *L) {
-    lua_pushinteger(L, 1 << (colors >> 4));
+    lua_pushinteger(L, 1 << (get_comp(L)->colors >> 4));
     return 1;
 }
 
@@ -460,22 +547,44 @@ int term_blit(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
+    if (headless) {
+        printf("%s", lua_tostring(L, 1));
+        headlessCursorX += lua_strlen(L, 1);
+        return 0;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
     term->locked = true;
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
     for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
-        colors = htoi(bg[i]) << 4 | htoi(fg[i]);
+        computer->colors = htoi(bg[i]) << 4 | htoi(fg[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
-        term->colors[term->blinkY][term->blinkX] = colors;
+        term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
     term->locked = false;
     return 0;
 }
 
 int term_getPaletteColor(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (headless) {
+        if (lua_tointeger(L, 1) == 0x1) {
+            lua_pushnumber(L, 0xF0 / 255.0);
+            lua_pushnumber(L, 0xF0 / 255.0);
+            lua_pushnumber(L, 0xF0 / 255.0);
+        } else {
+            lua_pushnumber(L, 0x19 / 255.0);
+            lua_pushnumber(L, 0x19 / 255.0);
+            lua_pushnumber(L, 0x19 / 255.0);
+        }
+        return 3;
+    }
     int color = log2i(lua_tointeger(L, 1));
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     lua_pushnumber(L, term->palette[color].r/255.0);
     lua_pushnumber(L, term->palette[color].g/255.0);
     lua_pushnumber(L, term->palette[color].b/255.0);
@@ -487,6 +596,9 @@ int term_setPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
+    if (headless) return 0;
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     int color = log2i(lua_tointeger(L, 1));
     term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
     term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
@@ -496,12 +608,17 @@ int term_setPaletteColor(lua_State *L) {
 
 int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    term->isPixel = lua_toboolean(L, 1);
+    if (headless) return 0;
+    get_comp(L)->term->isPixel = lua_toboolean(L, 1);
     return 0;
 }
 
 int term_getGraphicsMode(lua_State *L) {
-    lua_pushboolean(L, term->isPixel);
+    if (headless) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    lua_pushboolean(L, get_comp(L)->term->isPixel);
     return 1;
 }
 
@@ -509,6 +626,9 @@ int term_setPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
+    if (headless) return 0;
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x >= term->width * 6 || y >= term->height * 9 || x < 0 || y < 0) return 0;
@@ -520,6 +640,12 @@ int term_setPixel(lua_State *L) {
 int term_getPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (headless) {
+        lua_pushinteger(L, 0x8000);
+        return 1;
+    }
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
@@ -528,6 +654,9 @@ int term_getPixel(lua_State *L) {
 }
 
 int term_screenshot(lua_State *L) {
+    if (headless) return 0;
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
     if (lua_isstring(L, 1)) term->screenshot(lua_tostring(L, 1));
     else term->screenshot();
     return 0;
@@ -597,5 +726,4 @@ lua_CFunction term_values[29] = {
     term_screenshot
 };
 
-library_t term_lib = {"term", 29, term_keys, term_values, termInit, termClose};
-}
+library_t term_lib = {"term", 29, term_keys, term_values, NULL, NULL};

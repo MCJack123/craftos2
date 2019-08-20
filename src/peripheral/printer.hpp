@@ -1,5 +1,5 @@
 /*
- * printer.hpp
+ * peripheral/printer.hpp
  * CraftOS-PC 2
  * 
  * This file defines the class for the printer peripheral.
@@ -8,7 +8,7 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "peripheral.h"
+#include "peripheral.hpp"
 #include <string>
 #include <vector>
 

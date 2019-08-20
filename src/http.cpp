@@ -1,5 +1,5 @@
 /*
- * http.c
+ * http.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the http API.
@@ -8,15 +8,17 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "http.h"
-#include "http_handle.h"
-#include "term.h"
-#include "platform.h"
-#include "config.h"
+#include "http.hpp"
+#include "http_handle.hpp"
+#include "term.hpp"
+#include "platform.hpp"
+#include "config.hpp"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+extern "C" {
 #include <lauxlib.h>
+}
 #include <curl/curl.h>
 #include <curl/easy.h>
 
@@ -33,7 +35,7 @@ typedef struct {
 
 typedef struct {
     lua_State *L;
-    const char * url;
+    char * url;
     const char * postData;
     int headers_size;
     dict_val_t * headers;
@@ -41,7 +43,7 @@ typedef struct {
 
 typedef struct {
     int closed;
-    const char * url;
+    char * url;
     CURL * handle;
     buffer_t buf;
     int headers_size;
@@ -49,7 +51,7 @@ typedef struct {
 } http_handle_t;
 
 typedef struct {
-    const char * url;
+    char * url;
     const char * status;
 } http_check_t;
 
@@ -109,7 +111,7 @@ size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
 }
 
 const char * http_success(lua_State *L, void* data) {
-    http_handle_t * handle = (data);
+    http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
     lua_pushstring(L, handle->url);
     lua_newtable(L);
@@ -149,6 +151,7 @@ const char * http_success(lua_State *L, void* data) {
 const char * http_failure(lua_State *L, void* data) {
     lua_pushstring(L, ((http_handle_t*)data)->url);
     curl_easy_cleanup(((http_handle_t*)data)->handle);
+    free(((http_handle_t*)data)->url);
     free(data);
     return "http_failure";
 }
@@ -159,6 +162,7 @@ const char * http_check(lua_State *L, void* data) {
     lua_pushboolean(L, res->status == NULL);
     if (res->status == NULL) lua_pushnil(L);
     else lua_pushstring(L, res->status);
+    free(res->url);
     free(res);
     return "http_check";
 }
@@ -201,8 +205,8 @@ void* downloadThread(void* arg) {
     if (curl_easy_perform(handle->handle) == CURLE_OK) {
         handle->buf.size = handle->buf.offset;
         handle->buf.offset = 0;
-        termQueueProvider(http_success, handle);
-    } else termQueueProvider(http_failure, handle);
+        termQueueProvider(get_comp(param->L), http_success, handle);
+    } else termQueueProvider(get_comp(param->L), http_failure, handle);
     free(param);
     return NULL;
 }
@@ -216,7 +220,7 @@ void* checkThread(void* arg) {
     http_check_t * res = (http_check_t*)malloc(sizeof(http_check_t));
     res->url = param->url;
     res->status = status;
-    termQueueProvider(http_check, res);
+    termQueueProvider(get_comp(param->L), http_check, res);
     free(param);
     return NULL;
 }
@@ -228,7 +232,9 @@ int http_request(lua_State *L) {
     }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
-    param->url = lua_tostring(L, 1);
+    param->L = L;
+    param->url = (char*)malloc(lua_strlen(L, 1) + 1); 
+    strcpy(param->url, lua_tostring(L, 1));
     param->postData = NULL;
     param->headers = NULL;
     param->headers_size = 0;
@@ -247,9 +253,9 @@ int http_request(lua_State *L) {
         lua_pop(L, 1);
     }
 #ifdef WIN32
-    createThread(downloadThread, param);
+    createThread(downloadThread, param, "HTTP Request Thread");
 #else
-    free(createThread(downloadThread, param));
+    free(createThread(downloadThread, param, "HTTP Request Thread"));
 #endif
     lua_pushboolean(L, 1);
     return 1;
@@ -263,22 +269,23 @@ int http_checkURL(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
     param->L = L;
-    param->url = lua_tostring(L, 1);
+    param->url = (char*)malloc(lua_strlen(L, 1) + 1);
+    strcpy(param->url, lua_tostring(L, 1));
 #ifdef WIN32
-    createThread(checkThread, param);
+    createThread(checkThread, param, "HTTP Check Thread");
 #else
-    free(createThread(checkThread, param));
+    free(createThread(checkThread, param, "HTTP Check Thread"));
 #endif
     lua_pushboolean(L, true);
     return 1;
 }
 
-extern void http_startServer(int port);
+extern void http_startServer(Computer *comp, int port);
 extern void http_stopServer(int port);
 
 int http_addListener(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    http_startServer(lua_tointeger(L, 1));
+    http_startServer(get_comp(L), lua_tointeger(L, 1));
     return 0;
 }
 

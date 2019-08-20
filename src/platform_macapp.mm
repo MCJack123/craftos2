@@ -10,8 +10,6 @@
 
 extern "C" {
 #include <lua.h>
-#include "platform.h"
-#include "mounter.h"
 }
 #include <stdlib.h>
 #include <string.h>
@@ -29,14 +27,15 @@ extern "C" {
 #include <vector>
 #include <sstream>
 #import <Foundation/Foundation.h>
+#include "platform.hpp"
+#include "mounter.hpp"
 
 const char * base_path = "$HOME/.craftos";
 char * base_path_expanded = NULL;
 char * rom_path_expanded = NULL;
 
-extern "C" {
-void platformInit() {
-    addMount((std::string(getROMPath()) + "/rom").c_str(), "rom", true);
+void platformInit(Computer *comp) {
+    addMount(comp, (std::string(getROMPath()) + "/rom").c_str(), "rom", true);
 }
 
 void platformFree() {
@@ -141,21 +140,6 @@ unsigned long long getFreeSpace(char* path) {
 	return st.f_bavail * st.f_bsize;
 }
 
-void platform_fs_find(lua_State* L, char* wildcard) {
-	glob_t g;
-	int rval = 0;
-	rval = glob(wildcard, 0, NULL, &g);
-	if (rval == 0) {
-        int l = [NSBundle mainBundle].resourcePath.length;
-		for (int i = 0; i < g.gl_pathc; i++) {
-			lua_pushnumber(L, i + 1);
-			lua_pushstring(L, &g.gl_pathv[i][l + 1]);
-			lua_settable(L, -3);
-		}
-		globfree(&g);
-	}
-}
-
 #if defined(__i386__) || defined(__i386) || defined(i386)
 #define ARCHITECTURE "i386"
 #elif defined(__amd64__) || defined(__amd64)
@@ -180,5 +164,4 @@ void pushHostString(lua_State *L) {
     struct utsname host;
     uname(&host);
     lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
-}
 }

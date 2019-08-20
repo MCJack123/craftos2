@@ -1,5 +1,5 @@
 /*
- * fs.h
+ * fs.hpp
  * CraftOS-PC 2
  * 
  * This file defines the methods for the fs API.
@@ -8,14 +8,8 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#ifndef FS_H
-#define FS_H
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "lib.h"
+#ifndef FS_HPP
+#define FS_HPP
+#include "lib.hpp"
 extern library_t fs_lib;
-#ifdef __cplusplus
-}
-#endif
 #endif

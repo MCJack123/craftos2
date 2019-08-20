@@ -10,8 +10,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include "platform.h"
-#include "mounter.h"
+#include "platform.hpp"
+#include "mounter.hpp"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -33,16 +33,14 @@ std::wstring s2ws(const std::string& str) {
 	return wstrTo;
 }
 
-extern "C" {
-
-void platformInit() {
+void platformInit(Computer *comp) {
     if (rom_path_expanded == NULL) {
         DWORD size = ExpandEnvironmentStringsA(rom_path, expand_tmp, 32767);
         rom_path_expanded = (char*)malloc(size + 1);
         memcpy(rom_path_expanded, expand_tmp, size);
         rom_path_expanded[size] = 0;
     }
-    addMount((std::string(rom_path_expanded) + "\\rom").c_str(), "rom", true);
+    addMount(comp, (std::string(rom_path_expanded) + "\\rom").c_str(), "rom", true);
 }
 
 void platformFree() {
@@ -108,11 +106,13 @@ DWORD WINAPI WinThreadFunc(LPVOID lpParam) {
     return 0;
 }
 
-void * createThread(void*(*func)(void*), void* arg) {
+void * createThread(void*(*func)(void*), void* arg, const char * name) {
     struct thread_param* p = new struct thread_param;
     p->func = func;
     p->arg = arg;
-    return CreateThread(NULL, 0, WinThreadFunc, p, 0, NULL);
+    HANDLE retval = CreateThread(NULL, 0, WinThreadFunc, p, 0, NULL);
+    SetThreadDescription(retval, s2ws(std::string(name)).c_str());
+    return retval;
 }
 
 void joinThread(void * thread) {
@@ -163,10 +163,6 @@ unsigned long long getFreeSpace(char* path) {
 	ULARGE_INTEGER retval;
 	GetDiskFreeSpaceExA(path, &retval, NULL, NULL);
 	return retval.QuadPart;
-}
-
-void platform_fs_find(lua_State* L, char* path) {
-	// todo
 }
 
 int removeDirectory(char* path) {
@@ -260,5 +256,5 @@ void pushHostString(lua_State *L) {
         + (info.dwMinorVersion / 10.0);
     lua_pushfstring(L, "%s %s %d.%d", windows_version_map[version], ARCHITECTURE, info.dwMajorVersion, info.dwMinorVersion);
 }
-}
+
 #endif

@@ -1,5 +1,5 @@
 /*
- * bit.h
+ * bit.hpp
  * CraftOS-PC 2
  * 
  * This file defines and implements the methods for the bit API.
@@ -8,9 +8,9 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#ifndef BIT_H
-#define BIT_H
-#include "lib.h"
+#ifndef BIT_HPP
+#define BIT_HPP
+#include "lib.hpp"
 
 static int bit_band(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);

@@ -1,5 +1,5 @@
 /*
- * fs_handle.c
+ * fs_handle.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for file handles.
@@ -8,20 +8,18 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#include "fs_handle.h"
-#include "lib.h"
+#include "fs_handle.hpp"
+#include "lib.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 
-extern int files_open;
-
 int fs_handle_close(lua_State *L) {
     fclose((FILE*)lua_touserdata(L, lua_upvalueindex(1)));
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));
-    files_open--;
+    get_comp(L)->files_open--;
     return 0;
 }
 

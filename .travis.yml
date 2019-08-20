@@ -1,0 +1,9 @@
+language: c++
+script: make && make test
+dist: bionic
+before_install:
+  - sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos
+  - sudo apt install -y liblua5.1-0-dev libsdl2-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev
+addons:
+  apt:
+    update: true

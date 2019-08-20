@@ -1,5 +1,5 @@
 /*
- * redstone.h
+ * redstone.hpp
  * CraftOS-PC 2
  * 
  * This file defines and implements the methods for the redstone/rs API.
@@ -8,9 +8,9 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-#ifndef REDSTONE_H
-#define REDSTONE_H
-#include "lib.h"
+#ifndef REDSTONE_HPP
+#define REDSTONE_HPP
+#include "lib.hpp"
 static int rs_getSides(lua_State *L) {
     lua_newtable(L); 
     lua_pushinteger(L, 1);

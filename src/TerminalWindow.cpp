@@ -14,8 +14,8 @@
 #endif
 #include <assert.h>
 #include "favicon.h"
-#include "config.h"
-#include "gif.h"
+#include "config.hpp"
+#include "gif.hpp"
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
@@ -423,3 +423,5 @@ void TerminalWindow::stopRecording() {
     recording.clear();
     recorderMutex.unlock();
 }
+
+int TerminalWindow::windowID() {return SDL_GetWindowID(win);}

@@ -11,7 +11,6 @@
 #ifdef __linux__ // disable error checking on Windows
 extern "C" {
 #include <lua.h>
-#include "platform.h"
 }
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +18,7 @@ extern "C" {
 #include <stdio.h>
 #include <libgen.h>
 #include <unistd.h>
-#include <sys/sysinfo.h>
+//#include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/utsname.h>
@@ -29,7 +28,8 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <sstream>
-#include "mounter.h"
+#include "mounter.hpp"
+#include "platform.hpp"
 
 const char * rom_path = "/usr/share/craftos";
 #ifdef FS_ROOT
@@ -39,9 +39,8 @@ const char * base_path = "$HOME/.craftos";
 #endif
 char * base_path_expanded = NULL;
 
-extern "C" {
-void platformInit() {
-    addMount((std::string(rom_path) + "/rom").c_str(), "rom", true);
+void platformInit(Computer *comp) {
+    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", true);
 }
 
 void platformFree() {
@@ -71,9 +70,10 @@ char * getBIOSPath() {
     return retval;
 }
 
-void * createThread(void*(*func)(void*), void* arg) {
+void * createThread(void*(*func)(void*), void* arg, const char * name) {
     pthread_t * tid = new pthread_t;
     pthread_create(tid, NULL, func, arg);
+    if (name != NULL) pthread_setname_np(*tid, name);
     return (void*)tid;
 }
 
@@ -138,20 +138,6 @@ unsigned long long getFreeSpace(char* path) {
 	return st.f_bavail * st.f_bsize;
 }
 
-void platform_fs_find(lua_State* L, char* wildcard) {
-	glob_t g;
-	int rval = 0;
-	rval = glob(wildcard, 0, NULL, &g);
-	if (rval == 0) {
-		for (int i = 0; i < g.gl_pathc; i++) {
-			lua_pushnumber(L, i + 1);
-			lua_pushstring(L, g.gl_pathv[i]);
-			lua_settable(L, -3);
-		}
-		globfree(&g);
-	}
-}
-
 #if defined(__i386__) || defined(__i386) || defined(i386)
 #define ARCHITECTURE "i386"
 #elif defined(__amd64__) || defined(__amd64)
@@ -179,5 +165,5 @@ void pushHostString(lua_State *L) {
     uname(&host);
     lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
 }
-}
+
 #endif // __INTELLISENSE__
