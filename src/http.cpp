@@ -179,6 +179,7 @@ void* downloadThread(void* arg) {
     curl_easy_setopt(handle->handle, CURLOPT_URL, param->url);
     if (param->postData == NULL) curl_easy_setopt(handle->handle, CURLOPT_HTTPGET, 1);
     else curl_easy_setopt(handle->handle, CURLOPT_POST, 1);
+    curl_easy_setopt(handle->handle, CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(handle->handle, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(handle->handle, CURLOPT_WRITEDATA, &(handle->buf));
     curl_easy_setopt(handle->handle, CURLOPT_HEADERFUNCTION, header_callback);
