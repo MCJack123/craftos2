@@ -72,9 +72,27 @@ char * getBIOSPath() {
     return retval;
 }
 
-void * createThread(void*(*func)(void*), void* arg) {
+struct namedThreadArg {
+    const char * name;
+    void*(*func)(void*);
+    void* arg;
+};
+
+void* namedThread(void* arg) {
+    struct namedThreadArg * a = (struct namedThreadArg*)arg;
+    if (a->name != NULL) pthread_setname_np(a->name);
+    void* retval = a->func(a->arg);
+    delete a;
+    return retval;
+}
+
+void * createThread(void*(*func)(void*), void* arg, const char * name) {
+    struct namedThreadArg * a = new struct namedThreadArg;
+    a->name = name;
+    a->func = func;
+    a->arg = arg;
     pthread_t * tid = new pthread_t;
-    pthread_create(tid, NULL, func, arg);
+    pthread_create(tid, NULL, namedThread, a);
     return (void*)tid;
 }
 

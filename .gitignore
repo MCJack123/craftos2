@@ -10,3 +10,5 @@ CraftOS-PC.app
 /configure.ac
 /Makefile - Copy
 /autom4te.cache
+/CraftOS-PC
+/CraftOS-PC.xcodeproj
