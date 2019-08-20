@@ -165,10 +165,6 @@ unsigned long long getFreeSpace(char* path) {
 	return retval.QuadPart;
 }
 
-void platform_fs_find(lua_State* L, char* path) {
-	// todo
-}
-
 int removeDirectory(char* path) {
 	DWORD attr = GetFileAttributesA(path);
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();

@@ -24,6 +24,8 @@ extern "C" {
 #include <dirent.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <sstream>
+#include <iterator>
 #ifdef WIN32
 #include <io.h>
 #define access(p, m) _access(p, m)
@@ -351,13 +353,71 @@ int fs_open(lua_State *L) {
     return 1;
 }
 
+extern std::vector<std::string> split(std::string strToSplit, char delimeter);
+
+std::list<std::string> matchWildcard(lua_State *L, std::list<std::string> options, std::list<std::string>::iterator pathc, std::list<std::string>::iterator end) {
+    if (pathc == end) return {};
+    std::list<std::string> nextOptions;
+    for (std::list<std::string>::iterator it = options.begin(); it != options.end(); it++) {
+        struct dirent *dir;
+        char * path = fixpath(get_comp(L), it->c_str());
+        if (path == NULL) continue;
+        DIR * d = opendir(path);
+        if (d) {
+            int i;
+            for (i = 0; (dir = readdir(d)) != NULL; i++) {
+                int found = 0;
+                for (int j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++)
+                    if (strcmp(dir->d_name, ignored_files[j]) == 0) { i--; found = 1; }
+                if (found) continue;
+                if (*pathc == "*" || std::string(dir->d_name) == *pathc) nextOptions.push_back(*it + (*it == "" ? "" : "/") + std::string(dir->d_name));
+            }
+            closedir(d);
+            lua_newtable(L);
+            injectMounts(L, it->c_str(), 1);
+            lua_pushnil(L);
+            while (lua_next(L, -2)) {
+                lua_pushvalue(L, -2);
+                const char *value = lua_tostring(L, -2);
+                if (*pathc == "*" || std::string(value) == *pathc) nextOptions.push_back(*it + (*it == "" ? "" : "/") + std::string(value));
+                lua_pop(L, 2);
+            }
+            lua_pop(L, 1);
+        }
+        free(path);
+    }
+    if (++pathc == end) return nextOptions;
+    else return matchWildcard(L, nextOptions, pathc, end);
+}
+
 int fs_find(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-	char* wildcard = fixpath(get_comp(L), lua_tostring(L, 1));
-	if (wildcard == NULL) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
-	lua_newtable(L);
-	platform_fs_find(L, wildcard);
-	free(wildcard);
+    std::vector<std::string> elems = split(lua_tostring(L, 1), '/');
+    std::list<std::string> pathc;
+    for (std::string s : elems) {
+        if (s == "..") { if (pathc.size() < 1) return NULL; else pathc.pop_back(); } 
+        else if (s != "." && s != "") pathc.push_back(s);
+    }
+    lua_State *tmp = lua_newthread(L);
+    std::list<std::string> matches = matchWildcard(tmp, {""}, pathc.begin(), pathc.end());
+    lua_pop(L, 1);
+    lua_newtable(L);
+    int i = 0;
+    for (std::list<std::string>::iterator it = matches.begin(); it != matches.end(); it++, i++) {
+        lua_pushinteger(L, i + 1);
+        lua_pushstring(L, it->c_str());
+        lua_settable(L, -3);
+    }
+    lua_getglobal(L, "table");
+    assert(lua_istable(L, -1));
+    lua_pushstring(L, "sort");
+    lua_gettable(L, -2);
+    assert(lua_isfunction(L, -1));
+    lua_pushvalue(L, -3);
+    // L: [path, retval, table api, table.sort, retval]
+    assert(lua_pcall(L, 1, 0, 0) == 0);
+    // L: [path, retval, table api]
+    lua_pop(L, 1);
     return 1;
 }
 

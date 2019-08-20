@@ -140,21 +140,6 @@ unsigned long long getFreeSpace(char* path) {
 	return st.f_bavail * st.f_bsize;
 }
 
-void platform_fs_find(lua_State* L, char* wildcard) {
-	glob_t g;
-	int rval = 0;
-	rval = glob(wildcard, 0, NULL, &g);
-	if (rval == 0) {
-        int l = [NSBundle mainBundle].resourcePath.length;
-		for (int i = 0; i < g.gl_pathc; i++) {
-			lua_pushnumber(L, i + 1);
-			lua_pushstring(L, &g.gl_pathv[i][l + 1]);
-			lua_settable(L, -3);
-		}
-		globfree(&g);
-	}
-}
-
 #if defined(__i386__) || defined(__i386) || defined(i386)
 #define ARCHITECTURE "i386"
 #elif defined(__amd64__) || defined(__amd64)

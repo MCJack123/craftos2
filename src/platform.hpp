@@ -20,7 +20,6 @@ extern void joinThread(void * thread);
 extern int createDirectory(const char * path);
 extern void msleep(unsigned long time);
 extern unsigned long long getFreeSpace(char* path);
-extern void platform_fs_find(lua_State* L, char* wildcard);
 extern int removeDirectory(char* path);
 extern void pushHostString(lua_State *L);
 extern const char * bios_path;
