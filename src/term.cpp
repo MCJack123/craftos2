@@ -357,10 +357,13 @@ const char * termGetEvent(lua_State *L) {
     return NULL;
 }
 
+int headlessCursorX = 1, headlessCursorY = 1;
+
 int term_write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (headless) {
         printf("%s", lua_tostring(L, 1));
+        headlessCursorX += lua_strlen(L, 1);
         return 0;
     }
     Computer * computer = get_comp(L);
@@ -403,8 +406,6 @@ int term_scroll(lua_State *L) {
     return 0;
 }
 
-int headlessCursorX = 1, headlessCursorY = 1;
-
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
@@ -414,6 +415,7 @@ int term_setCursorPos(lua_State *L) {
         if (lua_tointeger(L, 2) != headlessCursorY) printf("\n");
         headlessCursorX = lua_tointeger(L, 1);
         headlessCursorY = lua_tointeger(L, 2);
+        fflush(stdout);
         return 0;
     }
     Computer * computer = get_comp(L);
@@ -547,6 +549,7 @@ int term_blit(lua_State *L) {
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
     if (headless) {
         printf("%s", lua_tostring(L, 1));
+        headlessCursorX += lua_strlen(L, 1);
         return 0;
     }
     Computer * computer = get_comp(L);
