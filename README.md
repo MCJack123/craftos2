@@ -10,6 +10,25 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * 7 MB free space
 * Windows: [Visual C++ 2015 Redistributable](https://aka.ms/vs/16/release/vc_redist.x64.exe)
 
+## Installing
+### Windows
+1. Download CraftOS-PC-Setup.exe from the latest release
+2. Follow the instructions in the setup program
+3. Open CraftOS-PC from the Start Menu
+
+### Mac
+1. Download CraftOS-PC.app.zip from the latest release
+2. Unzip the downloaded file
+3. Right-click on the app and click "Open"
+
+### Ubuntu (18.04 & 19.04)
+```bash
+$ sudo add-apt-repository ppa:jackmacwindows/ppa
+$ sudo apt update
+$ sudo apt install craftos-pc
+$ craftos
+```
+
 ## Building
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
