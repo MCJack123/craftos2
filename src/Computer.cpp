@@ -22,6 +22,8 @@
 #include "peripheral/computer.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
+#include <dirent.h>
+#include <sys/stat.h>
 extern "C" {
 #include <lauxlib.h>
 }
@@ -109,6 +111,34 @@ void Computer::run() {
         lua_getglobal(coro, "redstone");
         lua_setglobal(coro, "rs");
 
+        // Load overridden IO library
+        lua_pushcfunction(L, luaopen_io);
+        lua_pushstring(L, "io");
+        lua_call(L, 1, 0);
+
+        // Load any plugins available
+        lua_getglobal(L, "package");
+        lua_pushstring(L, "loadlib");
+        lua_gettable(L, -2);
+        struct dirent *dir;
+        DIR * d = opendir((std::string(getROMPath()) + "/plugins").c_str());
+        struct stat st;
+        if (d) {
+            for (int i = 0; (dir = readdir(d)) != NULL; i++) {
+                if (stat((std::string(getROMPath()) + "/plugins/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+                std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
+                lua_pushvalue(L, -1);
+                lua_pushfstring(L, "%s/plugins/%s", getROMPath(), dir->d_name);
+                lua_pushfstring(L, "luaopen_%s", api_name.c_str());
+                if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
+                if (lua_isnil(L, -2)) {printf("Error loading plugin %s (%s): %s\n", dir->d_name, api_name.c_str(), lua_tostring(L, -1)); lua_pop(L, 2); continue;}
+                if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
+                lua_call(L, 0, 1);
+                lua_setglobal(L, api_name.c_str());
+            }
+            closedir(d);
+        }
+
         // Delete unwanted globals
         lua_pushnil(L);
         lua_setglobal(L, "collectgarbage");
@@ -131,11 +161,6 @@ void Computer::run() {
             lua_setglobal(L, "debug");
         }
 
-        // Load overridden IO library
-        lua_pushcfunction(L, luaopen_io);
-        lua_pushstring(L, "io");
-        lua_call(L, 1, 0);
-
         // Set default globals
         lua_pushstring(L, ::config.default_computer_settings);
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
@@ -148,35 +173,35 @@ void Computer::run() {
 
         // Load patched pcall/xpcall
         luaL_loadstring(L, "local nativeResume = coroutine.resume; return function( _fn, _fnErrorHandler )\n\
-        local typeT = type( _fn )\n\
-        assert( typeT == \"function\", \"bad argument #1 to xpcall (function expected, got \"..typeT..\")\" )\n\
-        local co = coroutine.create( _fn )\n\
-        local tResults = { nativeResume( co ) }\n\
-        while coroutine.status( co ) ~= \"dead\" do\n\
-            tResults = { nativeResume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }\n\
-        end\n\
-        if tResults[1] == true then\n\
-            return true, unpack( tResults, 2 )\n\
-        else\n\
-            return false, _fnErrorHandler( tResults[2] )\n\
-        end\n\
-    end");
+    local typeT = type( _fn )\n\
+    assert( typeT == \"function\", \"bad argument #1 to xpcall (function expected, got \"..typeT..\")\" )\n\
+    local co = coroutine.create( _fn )\n\
+    local tResults = { nativeResume( co ) }\n\
+    while coroutine.status( co ) ~= \"dead\" do\n\
+        tResults = { nativeResume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }\n\
+    end\n\
+    if tResults[1] == true then\n\
+        return true, unpack( tResults, 2 )\n\
+    else\n\
+        return false, _fnErrorHandler( tResults[2] )\n\
+    end\n\
+end");
         lua_call(L, 0, 1);
         lua_setglobal(L, "xpcall");
         
         luaL_loadstring(L, "return function( _fn, ... )\n\
-        local typeT = type( _fn )\n\
-        assert( typeT == \"function\", \"bad argument #1 to pcall (function expected, got \"..typeT..\")\" )\n\
-        local tArgs = { ... }\n\
-        return xpcall(\n\
-            function()\n\
-                return _fn( unpack( tArgs ) )\n\
-            end,\n\
-            function( _error )\n\
-                return _error\n\
-            end\n\
-        )\n\
-    end");
+    local typeT = type( _fn )\n\
+    assert( typeT == \"function\", \"bad argument #1 to pcall (function expected, got \"..typeT..\")\" )\n\
+    local tArgs = { ... }\n\
+    return xpcall(\n\
+        function()\n\
+            return _fn( unpack( tArgs ) )\n\
+        end,\n\
+        function( _error )\n\
+            return _error\n\
+        end\n\
+    )\n\
+end");
         lua_call(L, 0, 1);
         lua_setglobal(L, "pcall");
 

@@ -266,6 +266,7 @@ void mainLoop() {
                     e.type == SDL_QUIT)
                     c->termEventQueue.push(e);
     }
+    exiting = true;
 }
 
 const char * termGetEvent(lua_State *L) {
