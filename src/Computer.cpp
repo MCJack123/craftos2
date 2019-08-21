@@ -123,8 +123,6 @@ void Computer::run() {
         lua_pushnil(L);
         lua_setglobal(L, "package");
         lua_pushnil(L);
-        lua_setglobal(L, "io");
-        lua_pushnil(L);
         lua_setglobal(L, "print");
         lua_pushnil(L);
         lua_setglobal(L, "newproxy");
@@ -132,6 +130,11 @@ void Computer::run() {
             lua_pushnil(L);
             lua_setglobal(L, "debug");
         }
+
+        // Load overridden IO library
+        lua_pushcfunction(L, luaopen_io);
+        lua_pushstring(L, "io");
+        lua_call(L, 1, 0);
 
         // Set default globals
         lua_pushstring(L, ::config.default_computer_settings);

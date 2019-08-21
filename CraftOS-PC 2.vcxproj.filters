@@ -187,6 +187,9 @@
     <ClCompile Include="src\peripheral\computer_p.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\liolib.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="CraftOS-PC 2.rc">

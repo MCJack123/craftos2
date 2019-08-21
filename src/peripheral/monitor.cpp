@@ -10,8 +10,8 @@
 
 #include "monitor.hpp"
 
-int log2i(int);
-char htoi(char c);
+extern int log2i(int);
+extern unsigned char htoi(char c);
 
 monitor::monitor(lua_State *L, const char * side): term("CraftOS Terminal: Monitor " + std::string(side)) {canBlink = false;}
 

@@ -193,6 +193,21 @@ int mounter_isReadOnly(lua_State *L) {
     return 0; // redundant
 }
 
+extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
+    if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
+    char * newpath = fixpath(get_comp(L), filename);
+    FILE* retval = fopen(newpath, mode);
+    free(newpath);
+    if (retval != NULL) get_comp(L)->files_open++;
+    return retval;
+}
+
+extern "C" int mounter_fclose(lua_State *L, FILE * stream) {
+    int retval = fclose(stream);
+    if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
+    return retval;
+}
+
 const char * mounter_keys[4] = {
     "mount",
     "unmount",
