@@ -234,11 +234,12 @@ void gotEvent(Computer *comp) {comp->last_event = std::chrono::high_resolution_c
 int nextTaskID = 0;
 std::queue< std::tuple<int, void*(*)(void*), void*> > taskQueue;
 std::unordered_map<int, void*> taskQueueReturns;
+bool exiting = false;
 
 void* queueTask(void*(*func)(void*), void* arg) {
     int myID = nextTaskID++;
     taskQueue.push(std::make_tuple(myID, func, arg));
-    while (taskQueueReturns.find(myID) == taskQueueReturns.end());
+    while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting);
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
     return retval;
@@ -290,6 +291,11 @@ const char * termGetEvent(lua_State *L) {
                     computer->waitingForTerminate = 2;
                     return "terminate";
                 } else if (computer->waitingForTerminate == 0) computer->waitingForTerminate = 1;
+            } else if (e.key.keysym.scancode == SDL_SCANCODE_V && (e.key.keysym.mod & KMOD_CTRL) && SDL_HasClipboardText()) {
+                char * text = SDL_GetClipboardText();
+                lua_pushstring(L, text);
+                SDL_free(text);
+                return "paste";
             } else {
                 computer->waitingForTerminate = 0;
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));

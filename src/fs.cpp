@@ -332,6 +332,11 @@ int fs_open(lua_State *L) {
         lua_pushlightuserdata(L, fp);
         lua_pushcclosure(L, fs_handle_readByte, 1);
         lua_settable(L, -3);
+
+        lua_pushstring(L, "seek");
+        lua_pushlightuserdata(L, fp);
+        lua_pushcclosure(L, fs_handle_seek, 1);
+        lua_settable(L, -3);
     } else if (strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
         lua_pushstring(L, "write");
         lua_pushlightuserdata(L, fp);
@@ -341,6 +346,11 @@ int fs_open(lua_State *L) {
         lua_pushstring(L, "flush");
         lua_pushlightuserdata(L, fp);
         lua_pushcclosure(L, fs_handle_flush, 1);
+        lua_settable(L, -3);
+
+        lua_pushstring(L, "seek");
+        lua_pushlightuserdata(L, fp);
+        lua_pushcclosure(L, fs_handle_seek, 1);
         lua_settable(L, -3);
     } else {
         lua_remove(L, -1);

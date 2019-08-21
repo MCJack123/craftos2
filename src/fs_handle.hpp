@@ -22,4 +22,5 @@ extern int fs_handle_writeString(lua_State *L);
 extern int fs_handle_writeLine(lua_State *L);
 extern int fs_handle_writeByte(lua_State *L);
 extern int fs_handle_flush(lua_State *L);
+extern int fs_handle_seek(lua_State *L);
 #endif

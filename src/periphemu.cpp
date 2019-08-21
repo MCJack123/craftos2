@@ -15,6 +15,7 @@
 #include "peripheral/monitor.hpp"
 #include "peripheral/printer.hpp"
 #include "TerminalWindow.hpp"
+#include "term.hpp"
 #include <unordered_map>
 #include <string>
 #include <algorithm>
@@ -30,6 +31,20 @@ monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideRetur
         }
     }
     return NULL;
+}
+
+const char * peripheral_attach(lua_State *L, void* arg) {
+    std::string * side = (std::string*)arg;
+    lua_pushstring(L, side->c_str());
+    delete side;
+    return "peripheral";
+}
+
+const char * peripheral_detach(lua_State *L, void* arg) {
+    std::string * side = (std::string*)arg;
+    lua_pushstring(L, side->c_str());
+    delete side;
+    return "peripheral_detach";
 }
 
 int periphemu_create(lua_State* L) {
@@ -59,6 +74,8 @@ int periphemu_create(lua_State* L) {
 		lua_error(L);
 	}
 	lua_pushboolean(L, true);
+    std::string * sidearg = new std::string(side);
+    termQueueProvider(computer, peripheral_attach, sidearg);
 	return 1;
 }
 
@@ -73,6 +90,8 @@ int periphemu_remove(lua_State* L) {
 	delete computer->peripherals[side];
 	computer->peripherals.erase(side);
 	lua_pushboolean(L, true);
+    std::string * sidearg = new std::string(side);
+    termQueueProvider(computer, peripheral_detach, sidearg);
 	return 1;
 }
 

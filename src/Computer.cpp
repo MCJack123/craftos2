@@ -189,7 +189,7 @@ void Computer::run() {
             /* the stack */
             fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
             msleep(5000);
-            exit(1);
+            return;
         }
         void * tid;
         if (!headless) tid = createThread(&termRenderLoop, this, std::string("Computer " + std::to_string(id) + " Render Thread").c_str());

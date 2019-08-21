@@ -95,8 +95,16 @@ int fs_handle_readByte(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp)) return 0;
-    unsigned char retval = (unsigned)fgetc(fp);
-    lua_pushinteger(L, retval);
+    if (lua_isnumber(L, 1)) {
+        size_t s = lua_tointeger(L, 1);
+        char* retval = (char*)malloc(s);
+        size_t read = fread(retval, s, 1, fp);
+        lua_pushlstring(L, retval, read);
+        free(retval);
+    } else {
+        unsigned char retval = (unsigned)fgetc(fp);
+        lua_pushinteger(L, retval);
+    }
     return 1;
 }
 
@@ -132,4 +140,28 @@ int fs_handle_flush(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
     fflush((FILE*)lua_touserdata(L, lua_upvalueindex(1)));
     return 0;
+}
+
+int fs_handle_seek(lua_State *L) {
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isstring(L, 1) && !lua_isnoneornil(L, 1)) bad_argument(L, "string or nil", 1);
+    if (!lua_isnumber(L, 2) && !lua_isnoneornil(L, 2)) bad_argument(L, "number or nil", 2);
+    const char * whence = lua_isstring(L, 1) ? lua_tostring(L, 1) : "cur";
+    size_t offset = lua_isnumber(L, 2) ? lua_tointeger(L, 2) : 0;
+    FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
+    int origin = 0;
+    if (strcmp(whence, "set") == 0) origin = SEEK_SET;
+    else if (strcmp(whence, "cur") == 0) origin = SEEK_CUR;
+    else if (strcmp(whence, "end") == 0) origin = SEEK_END;
+    else {
+        lua_pushfstring(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
+        lua_error(L);
+    }
+    if (fseek(fp, offset, origin) != 0) {
+        lua_pushnil(L);
+        lua_pushstring(L, strerror(errno));
+        return 2;
+    }
+    lua_pushinteger(L, ftell(fp));
+    return 1;
 }
