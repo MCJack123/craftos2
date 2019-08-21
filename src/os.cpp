@@ -99,22 +99,19 @@ int getNextEvent(lua_State *L, const char * filter) {
 
 int os_getComputerID(lua_State *L) {lua_pushinteger(L, get_comp(L)->id); return 1;}
 int os_getComputerLabel(lua_State *L) {
-    struct computer_configuration cfg = getComputerConfig(get_comp(L)->id);
+    struct computer_configuration cfg = get_comp(L)->config;
     if (cfg.label == NULL) return 0;
     lua_pushstring(L, cfg.label);
-    freeComputerConfig(cfg);
     return 1;
 }
 
 int os_setComputerLabel(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    struct computer_configuration cfg = getComputerConfig(get_comp(L)->id);
-    if (cfg.label != NULL) free((char*)cfg.label);
+    struct computer_configuration *cfg = &get_comp(L)->config;
+    if (cfg->label != NULL) free((char*)cfg->label);
     char * label = (char*)malloc(lua_strlen(L, 1) + 1);
     strcpy(label, lua_tostring(L, 1));
-    cfg.label = label;
-    setComputerConfig(get_comp(L)->id, cfg);
-    freeComputerConfig(cfg);
+    cfg->label = label;
     return 0;
 }
 

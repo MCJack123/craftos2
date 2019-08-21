@@ -308,24 +308,24 @@ const char * termGetEvent(lua_State *L) {
             tmp[1] = 0;
             lua_pushstring(L, tmp);
             return "char";
-        } else if (e.type == SDL_MOUSEBUTTONDOWN) {
+        } else if (e.type == SDL_MOUSEBUTTONDOWN && computer->config.isColor) {
             lua_pushinteger(L, buttonConvert(e.button.button));
             lua_pushinteger(L, convertX(computer->term, e.button.x));
             lua_pushinteger(L, convertY(computer->term, e.button.y));
             return "mouse_click";
-        } else if (e.type == SDL_MOUSEBUTTONUP) {
+        } else if (e.type == SDL_MOUSEBUTTONUP && computer->config.isColor) {
             lua_pushinteger(L, buttonConvert(e.button.button));
             lua_pushinteger(L, convertX(computer->term, e.button.x));
             lua_pushinteger(L, convertY(computer->term, e.button.y));
             return "mouse_up";
-        } else if (e.type == SDL_MOUSEWHEEL) {
+        } else if (e.type == SDL_MOUSEWHEEL && computer->config.isColor) {
             int x = 0, y = 0;
             computer->term->getMouse(&x, &y);
             lua_pushinteger(L, e.button.y);
             lua_pushinteger(L, convertX(computer->term, x));
             lua_pushinteger(L, convertY(computer->term, y));
             return "mouse_scroll";
-        } else if (e.type == SDL_MOUSEMOTION && e.motion.state) {
+        } else if (e.type == SDL_MOUSEMOTION && e.motion.state && computer->config.isColor) {
             lua_pushinteger(L, buttonConvert2(e.motion.state));
             lua_pushinteger(L, convertX(computer->term, e.motion.x));
             lua_pushinteger(L, convertY(computer->term, e.motion.y));
@@ -502,16 +502,18 @@ int term_clearLine(lua_State *L) {
 int term_setTextColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
-    int c = log2i(lua_tointeger(L, 1));
-    computer->colors = (computer->colors & 0xf0) | c;
+    unsigned int c = log2i(lua_tointeger(L, 1));
+    if (computer->config.isColor || ((c & 7) - 1) >= 6)
+        computer->colors = (computer->colors & 0xf0) | c;
     return 0;
 }
 
 int term_setBackgroundColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
-    int c = log2i(lua_tointeger(L, 1));
-    computer->colors = (computer->colors & 0x0f) | (c << 4);
+    unsigned int c = log2i(lua_tointeger(L, 1));
+    if (computer->config.isColor || ((c & 7) - 1) >= 6)
+        computer->colors = (computer->colors & 0x0f) | (c << 4);
     return 0;
 }
 
@@ -520,9 +522,7 @@ int term_isColor(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    struct computer_configuration cfg = getComputerConfig(get_comp(L)->id);
-    lua_pushboolean(L, cfg.isColor);
-    freeComputerConfig(cfg);
+    lua_pushboolean(L, get_comp(L)->config.isColor);
     return 1;
 }
 
@@ -536,7 +536,7 @@ int term_getBackgroundColor(lua_State *L) {
     return 1;
 }
 
-char htoi(char c) {
+unsigned char htoi(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -560,7 +560,10 @@ int term_blit(lua_State *L) {
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
     for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
-        computer->colors = htoi(bg[i]) << 4 | htoi(fg[i]);
+        if (computer->config.isColor || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
+            computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
+        if (computer->config.isColor || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) 
+            computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
@@ -596,8 +599,8 @@ int term_setPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
-    if (headless) return 0;
     Computer * computer = get_comp(L);
+    if (headless || !computer->config.isColor) return 0;
     TerminalWindow * term = computer->term;
     int color = log2i(lua_tointeger(L, 1));
     term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);

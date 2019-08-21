@@ -54,10 +54,13 @@ Computer::Computer(int i) {
 #endif
     if (headless) term = NULL;
     else term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
+    config = getComputerConfig(id);
 }
 
 Computer::~Computer() {
     if (!headless) delete term;
+    setComputerConfig(id, config);
+    freeComputerConfig(config);
     for (auto p : peripherals) delete p.second;
     for (Computer * c : referencers) {
         for (auto it = c->peripherals.begin(); it != c->peripherals.end(); it++) {
@@ -80,6 +83,8 @@ void Computer::run() {
             term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
             term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
             term->pixels = std::vector<std::vector<char> >(term->height * term->fontHeight, std::vector<char>(term->width * term->fontWidth, 0x0F));
+            term->blinkX = 0;
+            term->blinkY = 0;
         }
 
         /*
@@ -100,7 +105,7 @@ void Computer::run() {
         luaL_openlibs(coro);
         lua_sethook(coro, termHook, LUA_MASKCOUNT, 100);
         for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
-        if (config.http_enable) load_library(this, coro, http_lib);
+        if (::config.http_enable) load_library(this, coro, http_lib);
         lua_getglobal(coro, "redstone");
         lua_setglobal(coro, "rs");
 
@@ -123,13 +128,13 @@ void Computer::run() {
         lua_setglobal(L, "print");
         lua_pushnil(L);
         lua_setglobal(L, "newproxy");
-        if (!config.debug_enable) {
+        if (!::config.debug_enable) {
             lua_pushnil(L);
             lua_setglobal(L, "debug");
         }
 
         // Set default globals
-        lua_pushstring(L, config.default_computer_settings);
+        lua_pushstring(L, ::config.default_computer_settings);
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
         pushHostString(L);
         lua_setglobal(L, "_HOST");

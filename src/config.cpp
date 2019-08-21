@@ -144,11 +144,8 @@ int config_get(lua_State *L) {
         lua_pushinteger(L, config.abortTimeout);
     else if (strcmp(name, "ignoreHotkeys") == 0)
         lua_pushboolean(L, config.ignoreHotkeys);
-    else if (strcmp(name, "isColor") == 0) {
-        struct computer_configuration cfg = getComputerConfig(computer->id);
-        lua_pushboolean(L, cfg.isColor);
-        freeComputerConfig(cfg);
-    }
+    else if (strcmp(name, "isColor") == 0) 
+        lua_pushboolean(L, computer->config.isColor);
     else return 0;
     return 1;
 }
@@ -188,9 +185,8 @@ int config_set(lua_State *L) {
     else if (strcmp(name, "ignoreHotkeys") == 0)
         config.ignoreHotkeys = lua_toboolean(L, 2);
     else if (strcmp(name, "isColor") == 0) {
-        struct computer_configuration cfg = getComputerConfig(computer->id);
-        cfg.isColor = lua_toboolean(L, 2);
-        setComputerConfig(computer->id, cfg);
+        computer->config.isColor = lua_toboolean(L, 2);
+        setComputerConfig(computer->id, computer->config);
     }
     config_save(false);
     return 0;

@@ -10,8 +10,6 @@
 
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
-#include "lib.hpp"
-extern library_t config_lib;
 struct configuration {
     bool http_enable;
     bool debug_enable;
@@ -33,6 +31,8 @@ struct computer_configuration {
     char * label;
     bool isColor;
 };
+#include "lib.hpp"
+extern library_t config_lib;
 extern struct configuration config;
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, struct computer_configuration cfg);

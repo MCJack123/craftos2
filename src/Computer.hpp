@@ -28,6 +28,7 @@ extern "C" {
 #endif
 #include "peripheral/peripheral.hpp"
 #include "TerminalWindow.hpp"
+#include "config.hpp"
 
 typedef const char * (*event_provider)(lua_State *L, void* data);
 
@@ -55,6 +56,7 @@ public:
     std::queue<SDL_Event> termEventQueue;
     lua_State *L = NULL;
     std::list<Computer*> referencers;
+    struct computer_configuration config;
 
     Computer(int i);
     ~Computer();
