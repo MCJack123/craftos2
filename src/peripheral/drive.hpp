@@ -1,7 +1,11 @@
 #ifndef PERIPHERAL_DRIVE_HPP
 #define PERIPHERAL_DRIVE_HPP
 #include <unordered_set>
+#ifdef _WIN32
 #include <SDL_mixer.h>
+#else
+#include <SDL2/SDL_mixer.h>
+#endif
 #include "peripheral.hpp"
 #include "../mounter.hpp"
 
