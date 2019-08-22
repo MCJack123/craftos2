@@ -10,6 +10,7 @@
 
 #include "Computer.hpp"
 #include "config.hpp"
+#include "peripheral/drive.hpp"
 
 extern void termInit();
 extern void termClose();
@@ -28,12 +29,14 @@ int main(int argc, char*argv[]) {
     }
     termInit();
     config_init();
+    driveInit();
     startComputer(0);
     mainLoop();
     for (void* t : computerThreads) joinThread(t);
 #ifndef _WIN32
     for (void* t : computerThreads) delete (pthread_t*)t;
 #endif
+    driveQuit();
     termClose();
     platformFree();
     config_save(true);

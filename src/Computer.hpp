@@ -57,6 +57,7 @@ public:
     lua_State *L = NULL;
     std::list<Computer*> referencers;
     struct computer_configuration config;
+    std::unordered_map<int, void *> userdata;
 
     Computer(int i);
     ~Computer();

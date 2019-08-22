@@ -124,7 +124,7 @@ int createDirectory(const char* path) {
     strcpy(dir, path);
     dirname(dir);
 	if (CreateDirectoryExA(dir, path, NULL) == 0) {
-		if (GetLastError() == ERROR_PATH_NOT_FOUND && strcmp(path, "\\") != 0) {
+		if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && strcmp(path, "\\") != 0) {
             if (createDirectory(dir)) { free(dir); return 1; }
 			CreateDirectoryExA(dir, path, NULL);
 		}

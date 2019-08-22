@@ -140,7 +140,7 @@ const std::unordered_map<int, unsigned char> keymap = {
 };
 
 void termInit() {
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
 }

@@ -11,12 +11,22 @@ Creates and removes peripherals from the registry.
 ### Functions
 * *boolean* create(*string* side, *string* type\[, *string* path\]): Creates a new peripheral.
   * side: The side of the new peripheral
-  * type: One of `computer`, `monitor`, `speaker`, `printer`
+  * type: One of `computer`, `drive`, `modem`, `monitor`, `printer`
   * path: If creating a printer, the local path to the output file
   * Returns: `true` on success, `false` on failure (already exists)
 * *boolean* remove(*string* side): Removes a peripheral.
   * side: The side to remove
   * Returns: `true` on success, `false` on failure (already removed)
+
+## `drive` peripheral
+Floppy drive emulator that supports loading mounts (see mounter API), floppy disks (by ID), and audio files.
+See [disk API](computercraft.info/wiki/Disk_(API)) for other functions.
+### Methods
+* *nil* insertDisk(*string/number* path): Replaces the loaded disk with the specified resource.
+  * path: Either a disk ID or path to load
+	* If number: Mounts the floppy disk (~/.craftos/computer/disk/`id`) to /disk[n]
+	* If path to directory: Mounts the real path specified to /disk[n]
+	* If path to file: Loads the file as an audio disc (use `disk.playAudio` or the "dj" command)
   
 ## `config`
 Changes ComputerCraft configuration variables in ComputerCraft.cfg.
@@ -56,9 +66,8 @@ Graphics mode extension in the `term` API.
   * x: The X coordinate of the pixel
   * y: The Y coordinate of the pixel
   * Returns: The color of the pixel
-
-## `font`
-Draws bitmap character fonts in graphics mode. Implements `write`, `getCursorPos`, `setCursorPos`, and `blit` from term.
+* *nil* screenshot([*string* path]): Takes a screenshot.
+  * path: The real path to save to (defaults to `~/.craftos/screenshots/<date>_<time>.<bmp|png>`)
 
 ## `http`
 HTTP server extension in the `http` API.
@@ -84,3 +93,69 @@ HTTP server extension in the `http` API.
   * *table*: The request table
   * *table*: The response table
 * server_stop: Send this inside an `http.listen()` callback to stop the server
+
+## Plugin API
+CraftOS-PC 2 features a new plugin API that allows easy addition of new C APIs into the environment. 
+A plugin consists of a shared library (`.dll`, `.dylib`, `.so`) that contains a function named `luaopen_<name>`, where `<name>` is the filename of the plugin.
+Upon loading a new computer, the `plugins` folder inside the install directory is scanned for plugins to load.
+For each plugin found, CraftOS-PC loads and calls the plugin's `luaopen` function. This function should have the same signature as a `lua_CFunction`:
+```
+int luaopen_plugin(lua_State *L);
+``
+The function should return one value: the API that will be exported to the global table.  
+If your plugin needs access to the CraftOS-PC `Computer` object, use the `get_comp(L)` function in `lib.hpp`.
+This function takes in a `lua_State` and returns a pointer to the `Computer` object associated with it.
+You can then access the properties of the computer.
+The `Computer` object also has a userdata property that allows temporary per-computer storage if necessary.  
+  
+Here's an example of a C plugin (from https://github.com/mostvotedplaya/Lua-C-Module):
+```c
+#include <lua.h>
+#include <lauxlib.h>
+
+int addition(lua_State *L) {
+    if (!lua_isnumber(L, 1)) {
+        return luaL_error(L, "Expecting first parameter to be typeof: number");
+    }
+
+    if (!lua_isnumber(L, 2)) {
+        return luaL_error(L, "Expecting second parameter to be typeof: number");
+    }
+
+    int addition = lua_tonumber(L, 1) + lua_tonumber(L, 2);
+    lua_pushnumber(L, addition);
+    return 1;
+}
+
+int multiply(lua_State *L) {
+    if (!lua_isnumber(L, 1)) {
+        return luaL_error(L, "Expecting first parameter to be typeof: number");
+    }
+
+    if (!lua_isnumber(L, 2)) {
+        return luaL_error(L, "Expecting second parameter to be typeof: number");
+    }
+
+    int multiply = lua_tonumber(L, 1) * lua_tonumber(L, 2);
+    lua_pushnumber(L, multiply);
+    return 1;
+}
+
+int luaopen_example(lua_State *L) {
+    struct luaL_reg M[] =
+    {
+      {"addition", addition},
+      {"multiply", multiply},
+      {NULL,NULL}
+    };
+
+    luaL_register(L, "example", M);
+    return 1;
+}
+```
+Compile as a shared library and copy to:
+* Windows: `C:\Program Files\CraftOS-PC\plugins\example.dll`
+* Mac: `CraftOS-PC.app/Contents/Resources/plugins/example.dylib`
+* Linux: `/usr/share/craftos/plugins/example.so`
+
+When booting a new computer, the `example` API will be available in the global table.

@@ -53,7 +53,7 @@ char * fixpath(Computer *comp, const char * path, bool addExt) {
     }
     std::stringstream ss;
     if (addExt) {
-        std::pair<int, std::string> max_path = std::make_pair(0, std::string(getBasePath()) + PATH_SEP + "computer" + PATH_SEP + std::to_string(comp->id));
+        std::pair<size_t, std::string> max_path = std::make_pair(0, std::string(getBasePath()) + PATH_SEP + "computer" + PATH_SEP + std::to_string(comp->id));
         for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++)
             if (pathc.size() >= std::get<0>(*it).size() && std::get<0>(*it).size() > max_path.first && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
                 max_path = std::make_pair(std::get<0>(*it).size(), std::get<1>(*it));
@@ -75,7 +75,7 @@ bool fixpath_ro(Computer *comp, const char * path) {
         if (s == "..") { if (pathc.size() < 1) return false; else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
-    std::pair<int, bool> max_path = std::make_pair(0, false);
+    std::pair<size_t, bool> max_path = std::make_pair(0, false);
     for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++)
         if (pathc.size() >= std::get<0>(*it).size() && std::get<0>(*it).size() > max_path.first && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
             max_path = std::make_pair(std::get<0>(*it).size(), std::get<2>(*it));

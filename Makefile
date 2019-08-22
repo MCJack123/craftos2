@@ -5,7 +5,7 @@ CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/include/jsoncpp
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lpthread -lcurl -ljsoncpp
+LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lpthread -lcurl -ljsoncpp -lSDL2_mixer
 
 ifeq ($(PRINT_TYPE), pdf)
 LIBS:=$(LIBS) -lhpdf
@@ -17,7 +17,7 @@ ifdef NO_PNG
 CXXFLAGS:=$(CXXFLAGS) -DNO_PNG
 endif
 
-_OBJ=Computer.o config.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o liolib.o
+_OBJ=Computer.o config.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: $(ODIR) craftos
@@ -68,8 +68,9 @@ $(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR
 $(ODIR)/peripheral_computer.o: $(SDIR)/peripheral/computer_p.cpp $(SDIR)/peripheral/computer.hpp $(SDIR)/peripheral/peripheral.hpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-clean:
-	rm obj/*
+clean: $(ODIR)
+	rm -f craftos
+	rm -f obj/*
 
 rebuild: clean craftos
 
