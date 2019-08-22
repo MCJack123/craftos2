@@ -17,6 +17,13 @@
 #include "config.hpp"
 #include "gif.hpp"
 
+extern "C" struct {
+    unsigned int 	 width;
+    unsigned int 	 height;
+    unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
+    unsigned char	 pixel_data[128 * 175 * 3 + 1];
+} font_image;
+
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
     const float kSysDefaultDpi =
@@ -43,7 +50,7 @@ TerminalWindow::TerminalWindow(std::string title) {
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
     win = SDL_CreateWindow(title.c_str(), 100, 100, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == nullptr || win == NULL) 
+    if (win == nullptr || win == NULL || win == (SDL_Window*)0) 
         throw window_exception("Failed to create window");
     id = SDL_GetWindowID(win);
     char * icon_pixels = (char*)malloc(favicon_width * favicon_height * 4);
@@ -60,21 +67,21 @@ TerminalWindow::TerminalWindow(std::string title) {
     ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
     dpiScale = 1;
 #endif
-    if (ren == nullptr || ren == NULL) {
+    if (ren == nullptr || ren == NULL || ren == (SDL_Renderer*)0) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer");
     }
-	std::string fontPath = std::string(getROMPath());
-	fontPath += std::string(fontPath.find('\\') != std::string::npos ? "\\" : "/") + "craftos.bmp";
-    bmp = SDL_LoadBMP(fontPath.c_str());
-    if (bmp == nullptr || bmp == NULL) {
+    SDL_Surface* old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
+    if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load font");
     }
+    bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
+    SDL_FreeSurface(old_bmp);
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
     font = SDL_CreateTextureFromSurface(ren, bmp);
-    if (font == nullptr || font == NULL) {
+    if (font == nullptr || font == NULL || font == (SDL_Texture*)0) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font");

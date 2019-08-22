@@ -17,7 +17,7 @@ ifdef NO_PNG
 CXXFLAGS:=$(CXXFLAGS) -DNO_PNG
 endif
 
-_OBJ=Computer.o config.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o
+_OBJ=Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: $(ODIR) craftos
@@ -36,7 +36,6 @@ macapp: $(OBJ) $(ODIR)/platform_macapp.o
 	install_name_tool -change /usr/local/opt/libpng/lib/libpng16.16.dylib "@rpath/libpng16.16.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/lib/libcurl.4.dylib "@rpath/libcurl.4.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	cp Info.plist CraftOS-PC.app/Contents/
-	cp craftos.bmp CraftOS-PC.app/Contents/Resources/
 
 $(ODIR):
 	mkdir obj
@@ -56,7 +55,7 @@ $(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/perip
 $(ODIR)/http_server.o: $(SDIR)/http_server.cpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/liolib.o: $(SDIR)/liolib.c
+$(ODIR)/%.o: $(SDIR)/%.c
 	$(CC) -o $@ $(CFLAGS) $<
 
 $(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(SDIR)/lib.hpp

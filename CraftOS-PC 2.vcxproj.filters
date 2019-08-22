@@ -36,9 +36,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="craftos.bmp">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="..\..\Ccblink.ico">
       <Filter>Resource Files</Filter>
     </Image>
@@ -194,6 +191,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\drive.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\font.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

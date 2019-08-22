@@ -163,7 +163,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\Ccblink.ico" />
-    <Image Include="craftos.bmp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -195,6 +194,7 @@
   <ItemGroup>
     <ClCompile Include="src\Computer.cpp" />
     <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\font.c" />
     <ClCompile Include="src\fs.cpp" />
     <ClCompile Include="src\fs_handle.cpp" />
     <ClCompile Include="src\http.cpp" />

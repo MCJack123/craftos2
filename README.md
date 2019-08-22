@@ -59,13 +59,12 @@ You can get all of these dependencies with:
 2. [Build libcurl from source](https://medium.com/@chuy.max/compile-libcurl-on-windows-with-visual-studio-2017-x64-and-ssl-winssl-cff41ac7971d)
 3. Open a new Explorer window in %ProgramFiles% (Win-R, %ProgramFiles%)
 4. Create a directory named `CraftOS-PC`
-5. Copy craftos.bmp from this repo into the directory
-6. Copy the contents of the CraftOS ROM into the directory
-7. Open `CraftOS-PC 2.sln` with VS
-8. Ensure all NuGet packages are installed
-9. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the libcurl/lib directory
-10. Ensure the project is set to the Debug configuration
-11. Build & Run
+5. Copy the contents of the CraftOS ROM into the directory
+6. Open `CraftOS-PC 2.sln` with VS
+7. Ensure all NuGet packages are installed
+8. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the libcurl/lib directory
+9. Ensure the project is set to the Debug configuration
+10. Build & Run
 
 #### Mac
 1. Open a new Terminal window
@@ -82,9 +81,8 @@ You can get all of these dependencies with:
 2. `cd` to the cloned repository
 3. `make`
 4. `sudo mkdir /usr/share/craftos`
-5. `sudo cp craftos.bmp /usr/share/craftos/`
-6. Copy the ComputerCraft ROM into `/usr/share/craftos/`
-7. `./craftos`
+5. Copy the ComputerCraft ROM into `/usr/share/craftos/`
+6. `./craftos`
 
 ## FAQ
 ### Why is the ComputerCraft ROM/BIOS not included with the source?
