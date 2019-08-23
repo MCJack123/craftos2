@@ -77,10 +77,10 @@ size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
     http_handle_t * handle = (http_handle_t*)userdata;
     if (size * nitems >= 8 && 
         buffer[0] == 'H' && 
-        buffer[0] == 'T' && 
-        buffer[0] == 'T' && 
-        buffer[0] == 'P' && 
-        buffer[0] == '/') {
+        buffer[1] == 'T' && 
+        buffer[2] == 'T' && 
+        buffer[3] == 'P' && 
+        buffer[4] == '/') {
         handle->headers_size = 0;
         free(handle->headers);
         return size * nitems;

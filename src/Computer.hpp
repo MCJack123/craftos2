@@ -45,6 +45,7 @@ public:
     std::vector<double> alarms;
     std::unordered_map<std::string, peripheral*> peripherals;
     std::queue<std::pair<event_provider, void*> > event_provider_queue;
+    std::mutex event_provider_queue_mutex;
     TerminalWindow * term;
     bool canBlink = true;
     unsigned char colors = 0xF0;

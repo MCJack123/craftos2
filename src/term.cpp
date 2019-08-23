@@ -227,7 +227,12 @@ void* termRenderLoop(void* arg) {
     return NULL;
 }
 
-void termQueueProvider(Computer *comp, event_provider p, void* data) {comp->event_provider_queue.push(std::make_pair(p, data));}
+void termQueueProvider(Computer *comp, event_provider p, void* data) {
+    comp->event_provider_queue_mutex.lock();
+    comp->event_provider_queue.push(std::make_pair(p, data));
+    comp->event_provider_queue_mutex.unlock();
+}
+
 void gettingEvent(Computer *comp) {comp->getting_event = true;}
 void gotEvent(Computer *comp) {comp->last_event = std::chrono::high_resolution_clock::now(); comp->getting_event = false;}
 
@@ -272,11 +277,14 @@ void mainLoop() {
 
 const char * termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
+    computer->event_provider_queue_mutex.lock();
     if (computer->event_provider_queue.size() > 0) {
         std::pair<event_provider, void*> p = computer->event_provider_queue.front();
         computer->event_provider_queue.pop();
+        computer->event_provider_queue_mutex.unlock();
         return p.first(L, p.second);
     }
+    computer->event_provider_queue_mutex.unlock();
     if (computer->lastResizeEvent) {
         computer->lastResizeEvent = false;
         return "term_resize";
