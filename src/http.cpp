@@ -34,7 +34,7 @@ typedef struct {
 } buffer_t;
 
 typedef struct {
-    lua_State *L;
+    Computer *comp;
     char * url;
     const char * postData;
     int headers_size;
@@ -164,7 +164,6 @@ const char * http_check(lua_State *L, void* data) {
 
 void* downloadThread(void* arg) {
     http_param_t* param = (http_param_t*)arg;
-    Computer *comp = get_comp(param->L);
     http_handle_t * handle = (http_handle_t*)malloc(sizeof(http_handle_t));
     handle->url = param->url;
     handle->buf.data = NULL;
@@ -202,15 +201,14 @@ void* downloadThread(void* arg) {
     if (curl_easy_perform(handle->handle) == CURLE_OK) {
         handle->buf.size = handle->buf.offset;
         handle->buf.offset = 0;
-        termQueueProvider(comp, http_success, handle);
-    } else termQueueProvider(comp, http_failure, handle);
+        termQueueProvider(param->comp, http_success, handle);
+    } else termQueueProvider(param->comp, http_failure, handle);
     free(param);
     return NULL;
 }
 
 void* checkThread(void* arg) {
     http_param_t * param = (http_param_t*)arg;
-    Computer * comp = get_comp(param->L);
     const char * status = NULL;
     if (strstr(param->url, "://") == NULL) status = "URL malformed";
     else if (strstr(param->url, "http") == NULL) status = "URL not http";
@@ -218,7 +216,7 @@ void* checkThread(void* arg) {
     http_check_t * res = (http_check_t*)malloc(sizeof(http_check_t));
     res->url = param->url;
     res->status = status;
-    termQueueProvider(comp, http_check, res);
+    termQueueProvider(param->comp, http_check, res);
     free(param);
     return NULL;
 }
@@ -230,7 +228,7 @@ int http_request(lua_State *L) {
     }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
-    param->L = L;
+    param->comp = get_comp(L);
     param->url = (char*)malloc(lua_strlen(L, 1) + 1); 
     strcpy(param->url, lua_tostring(L, 1));
     param->postData = NULL;
@@ -264,7 +262,7 @@ int http_checkURL(lua_State *L) {
     }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
-    param->L = L;
+    param->comp = get_comp(L);
     param->url = (char*)malloc(lua_strlen(L, 1) + 1);
     strcpy(param->url, lua_tostring(L, 1));
     std::thread th(checkThread, param);
