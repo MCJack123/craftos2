@@ -15,10 +15,9 @@ extern "C" {
 #include <lua.h>
 }
 #include "Computer.hpp"
-extern void * createThread(void*(*func)(void*), void* arg, const char * name = NULL);
-extern void joinThread(void * thread);
+#include <thread>
+extern void setThreadName(std::thread &t, const char * name);
 extern int createDirectory(const char * path);
-extern void msleep(unsigned long time);
 extern unsigned long long getFreeSpace(char* path);
 extern int removeDirectory(char* path);
 extern void pushHostString(lua_State *L);

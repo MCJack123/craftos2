@@ -17,7 +17,7 @@ extern void termClose();
 extern void config_init();
 extern void config_save(bool deinit);
 extern void mainLoop();
-extern std::list<void*> computerThreads;
+extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 bool headless = false;
 std::string script_file = "";
@@ -32,10 +32,7 @@ int main(int argc, char*argv[]) {
     driveInit();
     startComputer(0);
     mainLoop();
-    for (void* t : computerThreads) joinThread(t);
-#ifndef _WIN32
-    for (void* t : computerThreads) delete (pthread_t*)t;
-#endif
+    for (std::thread *t : computerThreads) { t->join(); delete t; }
     driveQuit();
     termClose();
     platformFree();

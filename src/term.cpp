@@ -222,7 +222,7 @@ void* termRenderLoop(void* arg) {
         //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
         peripheral_update(comp);
         long t = (1000/config.clockSpeed) - count;
-        if (t > 0) msleep(t);
+        if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
     }
     return NULL;
 }
@@ -239,7 +239,7 @@ bool exiting = false;
 void* queueTask(void*(*func)(void*), void* arg) {
     int myID = nextTaskID++;
     taskQueue.push(std::make_tuple(myID, func, arg));
-    while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting);
+    while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
     return retval;
@@ -265,6 +265,7 @@ void mainLoop() {
                     (e.type == SDL_WINDOWEVENT && e.window.windowID == c->term->windowID()) || 
                     e.type == SDL_QUIT)
                     c->termEventQueue.push(e);
+        std::this_thread::yield();
     }
     exiting = true;
 }
@@ -328,7 +329,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEWHEEL && computer->config.isColor) {
             int x = 0, y = 0;
             computer->term->getMouse(&x, &y);
-            lua_pushinteger(L, e.button.y);
+            lua_pushinteger(L, e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1));
             lua_pushinteger(L, convertX(computer->term, x));
             lua_pushinteger(L, convertY(computer->term, y));
             return "mouse_scroll";

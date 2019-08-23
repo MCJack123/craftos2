@@ -81,6 +81,7 @@ int getNextEvent(lua_State *L, const char * filter) {
         }
         ev = computer->eventQueue.front();
         computer->eventQueue.pop();
+        std::this_thread::yield();
     } while (strlen(filter) > 0 && ev != std::string(filter));
     lua_State *param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) return 0;

@@ -22,6 +22,7 @@
 #include "peripheral/computer.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
+#include <thread>
 #include <dirent.h>
 #include <sys/stat.h>
 extern "C" {
@@ -213,12 +214,14 @@ end");
             /* If something went wrong, error message is at the top of */
             /* the stack */
             fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
-            msleep(5000);
+            std::this_thread::sleep_for(std::chrono::milliseconds(5000));
             return;
         }
-        void * tid;
-        if (!headless) tid = createThread(&termRenderLoop, this, std::string("Computer " + std::to_string(id) + " Render Thread").c_str());
-        //signal(SIGINT, sighandler);
+        std::thread tid;
+        if (!headless) {
+            tid = std::thread(&termRenderLoop, this);
+            setThreadName(tid, std::string("Computer " + std::to_string(id) + " Render Thread").c_str());
+        }
 
         /* Ask Lua to run our little script */
         status = LUA_YIELD;
@@ -231,7 +234,7 @@ end");
                 else narg = getNextEvent(coro, "");
             } else if (status != 0) {
                 running = 0;
-                if (!headless) joinThread(tid);
+                if (!headless) tid.join();
                 //usleep(5000000);
                 printf("%s\n", lua_tostring(coro, -1));
                 for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
@@ -242,7 +245,7 @@ end");
             }
         }
 
-        if (!headless) joinThread(tid);
+        if (!headless) tid.join();
         for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
             if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
         lua_close(L);   /* Cya, Lua */
@@ -271,11 +274,13 @@ void* computerThread(void* data) {
     return NULL;
 }
 
-std::list<void*> computerThreads;
+std::list<std::thread*> computerThreads;
 
 Computer * startComputer(int id) {
     Computer * comp = new Computer(id);
     computers.push_back(comp);
-    computerThreads.push_back(createThread(computerThread, comp, std::string("Computer " + std::to_string(id) + " Main Thread").c_str()));
+    std::thread * th = new std::thread(computerThread, comp);
+    setThreadName(*th, std::string("Computer " + std::to_string(id) + " Main Thread").c_str());
+    computerThreads.push_back(th);
     return comp;
 }

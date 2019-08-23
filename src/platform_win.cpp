@@ -82,41 +82,8 @@ char * getBIOSPath() {
     return retval;
 }
 
-/*char * expandEnvironment(const char * src) {
-    if (base_path_expanded != NULL && std::string(src) == std::string(base_path)) return base_path_expanded;
-	if (rom_path_expanded != NULL && std::string(src) == std::string(rom_path)) return rom_path_expanded;
-	DWORD size = ExpandEnvironmentStringsA(src, expand_tmp, 32767);
-	char* dest = (char*)malloc(size + 1);
-	memcpy(dest, expand_tmp, size);
-	dest[size] = 0;
-    if (std::string(src) == std::string(base_path)) base_path_expanded = dest;
-    else if (std::string(src) == std::string(rom_path)) rom_path_expanded = dest;
-	return dest;
-}*/
-
-struct thread_param {
-    void*(*func)(void*);
-    void* arg;
-};
-
-DWORD WINAPI WinThreadFunc(LPVOID lpParam) {
-    struct thread_param* p = (struct thread_param*)lpParam;
-    p->func(p->arg);
-    free(p);
-    return 0;
-}
-
-void * createThread(void*(*func)(void*), void* arg, const char * name) {
-    struct thread_param* p = new struct thread_param;
-    p->func = func;
-    p->arg = arg;
-    HANDLE retval = CreateThread(NULL, 0, WinThreadFunc, p, 0, NULL);
-    SetThreadDescription(retval, s2ws(std::string(name)).c_str());
-    return retval;
-}
-
-void joinThread(void * thread) {
-    WaitForSingleObject((HANDLE)thread, 0);
+void setThreadName(std::thread &t, const char * name) {
+    SetThreadDescription((HANDLE)t.native_handle(), s2ws(std::string(name)).c_str());
 }
 
 int createDirectory(const char* path) {
@@ -152,10 +119,6 @@ char* dirname(char* path) {
     else return path;
     path[strrchr(path, tch) - path] = '\0';
 	return path;
-}
-
-void msleep(unsigned long time) {
-    Sleep(time);
 }
 
 unsigned long long getFreeSpace(char* path) {

@@ -11,7 +11,11 @@ int drive::isDiskPresent(lua_State *L) {
 }
 
 int drive::getDiskLabel(lua_State *L) {
-    // unimplemented
+    if (diskType == DISK_TYPE_AUDIO) return getAudioTitle(L);
+    else if (diskType == DISK_TYPE_MOUNT) {
+        lua_pushstring(L, path.substr((path.find_last_of('\\') == std::string::npos ? path.find_last_of('/') : path.find_last_of('\\')) + 1).c_str());
+        return 1;
+    }
     return 0;
 }
 

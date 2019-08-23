@@ -72,34 +72,7 @@ char * getBIOSPath() {
     return retval;
 }
 
-struct namedThreadArg {
-    const char * name;
-    void*(*func)(void*);
-    void* arg;
-};
-
-void* namedThread(void* arg) {
-    struct namedThreadArg * a = (struct namedThreadArg*)arg;
-    if (a->name != NULL) pthread_setname_np(a->name);
-    void* retval = a->func(a->arg);
-    delete a;
-    return retval;
-}
-
-void * createThread(void*(*func)(void*), void* arg, const char * name) {
-    struct namedThreadArg * a = new struct namedThreadArg;
-    a->name = name;
-    a->func = func;
-    a->arg = arg;
-    pthread_t * tid = new pthread_t;
-    pthread_create(tid, NULL, namedThread, a);
-    return (void*)tid;
-}
-
-void joinThread(void* thread) {
-    pthread_join(*(pthread_t*)thread, NULL);
-    delete (pthread_t*)thread;
-}
+void setThreadName(std::thread &t, const char * name) {}
 
 int createDirectory(const char * path) {
     if (mkdir(path, 0777) != 0) {
@@ -146,10 +119,6 @@ int removeDirectory(char *path) {
             return r;
         } else return unlink(path);
     } else return -1;
-}
-
-void msleep(unsigned long time) {
-    usleep(time * 1000);
 }
 
 unsigned long long getFreeSpace(char* path) {
