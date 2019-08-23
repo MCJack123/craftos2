@@ -65,13 +65,8 @@ size_t read_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
 size_t write_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
     buffer_t* buf = (buffer_t*)userdata;
     if (size * nitems + buf->offset > buf->size) {
-        char * newbuf = (char*)malloc(buf->size + 4096);
-        if (buf->size > 0) {
-            memcpy(newbuf, buf->data, buf->size);
-            free(buf->data);
-        }
-        buf->size += 4096;
-        buf->data = newbuf;
+        buf->size += ceil((size * nitems) / 4096.0) * 4096;
+        buf->data = (char*)realloc(buf->data, buf->size);
     }
     memcpy(&buf->data[buf->offset], buffer, size * nitems);
     buf->offset += size * nitems;
