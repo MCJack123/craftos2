@@ -245,8 +245,8 @@ testStart("fs")
 	test("getName", "shell.lua", "/rom/programs/shell.lua")
 	test("getDir", "rom/programs", "/rom/programs/shell.lua")
 	test("getDrive", "rom", "/rom/programs/shell.lua")
-	local s = call("getSize", "/rom/apis/colors.lua")
-	if s ~= 2189 and s ~= 2120 then testLocal("fs.getSize", {2189, 2120}, s) end -- CRLF or LF
+	local s = call("getSize", "/rom/apis/keys.lua")
+	if s ~= 2491 and s ~= 2120 then testLocal("fs.getSize", {2491, 2120}, s) end -- CRLF or LF
 	call("makeDir", "test_dir")
 	test("isDir", true, "test_dir")
 	call("delete", "test_dir")

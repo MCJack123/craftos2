@@ -272,7 +272,7 @@ int http_checkURL(lua_State *L) {
     param->L = L;
     param->url = (char*)malloc(lua_strlen(L, 1) + 1);
     strcpy(param->url, lua_tostring(L, 1));
-    std::thread th(downloadThread, param);
+    std::thread th(checkThread, param);
     setThreadName(th, "HTTP Check Thread");
     th.detach();
     lua_pushboolean(L, true);
