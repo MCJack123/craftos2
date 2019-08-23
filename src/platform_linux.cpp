@@ -71,7 +71,7 @@ char * getBIOSPath() {
 }
 
 void setThreadName(std::thread &t, const char * name) {
-    pthread_setname_np((pthread_t*)t.native_handle(), name);
+    pthread_setname_np(*(pthread_t*)t.native_handle(), name);
 }
 
 int createDirectory(const char * path) {
