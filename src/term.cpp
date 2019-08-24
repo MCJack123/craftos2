@@ -252,6 +252,7 @@ void* queueTask(void*(*func)(void*), void* arg) {
 
 void mainLoop() {
     SDL_Event e;
+    std::string tmps;
     while (computers.size() > 0) {
         while (taskQueue.size() > 0) {
             auto v = taskQueue.front();
@@ -261,13 +262,13 @@ void mainLoop() {
         }
         if (!headless && SDL_PollEvent(&e)) 
             for (Computer * c : computers) 
-                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.key.windowID, std::string()) != NULL)) ||
-                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.drop.windowID, std::string()) != NULL)) ||
-                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.button.windowID, std::string()) != NULL)) ||
-                    (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.motion.windowID, std::string()) != NULL)) ||
-                    (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.wheel.windowID, std::string()) != NULL)) ||
-                    (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.text.windowID, std::string()) != NULL)) ||
-                    (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.window.windowID, std::string()) != NULL)) ||
+                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||
+                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.drop.windowID, tmps) != NULL)) ||
+                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.button.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.motion.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.wheel.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.window.windowID, tmps) != NULL)) ||
                     e.type == SDL_QUIT)
                     c->termEventQueue.push(e);
         std::this_thread::yield();
