@@ -1,6 +1,8 @@
 # CraftOS-PC 2 [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=master)](https://travis-ci.com/MCJack123/craftos2)
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using a mixture of C/C++ and the original Lua API, as well as SDL for drawing.
 
+![Screenfetch](image1.bmp)
+
 ## Requirements for released builds
 * 64-bit operating system
   * Windows 7+ (might work on Vista)
@@ -40,7 +42,7 @@ $ craftos
 * SDL 2.0+
 * SDL_mixer 2.0+
 * libcurl with SSL
-* POCO Net library
+* POCO Net + Foundation libraries
 * jsoncpp
 * png++ 0.2.7+ (+libpng)
   * Can be disabled with NO_PNG=1, will save as BMP instead
@@ -51,7 +53,7 @@ $ craftos
 
 You can get all of these dependencies with:
   * Windows: The VS solution includes all packages required except libcurl & POCO (build yourself)
-  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer curl jsoncpp png++ libharu; git clone https://github.com/MCJack123/craftos2-rom`
+  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer curl jsoncpp png++ libharu poco; git clone https://github.com/MCJack123/craftos2-rom`
   * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev libpoco-dev; git clone https://github.com/MCJack123/craftos2-rom`
 
 ### Instructions
