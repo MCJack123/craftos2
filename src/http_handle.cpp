@@ -36,6 +36,11 @@ typedef struct {
     dict_val_t * headers;
 } http_handle_t;
 
+int http_handle_free(lua_State *L) {
+    free(lua_touserdata(L, lua_upvalueindex(1)));
+    return 0;
+}
+
 int http_handle_close(lua_State *L) {
     http_handle_t* handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed) return 0;
@@ -48,7 +53,6 @@ int http_handle_close(lua_State *L) {
     }
     free(handle->url);
     free(handle->headers);
-    free(handle);
     return 0;
 }
 

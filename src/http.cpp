@@ -21,6 +21,15 @@ extern "C" {
 }
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include <Poco/Net/HTTPRequest.h>
+#include <Poco/Net/HTTPResponse.h>
+#include <Poco/Net/HTTPMessage.h>
+#include <Poco/Net/WebSocket.h>
+#include <Poco/Net/HTTPClientSession.h>
+#include <Poco/Net/HTTPRequestHandler.h>
+#include <Poco/Net/HTTPServer.h>
+
+using namespace Poco::Net;
 
 typedef struct {
     const char * key;
@@ -113,6 +122,12 @@ const char * http_success(lua_State *L, void* data) {
 
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, handle);
+    lua_newtable(L);
+    lua_pushstring(L, "__gc");
+    lua_pushlightuserdata(L, handle);
+    lua_pushcclosure(L, http_handle_free, 1);
+    lua_settable(L, -3);
+    lua_setmetatable(L, -2);
     lua_pushcclosure(L, http_handle_close, 1);
     lua_settable(L, -3);
 
@@ -287,18 +302,176 @@ int http_removeListener(lua_State *L) {
     return 0;
 }
 
-const char * http_keys[4] = {
+struct websocket_failure_data {
+    const char * url;
+    const char * reason;
+};
+
+const char * websocket_failure(lua_State *L, void* userp) {
+    struct websocket_failure_data * data = (struct websocket_failure_data*)userp;
+    if (data->url == NULL) lua_pushnil(L);
+    else lua_pushstring(L, data->url);
+    lua_pushstring(L, data->reason);
+    delete data;
+    return "websocket_failure";
+}
+
+const char * websocket_closed(lua_State *L, void* userp) {
+    const char * url = (const char*)userp;
+    if (url == NULL) lua_pushnil(L);
+    else lua_pushstring(L, url);
+    return "websocket_closed";
+}
+
+struct ws_handle {
+    bool closed;
+    const char * url;
+    bool binary;
+    WebSocket * ws;
+};
+
+// WebSocket handle functions
+int websocket_send(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    struct ws_handle * ws = (struct ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
+    if (ws->closed) return 0;
+    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1)) < 1) ws->closed = true;
+    return 0;
+}
+
+int websocket_close(lua_State *L) {
+    struct ws_handle * ws = (struct ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
+    ws->closed = true;
+    return 0;
+}
+
+int websocket_free(lua_State *L) {
+   ((struct ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->closed = true;
+    return 0;
+}
+
+const char * websocket_success(lua_State *L, void* userp) {
+    struct ws_handle * ws = (struct ws_handle*)userp;
+    if (ws->url == NULL) lua_pushnil(L);
+    else lua_pushstring(L, ws->url);
+    lua_newtable(L);
+
+    lua_pushstring(L, "close");
+    lua_pushlightuserdata(L, ws);
+    lua_newtable(L);
+    lua_pushstring(L, "__gc");
+    lua_pushlightuserdata(L, ws);
+    lua_pushcclosure(L, websocket_free, 1);
+    lua_settable(L, -3);
+    lua_setmetatable(L, -2);
+    lua_pushcclosure(L, websocket_close, 1);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "send");
+    lua_pushlightuserdata(L, ws);
+    lua_pushcclosure(L, websocket_send, 1);
+    lua_settable(L, -3);
+
+    return "websocket_success";
+}
+
+struct ws_message {
+    const char * url;
+    char* data;
+};
+
+const char * websocket_message(lua_State *L, void* userp) {
+    struct ws_message * message = (struct ws_message*)userp;
+    if (message->url != NULL) lua_pushnil(L);
+    else lua_pushstring(L, message->url);
+    lua_pushstring(L, message->data);
+    delete[] message->data;
+    delete message;
+    return "websocket_message";
+}
+
+class websocket_server: public HTTPRequestHandler {
+public:
+    Computer * comp;
+    HTTPServer *srv;
+    bool binary;
+    websocket_server(Computer * c, bool b, HTTPServer *s): comp(c), binary(b), srv(s) {}
+    void handleRequest(HTTPServerRequest &request, HTTPServerResponse &response) {
+        WebSocket * ws = NULL;
+        try {
+            ws = new WebSocket(request, response);
+        } catch (std::exception &e) {
+            struct websocket_failure_data * data = new struct websocket_failure_data;
+            data->url = NULL;
+            data->reason = e.what();
+            termQueueProvider(comp, websocket_failure, data);
+            if (ws != NULL) delete ws;
+            if (srv != NULL) { srv->stop(); delete srv; }
+            return;
+        }
+        struct ws_handle * wsh = new struct ws_handle;
+        wsh->closed = false;
+        wsh->ws = ws;
+        wsh->binary = binary;
+        termQueueProvider(comp, websocket_success, wsh);
+        while (!wsh->closed) {
+            Poco::Buffer<char> buf(0);
+            int flags = 0;
+            if (ws->receiveFrame(buf, flags)) wsh->closed = true;
+            else if (flags & WebSocket::FRAME_OP_PING) {
+                ws->sendFrame(buf.begin(), buf.sizeBytes(), WebSocket::FRAME_OP_PONG);
+            } else if (flags & WebSocket::FRAME_OP_PONG) {
+                wsh->closed = true;
+                termQueueProvider(comp, websocket_closed, NULL);
+            } else {
+                struct ws_message * message = new struct ws_message;
+                message->url = NULL;
+                message->data = new char[buf.sizeBytes()];
+                memcpy(message->data, buf.begin(), buf.sizeBytes());
+                termQueueProvider(comp, websocket_message, message);
+            }
+        }
+        ws->shutdown();
+        if (srv != NULL) { srv->stop(); delete srv; }
+    }
+    class Factory: public HTTPRequestHandlerFactory {
+    public:
+        Computer *comp;
+        HTTPServer *srv = NULL;
+        bool binary;
+        Factory(Computer *c, bool b): comp(c), binary(b) {}
+        virtual HTTPRequestHandler* createRequestHandler(const HTTPServerRequest&) {
+            return new websocket_server(comp, binary, srv);
+        }
+    };
+};
+
+int http_websocket(lua_State *L) {
+    if (lua_isstring(L, 1)) {
+        HTTPClientSession cs(lua_tostring(L, 1));
+    } else {
+        websocket_server::Factory * f = new websocket_server::Factory(get_comp(L), lua_isboolean(L, 2) && lua_toboolean(L, 2));
+        HTTPServer * srv = new HTTPServer(f, 80);
+        f->srv = srv;
+        srv->start();
+    }
+    return 0;
+}
+
+const char * http_keys[5] = {
     "request",
     "checkURL",
     "addListener",
-    "removeListener"
+    "removeListener",
+    "websocket"
 };
 
-lua_CFunction http_values[4] = {
+lua_CFunction http_values[5] = {
     http_request,
     http_checkURL,
     http_addListener,
-    http_removeListener
+    http_removeListener,
+    http_websocket
 };
 
-library_t http_lib = {"http", 4, http_keys, http_values, NULL, NULL};
+library_t http_lib = {"http", 5, http_keys, http_values, NULL, NULL};

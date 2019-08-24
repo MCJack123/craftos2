@@ -32,14 +32,15 @@ $ craftos
 ## Building
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
-* Compiler
-  * Linux: GCC, G++, make
+* Compiler supporting C++11
+  * Linux: G++ 5.2+, make
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
 * liblua 5.1
 * SDL 2.0+
 * SDL_mixer 2.0+
 * libcurl with SSL
+* POCO Net library
 * jsoncpp
 * png++ 0.2.7+ (+libpng)
   * Can be disabled with NO_PNG=1, will save as BMP instead
@@ -49,9 +50,9 @@ $ craftos
 * Windows: dirent.h
 
 You can get all of these dependencies with:
-  * Windows: The VS solution includes all packages required except libcurl (build yourself)
+  * Windows: The VS solution includes all packages required except libcurl & POCO (build yourself)
   * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer curl jsoncpp png++ libharu; git clone https://github.com/MCJack123/craftos2-rom`
-  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev; git clone https://github.com/MCJack123/craftos2-rom`
+  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev libpoco-dev; git clone https://github.com/MCJack123/craftos2-rom`
 
 ### Instructions
 #### Windows

@@ -120,13 +120,13 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\lib;$(SolutionDir)packages\sdl2.nuget.2.0.10\build\native\lib\x64\dynamic;$(SolutionDir)packages\lua51.5.1.5\build\native\lib\x64\v120\Debug;$(SolutionDir)packages\jsoncpp-vc140-static-64.1.8.0\lib\native\libs\x64\static\Debug;$(SolutionDir)packages\vii.SDL2_mixer.2.0.2\build\native\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;jsoncpp.lib;libcurl_a.lib;SDL2_mixer.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\lib;$(SolutionDir)packages\sdl2.nuget.2.0.10\build\native\lib\x64\dynamic;$(SolutionDir)packages\lua51.5.1.5\build\native\lib\x64\v120\Debug;$(SolutionDir)packages\jsoncpp-vc140-static-64.1.8.0\lib\native\libs\x64\static\Debug;$(SolutionDir)packages\vii.SDL2_mixer.2.0.2\build\native\lib\x64;$(SolutionDir)packages\poco.1.9.3\build\native\lib\x64\Debug\v142;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;jsoncpp.lib;libcurl_a.lib;SDL2_mixer.lib;PocoNetmtd.lib;PocoFoundationmtd.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
     <ClCompile>
       <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;PRINT_TYPE=1;CURL_STATICLIB;NO_PNG</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\include;$(SolutionDir)packages\poco.1.9.3\build\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <TreatSpecificWarningsAsErrors>4013</TreatSpecificWarningsAsErrors>
