@@ -65,14 +65,17 @@ Computer::~Computer() {
     setComputerConfig(id, config);
     freeComputerConfig(config);
     for (auto p : peripherals) delete p.second;
-    for (Computer * c : referencers) {
-        for (auto it = c->peripherals.begin(); it != c->peripherals.end(); it++) {
+    for (std::list<Computer*>::iterator c = referencers.begin(); c != referencers.end(); c++) {
+        (*c)->peripherals_mutex.lock();
+        for (auto it = (*c)->peripherals.begin(); it != (*c)->peripherals.end(); it++) {
             if (std::string(it->second->getMethods().name) == "computer" && ((computer*)it->second)->comp == this) {
                 delete (computer*)it->second;
-                it = c->peripherals.erase(it);
-                if (it == c->peripherals.end()) break;
+                it = (*c)->peripherals.erase(it);
+                if (it == (*c)->peripherals.end()) break;
             }
         }
+        (*c)->peripherals_mutex.unlock();
+        if (c == referencers.end()) break;
     }
 }
 

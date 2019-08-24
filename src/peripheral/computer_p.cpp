@@ -53,6 +53,8 @@ computer::computer(lua_State *L, const char * side) {
 }
 
 computer::~computer() {
+    if (thiscomp->peripherals_mutex.try_lock()) thiscomp->peripherals_mutex.unlock();
+    else return;
     for (auto it = comp->referencers.begin(); it != comp->referencers.end(); it++) {
         if (*it == thiscomp) {
             it = comp->referencers.erase(it);

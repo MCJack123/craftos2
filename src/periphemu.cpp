@@ -55,8 +55,10 @@ int periphemu_create(lua_State* L) {
 	std::string type = lua_tostring(L, 2);
 	std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
 	if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
+    computer->peripherals_mutex.lock();
 	if (computer->peripherals.find(side) != computer->peripherals.end()) {
 		lua_pushboolean(L, false);
+        computer->peripherals_mutex.unlock();
 		return 1;
 	}
 	//lua_pop(L, 2);
@@ -69,12 +71,14 @@ int periphemu_create(lua_State* L) {
         else {
 			printf("not found: %s\n", type.c_str());
 			lua_pushboolean(L, false);
+            computer->peripherals_mutex.unlock();
 			return 1;
 		}
 	} catch (std::exception e) {
 		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
 		lua_error(L);
 	}
+    computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
     termQueueProvider(computer, peripheral_attach, sidearg);
@@ -85,12 +89,15 @@ int periphemu_remove(lua_State* L) {
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
 	Computer * computer = get_comp(L);
 	std::string side = lua_tostring(L, 1);
+    computer->peripherals_mutex.lock();
 	if (computer->peripherals.find(side) == computer->peripherals.end()) {
 		lua_pushboolean(L, false);
+        computer->peripherals_mutex.unlock();
 		return 1;
 	}
 	delete computer->peripherals[side];
 	computer->peripherals.erase(side);
+    computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
     termQueueProvider(computer, peripheral_detach, sidearg);

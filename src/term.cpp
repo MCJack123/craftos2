@@ -261,13 +261,13 @@ void mainLoop() {
         }
         if (!headless && SDL_PollEvent(&e)) 
             for (Computer * c : computers) 
-                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.windowID == c->term->windowID()) ||
-                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && e.drop.windowID == c->term->windowID()) ||
-                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && e.button.windowID == c->term->windowID()) ||
-                    (e.type == SDL_MOUSEMOTION && e.motion.windowID == c->term->windowID()) ||
-                    (e.type == SDL_MOUSEWHEEL && e.wheel.windowID == c->term->windowID()) || 
-                    (e.type == SDL_TEXTINPUT && e.text.windowID == c->term->windowID()) ||
-                    (e.type == SDL_WINDOWEVENT && e.window.windowID == c->term->windowID()) || 
+                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.key.windowID, std::string()) != NULL)) ||
+                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.drop.windowID, std::string()) != NULL)) ||
+                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.button.windowID, std::string()) != NULL)) ||
+                    (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.motion.windowID, std::string()) != NULL)) ||
+                    (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.wheel.windowID, std::string()) != NULL)) ||
+                    (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.text.windowID, std::string()) != NULL)) ||
+                    (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.window.windowID, std::string()) != NULL)) ||
                     e.type == SDL_QUIT)
                     c->termEventQueue.push(e);
         std::this_thread::yield();
@@ -292,7 +292,8 @@ const char * termGetEvent(lua_State *L) {
     if (computer->running != 1) return NULL;
     SDL_Event e;
     if (computer->getEvent(&e)) {
-        if (e.type == SDL_QUIT) return "die";
+        if (e.type == SDL_QUIT) 
+            return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) computer->term->screenshot();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && !config.ignoreHotkeys) computer->term->toggleRecording();

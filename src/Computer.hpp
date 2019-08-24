@@ -44,6 +44,7 @@ public:
     std::vector<std::chrono::steady_clock::time_point> timers;
     std::vector<double> alarms;
     std::unordered_map<std::string, peripheral*> peripherals;
+    std::mutex peripherals_mutex;
     std::queue<std::pair<event_provider, void*> > event_provider_queue;
     std::mutex event_provider_queue_mutex;
     TerminalWindow * term;
