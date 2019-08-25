@@ -96,6 +96,9 @@ int periphemu_remove(lua_State* L) {
         computer->peripherals_mutex.unlock();
 		return 1;
 	}
+    if (std::string(computer->peripherals[side]->getMethods().name) == "drive") {
+        computer->peripherals[side]->call(L, "ejectDisk");
+    }
 	delete computer->peripherals[side];
 	computer->peripherals.erase(side);
     computer->peripherals_mutex.unlock();
