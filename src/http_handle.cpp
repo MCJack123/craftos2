@@ -63,6 +63,7 @@ int http_handle_readAll(lua_State *L) {
     while (handle->stream.read(buffer, sizeof(buffer)))
         ret.append(buffer, sizeof(buffer));
     ret.append(buffer, handle->stream.gcount());
+    ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
     lua_pushstring(L, ret.c_str());
     return 1;
 }
@@ -72,6 +73,7 @@ int http_handle_readLine(lua_State *L) {
     if (handle->closed || !handle->stream.good()) return 0;
     std::string line;
     std::getline(handle->stream, line, '\n');
+    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
     lua_pushstring(L, line.c_str());
     return 1;
 }

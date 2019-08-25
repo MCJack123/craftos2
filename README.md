@@ -41,7 +41,14 @@ $ craftos
 * liblua 5.1
 * SDL 2.0+
 * SDL_mixer 2.0+
-* POCO Net + Foundation libraries
+* POCO NetSSL library + dependencies
+  * Foundation
+  * Util
+  * Crypto
+  * XML
+  * JSON
+  * Net
+  * NetSSL
 * jsoncpp
 * png++ 0.2.7+ (+libpng)
   * Can be disabled with NO_PNG=1, will save as BMP instead
