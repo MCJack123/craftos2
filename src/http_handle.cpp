@@ -71,7 +71,7 @@ int http_handle_readLine(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed || !handle->stream.good()) return 0;
     std::string line;
-    std::getline(handle->stream, line);
+    std::getline(handle->stream, line, '\n');
     lua_pushstring(L, line.c_str());
     return 1;
 }
