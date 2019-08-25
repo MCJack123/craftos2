@@ -474,8 +474,8 @@ int term_getCursorBlink(lua_State *L) {
 
 int term_getSize(lua_State *L) {
     if (headless) {
-        lua_pushinteger(L, 1000000000);
-        lua_pushinteger(L, 1000000000);
+        lua_pushinteger(L, 51);
+        lua_pushinteger(L, 19);
         return 2;
     }
     Computer * computer = get_comp(L);
