@@ -1,5 +1,5 @@
 -- Tests compliance of CraftOS APIs
-term.clear()
+if not _HEADLESS then term.clear() end
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lightBlue)
 print("CraftOSTest 1.8")
