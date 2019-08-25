@@ -22,13 +22,12 @@
 extern "C" {
 #include <lauxlib.h>
 }
-#include <curl/curl.h>
-#include <curl/easy.h>
+#include <Poco/URI.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPMessage.h>
 #include <Poco/Net/WebSocket.h>
-#include <Poco/Net/HTTPClientSession.h>
+#include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/HTTPRequestHandler.h>
 #include <Poco/Net/HTTPServer.h>
 
@@ -48,74 +47,23 @@ typedef struct {
 typedef struct {
     Computer *comp;
     char * url;
-    const char * postData;
-    int headers_size;
-    dict_val_t * headers;
+    char * postData;
+    std::unordered_map<std::string, std::string> headers;
 } http_param_t;
 
-typedef struct {
-    int closed;
+typedef struct http_handle {
+    bool closed;
     char * url;
-    CURL * handle;
-    buffer_t buf;
-    int headers_size;
-    dict_val_t * headers;
+    HTTPSClientSession * session;
+    HTTPResponse * handle;
+    std::istream& stream;
+    http_handle(std::istream& s): stream(s) {}
 } http_handle_t;
 
 typedef struct {
     char * url;
     const char * status;
 } http_check_t;
-
-size_t read_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
-    buffer_t* buf = (buffer_t*)userdata;
-    size_t sz = (size * nitems + buf->offset > buf->size) ? buf->size - buf->offset : size * nitems;
-    memcpy(buffer, &buf->data[buf->offset], sz);
-    return sz;
-}
-
-size_t write_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
-    buffer_t* buf = (buffer_t*)userdata;
-    if (size * nitems + buf->offset > buf->size) {
-        buf->size += ceil((size * nitems) / 4096.0) * 4096;
-        buf->data = (char*)realloc(buf->data, buf->size);
-    }
-    memcpy(&buf->data[buf->offset], buffer, size * nitems);
-    buf->offset += size * nitems;
-    return size * nitems;
-}
-
-size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
-    http_handle_t * handle = (http_handle_t*)userdata;
-    if (size * nitems >= 8 && 
-        buffer[0] == 'H' && 
-        buffer[1] == 'T' && 
-        buffer[2] == 'T' && 
-        buffer[3] == 'P' && 
-        buffer[4] == '/') {
-        handle->headers_size = 0;
-        free(handle->headers);
-        return size * nitems;
-    }
-    int s = 0, e = 0;
-    for (size_t i = 0; i < size * nitems; i++) {
-        if (buffer[i] == ':' && s == 0) s = 2 - i, e = i + 1;
-        else if (buffer[i] == ' ' && s < 0) s = abs(s);
-    }
-    if (e == 0 && s == 0) return size * nitems;
-    dict_val_t * newhead = (dict_val_t*)malloc((handle->headers_size+1) * sizeof(dict_val_t));
-    if (handle->headers_size > 0) {
-        memcpy(newhead, handle->headers, handle->headers_size * sizeof(dict_val_t));
-        free(handle->headers);
-    }
-    handle->headers = newhead;
-    dict_val_t * val = &handle->headers[handle->headers_size++];
-    val->key = (char*)malloc(e);
-    val->value = (char*)malloc((size * nitems) - s + 1);
-    memcpy((char*)val->key, buffer, e);
-    memcpy((char*)val->value, &buffer[s], (size * nitems) - s);
-    return size * nitems;
-}
 
 const char * http_success(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
@@ -162,9 +110,7 @@ const char * http_success(lua_State *L, void* data) {
 }
 
 const char * http_failure(lua_State *L, void* data) {
-    lua_pushstring(L, ((http_handle_t*)data)->url);
-    curl_easy_cleanup(((http_handle_t*)data)->handle);
-    free(((http_handle_t*)data)->url);
+    lua_pushstring(L, (char*)data);
     free(data);
     return "http_failure";
 }
@@ -180,49 +126,41 @@ const char * http_check(lua_State *L, void* data) {
     return "http_check";
 }
 
-void* downloadThread(void* arg) {
+void downloadThread(void* arg) {
     http_param_t* param = (http_param_t*)arg;
-    http_handle_t * handle = (http_handle_t*)malloc(sizeof(http_handle_t));
+    Poco::URI uri(param->url);
+    const Context::Ptr context = new Context(Context::CLIENT_USE, "", "", "", Context::VERIFY_NONE, 9, false, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    HTTPSClientSession * session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+    HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+    HTTPResponse * response = new HTTPResponse();
+    if (param->postData != NULL) request.setMethod("POST");
+    for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
+    std::ostream& reqs = session->sendRequest(request);
+    if (param->postData != NULL) reqs << param->postData;
+    if (reqs.bad() || reqs.fail()) {
+        if (param->postData != NULL) free(param->postData);
+        termQueueProvider(param->comp, http_failure, param->url);
+        delete param;
+        return;
+    }
+    http_handle_t * handle = new http_handle_t(session->receiveResponse(*response));
+    handle->session = session;
+    handle->handle = response;
     handle->url = param->url;
-    handle->buf.data = NULL;
-    handle->buf.size = 0;
-    handle->buf.offset = 0;
-    handle->closed = 0;
-    handle->handle = curl_easy_init();
-    curl_easy_setopt(handle->handle, CURLOPT_URL, param->url);
-    if (param->postData == NULL) curl_easy_setopt(handle->handle, CURLOPT_HTTPGET, 1);
-    else curl_easy_setopt(handle->handle, CURLOPT_POST, 1);
-    curl_easy_setopt(handle->handle, CURLOPT_FOLLOWLOCATION, 1);
-    curl_easy_setopt(handle->handle, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(handle->handle, CURLOPT_WRITEDATA, &(handle->buf));
-    curl_easy_setopt(handle->handle, CURLOPT_HEADERFUNCTION, header_callback);
-    curl_easy_setopt(handle->handle, CURLOPT_HEADERDATA, handle);
-    if (param->postData != NULL) {
-        buffer_t postbuf = {strlen(param->postData), 0, (char*)param->postData};
-        curl_easy_setopt(handle->handle, CURLOPT_READFUNCTION, read_callback);
-        curl_easy_setopt(handle->handle, CURLOPT_READDATA, &postbuf);
+    if (handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
+        free(param->url);
+        std::string location = handle->handle->get("Location");
+        delete handle->handle;
+        delete handle->session;
+        delete handle;
+        param->url = (char*)malloc(location.size() + 1);
+        strcpy(param->url, location.c_str());
+        return downloadThread(param);
     }
-    struct curl_slist *header_list = NULL;
-    if (param->headers != NULL) {
-        for (int i = 0; i < param->headers_size; i++) {
-            char * tmp = (char*)malloc(strlen(param->headers[i].key) + strlen(param->headers[i].value) + 3);
-            strcpy(tmp, param->headers[i].key);
-            strcat(tmp, ": ");
-            strcat(tmp, param->headers[i].value);
-            header_list = curl_slist_append(header_list, tmp);
-            free(tmp);
-        }
-        curl_easy_setopt(handle->handle, CURLOPT_HTTPHEADER, header_list);
-    }
-    handle->headers = NULL;
-    handle->headers_size = 0;
-    if (curl_easy_perform(handle->handle) == CURLE_OK) {
-        handle->buf.size = handle->buf.offset;
-        handle->buf.offset = 0;
-        termQueueProvider(param->comp, http_success, handle);
-    } else termQueueProvider(param->comp, http_failure, handle);
-    free(param);
-    return NULL;
+    handle->closed = false;
+    termQueueProvider(param->comp, http_success, handle);
+    if (param->postData != NULL) free(param->postData);
+    delete param;
 }
 
 void* checkThread(void* arg) {
@@ -245,23 +183,21 @@ int http_request(lua_State *L) {
         return 1;
     }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
+    http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
     param->url = (char*)malloc(lua_strlen(L, 1) + 1); 
     strcpy(param->url, lua_tostring(L, 1));
     param->postData = NULL;
-    param->headers = NULL;
-    param->headers_size = 0;
-    if (lua_isstring(L, 2)) param->postData = lua_tostring(L, 2);
+    if (lua_isstring(L, 2)) {
+        param->postData = (char*)malloc(lua_strlen(L, 2) + 1);
+        strcpy(param->postData, lua_tostring(L, 2));
+    }
     if (lua_istable(L, 3)) {
-        param->headers_size = lua_objlen(L, 3);
-        param->headers = (dict_val_t*)malloc(param->headers_size * sizeof(dict_val_t));
         lua_pushvalue(L, 3);
         lua_pushnil(L);
         for (int i = 0; lua_next(L, -2); i++) {
             lua_pushvalue(L, -2);
-            param->headers[i].key = lua_tostring(L, -1);
-            param->headers[i].value = lua_tostring(L, -2);
+            param->headers[lua_tostring(L, -1)] = lua_tostring(L, -2);
             lua_pop(L, 2);
         }
         lua_pop(L, 1);
@@ -490,42 +426,10 @@ public:
     };
 };
 
-struct url_parts {
-    std::string protocol;
-    std::string host;
-    std::string path;
-    std::string query;
-};
-
-struct url_parts url_parse(const std::string& url_s) {
-    const std::string prot_end("://");
-    struct url_parts retval;
-    std::string::const_iterator prot_i = std::search(url_s.begin(), url_s.end(),
-                                           prot_end.begin(), prot_end.end());
-    retval.protocol.reserve(distance(url_s.begin(), prot_i));
-    std::transform(url_s.begin(), prot_i,
-              std::back_inserter(retval.protocol),
-              tolower); // protocol is icase
-    if (prot_i == url_s.end())
-        return retval;
-    std::advance(prot_i, prot_end.length());
-    std::string::const_iterator path_i = std::find(prot_i, url_s.end(), '/');
-    retval.host.reserve(distance(prot_i, path_i));
-    std::transform(prot_i, path_i,
-              std::back_inserter(retval.host),
-              tolower); // host is icase
-    std::string::const_iterator query_i = std::find(path_i, url_s.end(), '?');
-    retval.path.assign(path_i, query_i);
-    if (query_i != url_s.end())
-        ++query_i;
-    retval.query.assign(query_i, url_s.end());
-    return retval;
-}
-
 void websocket_client_thread(Computer *comp, char * str, bool binary) {
-    struct url_parts url = url_parse(str);
-    HTTPClientSession cs(url.host, 80);
-    HTTPRequest request(HTTPRequest::HTTP_GET, url.path + (url.query != "" ? "?" + url.query : ""), HTTPMessage::HTTP_1_1);
+    Poco::URI uri(str);
+    HTTPClientSession cs(uri.getHost(), uri.getPort());
+    HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     request.set("origin", "http://www.websocket.org");
     HTTPResponse response;
     WebSocket* ws;

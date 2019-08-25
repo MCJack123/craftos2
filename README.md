@@ -41,7 +41,6 @@ $ craftos
 * liblua 5.1
 * SDL 2.0+
 * SDL_mixer 2.0+
-* libcurl with SSL
 * POCO Net + Foundation libraries
 * jsoncpp
 * png++ 0.2.7+ (+libpng)
@@ -52,9 +51,9 @@ $ craftos
 * Windows: dirent.h
 
 You can get all of these dependencies with:
-  * Windows: The VS solution includes all packages required except libcurl & POCO (build yourself)
-  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer curl jsoncpp png++ libharu poco; git clone https://github.com/MCJack123/craftos2-rom`
-  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libcurl4-openssl-dev libjsoncpp-dev libhpdf-dev libpng++-dev libpoco-dev; git clone https://github.com/MCJack123/craftos2-rom`
+  * Windows: The VS solution includes all packages required except POCO (build yourself)
+  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer jsoncpp png++ libharu poco; git clone https://github.com/MCJack123/craftos2-rom`
+  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libjsoncpp-dev libhpdf-dev libpng++-dev libpoco-dev; git clone https://github.com/MCJack123/craftos2-rom`
 
 ### Instructions
 #### Windows
