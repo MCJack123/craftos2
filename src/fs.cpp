@@ -438,8 +438,17 @@ int fs_find(lua_State *L) {
 
 int fs_getDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (strcmp(lua_tostring(L, 1), "/") == 0 || strcmp(lua_tostring(L, 1), "") == 0) {
+        lua_pushstring(L, "..");
+        return 1;
+    }
     char * path = (char*)malloc(lua_strlen(L, 1) + 1);
     strcpy(path, lua_tostring(L, 1));
+    if (strrchr(path, '/') <= path) {
+        lua_pushstring(L, "");
+        free(path);
+        return 1;
+    }
     lua_pushstring(L, dirname(path[0] == '/' ? &path[1] : path));
     free(path);
     return 1;
