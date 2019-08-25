@@ -262,13 +262,13 @@ void mainLoop() {
         }
         if (!headless && SDL_PollEvent(&e)) 
             for (Computer * c : computers) 
-                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||
-                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.drop.windowID, tmps) != NULL)) ||
-                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.button.windowID, tmps) != NULL)) ||
-                    (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.motion.windowID, tmps) != NULL)) ||
-                    (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.wheel.windowID, tmps) != NULL)) ||
-                    (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL)) ||
-                    (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->windowID() || findMonitorFromWindowID(c, e.window.windowID, tmps) != NULL)) ||
+                if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->id || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||
+                    ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->id || findMonitorFromWindowID(c, e.drop.windowID, tmps) != NULL)) ||
+                    ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->id || findMonitorFromWindowID(c, e.button.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->id || findMonitorFromWindowID(c, e.motion.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->id || findMonitorFromWindowID(c, e.wheel.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->id || findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL)) ||
+                    (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->id || findMonitorFromWindowID(c, e.window.windowID, tmps) != NULL)) ||
                     e.type == SDL_QUIT)
                     c->termEventQueue.push(e);
         std::this_thread::yield();
@@ -355,7 +355,7 @@ const char * termGetEvent(lua_State *L) {
             } else {
                 std::string side;
                 monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
-                if (m != NULL && m->term.resize(e.window.data1, e.window.data2)) {
+                if (m != NULL && m->term->resize(e.window.data1, e.window.data2)) {
                     lua_pushstring(L, side.c_str());
                     return "monitor_resize";
                 }

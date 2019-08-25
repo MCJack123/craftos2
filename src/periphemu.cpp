@@ -25,7 +25,7 @@ monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideRetur
     for (auto p : comp->peripherals) {
         if (strcmp(p.second->getMethods().name, "monitor") == 0) {
             monitor * m = (monitor*)p.second;
-            if (m->term.id == id) {
+            if (m->term->id == id) {
                 sideReturn.assign(p.first);
                 return m;
             }
@@ -74,7 +74,8 @@ int periphemu_create(lua_State* L) {
             computer->peripherals_mutex.unlock();
 			return 1;
 		}
-	} catch (std::exception e) {
+	} catch (std::exception &e) {
+		computer->peripherals_mutex.unlock();
 		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
 		lua_error(L);
 	}

@@ -42,10 +42,11 @@ private:
     int setTextScale(lua_State *L);
     int getTextScale(lua_State *L);
 public:
-    TerminalWindow term;
+    TerminalWindow * term;
     static library_t methods;
     library_t getMethods() {return methods;}
     monitor(lua_State *L, const char * side);
+    ~monitor();
     int call(lua_State *L, const char * method);
     void update();
 };

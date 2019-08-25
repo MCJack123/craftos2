@@ -415,5 +415,3 @@ void TerminalWindow::stopRecording() {
     recording.clear();
     recorderMutex.unlock();
 }
-
-int TerminalWindow::windowID() {return SDL_GetWindowID(win);}

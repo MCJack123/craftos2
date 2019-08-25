@@ -9,18 +9,26 @@
  */
 
 #include "monitor.hpp"
+#include "../term.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
 
-monitor::monitor(lua_State *L, const char * side): term("CraftOS Terminal: Monitor " + std::string(side)) {canBlink = false;}
+monitor::monitor(lua_State *L, const char * side) {
+    term = (TerminalWindow*)queueTask([ ](void* side)->void* {
+        return new TerminalWindow("CraftOS Terminal: Monitor " + std::string((const char*)side));
+    }, (void*)side);
+    canBlink = false;
+}
+
+monitor::~monitor() {delete term;}
 
 int monitor::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     const char * str = lua_tostring(L, 1);
-    for (int i = 0; i < strlen(str) && term.blinkX < term.width; i++, term.blinkX++) {
-        term.screen[term.blinkY][term.blinkX] = str[i];
-        term.colors[term.blinkY][term.blinkX] = colors;
+    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+        term->screen[term->blinkY][term->blinkX] = str[i];
+        term->colors[term->blinkY][term->blinkX] = colors;
     }
     return 0;
 }
@@ -28,13 +36,13 @@ int monitor::write(lua_State *L) {
 int monitor::scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int lines = lua_tointeger(L, 1);
-    for (int i = lines; i < term.height; i++) {
-        term.screen[i-lines] = term.screen[i];
-        term.colors[i-lines] = term.colors[i];
+    for (int i = lines; i < term->height; i++) {
+        term->screen[i-lines] = term->screen[i];
+        term->colors[i-lines] = term->colors[i];
     }
-    for (int i = term.height; i < term.height + lines; i++) {
-        term.screen[i-lines] = std::vector<char>(term.width, ' ');
-        term.colors[i-lines] = std::vector<unsigned char>(term.width, 0);
+    for (int i = term->height; i < term->height + lines; i++) {
+        term->screen[i-lines] = std::vector<char>(term->width, ' ');
+        term->colors[i-lines] = std::vector<unsigned char>(term->width, 0);
     }
     return 0;
 }
@@ -42,12 +50,12 @@ int monitor::scroll(lua_State *L) {
 int monitor::setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    term.blinkX = lua_tointeger(L, 1) - 1;
-    term.blinkY = lua_tointeger(L, 2) - 1;
-    if (term.blinkX >= term.width) term.blinkX = term.width - 1;
-    if (term.blinkY >= term.height) term.blinkY = term.height - 1;
-    if (term.blinkX < 0) term.blinkX = 0;
-    if (term.blinkY < 0) term.blinkY = 0;
+    term->blinkX = lua_tointeger(L, 1) - 1;
+    term->blinkY = lua_tointeger(L, 2) - 1;
+    if (term->blinkX >= term->width) term->blinkX = term->width - 1;
+    if (term->blinkY >= term->height) term->blinkY = term->height - 1;
+    if (term->blinkX < 0) term->blinkX = 0;
+    if (term->blinkY < 0) term->blinkY = 0;
     return 0;
 }
 
@@ -58,8 +66,8 @@ int monitor::setCursorBlink(lua_State *L) {
 }
 
 int monitor::getCursorPos(lua_State *L) {
-    lua_pushinteger(L, term.blinkX + 1);
-    lua_pushinteger(L, term.blinkY + 1);
+    lua_pushinteger(L, term->blinkX + 1);
+    lua_pushinteger(L, term->blinkY + 1);
     return 2;
 }
 
@@ -69,20 +77,20 @@ int monitor::getCursorBlink(lua_State *L) {
 }
 
 int monitor::getSize(lua_State *L) {
-    lua_pushinteger(L, term.width);
-    lua_pushinteger(L, term.height);
+    lua_pushinteger(L, term->width);
+    lua_pushinteger(L, term->height);
     return 2;
 }
 
 int monitor::clear(lua_State *L) {
-    term.screen = std::vector<std::vector<char> >(term.height, std::vector<char>(term.width, ' '));
-    term.colors = std::vector<std::vector<unsigned char> >(term.height, std::vector<unsigned char>(term.width, colors));
+    term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
+    term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
     return 0;
 }
 
 int monitor::clearLine(lua_State *L) {
-    term.screen[term.blinkY] = std::vector<char>(term.width, ' ');
-    term.colors[term.blinkY] = std::vector<unsigned char>(term.width, colors);
+    term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
+    term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
     return 0;
 }
 
@@ -122,19 +130,19 @@ int monitor::blit(lua_State *L) {
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
-    for (int i = 0; i < strlen(str) && term.blinkX < term.width; i++, term.blinkX++) {
+    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         colors = htoi(bg[i]) << 4 | htoi(fg[i]);
-        term.screen[term.blinkY][term.blinkX] = str[i];
-        term.colors[term.blinkY][term.blinkX] = colors;
+        term->screen[term->blinkY][term->blinkX] = str[i];
+        term->colors[term->blinkY][term->blinkX] = colors;
     }
     return 0;
 }
 
 int monitor::getPaletteColor(lua_State *L) {
     int color = log2i(lua_tointeger(L, 1));
-    lua_pushnumber(L, term.palette[color].r/255.0);
-    lua_pushnumber(L, term.palette[color].g/255.0);
-    lua_pushnumber(L, term.palette[color].b/255.0);
+    lua_pushnumber(L, term->palette[color].r/255.0);
+    lua_pushnumber(L, term->palette[color].g/255.0);
+    lua_pushnumber(L, term->palette[color].b/255.0);
     return 3;
 }
 
@@ -144,20 +152,20 @@ int monitor::setPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
     int color = log2i(lua_tointeger(L, 1));
-    term.palette[color].r = (int)(lua_tonumber(L, 2) * 255);
-    term.palette[color].g = (int)(lua_tonumber(L, 3) * 255);
-    term.palette[color].b = (int)(lua_tonumber(L, 4) * 255);
+    term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
+    term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
+    term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
     return 0;
 }
 
 int monitor::setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    term.isPixel = lua_toboolean(L, 1);
+    term->isPixel = lua_toboolean(L, 1);
     return 0;
 }
 
 int monitor::getGraphicsMode(lua_State *L) {
-    lua_pushboolean(L, term.isPixel);
+    lua_pushboolean(L, term->isPixel);
     return 1;
 }
 
@@ -167,8 +175,8 @@ int monitor::setPixel(lua_State *L) {
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x > term.width || y > term.height || x < 0 || y < 0) return 0;
-    term.pixels[y][x] = log2i(lua_tointeger(L, 3));
+    if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
+    term->pixels[y][x] = log2i(lua_tointeger(L, 3));
     return 0;
 }
 
@@ -177,19 +185,19 @@ int monitor::getPixel(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x > term.width || y > term.height || x < 0 || y < 0) return 0;
-    lua_pushinteger(L, 2^term.pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
+    lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
     return 1;
 }
 
 int monitor::setTextScale(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    term.setCharScale(lua_tonumber(L, -1) * 2);
+    term->setCharScale(lua_tonumber(L, -1) * 2);
     return 0;
 }
 
 int monitor::getTextScale(lua_State *L) {
-    lua_pushnumber(L, term.charScale / 2.0);
+    lua_pushnumber(L, term->charScale / 2.0);
     return 1;
 }
 
@@ -228,12 +236,12 @@ int monitor::call(lua_State *L, const char * method) {
 }
 
 void monitor::update() {
-    if (!canBlink) term.blink = false;
+    if (!canBlink) term->blink = false;
     else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - last_blink).count() > 500) {
-        term.blink = !term.blink;
+        term->blink = !term->blink;
         last_blink = std::chrono::high_resolution_clock::now();
     }
-    term.render();
+    term->render();
 }
 
 const char * monitor_keys[30] = {
