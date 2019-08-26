@@ -41,6 +41,7 @@ $ craftos
 * liblua 5.1
 * SDL 2.0+
 * SDL_mixer 2.0+
+* OpenSSL
 * POCO NetSSL + JSON libraries + dependencies
   * Foundation
   * Util
