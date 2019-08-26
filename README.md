@@ -41,7 +41,7 @@ $ craftos
 * liblua 5.1
 * SDL 2.0+
 * SDL_mixer 2.0+
-* POCO NetSSL library + dependencies
+* POCO NetSSL + JSON libraries + dependencies
   * Foundation
   * Util
   * Crypto
@@ -49,7 +49,6 @@ $ craftos
   * JSON
   * Net
   * NetSSL
-* jsoncpp
 * png++ 0.2.7+ (+libpng)
   * Can be disabled with NO_PNG=1, will save as BMP instead
   * Is disabled by default on Windows (since all of the NuGet pkgs suck on VS2019)
@@ -59,8 +58,8 @@ $ craftos
 
 You can get all of these dependencies with:
   * Windows: The VS solution includes all packages required except POCO (build yourself)
-  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer jsoncpp png++ libharu poco; git clone https://github.com/MCJack123/craftos2-rom`
-  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libjsoncpp-dev libhpdf-dev libpng++-dev libpoco-dev; git clone https://github.com/MCJack123/craftos2-rom`
+  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer png++ libharu poco; git clone https://github.com/MCJack123/craftos2-rom`
+  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev; git clone https://github.com/MCJack123/craftos2-rom`
 
 ### Instructions
 #### Windows

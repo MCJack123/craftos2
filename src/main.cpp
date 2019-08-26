@@ -17,6 +17,7 @@ extern void termClose();
 extern void config_init();
 extern void config_save(bool deinit);
 extern void mainLoop();
+extern void http_server_stop();
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 bool headless = false;
@@ -35,6 +36,7 @@ int main(int argc, char*argv[]) {
     for (std::thread *t : computerThreads) { t->join(); delete t; }
     driveQuit();
     termClose();
+    http_server_stop();
     platformFree();
     config_save(true);
     return 0;

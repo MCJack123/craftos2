@@ -1,11 +1,11 @@
 CC=gcc
 CXX=g++
 PRINT_TYPE?=pdf
-CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/include/jsoncpp
+CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lpthread -ljsoncpp -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet
+LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lpthread -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet
 
 ifeq ($(PRINT_TYPE), pdf)
 LIBS:=$(LIBS) -lhpdf
@@ -17,7 +17,7 @@ ifdef NO_PNG
 CXXFLAGS:=$(CXXFLAGS) -DNO_PNG
 endif
 
-_OBJ=Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o http_server.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o
+_OBJ=Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: $(ODIR) craftos
@@ -50,9 +50,6 @@ $(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.hpp $(SDIR)/platform_l
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/peripheral.hpp $(SDIR)/lib.hpp
-	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
-
-$(ODIR)/http_server.o: $(SDIR)/http_server.cpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/%.o: $(SDIR)/%.c

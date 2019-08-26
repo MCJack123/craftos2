@@ -11,19 +11,49 @@
 #include "config.hpp"
 #include "platform.hpp"
 #include <string.h>
-#include <json/json.h>
 #include <fstream>
 #include <string>
 #include <unordered_map>
+#include <Poco/JSON/JSON.h>
+#include <Poco/JSON/Parser.h>
 
+using namespace Poco::JSON;
 struct configuration config;
+
+class Value {
+    Poco::Dynamic::Var obj;
+    Value* parent = NULL;
+    std::string key;
+    Value(Poco::Dynamic::Var o, Value* p, std::string k): obj(o), parent(p), key(k) {}
+    void updateParent() {
+        if (parent == NULL) return;
+        Object o(parent->obj.extract<Object>());
+        o.set(key, obj);
+        parent->obj = o;
+    }
+public:
+    Value() {obj = Object();}
+    Value(Poco::Dynamic::Var o): obj(o) {}
+    Value operator[](std::string key) { return Value(obj.extract<Object>().get(key), this, key); }
+    void operator=(int v) { obj = v; updateParent(); }
+    void operator=(bool v) { obj = v; updateParent(); }
+    void operator=(std::string v) { obj = v; updateParent(); }
+    bool asBool() { return obj.convert<bool>(); }
+    int asInt() { return obj.convert<int>(); }
+    std::string asString() { return obj.toString(); }
+    const char * asCString() { return obj.toString().c_str(); }
+    bool isMember(std::string key) { return obj.extract<Object>().has(key); }
+    Object::Ptr& parse(std::istream& in) { Object::Ptr p = Parser().parse(in).extract<Object::Ptr>(); obj = *p; return p; }
+    friend std::ostream& operator<<(std::ostream &out, Value &v) { Stringifier().stringify(v.obj.extract<Object>(), out); return out; }
+    //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
+};
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {NULL, true};
     std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     if (!in.is_open()) return cfg; 
-    Json::Value root;
-    in >> root;
+    Value root;
+    Object::Ptr &p = root.parse(in);
     in.close();
     cfg.isColor = root["isColor"].asBool();
     if (root.isMember("label") && root["label"].asString() != "") {
@@ -34,10 +64,11 @@ struct computer_configuration getComputerConfig(int id) {
 }
 
 void setComputerConfig(int id, struct computer_configuration cfg) {
-    Json::Value root(Json::objectValue);
-    if (cfg.label != NULL) root["label"] = Json::Value(cfg.label);
-    root["isColor"] = Json::Value(cfg.isColor);
+    Value root;
+    if (cfg.label != NULL) root["label"] = cfg.label;
+    root["isColor"] = cfg.isColor;
     std::ofstream out(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
+    Stringifier s;
     out << root;
     out.close();
 }
@@ -65,8 +96,8 @@ void config_init() {
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {config.readFail = true; return;}
-    Json::Value root;
-    in >> root;
+    Value root;
+    Object::Ptr &p = root.parse(in);
     in.close();
     if (root.isMember("http_enable")) config.http_enable = root["http_enable"].asBool();
     if (root.isMember("debug_enable")) config.debug_enable = root["debug_enable"].asBool();
@@ -87,18 +118,18 @@ void config_init() {
 }
 
 void config_save(bool deinit) {
-    Json::Value root(Json::objectValue);
-    root["http_enable"] = Json::Value(config.http_enable);
-    root["debug_enable"] = Json::Value(config.debug_enable);
-    root["disable_lua51_features"] = Json::Value(config.disable_lua51_features);
-    if (config.default_computer_settings != NULL) root["default_computer_settings"] = Json::Value(config.default_computer_settings);
-    root["logPeripheralErrors"] = Json::Value(config.logPeripheralErrors);
-    root["showFPS"] = Json::Value(config.showFPS);
-    root["computerSpaceLimit"] = Json::Value(config.computerSpaceLimit);
-    root["maximumFilesOpen"] = Json::Value(config.maximumFilesOpen);
-    root["abortTimeout"] = Json::Value(config.abortTimeout);
-    root["maxNotesPerTick"] = Json::Value(config.maxNotesPerTick);
-    root["clockSpeed"] = Json::Value(config.clockSpeed);
+    Value root;
+    root["http_enable"] = config.http_enable;
+    root["debug_enable"] = config.debug_enable;
+    root["disable_lua51_features"] = config.disable_lua51_features;
+    if (config.default_computer_settings != NULL) root["default_computer_settings"] = config.default_computer_settings;
+    root["logPeripheralErrors"] = config.logPeripheralErrors;
+    root["showFPS"] = config.showFPS;
+    root["computerSpaceLimit"] = config.computerSpaceLimit;
+    root["maximumFilesOpen"] = config.maximumFilesOpen;
+    root["abortTimeout"] = config.abortTimeout;
+    root["maxNotesPerTick"] = config.maxNotesPerTick;
+    root["clockSpeed"] = config.clockSpeed;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
