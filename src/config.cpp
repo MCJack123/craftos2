@@ -43,7 +43,7 @@ public:
     std::string asString() { return obj.toString(); }
     const char * asCString() { return obj.toString().c_str(); }
     bool isMember(std::string key) { return obj.extract<Object>().has(key); }
-    Object::Ptr& parse(std::istream& in) { Object::Ptr p = Parser().parse(in).extract<Object::Ptr>(); obj = *p; return p; }
+    Object::Ptr parse(std::istream& in) { Object::Ptr p = Parser().parse(in).extract<Object::Ptr>(); obj = *p; return p; }
     friend std::ostream& operator<<(std::ostream &out, Value &v) { Stringifier().stringify(v.obj.extract<Object>(), out); return out; }
     //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
 };
@@ -53,7 +53,7 @@ struct computer_configuration getComputerConfig(int id) {
     std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     if (!in.is_open()) return cfg; 
     Value root;
-    Object::Ptr &p = root.parse(in);
+    Object::Ptr p = root.parse(in);
     in.close();
     cfg.isColor = root["isColor"].asBool();
     if (root.isMember("label") && root["label"].asString() != "") {
@@ -97,7 +97,7 @@ void config_init() {
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {config.readFail = true; return;}
     Value root;
-    Object::Ptr &p = root.parse(in);
+    Object::Ptr p = root.parse(in);
     in.close();
     if (root.isMember("http_enable")) config.http_enable = root["http_enable"].asBool();
     if (root.isMember("debug_enable")) config.debug_enable = root["debug_enable"].asBool();

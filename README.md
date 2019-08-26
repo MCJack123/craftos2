@@ -70,9 +70,8 @@ You can get all of these dependencies with:
 5. Copy the contents of the CraftOS ROM into the directory
 6. Open `CraftOS-PC 2.sln` with VS
 7. Ensure all NuGet packages are installed
-8. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the libcurl/lib directory
-9. Ensure the project is set to the Debug configuration
-10. Build & Run
+8. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the poco/lib directory
+9. Build & Run
 
 #### Mac
 1. Open a new Terminal window
