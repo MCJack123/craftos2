@@ -1,11 +1,11 @@
 CC=gcc
 CXX=g++
 PRINT_TYPE?=pdf
-CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1
+CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -llua5.1 -lm -ldl -lpthread -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet
+LIBS=-L/usr/local/include -L/usr/local/opt/openssl/lib -llua5.1 -lm -ldl -lpthread -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet -lSDL2 -lSDL2main
 
 ifeq ($(PRINT_TYPE), pdf)
 LIBS:=$(LIBS) -lhpdf
@@ -23,18 +23,25 @@ OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 all: $(ODIR) craftos
 
 craftos: $(OBJ) $(ODIR)/platform.o
-	$(CXX) -o $@ $^ $(LIBS) -lSDL2 -lSDL2main
+	$(CXX) -o $@ $^ $(LIBS)
 
 macapp: $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
-	clang++ -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework SDL2
+	clang++ -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation
 	install_name_tool -add_rpath @executable_path/../Frameworks CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/lua@5.1/lib/liblua.5.1.dylib "@rpath/liblua.5.1.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/jsoncpp/lib/libjsoncpp.21.dylib "@rpath/libjsoncpp.1.9.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libharu/lib/libhpdf-2.3.0.dylib "@rpath/libhpdf-2.3.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libpng/lib/libpng16.16.dylib "@rpath/libpng16.16.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/lib/libcurl.4.dylib "@rpath/libcurl.4.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoNetSSL.63.dylib "@rpath/libPocoNetSSL.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoCrypto.63.dylib "@rpath/libPocoCrypto.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoFoundation.63.dylib "@rpath/libPocoFoundation.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoJSON.63.dylib "@rpath/libPocoJSON.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoNet.63.dylib "@rpath/libPocoNet.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoUtil.63.dylib "@rpath/libPocoUtil.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoXML.63.dylib "@rpath/libPocoXML.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/sdl2_mixer/lib/libSDL2_mixer-2.0.0.dylib "@rpath/libSDL2_mixer-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib "@rpath/libSDL2-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	cp Info.plist CraftOS-PC.app/Contents/
 
 $(ODIR):
