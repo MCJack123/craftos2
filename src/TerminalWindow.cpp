@@ -338,7 +338,9 @@ bool TerminalWindow::resize(int w, int h) {
     newWidth = (w - 4*fontScale*charScale) / charWidth;
     newHeight = (h - 4*fontScale*charScale) / charHeight;
     gotResizeEvent = (newWidth != width || newHeight != height);
-    return gotResizeEvent;
+    if (!gotResizeEvent) return false;
+    while (gotResizeEvent) std::this_thread::yield();
+    return true;
 }
 
 void TerminalWindow::screenshot(std::string path) {

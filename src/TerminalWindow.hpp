@@ -89,7 +89,7 @@ public:
     std::vector<std::vector<char> > screen;
     std::vector<std::vector<unsigned char> > colors;
     std::vector<std::vector<char> > pixels;
-    bool isPixel = false;
+    volatile bool isPixel = false;
     Color palette[16];
     Color background = {0x1f, 0x1f, 0x1f};
     int blinkX = 0;

@@ -494,8 +494,12 @@ int term_clear(lua_State *L) {
     TerminalWindow * term = computer->term;
     while (term->locked) if (!term->locked) break;
     term->locked = true;
-    term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
-    term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
+    if (term->isPixel) {
+        term->pixels = std::vector<std::vector<char> >(term->height * term->charHeight, std::vector<char>(term->width * term->charWidth, 15));
+    } else {
+        term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
+        term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
+    }
     term->locked = false;
     return 0;
 }
