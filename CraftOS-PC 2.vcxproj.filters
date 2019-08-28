@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
+    <Filter Include="Example Files">
+      <UniqueIdentifier>{92b78b28-4613-45d3-a909-4792d822f3cc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md">
@@ -192,6 +195,9 @@
     </ClCompile>
     <ClCompile Include="src\font.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="examples\ccemux.cpp">
+      <Filter>Example Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

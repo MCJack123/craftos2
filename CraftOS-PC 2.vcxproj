@@ -193,6 +193,7 @@
     <ClInclude Include="src\TerminalWindow.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="examples\ccemux.cpp" />
     <ClCompile Include="src\Computer.cpp" />
     <ClCompile Include="src\config.cpp" />
     <ClCompile Include="src\font.c" />

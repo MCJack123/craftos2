@@ -137,7 +137,9 @@ void Computer::run() {
                 if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
                 if (lua_isnil(L, -2)) {printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); lua_pop(L, 2); continue;}
                 if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
-                lua_call(L, 0, 1);
+                lua_pushstring(L, getROMPath());
+                lua_pushstring(L, getBasePath());
+                lua_call(L, 2, 1);
                 lua_setglobal(L, api_name.c_str());
             }
             closedir(d);
