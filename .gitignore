@@ -12,3 +12,4 @@ CraftOS-PC.app
 /autom4te.cache
 /CraftOS-PC
 /CraftOS-PC.xcodeproj
+ccemux.dylib

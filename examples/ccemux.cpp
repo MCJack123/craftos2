@@ -13,8 +13,6 @@ extern "C" {
 #include <stdlib.h>
 #endif
 
-const char * basePath;
-
 void bad_argument(lua_State *L, const char * type, int pos) {
     lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
     lua_error(L);
@@ -30,7 +28,7 @@ Computer * get_comp(lua_State *L) {
 
 int ccemux_getVersion(lua_State *L) {
     lua_getglobal(L, "os");
-    lua_pushstring(L, "version");
+    lua_pushstring(L, "about");
     lua_gettable(L, -2);
     lua_call(L, 0, 1);
     lua_getglobal(L, "string");
@@ -43,7 +41,7 @@ int ccemux_getVersion(lua_State *L) {
 }
 
 int ccemux_openEmu(lua_State *L) {
-    int id = 0;
+    int id = 1;
     if (lua_isnumber(L, 1)) id = lua_tointeger(L, 1);
     else {
         lua_getglobal(L, "peripheral");
@@ -77,6 +75,7 @@ int ccemux_closeEmu(lua_State *L) {
 }
 
 int ccemux_openDataDir(lua_State *L) {
+    const char * basePath = lua_tostring(L, lua_upvalueindex(1));
     Computer *comp = get_comp(L);
 #ifdef WIN32
     ShellExecute(NULL, "explore", (std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str(), NULL, NULL, SW_SHOW);
@@ -93,6 +92,7 @@ int ccemux_openDataDir(lua_State *L) {
 }
 
 int ccemux_openConfig(lua_State *L) {
+    const char * basePath = lua_tostring(L, lua_upvalueindex(1));
 #ifdef WIN32
     ShellExecute(NULL, "open", (std::string(basePath) + "/config/global.json").c_str(), NULL, NULL, SW_SHOW);
 #elif defined(__APPLE__)
@@ -134,8 +134,8 @@ int ccemux_attach(lua_State *L) {
     lua_getglobal(L, "periphemu");
     lua_pushstring(L, "create");
     lua_gettable(L, -2);
-    for (int i = 1; i < args; i++) lua_pushvalue(L, i);
-    if (!lua_pcall(L, args, 1, 0)) lua_error(L);
+    for (int i = 1; i < args+1; i++) lua_pushvalue(L, i);
+    if (lua_pcall(L, args, 1, 0) != 0) lua_error(L);
     return 1;
 }
 
@@ -144,16 +144,16 @@ int ccemux_detach(lua_State *L) {
     lua_getglobal(L, "periphemu");
     lua_pushstring(L, "remove");
     lua_gettable(L, -2);
-    for (int i = 1; i < args; i++) lua_pushvalue(L, i);
-    if (!lua_pcall(L, args, 1, 0)) lua_error(L);
+    for (int i = 1; i < args+1; i++) lua_pushvalue(L, i);
+    if (lua_pcall(L, args, 1, 0) != 0) lua_error(L);
     return 1;
 }
 
+extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
 int luaopen_ccemux(lua_State *L) {
-    basePath = lua_tostring(L, 2);
     struct luaL_reg M[] = {
         {"getVersion", ccemux_getVersion},
         {"openEmu", ccemux_openEmu},
@@ -168,6 +168,15 @@ int luaopen_ccemux(lua_State *L) {
         {"detach", ccemux_detach},
         {NULL, NULL}
     };
-    luaL_register(L, "ccemux", M);
+    lua_newtable(L);
+    for (int i = 0; M[i].name != NULL && M[i].func != NULL; i++) {
+        lua_pushstring(L, M[i].name);
+        if (std::string(M[i].name) == "openDataDir" || std::string(M[i].name) == "openConfig") {
+            lua_pushvalue(L, 2);
+            lua_pushcclosure(L, M[i].func, 1);
+        } else lua_pushcfunction(L, M[i].func);
+        lua_settable(L, -3);
+    }
     return 1;
+}
 }

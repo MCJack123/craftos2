@@ -44,7 +44,7 @@ public:
     const char * asCString() { return obj.toString().c_str(); }
     bool isMember(std::string key) { return obj.extract<Object>().has(key); }
     Object::Ptr parse(std::istream& in) { Object::Ptr p = Parser().parse(in).extract<Object::Ptr>(); obj = *p; return p; }
-    friend std::ostream& operator<<(std::ostream &out, Value &v) { Stringifier().stringify(v.obj.extract<Object>(), out); return out; }
+    friend std::ostream& operator<<(std::ostream &out, Value &v) { Stringifier().stringify(v.obj.extract<Object>(), out, 4); return out; }
     //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
 };
 
