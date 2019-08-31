@@ -123,15 +123,25 @@ const char * http_check(lua_State *L, void* data) {
 void downloadThread(void* arg) {
     http_param_t* param = (http_param_t*)arg;
     Poco::URI uri(param->url);
-    const Context::Ptr context = new Context(Context::CLIENT_USE, "", "", "", Context::VERIFY_NONE, 9, false, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
     HTTPSClientSession * session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
+    session->setTimeout(Poco::Timespan(15, 0));
     if (param->postData != NULL) request.setMethod("POST");
+    request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
     for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
-    std::ostream& reqs = session->sendRequest(request);
-    if (param->postData != NULL) reqs << param->postData;
-    if (reqs.bad() || reqs.fail()) {
+    try {
+        std::ostream& reqs = session->sendRequest(request);
+        if (param->postData != NULL) reqs << param->postData;
+        if (reqs.bad() || reqs.fail()) {
+            if (param->postData != NULL) free(param->postData);
+            termQueueProvider(param->comp, http_failure, param->url);
+            delete param;
+            return;
+        }
+    } catch (std::exception &e) {
+        printf("Error while downloading: %s\n", e.what());
         if (param->postData != NULL) free(param->postData);
         termQueueProvider(param->comp, http_failure, param->url);
         delete param;

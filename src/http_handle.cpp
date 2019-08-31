@@ -101,7 +101,7 @@ int http_handle_getResponseHeaders(lua_State *L) {
     for (auto it = handle->handle->begin(); it != handle->handle->end(); it++) {
         lua_pushstring(L, it->first.c_str());
         lua_pushstring(L, it->second.c_str());
-        lua_settable(L, -2);
+        lua_settable(L, -3);
     }
     return 1;
 }
