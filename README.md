@@ -10,7 +10,6 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
   * Linux amd64
 * Administrator privileges
 * 7 MB free space
-* Windows: [Visual C++ 2015 Redistributable](https://aka.ms/vs/16/release/vc_redist.x64.exe)
 
 ## Installing
 ### Windows
