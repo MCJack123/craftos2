@@ -23,6 +23,7 @@
 #include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
+#include <fstream>
 #include <dirent.h>
 #include <sys/stat.h>
 extern "C" {
@@ -177,43 +178,16 @@ void Computer::run() {
             lua_setglobal(L, "_HEADLESS");
         }
 
-        // Load patched pcall/xpcall
-        luaL_loadstring(L, "local nativeResume = coroutine.resume; return function( _fn, _fnErrorHandler )\n\
-    local typeT = type( _fn )\n\
-    assert( typeT == \"function\", \"bad argument #1 to xpcall (function expected, got \"..typeT..\")\" )\n\
-    local co = coroutine.create( _fn )\n\
-    local tResults = { nativeResume( co ) }\n\
-    while coroutine.status( co ) ~= \"dead\" do\n\
-        tResults = { nativeResume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }\n\
-    end\n\
-    if tResults[1] == true then\n\
-        return true, unpack( tResults, 2 )\n\
-    else\n\
-        return false, _fnErrorHandler( tResults[2] )\n\
-    end\n\
-end");
-        lua_call(L, 0, 1);
-        lua_setglobal(L, "xpcall");
-        
-        luaL_loadstring(L, "return function( _fn, ... )\n\
-    local typeT = type( _fn )\n\
-    assert( typeT == \"function\", \"bad argument #1 to pcall (function expected, got \"..typeT..\")\" )\n\
-    local tArgs = { ... }\n\
-    return xpcall(\n\
-        function()\n\
-            return _fn( unpack( tArgs ) )\n\
-        end,\n\
-        function( _error )\n\
-            return _error\n\
-        end\n\
-    )\n\
-end");
-        lua_call(L, 0, 1);
-        lua_setglobal(L, "pcall");
-
         /* Load the file containing the script we are going to run */
         char* bios_path_expanded = getBIOSPath();
-        status = luaL_loadfile(coro, bios_path_expanded);
+        std::ifstream in(bios_path_expanded, std::ios::ate);
+        size_t sz = in.tellg();
+        char* buf = new char[sz];
+        in.seekg(0);
+        in.read(buf, sz);
+        in.close();
+        status = luaL_loadbuffer(coro, buf, sz, "@bios.lua");
+        delete[] buf;
         free(bios_path_expanded);
         if (status) {
             /* If something went wrong, error message is at the top of */
