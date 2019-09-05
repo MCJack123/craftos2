@@ -234,6 +234,7 @@ void termQueueProvider(Computer *comp, event_provider p, void* data) {
     comp->event_provider_queue_mutex.lock();
     comp->event_provider_queue.push(std::make_pair(p, data));
     comp->event_provider_queue_mutex.unlock();
+    comp->event_lock.notify_all();
 }
 
 void gettingEvent(Computer *comp) {comp->getting_event = true;}
@@ -280,7 +281,6 @@ void mainLoop() {
                         e.type == SDL_QUIT) {
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
-                        printf("Notified computer\n");
                     }
                 }
             }

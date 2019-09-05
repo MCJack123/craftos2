@@ -44,9 +44,7 @@ int getNextEvent(lua_State *L, const char * filter) {
             if (computer->timers.size() == 0 && computer->alarms.size() == 0) {
                 std::mutex m;
                 std::unique_lock<std::mutex> l(m);
-                printf("Waiting for event\n");
                 computer->event_lock.wait(l);
-                printf("Done waiting\n");
             }
             if (computer->running != 1) return 0;
             if (computer->timers.size() > 0 && computer->timers.back().time_since_epoch().count() == 0) computer->timers.pop_back();
@@ -83,13 +81,11 @@ int getNextEvent(lua_State *L, const char * filter) {
                     param = lua_newthread(computer->paramQueue);
                 }
             }
-            printf("Events: %d\n", computer->eventQueue.size());
         }
         ev = computer->eventQueue.front();
         computer->eventQueue.pop();
         std::this_thread::yield();
     } while (strlen(filter) > 0 && ev != std::string(filter));
-    printf("Sent event %s\n", ev.c_str());
     lua_pop(computer->paramQueue, 1);
     param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) return 0;
