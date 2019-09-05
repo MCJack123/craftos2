@@ -284,11 +284,13 @@ int fs_open(lua_State *L) {
     const char * mode = lua_tostring(L, 2);
     if (computer->files_open >= config.maximumFilesOpen) err(L, path, "Too many files open");
 	//printf("fs.open(\"%s\", \"%s\")\n", path, mode);
-    char * dname = new char[strlen(path) + 1];
-    strcpy(dname, path);
-    dname = dirname(dname);
-    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) createDirectory(dname);
-    delete[] dname;
+    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) {
+        char * dname = new char[strlen(path) + 1];
+        strcpy(dname, path);
+        const char * ddname = dirname(dname);
+        createDirectory(ddname);
+        delete[] dname;
+    }
 	FILE * fp = fopen(path, mode);
 	if (fp == NULL) { 
 		free(path);

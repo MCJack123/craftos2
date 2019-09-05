@@ -34,23 +34,31 @@ int getNextEvent(lua_State *L, const char * filter) {
     if (computer->paramQueue == NULL) computer->paramQueue = lua_newthread(L);
     std::string ev;
     gettingEvent(computer);
+    if (!lua_checkstack(computer->paramQueue, 1)) {
+        lua_pushstring(L, "Could not allocate space for event");
+        lua_error(L);
+    }
+    lua_State *param = lua_newthread(computer->paramQueue);
     do {
         while (computer->eventQueue.size() == 0) {
-            if (computer->running != 1) return 0;
-            if (!lua_checkstack(computer->paramQueue, 1)) {
-                lua_pushstring(L, "Could not allocate space for event");
-                lua_error(L);
+            if (computer->timers.size() == 0 && computer->alarms.size() == 0) {
+                std::mutex m;
+                std::unique_lock<std::mutex> l(m);
+                printf("Waiting for event\n");
+                computer->event_lock.wait(l);
+                printf("Done waiting\n");
             }
+            if (computer->running != 1) return 0;
             if (computer->timers.size() > 0 && computer->timers.back().time_since_epoch().count() == 0) computer->timers.pop_back();
             if (computer->alarms.size() > 0 && computer->alarms.back() == -1) computer->alarms.pop_back();
             if (computer->timers.size() > 0) {
                 std::chrono::steady_clock::time_point t = std::chrono::steady_clock::now();
                 for (int i = 0; i < computer->timers.size(); i++) {
                     if (t >= computer->timers[i] && computer->timers[i].time_since_epoch().count() > 0) {
-                        lua_State *param = lua_newthread(computer->paramQueue);
                         lua_pushinteger(param, i);
                         computer->eventQueue.push("timer");
                         computer->timers[i] = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(0));
+                        param = lua_newthread(computer->paramQueue);
                     }
                 }
             }
@@ -59,31 +67,31 @@ int getNextEvent(lua_State *L, const char * filter) {
                 struct tm tm = *localtime(&t);
                 for (int i = 0; i < computer->alarms.size(); i++) {
                     if ((double)tm.tm_hour + ((double)tm.tm_min/60.0) + ((double)tm.tm_sec/3600.0) == computer->alarms[i]) {
-                        lua_State *param = lua_newthread(computer->paramQueue);
                         lua_pushinteger(param, i);
                         computer->eventQueue.push("alarm");
                         computer->alarms[i] = -1;
+                        param = lua_newthread(computer->paramQueue);
                     }
                 }
             }
-            if (computer->eventQueue.size() == 0) {
-                lua_State *param = lua_newthread(computer->paramQueue);
+            while (termHasEvent(computer)) {
                 if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
                 const char * name = termGetEvent(param);
                 if (name != NULL) {
                     if (strcmp(name, "die") == 0) computer->running = 0;
                     computer->eventQueue.push(name);
-                } else if (param) {
-                    lua_pop(computer->paramQueue, 1);
-                    param = NULL;
+                    param = lua_newthread(computer->paramQueue);
                 }
             }
+            printf("Events: %d\n", computer->eventQueue.size());
         }
         ev = computer->eventQueue.front();
         computer->eventQueue.pop();
         std::this_thread::yield();
     } while (strlen(filter) > 0 && ev != std::string(filter));
-    lua_State *param = lua_tothread(computer->paramQueue, 1);
+    printf("Sent event %s\n", ev.c_str());
+    lua_pop(computer->paramQueue, 1);
+    param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) return 0;
     int count = lua_gettop(param);
     if (!lua_checkstack(L, count + 1)) {
@@ -131,6 +139,7 @@ int os_queueEvent(lua_State *L) {
     lua_checkstack(param, count);
     lua_xmove(L, param, count);
     computer->eventQueue.push(name);
+    computer->event_lock.notify_all();
     return 0;
 }
 
@@ -144,6 +153,7 @@ int os_startTimer(lua_State *L) {
     Computer * computer = get_comp(L);
     computer->timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, computer->timers.size() - 1);
+    computer->event_lock.notify_all();
     return 1;
 }
 
@@ -160,7 +170,7 @@ int os_time(lua_State *L) {
     const char * type = "ingame";
     if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
     std::string tmp(type);
-    std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c){return std::tolower(c);});
+    std::transform(tmp.begin(), tmp.end(), tmp.begin(), [ ](unsigned char c){return std::tolower(c);});
     time_t t = time(NULL);
     struct tm rightNow;
     if (tmp == "utc") rightNow = *gmtime(&t);
@@ -168,7 +178,8 @@ int os_time(lua_State *L) {
     int hour = rightNow.tm_hour;
     int minute = rightNow.tm_min;
     int second = rightNow.tm_sec;
-    lua_pushnumber(L, (double)hour + ((double)minute/60.0) + ((double)second/3600.0));
+    int milli = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 1000;
+    lua_pushnumber(L, (double)hour + ((double)minute/60.0) + ((double)second/3600.0) + (milli / 3600000.0));
     return 1;
 }
 
@@ -215,6 +226,7 @@ int os_setAlarm(lua_State *L) {
     Computer * computer = get_comp(L);
     computer->alarms.push_back(lua_tonumber(L, 1));
     lua_pushinteger(L, computer->alarms.size() - 1);
+    computer->event_lock.notify_all();
     return 1;
 }
 

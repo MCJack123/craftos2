@@ -21,6 +21,7 @@ extern "C" {
 #include <queue>
 #include <unordered_map>
 #include <atomic>
+#include <condition_variable>
 #ifdef WIN32
 #include <SDL.h>
 #else
@@ -60,6 +61,7 @@ public:
     std::list<Computer*> referencers;
     struct computer_configuration config;
     std::unordered_map<int, void *> userdata;
+    std::condition_variable event_lock;
 
     Computer(int i);
     ~Computer();

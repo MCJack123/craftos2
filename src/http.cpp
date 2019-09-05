@@ -48,7 +48,7 @@ typedef struct {
 typedef struct http_handle {
     bool closed;
     char * url;
-    HTTPSClientSession * session;
+    HTTPClientSession * session;
     HTTPResponse * handle;
     std::istream& stream;
     http_handle(std::istream& s): stream(s) {}
@@ -123,8 +123,13 @@ const char * http_check(lua_State *L, void* data) {
 void downloadThread(void* arg) {
     http_param_t* param = (http_param_t*)arg;
     Poco::URI uri(param->url);
-    const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
-    HTTPSClientSession * session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+    HTTPClientSession * session;
+    if (uri.getScheme() == "http") {
+        session = new HTTPClientSession(uri.getHost(), uri.getPort());
+    } else {
+        const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+        session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+    }
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
     session->setTimeout(Poco::Timespan(15, 0));

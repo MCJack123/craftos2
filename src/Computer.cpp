@@ -251,6 +251,7 @@ end");
         }
 
         if (!headless) tid.join();
+        event_lock.notify_all();
         for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
             if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
         lua_close(L);   /* Cya, Lua */
