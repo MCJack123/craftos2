@@ -331,7 +331,13 @@ const char * termGetEvent(lua_State *L) {
                     computer->waitingForTerminate = 2;
                     return "terminate";
                 } else if (computer->waitingForTerminate == 0) computer->waitingForTerminate = 1;
-            } else if (e.key.keysym.scancode == SDL_SCANCODE_V && (e.key.keysym.mod & KMOD_CTRL) && SDL_HasClipboardText()) {
+            } else if (e.key.keysym.scancode == SDL_SCANCODE_V && 
+#ifdef __APPLE__
+              (e.key.keysym.mod & KMOD_GUI) &&
+#else
+              (e.key.keysym.mod & KMOD_CTRL) &&
+#endif
+              SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
                 lua_pushstring(L, text);
                 SDL_free(text);
