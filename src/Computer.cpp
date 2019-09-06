@@ -79,6 +79,11 @@ Computer::~Computer() {
     }
 }
 
+struct error_tmp {
+    TerminalWindow * term;
+    const char * bios_path_expanded;
+};
+
 void Computer::run() {
     running = 1;
     if (L != NULL) lua_close(L);
@@ -214,14 +219,16 @@ end");
         /* Load the file containing the script we are going to run */
         char* bios_path_expanded = getBIOSPath();
         status = luaL_loadfile(coro, bios_path_expanded);
-        free(bios_path_expanded);
         if (status) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load file: %s\n", lua_tostring(L, -1));
-            std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)\n", bios_path_expanded, lua_tostring(L, -1));
+            struct error_tmp ptr = {term, bios_path_expanded};
+            queueTask([ ](void* term)->void*{((struct error_tmp*)term)->term->showMessage(SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", std::string("Couldn't load BIOS from " + std::string(((struct error_tmp*)term)->bios_path_expanded) + ". Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)").c_str()); return NULL;}, &ptr);
+            free(bios_path_expanded);
             return;
         }
+        free(bios_path_expanded);
         std::thread tid;
         if (!headless) {
             tid = std::thread(&termRenderLoop, this);

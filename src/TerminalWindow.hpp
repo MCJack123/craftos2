@@ -112,6 +112,7 @@ public:
     void record(std::string path = ""); // asynchronous; captures on next render
     void stopRecording();
     void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
+    void showMessage(Uint32 flags, const char * title, const char * message);
 
 private:
     SDL_Window *win;

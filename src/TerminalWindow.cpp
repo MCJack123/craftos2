@@ -417,3 +417,5 @@ void TerminalWindow::stopRecording() {
     recording.clear();
     recorderMutex.unlock();
 }
+
+void TerminalWindow::showMessage(Uint32 flags, const char * title, const char * message) {SDL_ShowSimpleMessageBox(flags, title, message, win);}
