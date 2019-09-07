@@ -40,6 +40,15 @@ int getNextEvent(lua_State *L, const char * filter) {
     }
     lua_State *param = lua_newthread(computer->paramQueue);
     do {
+        while (termHasEvent(computer)) {
+            if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
+            const char * name = termGetEvent(param);
+            if (name != NULL) {
+                if (strcmp(name, "die") == 0) computer->running = 0;
+                computer->eventQueue.push(name);
+                param = lua_newthread(computer->paramQueue);
+            }
+        }
         while (computer->eventQueue.size() == 0) {
             if (computer->timers.size() == 0 && computer->alarms.size() == 0) {
                 std::mutex m;
@@ -185,10 +194,11 @@ int os_epoch(lua_State *L) {
     std::string tmp(type);
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     if (tmp == "utc") {
-        lua_pushinteger(L, (long long)time(NULL) * 1000LL);
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     } else if (tmp == "local") {
         time_t t = time(NULL);
-        lua_pushinteger(L, (long long)mktime(localtime(&t)) * 1000LL);
+        long long off = (long long)mktime(localtime(&t)) - t;
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000));
     } else {
         time_t t = time(NULL);
         struct tm rightNow = *localtime(&t);

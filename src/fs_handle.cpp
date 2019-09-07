@@ -45,7 +45,7 @@ int fs_handle_readAll(lua_State *L) {
     int i;
     for (i = 0; !feof(fp) && i < size; i++) {
         char c = fgetc(fp);
-        if (c == '\n' && retval[i-1] == '\r') retval[--i] = '\n';
+        if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = checkChar(c);
     }
     lua_pushstring(L, retval);
@@ -102,8 +102,9 @@ int fs_handle_readByte(lua_State *L) {
         lua_pushlstring(L, retval, read);
         free(retval);
     } else {
-        unsigned char retval = (unsigned)fgetc(fp);
-        lua_pushinteger(L, retval);
+        int retval = fgetc(fp);
+        if (retval == EOF || feof(fp)) return 0;
+        lua_pushinteger(L, (unsigned char)retval);
     }
     return 1;
 }
