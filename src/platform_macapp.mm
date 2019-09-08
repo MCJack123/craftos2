@@ -72,6 +72,15 @@ char * getBIOSPath() {
     return retval;
 }
 
+std::string getPlugInPath() {
+	NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
+	char * retval = (char*)malloc(path.length + 1);
+    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+	std::string s((const char*)retval);
+	free(retval);
+	return s;
+}
+
 void setThreadName(std::thread &t, const char * name) {}
 
 int createDirectory(const char * path) {

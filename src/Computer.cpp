@@ -134,7 +134,7 @@ void Computer::run() {
         struct stat st;
         if (d) {
             for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-                if (stat((std::string(getROMPath()) + "/plugins/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+                if (stat((getPlugInPath() + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
                 std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
                 lua_pushvalue(L, -1);
                 lua_pushfstring(L, "%s/plugins/%s", getROMPath(), dir->d_name);

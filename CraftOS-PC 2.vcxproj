@@ -155,6 +155,7 @@
     <None Include=".travis.yml" />
     <None Include="CraftOSTest.lua" />
     <None Include="DOCUMENTATION.md" />
+    <None Include="LICENSE" />
     <None Include="Makefile" />
     <None Include="packages.config" />
     <None Include="README.md" />

@@ -70,6 +70,8 @@ char * getBIOSPath() {
     return retval;
 }
 
+std::string getPlugInPath() { return std::string(rom_path) + "/plugins/"; }
+
 void setThreadName(std::thread &t, const char * name) {
     pthread_setname_np(*(pthread_t*)t.native_handle(), name);
 }

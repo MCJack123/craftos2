@@ -25,6 +25,7 @@ extern const char * bios_path;
 extern const char * getBasePath();
 extern const char * getROMPath();
 extern char * getBIOSPath();
+extern std::string getPlugInPath();
 extern void platformFree();
 extern void platformInit(Computer * comp);
 #ifdef WIN32
