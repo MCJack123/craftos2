@@ -85,7 +85,9 @@ char * getBIOSPath() {
 std::string getPlugInPath() { return std::string(getROMPath()) + "/plugins/"; }
 
 void setThreadName(std::thread &t, const char * name) {
+#ifdef DEBUG
     SetThreadDescription((HANDLE)t.native_handle(), s2ws(std::string(name)).c_str());
+#endif
 }
 
 int createDirectory(const char* path) {
