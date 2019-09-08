@@ -50,7 +50,7 @@ int getNextEvent(lua_State *L, const char * filter) {
             }
         }
         while (computer->eventQueue.size() == 0) {
-            if (computer->timers.size() == 0 && computer->alarms.size() == 0) {
+            if (computer->alarms.size() == 0) {
                 std::mutex m;
                 std::unique_lock<std::mutex> l(m);
                 computer->event_lock.wait(l);
@@ -153,12 +153,17 @@ int os_clock(lua_State *L) {
     return 1;
 }
 
+Uint32 notifyEvent(Uint32 interval, void* param) {
+    ((Computer*)param)->event_lock.notify_all();
+    return interval;
+}
+
 int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
     computer->timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, computer->timers.size() - 1);
-    computer->event_lock.notify_all();
+    SDL_AddTimer(lua_tonumber(L, 1) * 1000, notifyEvent, computer);
     return 1;
 }
 
