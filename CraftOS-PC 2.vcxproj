@@ -194,12 +194,6 @@
     <ClInclude Include="src\TerminalWindow.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="examples\ccemux.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="src\Computer.cpp" />
     <ClCompile Include="src\config.cpp" />
     <ClCompile Include="src\font.c" />

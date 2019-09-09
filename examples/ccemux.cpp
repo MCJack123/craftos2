@@ -78,7 +78,7 @@ int ccemux_openDataDir(lua_State *L) {
     const char * basePath = lua_tostring(L, lua_upvalueindex(1));
     Computer *comp = get_comp(L);
 #ifdef WIN32
-    ShellExecute(NULL, "explore", (std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteA(NULL, "explore", (std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str(), NULL, NULL, SW_SHOW);
 #elif defined(__APPLE__)
     system(("open " + std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str());
     lua_pushboolean(L, true);
@@ -94,7 +94,7 @@ int ccemux_openDataDir(lua_State *L) {
 int ccemux_openConfig(lua_State *L) {
     const char * basePath = lua_tostring(L, lua_upvalueindex(1));
 #ifdef WIN32
-    ShellExecute(NULL, "open", (std::string(basePath) + "/config/global.json").c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteA(NULL, "open", (std::string(basePath) + "/config/global.json").c_str(), NULL, NULL, SW_SHOW);
 #elif defined(__APPLE__)
     system(("open " + std::string(basePath) + "/config/global.json").c_str());
     lua_pushboolean(L, true);

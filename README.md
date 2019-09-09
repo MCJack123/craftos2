@@ -7,7 +7,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * 64-bit operating system
   * Windows 7+ (might work on Vista)
   * macOS 10.9+
-  * Ubuntu 16.04, 18.04, 19.04 (i386 is supported)
+  * Ubuntu 18.04, 19.04 (i386 is supported)
 * Administrator privileges
 * 7 MB free space
 
