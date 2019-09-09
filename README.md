@@ -18,9 +18,9 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 3. Open CraftOS-PC from the Start Menu
 
 ### Mac
-1. Download CraftOS-PC.app.zip from the latest release
-2. Unzip the downloaded file
-3. Right-click on the app and click "Open"
+1. Download CraftOS-PC.dmg from the latest release
+2. Drag and drop into Applications (or not)
+3. Double-click CraftOS-PC(.app)
 
 ### Ubuntu (18.04 & 19.04)
 ```bash
