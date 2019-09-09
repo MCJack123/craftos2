@@ -130,14 +130,14 @@ void Computer::run() {
         lua_pushstring(L, "loadlib");
         lua_gettable(L, -2);
         struct dirent *dir;
-        DIR * d = opendir((std::string(getROMPath()) + "/plugins").c_str());
+        DIR * d = opendir(getPlugInPath().c_str());
         struct stat st;
         if (d) {
             for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-                if (stat((getPlugInPath() + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+                if (stat((getPlugInPath() + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
                 std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
                 lua_pushvalue(L, -1);
-                lua_pushfstring(L, "%s/plugins/%s", getROMPath(), dir->d_name);
+                lua_pushfstring(L, "%s/%s", getPlugInPath().c_str(), dir->d_name);
                 lua_pushfstring(L, "luaopen_%s", api_name.c_str());
                 if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
                 if (lua_isnil(L, -2)) {printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); lua_pop(L, 2); continue;}
@@ -148,7 +148,7 @@ void Computer::run() {
                 lua_setglobal(L, api_name.c_str());
             }
             closedir(d);
-        }
+        } else printf("Could not open plugins\n");
 
         // Delete unwanted globals
         lua_pushnil(L);
