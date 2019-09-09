@@ -65,7 +65,7 @@ struct computer_configuration getComputerConfig(int id) {
 
 void setComputerConfig(int id, struct computer_configuration cfg) {
     Value root;
-    if (cfg.label != NULL) root["label"] = cfg.label;
+    if (cfg.label != NULL) root["label"] = std::string(cfg.label);
     root["isColor"] = cfg.isColor;
     std::ofstream out(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     Stringifier s;
