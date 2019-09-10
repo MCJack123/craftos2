@@ -196,11 +196,13 @@ int mounter_isReadOnly(lua_State *L) {
 extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
     if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
     char * newpath = fixpath(get_comp(L), filename);
-    char * dname = new char[strlen(newpath) + 1];
-    strcpy(dname, newpath);
-    dname = dirname(dname);
-    if (std::string(mode).find("w") != std::string::npos || std::string(mode).find("a") != std::string::npos) createDirectory(dname);
-    delete[] dname;
+    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) {
+        char * dname = new char[strlen(newpath) + 1];
+        strcpy(dname, newpath);
+        const char * ddname = dirname(dname);
+        createDirectory(ddname);
+        delete[] dname;
+    }
     FILE* retval = fopen(newpath, mode);
     free(newpath);
     if (retval != NULL) get_comp(L)->files_open++;
