@@ -135,7 +135,6 @@ void Computer::run() {
         struct stat st;
         if (d) {
             for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-                printf("Trying %s/%s\n", plugin_path.c_str(), dir->d_name);
                 if (stat((plugin_path + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
                 std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
                 lua_pushvalue(L, -1);
@@ -150,7 +149,7 @@ void Computer::run() {
                 lua_setglobal(L, api_name.c_str());
             }
             closedir(d);
-        } else printf("Could not open plugins\n");
+        } else printf("Could not open plugins from %s\n", plugin_path.c_str());
 
         // Delete unwanted globals
         lua_pushnil(L);

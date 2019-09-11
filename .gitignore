@@ -13,3 +13,4 @@ CraftOS-PC.app
 /CraftOS-PC
 /CraftOS-PC.xcodeproj
 ccemux.dylib
+.vscode/c_cpp_properties.json

@@ -47,7 +47,7 @@ macapp: $(OBJ) $(ODIR)/platform_macapp.o
 $(ODIR):
 	mkdir obj
 
-$(ODIR)/main.o: $(SDIR)/main.cpp $(SDIR)/Computer.hpp
+$(ODIR)/main.o: $(SDIR)/main.cpp $(SDIR)/Computer.hpp $(SDIR)/lib.hpp
 	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/platform_macapp.o: $(SDIR)/platform_macapp.mm $(SDIR)/platform.hpp
