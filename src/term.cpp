@@ -653,15 +653,24 @@ int term_getPaletteColor(lua_State *L) {
 int term_setPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
-    if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
+    if (!lua_isnoneornil(L, 3)) {
+        if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
+        if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
+    }
     Computer * computer = get_comp(L);
     if (headless || !computer->config.isColor) return 0;
     TerminalWindow * term = computer->term;
     int color = log2i(lua_tointeger(L, 1));
-    term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
-    term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
-    term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
+    if (lua_isnoneornil(L, 3)) {
+        unsigned int rgb = lua_tointeger(L, 2);
+        term->palette[color].r = rgb >> 16 & 0xFF;
+        term->palette[color].g = rgb >> 8 & 0xFF;
+        term->palette[color].b = rgb & 0xFF;
+    } else {
+        term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
+        term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
+        term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
+    }
     return 0;
 }
 
