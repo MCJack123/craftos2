@@ -92,7 +92,8 @@ void config_init() {
         17000,
         8,
         20,
-        false
+        false,
+        true
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {config.readFail = true; return;}
@@ -115,6 +116,7 @@ void config_init() {
     if (root.isMember("maxNotesPerTick")) config.maxNotesPerTick = root["maxNotesPerTick"].asInt();
     if (root.isMember("clockSpeed")) config.clockSpeed = root["clockSpeed"].asInt();
     if (root.isMember("ignoreHotkeys")) config.ignoreHotkeys = root["ignoreHotkeys"].asBool();
+    if (root.isMember("checkUpdates")) config.checkUpdates = root["checkUpdates"].asBool();
 }
 
 void config_save(bool deinit) {
@@ -130,6 +132,8 @@ void config_save(bool deinit) {
     root["abortTimeout"] = config.abortTimeout;
     root["maxNotesPerTick"] = config.maxNotesPerTick;
     root["clockSpeed"] = config.clockSpeed;
+    root["ignoreHotkeys"] = config.ignoreHotkeys;
+    root["checkUpdates"] = config.checkUpdates;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -177,6 +181,8 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.ignoreHotkeys);
     else if (strcmp(name, "isColor") == 0) 
         lua_pushboolean(L, computer->config.isColor);
+    else if (strcmp(name, "checkUpdates") == 0)
+        lua_pushboolean(L, config.checkUpdates);
     else return 0;
     return 1;
 }
@@ -218,7 +224,8 @@ int config_set(lua_State *L) {
     else if (strcmp(name, "isColor") == 0) {
         computer->config.isColor = lua_toboolean(L, 2);
         setComputerConfig(computer->id, computer->config);
-    }
+    } else if (strcmp(name, "checkUpdates") == 0)
+        config.checkUpdates = lua_toboolean(L, 2);
     config_save(false);
     return 0;
 }
@@ -280,9 +287,14 @@ int config_list(lua_State *L) {
     lua_pushnumber(L, 14);
     lua_pushstring(L, "isColor");
     lua_settable(L, -3);
+
+    lua_pushnumber(L, 15);
+    lua_pushstring(L, "checkUpdates");
+    lua_settable(L, -3);
     return 1;
 }
 
+// TODO: trim down code (so much redundancy)
 int config_getType(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     const char * name = lua_tostring(L, 1);
@@ -313,8 +325,10 @@ int config_getType(lua_State *L) {
     else if (strcmp(name, "abortTimeout") == 0)
         lua_pushinteger(L, 2);
     else if (strcmp(name, "ignoreHotkeys") == 0)
-        lua_pushboolean(L, 0);
+        lua_pushinteger(L, 0);
     else if (strcmp(name, "isColor") == 0)
+        lua_pushinteger(L, 0);
+    else if (strcmp(name, "checkUpdates") == 0)
         lua_pushinteger(L, 0);
     else lua_pushinteger(L, -1);
     return 1;

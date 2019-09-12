@@ -26,6 +26,7 @@ struct configuration {
     int maxNotesPerTick;
     int clockSpeed;
     bool ignoreHotkeys;
+    bool checkUpdates;
 };
 struct computer_configuration {
     char * label;

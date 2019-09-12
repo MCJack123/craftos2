@@ -52,13 +52,13 @@ int main(int argc, char*argv[]) {
         if (std::string(argv[i]) == "--headless") headless = true;
         else if (std::string(argv[i]) == "--script") script_file = argv[++i];
     }
-    if (!headless) {
-        std::thread update_bg(update_thread);
-        update_bg.detach();
-    }
     termInit();
     config_init();
     driveInit();
+    if (!headless && config.checkUpdates) {
+        std::thread update_bg(update_thread);
+        update_bg.detach();
+    }
     startComputer(0);
     mainLoop();
     for (std::thread *t : computerThreads) { t->join(); delete t; }
