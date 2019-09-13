@@ -16,6 +16,9 @@ endif
 ifdef NO_PNG
 CXXFLAGS:=$(CXXFLAGS) -DNO_PNG
 endif
+ifdef CUSTOM_ROM_DIR
+CFLAGS:=$(CFLAGS) '-DCUSTOM_ROM_DIR="$(CUSTOM_ROM_DIR)"'
+endif
 
 _OBJ=Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))

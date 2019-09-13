@@ -41,7 +41,9 @@ void update_thread() {
         Poco::JSON::Parser parser;
         parser.parse(session.receiveResponse(response));
         Poco::JSON::Object::Ptr root = parser.asVar().extract<Poco::JSON::Object::Ptr>();
-        if (root->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) queueTask([ ](void* arg)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Update available!", (const char*)arg, NULL); return NULL;}, (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
+        if (root->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) 
+            queueTask([ ](void* arg)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Update available!", (const char*)arg, NULL); return NULL;}, 
+                      (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
     } catch (std::exception &e) {
         printf("Could not check for updates: %s\n", e.what());
     }

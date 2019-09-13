@@ -30,16 +30,20 @@ extern "C" {
 #include "mounter.hpp"
 #include "platform.hpp"
 
+#ifdef CUSTOM_ROM_DIR
+const char * rom_path = CUSTOM_ROM_DIR;
+char * rom_path_expanded = NULL;
+#else
 const char * rom_path = "/usr/local/share/craftos";
+#endif
 const char * base_path = "$HOME/.craftos";
 char * base_path_expanded = NULL;
 
-void platformInit(Computer *comp) {
-    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", true);
-}
-
 void platformFree() {
     if (base_path_expanded != NULL) free(base_path_expanded);
+    #ifdef CUSTOM_ROM_DIR
+    if (rom_path_expanded != NULL) free(rom_path_expanded);
+    #endif
 }
 
 const char * getBasePath() {
@@ -55,7 +59,40 @@ const char * getBasePath() {
     return base_path_expanded;
 }
 
-const char * getROMPath() {return rom_path;}
+#ifdef CUSTOM_ROM_DIR
+void platformInit(Computer *comp) {
+    addMount(comp, (std::string(getROMPath()) + "/rom").c_str(), "rom", true);
+}
+
+const char * getROMPath() {
+    if (rom_path_expanded != NULL) return rom_path_expanded;
+    wordexp_t p;
+    wordexp(rom_path, &p, 0);
+    int size = 0;
+    for (int i = 0; i < p.we_wordc; i++) size += strlen(p.we_wordv[i]);
+    char * retval = (char*)malloc(size + 1);
+    strcpy(retval, p.we_wordv[0]);
+    for (int i = 1; i < p.we_wordc; i++) strcat(retval, p.we_wordv[i]);
+    rom_path_expanded = retval;
+    wordfree(&p);
+    return retval;
+}
+
+char * getBIOSPath() {
+    const char * romPath = getROMPath();
+    char * retval = (char*)malloc(strlen(romPath) + 10);
+    strcpy(retval, romPath);
+    strcat(retval, "/bios.lua");
+    return retval;
+}
+
+std::string getPlugInPath() { return std::string(getROMPath()) + "/plugins/"; }
+#else
+void platformInit(Computer *comp) {
+    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", true);
+}
+
+const char * getROMPath() { return rom_path; }
 
 char * getBIOSPath() {
     char * retval = (char*)malloc(strlen(rom_path) + 10);
@@ -65,6 +102,7 @@ char * getBIOSPath() {
 }
 
 std::string getPlugInPath() { return std::string(rom_path) + "/plugins/"; }
+#endif
 
 void setThreadName(std::thread &t, const char * name) {}
 

@@ -28,7 +28,7 @@
 extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
 extern void peripheral_update();
 extern bool headless;
-const std::unordered_map<int, unsigned char> keymap = {
+std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
     {SDL_SCANCODE_1, 2},
     {SDL_SCANCODE_2, 3},
