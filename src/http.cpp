@@ -44,6 +44,8 @@ typedef struct {
     char * postData;
     std::unordered_map<std::string, std::string> headers;
     std::string method;
+    char * old_url;
+    bool redirect;
 } http_param_t;
 
 typedef struct http_handle {
@@ -143,6 +145,7 @@ void downloadThread(void* arg) {
         if (param->postData != NULL) reqs << param->postData;
         if (reqs.bad() || reqs.fail()) {
             if (param->postData != NULL) free(param->postData);
+            if (param->url != param->old_url) free(param->old_url);
             termQueueProvider(param->comp, http_failure, param->url);
             delete param;
             return;
@@ -150,6 +153,7 @@ void downloadThread(void* arg) {
     } catch (std::exception &e) {
         printf("Error while downloading: %s\n", e.what());
         if (param->postData != NULL) free(param->postData);
+        if (param->url != param->old_url) free(param->old_url);
         termQueueProvider(param->comp, http_failure, param->url);
         delete param;
         return;
@@ -160,15 +164,16 @@ void downloadThread(void* arg) {
     } catch (std::exception &e) {
         printf("Error while downloading: %s\n", e.what());
         if (param->postData != NULL) free(param->postData);
+        if (param->url != param->old_url) free(param->old_url);
         termQueueProvider(param->comp, http_failure, param->url);
         delete param;
         return;
     }
     handle->session = session;
     handle->handle = response;
-    handle->url = param->url;
-    if (handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
-        free(param->url);
+    handle->url = param->old_url;
+    if (param->redirect && handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
+        if (param->url != param->old_url) free(param->url);
         std::string location = handle->handle->get("Location");
         delete handle->handle;
         delete handle->session;
@@ -180,6 +185,7 @@ void downloadThread(void* arg) {
     handle->closed = false;
     termQueueProvider(param->comp, http_success, handle);
     if (param->postData != NULL) free(param->postData);
+    if (param->url != param->old_url) free(param->url);
     delete param;
 }
 
@@ -207,6 +213,7 @@ int http_request(lua_State *L) {
     param->comp = get_comp(L);
     param->url = (char*)malloc(lua_strlen(L, 1) + 1); 
     strcpy(param->url, lua_tostring(L, 1));
+    param->old_url = param->url;
     param->postData = NULL;
     if (lua_isstring(L, 2)) {
         param->postData = (char*)malloc(lua_strlen(L, 2) + 1);
@@ -224,6 +231,7 @@ int http_request(lua_State *L) {
     }
     if (lua_isboolean(L, 4)) ; // add binary support
     if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
+    param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
     std::thread th(downloadThread, param);
     setThreadName(th, "HTTP Request Thread");
     th.detach();
