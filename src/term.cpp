@@ -320,12 +320,14 @@ const char * termGetEvent(lua_State *L) {
     }
     if (computer->running != 1) return NULL;
     SDL_Event e;
+    std::string tmpstrval;
     if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) 
             return "die";
         else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
-            if (e.key.keysym.scancode == SDL_SCANCODE_F2 && !config.ignoreHotkeys) computer->term->screenshot();
-            else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && !config.ignoreHotkeys) computer->term->toggleRecording();
+            TerminalWindow * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
+            if (e.key.keysym.scancode == SDL_SCANCODE_F2 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->screenshot();
+            else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->toggleRecording();
             else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate == 1) {
                     computer->waitingForTerminate = 2;
@@ -361,26 +363,30 @@ const char * termGetEvent(lua_State *L) {
             lua_pushstring(L, tmp);
             return "char";
         } else if (e.type == SDL_MOUSEBUTTONDOWN && computer->config.isColor) {
+            TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
-            lua_pushinteger(L, convertX(computer->term, e.button.x));
-            lua_pushinteger(L, convertY(computer->term, e.button.y));
+            lua_pushinteger(L, convertX(term, e.button.x));
+            lua_pushinteger(L, convertY(term, e.button.y));
             return "mouse_click";
         } else if (e.type == SDL_MOUSEBUTTONUP && computer->config.isColor) {
+            TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
-            lua_pushinteger(L, convertX(computer->term, e.button.x));
-            lua_pushinteger(L, convertY(computer->term, e.button.y));
+            lua_pushinteger(L, convertX(term, e.button.x));
+            lua_pushinteger(L, convertY(term, e.button.y));
             return "mouse_up";
         } else if (e.type == SDL_MOUSEWHEEL && computer->config.isColor) {
+            TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 0, y = 0;
-            computer->term->getMouse(&x, &y);
+            term->getMouse(&x, &y);
             lua_pushinteger(L, e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1));
-            lua_pushinteger(L, convertX(computer->term, x));
-            lua_pushinteger(L, convertY(computer->term, y));
+            lua_pushinteger(L, convertX(term, x));
+            lua_pushinteger(L, convertY(term, y));
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && e.motion.state && computer->config.isColor) {
+            TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert2(e.motion.state));
-            lua_pushinteger(L, convertX(computer->term, e.motion.x));
-            lua_pushinteger(L, convertY(computer->term, e.motion.y));
+            lua_pushinteger(L, convertX(term, e.motion.x));
+            lua_pushinteger(L, convertY(term, e.motion.y));
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             if (e.window.windowID == computer->term->id && computer->term->resize(e.window.data1, e.window.data2)) {

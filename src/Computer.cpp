@@ -94,9 +94,11 @@ void Computer::run() {
             term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
             term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
             term->pixels = std::vector<std::vector<char> >(term->height * term->fontHeight, std::vector<char>(term->width * term->fontWidth, 0x0F));
+            memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
             term->blinkX = 0;
             term->blinkY = 0;
         }
+        colors = 0xF0;
 
         /*
         * All Lua contexts are held in this structure. We work with it almost

@@ -42,7 +42,7 @@ int monitor::scroll(lua_State *L) {
     }
     for (int i = term->height; i < term->height + lines; i++) {
         term->screen[i-lines] = std::vector<char>(term->width, ' ');
-        term->colors[i-lines] = std::vector<unsigned char>(term->width, 0);
+        term->colors[i-lines] = std::vector<unsigned char>(term->width, colors);
     }
     return 0;
 }
@@ -179,7 +179,7 @@ int monitor::setPixel(lua_State *L) {
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
+    if (x >= term->width * term->fontWidth || y >= term->height * term->fontHeight || x < 0 || y < 0) return 0;
     term->pixels[y][x] = log2i(lua_tointeger(L, 3));
     return 0;
 }
@@ -189,14 +189,15 @@ int monitor::getPixel(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
+    if (x >= term->width * term->fontWidth || y >= term->height * term->fontHeight || x < 0 || y < 0) return 0;
     lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
     return 1;
 }
 
 int monitor::setTextScale(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    term->setCharScale(lua_tonumber(L, -1) * 2);
+    term->charScale = lua_tonumber(L, -1) * 2;
+    queueTask([ ](void* term)->void*{((TerminalWindow*)term)->setCharScale(((TerminalWindow*)term)->charScale); return NULL;}, term);
     return 0;
 }
 

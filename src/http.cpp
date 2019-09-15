@@ -43,6 +43,7 @@ typedef struct {
     char * url;
     char * postData;
     std::unordered_map<std::string, std::string> headers;
+    std::string method;
 } http_param_t;
 
 typedef struct http_handle {
@@ -130,10 +131,11 @@ void downloadThread(void* arg) {
         const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
         session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
     }
-    HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+    HTTPRequest request(param->method != "" ? param->method : (param->postData != NULL ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+    printf("%s -> %s\n", param->method.c_str(), request.getMethod().c_str());
     HTTPResponse * response = new HTTPResponse();
     session->setTimeout(Poco::Timespan(15, 0));
-    if (param->postData != NULL) request.setMethod("POST");
+    //if (param->postData != NULL) request.setMethod("POST");
     request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
     for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
     try {
@@ -152,7 +154,16 @@ void downloadThread(void* arg) {
         delete param;
         return;
     }
-    http_handle_t * handle = new http_handle_t(session->receiveResponse(*response));
+    http_handle_t * handle;
+    try {
+        handle = new http_handle_t(session->receiveResponse(*response));
+    } catch (std::exception &e) {
+        printf("Error while downloading: %s\n", e.what());
+        if (param->postData != NULL) free(param->postData);
+        termQueueProvider(param->comp, http_failure, param->url);
+        delete param;
+        return;
+    }
     handle->session = session;
     handle->handle = response;
     handle->url = param->url;
@@ -211,6 +222,8 @@ int http_request(lua_State *L) {
         }
         lua_pop(L, 1);
     }
+    if (lua_isboolean(L, 4)) ; // add binary support
+    if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
     std::thread th(downloadThread, param);
     setThreadName(th, "HTTP Request Thread");
     th.detach();
