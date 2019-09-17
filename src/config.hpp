@@ -27,6 +27,7 @@ struct configuration {
     int clockSpeed;
     bool ignoreHotkeys;
     bool checkUpdates;
+    bool rootReadOnly;
 };
 struct computer_configuration {
     char * label;

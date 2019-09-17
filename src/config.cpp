@@ -93,6 +93,7 @@ void config_init() {
         8,
         20,
         false,
+        true,
         true
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
@@ -117,6 +118,7 @@ void config_init() {
     if (root.isMember("clockSpeed")) config.clockSpeed = root["clockSpeed"].asInt();
     if (root.isMember("ignoreHotkeys")) config.ignoreHotkeys = root["ignoreHotkeys"].asBool();
     if (root.isMember("checkUpdates")) config.checkUpdates = root["checkUpdates"].asBool();
+    if (root.isMember("rootReadOnly")) config.rootReadOnly = root["rootReadOnly"].asBool();
 }
 
 void config_save(bool deinit) {
@@ -134,6 +136,7 @@ void config_save(bool deinit) {
     root["clockSpeed"] = config.clockSpeed;
     root["ignoreHotkeys"] = config.ignoreHotkeys;
     root["checkUpdates"] = config.checkUpdates;
+    root["rootReadOnly"] = config.rootReadOnly;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -183,6 +186,8 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, computer->config.isColor);
     else if (strcmp(name, "checkUpdates") == 0)
         lua_pushboolean(L, config.checkUpdates);
+    else if (strcmp(name, "rootReadOnly") == 0)
+        lua_pushboolean(L, config.rootReadOnly);
     else return 0;
     return 1;
 }
@@ -226,6 +231,8 @@ int config_set(lua_State *L) {
         setComputerConfig(computer->id, computer->config);
     } else if (strcmp(name, "checkUpdates") == 0)
         config.checkUpdates = lua_toboolean(L, 2);
+    else if (strcmp(name, "rootReadOnly") == 0)
+        config.rootReadOnly = lua_toboolean(L, 2);
     config_save(false);
     return 0;
 }
@@ -291,6 +298,10 @@ int config_list(lua_State *L) {
     lua_pushnumber(L, 15);
     lua_pushstring(L, "checkUpdates");
     lua_settable(L, -3);
+
+    lua_pushnumber(L, 16);
+    lua_pushstring(L, "rootReadOnly");
+    lua_settable(L, -3);
     return 1;
 }
 
@@ -329,6 +340,8 @@ int config_getType(lua_State *L) {
     else if (strcmp(name, "isColor") == 0)
         lua_pushinteger(L, 0);
     else if (strcmp(name, "checkUpdates") == 0)
+        lua_pushinteger(L, 0);
+    else if (strcmp(name, "rootReadOnly") == 0)
         lua_pushinteger(L, 0);
     else lua_pushinteger(L, -1);
     return 1;

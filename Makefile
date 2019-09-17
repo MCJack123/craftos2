@@ -1,7 +1,7 @@
 CC=gcc
 CXX=g++
 PRINT_TYPE?=pdf
-CFLAGS:=$(CFLAGS) -O2 -c -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include
+CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src

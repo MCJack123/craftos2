@@ -17,6 +17,8 @@
 #include "config.hpp"
 #include "gif.hpp"
 
+extern void* queueTask(void*(*)(void*), void*);
+
 extern "C" struct {
     unsigned int 	 width;
     unsigned int 	 height;
@@ -69,7 +71,7 @@ TerminalWindow::TerminalWindow(std::string title) {
 #endif
     if (ren == nullptr || ren == NULL || ren == (SDL_Renderer*)0) {
         SDL_DestroyWindow(win);
-        throw window_exception("Failed to create renderer");
+        throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
     }
     SDL_Surface* old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
@@ -93,6 +95,8 @@ TerminalWindow::TerminalWindow(std::string title) {
 }
 
 TerminalWindow::~TerminalWindow() {
+    while (locked);
+    locked = true;
     SDL_DestroyTexture(font);
     SDL_FreeSurface(bmp);
     SDL_DestroyRenderer(ren);
@@ -299,7 +303,8 @@ void TerminalWindow::render() {
     if (gotResizeEvent) {locked = false; return;}
     SDL_RenderPresent(ren);
 #ifndef HARDWARE_RENDERER
-    SDL_UpdateWindowSurface(win);
+    queueTask([ ](void* arg)->void*{SDL_UpdateWindowSurface((SDL_Window*)arg); return NULL;}, win);
+    //if (SDL_UpdateWindowSurface(win) != 0) printf("Error rendering: %s\n", SDL_GetError());
 #endif
     locked = false;
 }
