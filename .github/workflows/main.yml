@@ -9,9 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Run CraftOSTest
+    - name: Download ROM
+      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos
+    - name: Install dependencies
       run: |
-        sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos
         sudo apt update
         sudo apt install -y liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev
-        make test
+    - name: Build CraftOS-PC
+      run: make all
+    - name: Run CraftOSTest
+      run: make test
