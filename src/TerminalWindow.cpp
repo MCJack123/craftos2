@@ -303,8 +303,11 @@ void TerminalWindow::render() {
     if (gotResizeEvent) {locked = false; return;}
     SDL_RenderPresent(ren);
 #ifndef HARDWARE_RENDERER
+#ifdef __linux__
     queueTask([ ](void* arg)->void*{SDL_UpdateWindowSurface((SDL_Window*)arg); return NULL;}, win);
-    //if (SDL_UpdateWindowSurface(win) != 0) printf("Error rendering: %s\n", SDL_GetError());
+#else
+    if (SDL_UpdateWindowSurface(win) != 0) printf("Error rendering: %s\n", SDL_GetError());
+#endif
 #endif
     locked = false;
 }
