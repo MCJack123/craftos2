@@ -134,7 +134,6 @@ void downloadThread(void* arg) {
         session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
     }
     HTTPRequest request(param->method != "" ? param->method : (param->postData != NULL ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
-    printf("%s -> %s\n", param->method.c_str(), request.getMethod().c_str());
     HTTPResponse * response = new HTTPResponse();
     session->setTimeout(Poco::Timespan(15, 0));
     //if (param->postData != NULL) request.setMethod("POST");
