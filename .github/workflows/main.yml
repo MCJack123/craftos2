@@ -10,6 +10,7 @@ jobs:
     - name: Setup build environment
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos
+        sudo apt update
         sudo apt install -y liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev
 
   build:
