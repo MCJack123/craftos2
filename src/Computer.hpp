@@ -27,6 +27,10 @@ extern "C" {
 #else
 #include <SDL2/SDL.h>
 #endif
+#ifndef NO_CLI
+#include <ncurses.h>
+#include <panel.h>
+#endif
 #include "peripheral/peripheral.hpp"
 #include "TerminalWindow.hpp"
 #include "config.hpp"
@@ -49,6 +53,10 @@ public:
     std::queue<std::pair<event_provider, void*> > event_provider_queue;
     std::mutex event_provider_queue_mutex;
     TerminalWindow * term;
+#ifndef NO_CLI
+    PANEL * cli_panel;
+    WINDOW * cli_term;
+#endif
     bool canBlink = true;
     unsigned char colors = 0xF0;
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();

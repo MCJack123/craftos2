@@ -35,7 +35,7 @@ char * base_path_expanded = NULL;
 char * rom_path_expanded = NULL;
 
 void platformInit(Computer *comp) {
-    addMount(comp, (std::string(getROMPath()) + "/rom").c_str(), "rom", config.rootReadOnly);
+    addMount(comp, (std::string(getROMPath()) + "/rom").c_str(), "rom", config.romReadOnly);
 }
 
 void platformFree() {

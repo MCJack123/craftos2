@@ -64,11 +64,11 @@ public:
 class TerminalWindow {
 public:
     int id;
-    int width = 51;
-    int height = 19;
+    int width;
+    int height;
     static const int fontWidth = 6;
     static const int fontHeight = 9;
-private:
+protected:
     static const int fontScale = 1;
     bool shouldScreenshot = false;
     bool shouldRecord = false;
@@ -80,6 +80,7 @@ private:
     int frameWait = 0;
     std::vector<std::string> recording;
     std::mutex recorderMutex;
+    TerminalWindow(int w, int h);
 public:
     std::atomic_bool locked;
     int charScale = 2;
@@ -104,8 +105,7 @@ public:
     void setPalette(Color * p);
     void setCharScale(int scale);
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
-    bool drawCharSurface(SDL_Surface* surf, char c, int x, int y, Color fg, Color bg, bool transparent = false);
-    void render();
+    virtual void render();
     bool resize(int w, int h);
     void getMouse(int *x, int *y);
     void screenshot(std::string path = ""); // asynchronous; captures on next render

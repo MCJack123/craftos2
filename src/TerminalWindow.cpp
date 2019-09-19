@@ -46,7 +46,14 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
     if (defaultDpi) *defaultDpi = kSysDefaultDpi;
 }
 
-TerminalWindow::TerminalWindow(std::string title) {
+TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
+    memcpy(palette, defaultPalette, sizeof(defaultPalette));
+    screen = std::vector<std::vector<char> >(h, std::vector<char>(w, ' '));
+    colors = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, 0xF0));
+    pixels = std::vector<std::vector<char> >(h*fontHeight, std::vector<char>(w*fontWidth, 0x0F));
+}
+
+TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     locked.store(false);
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
@@ -88,10 +95,6 @@ TerminalWindow::TerminalWindow(std::string title) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font");
     }
-    memcpy(palette, defaultPalette, sizeof(defaultPalette));
-    screen = std::vector<std::vector<char> >(height, std::vector<char>(width, ' '));
-    colors = std::vector<std::vector<unsigned char> >(height, std::vector<unsigned char>(width, 0xF0));
-    pixels = std::vector<std::vector<char> >(height*fontHeight, std::vector<char>(width*fontWidth, 0x0F));
 }
 
 TerminalWindow::~TerminalWindow() {

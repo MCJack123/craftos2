@@ -61,7 +61,7 @@ const char * getBasePath() {
 
 #ifdef CUSTOM_ROM_DIR
 void platformInit(Computer *comp) {
-    addMount(comp, (std::string(getROMPath()) + "/rom").c_str(), "rom", config.rootReadOnly);
+    addMount(comp, (std::string(getROMPath()) + "/rom").c_str(), "rom", config.romReadOnly);
 }
 
 const char * getROMPath() {
@@ -89,7 +89,7 @@ char * getBIOSPath() {
 std::string getPlugInPath() { return std::string(getROMPath()) + "/plugins/"; }
 #else
 void platformInit(Computer *comp) {
-    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", config.rootReadOnly);
+    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", config.romReadOnly);
 }
 
 const char * getROMPath() { return rom_path; }

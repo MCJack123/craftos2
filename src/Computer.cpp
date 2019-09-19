@@ -12,6 +12,7 @@
 #include "platform.hpp"
 #include "term.hpp"
 #include "bit.hpp"
+#include "cli.hpp"
 #include "config.hpp"
 #include "fs.hpp"
 #include "http.hpp"
@@ -30,6 +31,7 @@ extern "C" {
 }
 
 extern bool headless;
+extern bool cli;
 std::vector<Computer*> computers;
 std::unordered_set<Computer*> freedComputers; 
 
@@ -56,6 +58,9 @@ Computer::Computer(int i) {
     createDirectory((std::string(getBasePath()) + "/computer/" + std::to_string(id)).c_str());
 #endif
     if (headless) term = NULL;
+#ifndef NO_CLI
+    else if (cli) term = new CLITerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
+#endif
     else term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
     config = getComputerConfig(id);
 }

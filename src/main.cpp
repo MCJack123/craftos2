@@ -19,6 +19,10 @@
 
 extern void termInit();
 extern void termClose();
+#ifndef NO_CLI
+extern void cliInit();
+extern void cliClose();
+#endif
 extern void config_init();
 extern void config_save(bool deinit);
 extern void mainLoop();
@@ -27,6 +31,7 @@ extern void* queueTask(void*(*func)(void*), void* arg);
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 bool headless = false;
+bool cli = false;
 std::string script_file = "";
 
 void update_thread() {
@@ -52,9 +57,24 @@ void update_thread() {
 int main(int argc, char*argv[]) {
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "--headless") headless = true;
+#ifndef NO_CLI
+        else if (std::string(argv[i]) == "--cli") cli = true;
+#endif
         else if (std::string(argv[i]) == "--script") script_file = argv[++i];
+        else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
+            std::cerr << "Usage: " << argv[0] << " [--cli] [--headless] [--script <file>]\n";
+            return 0;
+        }
     }
-    termInit();
+    if (headless && cli) {
+        std::cerr << "Error: Cannot combine headless & CLI options\n";
+        return 1;
+    }
+#ifndef NO_CLI
+    if (cli) cliInit();
+    else 
+#endif
+        termInit();
     config_init();
     driveInit();
     if (!headless && config.checkUpdates) {
@@ -65,7 +85,11 @@ int main(int argc, char*argv[]) {
     mainLoop();
     for (std::thread *t : computerThreads) { t->join(); delete t; }
     driveQuit();
-    termClose();
+#ifndef NO_CLI
+    if (cli) cliClose();
+    else 
+#endif
+        termClose();
     http_server_stop();
     platformFree();
     config_save(true);

@@ -12,6 +12,7 @@
 #include "peripheral.hpp"
 #include "../TerminalWindow.hpp"
 #include <chrono>
+#undef scroll
 
 class monitor : public peripheral {
 private:

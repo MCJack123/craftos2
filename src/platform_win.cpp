@@ -40,7 +40,7 @@ void platformInit(Computer *comp) {
         memcpy(rom_path_expanded, expand_tmp, size);
         rom_path_expanded[size] = 0;
     }
-    addMount(comp, (std::string(rom_path_expanded) + "\\rom").c_str(), "rom", config.rootReadOnly);
+    addMount(comp, (std::string(rom_path_expanded) + "\\rom").c_str(), "rom", config.romReadOnly);
 }
 
 void platformFree() {

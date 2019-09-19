@@ -13,6 +13,9 @@
 #include "config.hpp"
 #include "platform.hpp"
 #include "TerminalWindow.hpp"
+#ifndef NO_CLI
+#include "cli.hpp"
+#endif
 #include "periphemu.hpp"
 #include "peripheral/monitor.hpp"
 #include <unordered_map>
@@ -28,6 +31,7 @@
 extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
 extern void peripheral_update();
 extern bool headless;
+extern bool cli;
 std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
     {SDL_SCANCODE_1, 2},
@@ -138,6 +142,83 @@ std::unordered_map<int, unsigned char> keymap = {
     {SDL_SCANCODE_INSERT, 210},
     {SDL_SCANCODE_DELETE, 211}
 };
+#ifndef NO_CLI
+std::unordered_map<int, unsigned char> keymap_cli = {
+    {'1', 2},
+    {'2', 3},
+    {'3', 4},
+    {'4', 5},
+    {'5', 6},
+    {'6', 7},
+    {'7', 8},
+    {'8', 9},
+    {'9', 1},
+    {'0', 11},
+    {'-', 12},
+    {'=', 13},
+    {KEY_BACKSPACE, 14},
+    {8, 14},
+    {0x7F, 14},
+    {'\t', 15},
+    {'q', 16},
+    {'w', 17},
+    {'e', 18},
+    {'r', 19},
+    {'t', 20},
+    {'y', 21},
+    {'u', 22},
+    {'i', 23},
+    {'o', 24},
+    {'p', 25},
+    {'[', 26},
+    {']', 27},
+    {'\n', 28},
+    {'a', 30},
+    {'s', 31},
+    {'d', 32},
+    {'f', 33},
+    {'g', 34},
+    {'h', 35},
+    {'j', 36},
+    {'k', 37},
+    {'l', 38},
+    {';', 39},
+    {'\'', 40},
+    {'\\', 43},
+    {'z', 44},
+    {'x', 45},
+    {'c', 46},
+    {'v', 47},
+    {'b', 48},
+    {'n', 49},
+    {'m', 50},
+    {',', 51},
+    {'.', 52},
+    {'/', 53},
+    {' ', 57},
+    {KEY_F(1), 59},
+    {KEY_F(2), 60},
+    {KEY_F(3), 61},
+    {KEY_F(4), 62},
+    {KEY_F(5), 63},
+    {KEY_F(6), 64},
+    {KEY_F(7), 65},
+    {KEY_F(8), 66},
+    {KEY_F(9), 67},
+    {KEY_F(10), 68},
+    {KEY_F(11), 87},
+    {KEY_F(12), 88},
+    {KEY_F(13), 100},
+    {KEY_F(14), 101},
+    {KEY_F(15), 102},
+    {KEY_UP, 200},
+    {KEY_LEFT, 203},
+    {KEY_RIGHT, 205},
+    {KEY_DOWN, 208},
+    {KEY_HOME, 199},
+    {KEY_END, 207}
+};
+#endif
 
 Uint32 task_event_type;
 
@@ -223,7 +304,7 @@ void* termRenderLoop(void* arg) {
         comp->term->render();
         long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
         //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
-        peripheral_update(comp);
+        //peripheral_update(comp);
         long t = (1000/config.clockSpeed) - count;
         if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
     }
@@ -248,9 +329,11 @@ bool exiting = false;
 void* queueTask(void*(*func)(void*), void* arg) {
     int myID = nextTaskID++;
     taskQueue.push(std::make_tuple(myID, func, arg));
-    SDL_Event ev;
-    ev.type = task_event_type;
-    SDL_PushEvent(&ev);
+    if (!headless && !cli) {
+        SDL_Event ev;
+        ev.type = task_event_type;
+        SDL_PushEvent(&ev);
+    }
     while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
@@ -260,8 +343,17 @@ void* queueTask(void*(*func)(void*), void* arg) {
 void mainLoop() {
     SDL_Event e;
     std::string tmps;
+#ifndef NO_CLI
+    WINDOW * tmpwin;
+    std::list<int> lastch;
+    if (cli) { 
+        tmpwin = newwin(0, 0, 1, 1);
+        nodelay(tmpwin, TRUE);
+        keypad(tmpwin, TRUE);
+    }
+#endif
     while (computers.size() > 0) {
-        if (!headless && SDL_WaitEvent(&e)) { 
+        if (!headless && !cli && SDL_WaitEvent(&e)) { 
             if (e.type == task_event_type) {
                 while (taskQueue.size() > 0) {
                     auto v = taskQueue.front();
@@ -284,6 +376,60 @@ void mainLoop() {
                     }
                 }
             }
+#ifndef NO_CLI
+        } else if (cli) {
+            int ch = wgetch(tmpwin);
+            if (ch == ERR) {
+                for (int cc : lastch) {
+                    e.type = SDL_KEYUP;
+                    e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
+                    for (Computer * c : computers) {
+                        if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                            e.key.windowID = c->term->id;
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                        }
+                    }
+                }
+                lastch.clear();
+                nodelay(tmpwin, TRUE);
+                keypad(tmpwin, TRUE);
+                while (ch == ERR && taskQueue.size() == 0) ch = wgetch(tmpwin);
+            }
+            while (taskQueue.size() > 0) {
+                auto v = taskQueue.front();
+                void* retval = std::get<1>(v)(std::get<2>(v));
+                taskQueueReturns[std::get<0>(v)] = retval;
+                taskQueue.pop();
+            }
+            if (ch == KEY_SLEFT && CLITerminalWindow::selectedWindow > 0) {CLITerminalWindow::selectedWindow--; CLITerminalWindow::renderNavbar("");}
+            else if (ch == KEY_SRIGHT && CLITerminalWindow::selectedWindow < CLITerminalWindow::nextID - 1) {CLITerminalWindow::selectedWindow++; CLITerminalWindow::renderNavbar("");}
+            else if (ch != ERR) {
+                if ((ch >= 32 && ch < 127)) {
+                    e.type = SDL_TEXTINPUT;
+                    e.text.text[0] = ch;
+                    e.text.text[1] = '\0';
+                    for (Computer * c : computers) {
+                        if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                            e.text.windowID = c->term->id;
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                        }
+                    }
+                }
+                e.type = SDL_KEYDOWN;
+                e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
+                if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
+                for (Computer * c : computers) {
+                    if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                        e.key.windowID = c->term->id;
+                        c->termEventQueue.push(e);
+                        c->event_lock.notify_all();
+                    }
+                }
+                lastch.push_back(ch);
+            }
+#endif
         } else {
             while (taskQueue.size() == 0) std::this_thread::yield();
             while (taskQueue.size() > 0) {
@@ -295,6 +441,7 @@ void mainLoop() {
         }
         std::this_thread::yield();
     }
+    if (cli) delwin(tmpwin);
     exiting = true;
 }
 
@@ -324,7 +471,7 @@ const char * termGetEvent(lua_State *L) {
     if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) 
             return "die";
-        else if (e.type == SDL_KEYDOWN && keymap.find(e.key.keysym.scancode) != keymap.end()) {
+        else if (e.type == SDL_KEYDOWN && (cli || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             TerminalWindow * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->screenshot();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->toggleRecording();
@@ -346,13 +493,21 @@ const char * termGetEvent(lua_State *L) {
                 return "paste";
             } else {
                 computer->waitingForTerminate = 0;
+#ifndef NO_CLI
+                if (cli) lua_pushinteger(L, e.key.keysym.scancode); 
+                else 
+#endif
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 lua_pushboolean(L, false);
                 return "key";
             }
-        } else if (e.type == SDL_KEYUP && keymap.find(e.key.keysym.scancode) != keymap.end()) {
+        } else if (e.type == SDL_KEYUP && (cli || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
+#ifndef NO_CLI
+                if (cli) lua_pushinteger(L, e.key.keysym.scancode); 
+                else 
+#endif
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 return "key_up";
             }

@@ -10,14 +10,20 @@
 
 #include "monitor.hpp"
 #include "../term.hpp"
+#include "../cli.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
+extern bool cli;
 
 monitor::monitor(lua_State *L, const char * side) {
-    term = (TerminalWindow*)queueTask([ ](void* side)->void* {
-        return new TerminalWindow("CraftOS Terminal: Monitor " + std::string((const char*)side));
-    }, (void*)side);
+    if (cli) {
+        term = new CLITerminalWindow("CraftOS Terminal: Monitor " + std::string(side));
+    } else {
+        term = (TerminalWindow*)queueTask([ ](void* side)->void* {
+            return new TerminalWindow("CraftOS Terminal: Monitor " + std::string((const char*)side));
+        }, (void*)side);
+    }
     canBlink = false;
 }
 
