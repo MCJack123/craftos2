@@ -8,7 +8,12 @@ if os.version() ~= "CraftOS 1.8" then error("This test is for CraftOS 1.8.") end
 
 local api_tests = {}
 local api = nil
-local logfile = fs.open("CraftOSTest.log", "w")
+local logfile, err = fs.open("CraftOSTest.log", "w")
+if logfile == nil then
+	term.setTextColor(colors.red)
+	print("!!! Could not open log file: " .. err)
+	if _HEADLESS then os.exit(1) end
+end
 local main_thread = coroutine.running()
 
 local function compare(a, b)
