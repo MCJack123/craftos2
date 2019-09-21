@@ -73,11 +73,16 @@ int main(int argc, char*argv[]) {
 #ifndef NO_CLI
     if (cli) cliInit();
     else 
+#else
+    if (cli) {
+        std::cerr << "Error: CLI mode is not enabled for this build.\n";
+        return 1;
+    }
 #endif
         termInit();
     config_init();
     driveInit();
-    if (!headless && config.checkUpdates) {
+    if (!headless && !cli && config.checkUpdates) {
         std::thread update_bg(update_thread);
         update_bg.detach();
     }

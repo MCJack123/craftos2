@@ -52,7 +52,8 @@ int drive::playAudio(lua_State *L) {
     if (diskType != DISK_TYPE_AUDIO) return 0;
     if (music != NULL) stopAudio(L);
     music = Mix_LoadMUS(path.c_str());
-    Mix_PlayMusic(music, 1);
+    if (music == NULL) printf("Could not load audio: %s\n", Mix_GetError());
+    if (Mix_PlayMusic(music, 1) == -1) printf("Could not play audio: %s\n", Mix_GetError());
     return 0;
 }
 
@@ -141,7 +142,7 @@ int drive::insertDisk(lua_State *L, bool init) {
 }
 
 void driveInit() {
-    Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
+    int code = Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
     Mix_OpenAudio(44100, AUDIO_S16, 2, 2048);
 }
 

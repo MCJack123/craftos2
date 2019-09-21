@@ -344,6 +344,7 @@ void mainLoop() {
     SDL_Event e;
     std::string tmps;
 #ifndef NO_CLI
+    MEVENT me;
     WINDOW * tmpwin;
     std::list<int> lastch;
     if (cli) { 
@@ -404,7 +405,25 @@ void mainLoop() {
             }
             if (ch == KEY_SLEFT && CLITerminalWindow::selectedWindow > 0) {CLITerminalWindow::selectedWindow--; CLITerminalWindow::renderNavbar("");}
             else if (ch == KEY_SRIGHT && CLITerminalWindow::selectedWindow < CLITerminalWindow::nextID - 1) {CLITerminalWindow::selectedWindow++; CLITerminalWindow::renderNavbar("");}
-            else if (ch != ERR) {
+            else if (ch == KEY_MOUSE) {
+                getmouse(&me);
+                if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
+                else if (me.bstate & NCURSES_BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
+                else continue;
+                if ((me.bstate & BUTTON1_PRESSED) || (me.bstate & BUTTON1_RELEASED)) e.button.button = SDL_BUTTON_LEFT;
+                else if ((me.bstate & BUTTON2_PRESSED) || (me.bstate & BUTTON2_RELEASED)) e.button.button = SDL_BUTTON_RIGHT;
+                else if ((me.bstate & BUTTON3_PRESSED) || (me.bstate & BUTTON3_RELEASED)) e.button.button = SDL_BUTTON_MIDDLE;
+                else continue;
+                e.button.x = me.x + 1;
+                e.button.y = me.y + 1;
+                for (Computer * c : computers) {
+                    if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                        e.button.windowID = c->term->id;
+                        c->termEventQueue.push(e);
+                        c->event_lock.notify_all();
+                    }
+                }
+            } else if (ch != ERR) {
                 if ((ch >= 32 && ch < 127)) {
                     e.type = SDL_TEXTINPUT;
                     e.text.text[0] = ch;
@@ -475,6 +494,7 @@ const char * termGetEvent(lua_State *L) {
             TerminalWindow * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->screenshot();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->toggleRecording();
+            else if (e.key.keysym.scancode == SDL_SCANCODE_F11 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->toggleFullscreen();
             else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate == 1) {
                     computer->waitingForTerminate = 2;
@@ -520,14 +540,24 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONDOWN && computer->config.isColor) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
-            lua_pushinteger(L, convertX(term, e.button.x));
-            lua_pushinteger(L, convertY(term, e.button.y));
+            if (cli) {
+                lua_pushinteger(L, e.button.x);
+                lua_pushinteger(L, e.button.y);
+            } else {
+                lua_pushinteger(L, convertX(term, e.button.x));
+                lua_pushinteger(L, convertY(term, e.button.y));
+            }
             return "mouse_click";
         } else if (e.type == SDL_MOUSEBUTTONUP && computer->config.isColor) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
-            lua_pushinteger(L, convertX(term, e.button.x));
-            lua_pushinteger(L, convertY(term, e.button.y));
+            if (cli) {
+                lua_pushinteger(L, e.button.x);
+                lua_pushinteger(L, e.button.y);
+            } else {
+                lua_pushinteger(L, convertX(term, e.button.x));
+                lua_pushinteger(L, convertY(term, e.button.y));
+            }
             return "mouse_up";
         } else if (e.type == SDL_MOUSEWHEEL && computer->config.isColor) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
@@ -837,13 +867,13 @@ int term_setPaletteColor(lua_State *L) {
 
 int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    if (headless) return 0;
+    if (headless || cli) return 0;
     get_comp(L)->term->isPixel = lua_toboolean(L, 1);
     return 0;
 }
 
 int term_getGraphicsMode(lua_State *L) {
-    if (headless) {
+    if (headless || cli) {
         lua_pushboolean(L, false);
         return 1;
     }
@@ -855,7 +885,7 @@ int term_setPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
-    if (headless) return 0;
+    if (headless || cli) return 0;
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     int x = lua_tointeger(L, 1);
@@ -869,7 +899,7 @@ int term_setPixel(lua_State *L) {
 int term_getPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (headless) {
+    if (headless || cli) {
         lua_pushinteger(L, 0x8000);
         return 1;
     }
@@ -883,7 +913,7 @@ int term_getPixel(lua_State *L) {
 }
 
 int term_screenshot(lua_State *L) {
-    if (headless) return 0;
+    if (headless || cli) return 0;
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     if (lua_isstring(L, 1)) term->screenshot(lua_tostring(L, 1));

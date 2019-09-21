@@ -58,11 +58,13 @@ void CLITerminalWindow::showMessage(Uint32 flags, const char * title, const char
 }
 
 void cliInit() {
+    SDL_Init(SDL_INIT_AUDIO);
     initscr();
     keypad(stdscr, TRUE);
     noecho();
     cbreak();
     nodelay(stdscr, TRUE);
+    mousemask(BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_RELEASED | BUTTON2_PRESSED | BUTTON2_CLICKED | BUTTON2_RELEASED | BUTTON3_PRESSED | BUTTON3_CLICKED | BUTTON3_RELEASED | REPORT_MOUSE_POSITION, NULL);
     start_color();
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
 }
@@ -73,6 +75,7 @@ void cliClose() {
     nodelay(stdscr, FALSE);
     keypad(stdscr, FALSE);
     endwin();
+    SDL_Quit();
 } /*
 
 #define setchar(x, y, c) mvaddch(y, x, c);

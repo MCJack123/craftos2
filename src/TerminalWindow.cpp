@@ -430,3 +430,9 @@ void TerminalWindow::stopRecording() {
 }
 
 void TerminalWindow::showMessage(Uint32 flags, const char * title, const char * message) {SDL_ShowSimpleMessageBox(flags, title, message, win);}
+
+void TerminalWindow::toggleFullscreen() {
+    fullscreen = !fullscreen;
+    if (fullscreen) queueTask([ ](void* param)->void*{SDL_SetWindowFullscreen((SDL_Window*)param, SDL_WINDOW_FULLSCREEN_DESKTOP); return NULL;}, win);
+    else queueTask([ ](void* param)->void*{SDL_SetWindowFullscreen((SDL_Window*)param, 0); return NULL;}, win);
+}

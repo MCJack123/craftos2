@@ -73,6 +73,7 @@ protected:
     bool shouldScreenshot = false;
     bool shouldRecord = false;
     bool gotResizeEvent = false;
+    bool fullscreen = false;
     int newWidth, newHeight;
     std::string screenshotPath;
     std::string recordingPath;
@@ -113,6 +114,7 @@ public:
     void stopRecording();
     void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
     void showMessage(Uint32 flags, const char * title, const char * message);
+    void toggleFullscreen();
 
 private:
     SDL_Window *win;

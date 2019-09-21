@@ -15,17 +15,18 @@ public:
 
     CLITerminalWindow(std::string title);
     ~CLITerminalWindow();
-    void setPalette(Color * p) {return;}
-    void setCharScale(int scale) {return;}
+    void setPalette(Color * p) {}
+    void setCharScale(int scale) {}
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
     virtual void render();
     bool resize(int w, int h) {return false;}
     void getMouse(int *x, int *y);
-    void screenshot(std::string path = "") {return;}
-    void record(std::string path = "") {return;}
-    void stopRecording() {return;}
-    void toggleRecording() {return;}
+    void screenshot(std::string path = "") {}
+    void record(std::string path = "") {}
+    void stopRecording() {}
+    void toggleRecording() {}
     void showMessage(Uint32 flags, const char * title, const char * message);
+    void toggleFullscreen() {}
 };
 
 extern void cliInit();

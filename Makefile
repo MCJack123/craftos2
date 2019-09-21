@@ -5,7 +5,7 @@ CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -L/usr/local/opt/openssl/lib -llua5.1 -lm -ldl -lpthread -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet -lSDL2 -lSDL2main -lncurses
+LIBS=-L/usr/local/include -L/usr/local/opt/openssl/lib -llua5.1 -lm -ldl -lpthread -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet -lSDL2 -lSDL2main -lncurses -lflac -lmpg123
 
 ifeq ($(PRINT_TYPE), pdf)
 LIBS:=$(LIBS) -lhpdf
