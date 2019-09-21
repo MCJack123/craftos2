@@ -5,7 +5,7 @@ CFLAGS:=$(CFLAGS) -g -c -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include
 CXXFLAGS:= $(CXXFLAGS) -std=c++11 -DPRINT_TYPE=$(PRINT_TYPE)
 ODIR=obj
 SDIR=src
-LIBS=-L/usr/local/include -L/usr/local/opt/openssl/lib -llua5.1 -lm -ldl -lpthread -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet -lSDL2 -lSDL2main -lncurses -lflac -lmpg123
+LIBS=-L/usr/local/include -L/usr/local/opt/openssl/lib -llua5.1 -lm -ldl -lpthread -lSDL2_mixer -lPocoNetSSL -lPocoFoundation -lPocoCrypto -lPocoUtil -lPocoXML -lPocoJSON -lPocoNet -lSDL2 -lSDL2main -lncurses
 
 ifeq ($(PRINT_TYPE), pdf)
 LIBS:=$(LIBS) -lhpdf
@@ -18,6 +18,9 @@ CXXFLAGS:=$(CXXFLAGS) -DNO_PNG
 endif
 ifdef CUSTOM_ROM_DIR
 CFLAGS:=$(CFLAGS) '-DCUSTOM_ROM_DIR="$(CUSTOM_ROM_DIR)"'
+endif
+ifndef SIMPLE_MIXER
+LIBS:=$(LIBS) -lflac -lmpg123
 endif
 
 _OBJ=Computer.o cli.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o

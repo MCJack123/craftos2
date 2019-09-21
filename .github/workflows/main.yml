@@ -16,6 +16,6 @@ jobs:
         sudo apt update
         sudo apt install -y liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
     - name: Build CraftOS-PC
-      run: make all
+      run: SIMPLE_MIXER=1 make all
     - name: Run CraftOSTest
       run: make test

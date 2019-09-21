@@ -1,5 +1,5 @@
 language: c++
-script: make && make test
+script: SIMPLE_MIXER=1 make && make test
 dist: bionic
 before_install:
   - sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos
