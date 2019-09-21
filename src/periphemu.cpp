@@ -17,6 +17,7 @@
 #include "peripheral/printer.hpp"
 #include "TerminalWindow.hpp"
 #include "term.hpp"
+#include "os.hpp"
 #include <unordered_map>
 #include <string>
 #include <algorithm>

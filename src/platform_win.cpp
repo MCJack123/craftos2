@@ -22,8 +22,8 @@
 
 const char * base_path = "%USERPROFILE%\\.craftos";
 const char * rom_path = "%ProgramFiles%\\CraftOS-PC";
-char * base_path_expanded;
-char * rom_path_expanded;
+std::string base_path_expanded;
+std::string rom_path_expanded;
 char expand_tmp[32767];
 
 std::wstring s2ws(const std::string& str) {
@@ -33,73 +33,35 @@ std::wstring s2ws(const std::string& str) {
 	return wstrTo;
 }
 
-void platformInit(Computer *comp) {
-    if (rom_path_expanded == NULL) {
-        DWORD size = ExpandEnvironmentStringsA(rom_path, expand_tmp, 32767);
-        rom_path_expanded = (char*)malloc(size + 1);
-        memcpy(rom_path_expanded, expand_tmp, size);
-        rom_path_expanded[size] = 0;
-    }
-    addMount(comp, (std::string(rom_path_expanded) + "\\rom").c_str(), "rom", config.romReadOnly);
-}
-
-void platformFree() {
-    if (base_path_expanded != NULL) {
-        free(base_path_expanded);
-        base_path_expanded = NULL;
-    }
-    if (rom_path_expanded != NULL) {
-        free(rom_path_expanded);
-        rom_path_expanded = NULL;
-    }
-}
-
-const char * getBasePath() {
-    if (base_path_expanded != NULL) return base_path_expanded;
+std::string getBasePath() {
+    if (!base_path_expanded.empty()) return base_path_expanded;
     DWORD size = ExpandEnvironmentStringsA(base_path, expand_tmp, 32767);
-    char* dest = (char*)malloc(size + 1);
-    memcpy(dest, expand_tmp, size);
-    dest[size] = 0;
-    base_path_expanded = dest;
-    return dest;
+    base_path_expanded = expand_tmp;
+    return base_path_expanded;
 }
 
-const char * getROMPath() {
-    if (rom_path_expanded != NULL) return rom_path_expanded;
+std::string getROMPath() {
+    if (!rom_path_expanded.empty()) return rom_path_expanded;
     DWORD size = ExpandEnvironmentStringsA(rom_path, expand_tmp, 32767);
-    char* dest = (char*)malloc(size + 1);
-    memcpy(dest, expand_tmp, size);
-    dest[size] = 0;
-    rom_path_expanded = dest;
-    return dest;
+    rom_path_expanded = expand_tmp;
+    return rom_path_expanded;
 }
 
-char * getBIOSPath() {
-    const char * rp = getROMPath();
-    char * retval = (char*)malloc(strlen(rp) + 10);
-    strcpy(retval, rp);
-    strcat(retval, "\\bios.lua");
-    return retval;
-}
+std::string getPlugInPath() { getROMPath() + "/plugins/"; }
 
-std::string getPlugInPath() { return std::string(getROMPath()) + "/plugins/"; }
-
-void setThreadName(std::thread &t, const char * name) {
+void setThreadName(std::thread &t, std::string name) {
 #ifdef DEBUG
-    SetThreadDescription((HANDLE)t.native_handle(), s2ws(std::string(name)).c_str());
+    SetThreadDescription((HANDLE)t.native_handle(), s2ws(name).c_str());
 #endif
 }
 
-int createDirectory(const char* path) {
-    char* dir = (char*)malloc(strlen(path) + 1);
-    strcpy(dir, path);
-    dirname(dir);
-	if (CreateDirectoryExA(dir, path, NULL) == 0) {
-		if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && strcmp(path, "\\") != 0) {
-            if (createDirectory(dir)) { free(dir); return 1; }
-			CreateDirectoryExA(dir, path, NULL);
+int createDirectory(std::string path) {
+	if (CreateDirectoryExA(path.substr(0, path.find_last_of('\\')-1).c_str(), path.c_str(), NULL) == 0) {
+		if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && path != "\\") {
+            if (createDirectory(path.substr(0, path.find_last_of('\\')-1))) return 1;
+			CreateDirectoryExA(path.substr(0, path.find_last_of('\\')-1).c_str(), path, NULL);
 		}
-        else if (GetLastError() != ERROR_ALREADY_EXISTS) { free(dir); return 1; }
+        else if (GetLastError() != ERROR_ALREADY_EXISTS) return 1;
 	}
     free(dir);
 	return 0;
@@ -125,44 +87,39 @@ char* dirname(char* path) {
 	return path;
 }
 
-unsigned long long getFreeSpace(char* path) {
-	PathRemoveFileSpecA(path);
+unsigned long long getFreeSpace(std::string path) {
+	PathRemoveFileSpecA(path.c_str());
 	ULARGE_INTEGER retval;
-	GetDiskFreeSpaceExA(path, &retval, NULL, NULL);
+	GetDiskFreeSpaceExA(path.c_str(), &retval, NULL, NULL);
 	return retval.QuadPart;
 }
 
-int removeDirectory(char* path) {
-	DWORD attr = GetFileAttributesA(path);
+int removeDirectory(std::string path) {
+	DWORD attr = GetFileAttributesA(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
 	if (attr & FILE_ATTRIBUTE_DIRECTORY) {
         WIN32_FIND_DATA find;
-        char * s = (char*)malloc(strlen(path) + (path[strlen(path) - 1] != '\\') + 2);
-        strcpy(s, path);
-        if (path[strlen(path) - 1] != '\\') strcat(s, "\\");
-        strcat(s, "*");
-        HANDLE h = FindFirstFileA(s, &find);
-        free(s);
+        std::string s = path;
+        if (path[path.size() - 1] != '\\') s += "\\";
+        s += "*";
+        HANDLE h = FindFirstFileA(s.c_str(), &find);
         if (h != INVALID_HANDLE_VALUE) {
             do {
                 if (!(find.cFileName[0] == '.' && (strlen(find.cFileName) == 1 || (find.cFileName[1] == '.' && strlen(find.cFileName) == 2)))) {
-                    char * newpath = (char*)malloc(strlen(path) + strlen(find.cFileName) + (path[strlen(path) - 1] != '\\') + 1);
-                    strcpy(newpath, path);
-                    if (path[strlen(path) - 1] != '\\') strcat(newpath, "\\");
-                    strcat(newpath, find.cFileName);
+                    std::string newpath = path;
+                    if (path[strlen(path) - 1] != '\\') newpath += "\\";
+                    newpath += find.cFileName;
                     int res = removeDirectory(newpath);
                     if (res) {
-                        free(newpath);
                         FindClose(h);
                         return res;
                     }
-                    free(newpath);
                 }
             } while (FindNextFileA(h, &find));
             FindClose(h);
         }
-        return RemoveDirectoryA(path) ? 0 : GetLastError();
-	} else return DeleteFileA(path) ? 0 : GetLastError();
+        return RemoveDirectoryA(path.c_str()) ? 0 : GetLastError();
+	} else return DeleteFileA(path.c_str()) ? 0 : GetLastError();
 }
 
 std::unordered_map<double, const char *> windows_version_map = {

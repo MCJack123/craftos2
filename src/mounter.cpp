@@ -39,11 +39,11 @@ std::vector<std::string> split(std::string strToSplit, char delimeter) {
     return splittedStrings;
 }
 
-char * fixpath(Computer *comp, const char * path, bool addExt) {
+std::string fixpath(Computer *comp, const char * path, bool addExt) {
     std::vector<std::string> elems = split(path, '/');
     std::list<std::string> pathc;
     for (std::string s : elems) {
-        if (s == "..") { if (pathc.size() < 1) return NULL; else pathc.pop_back(); } 
+        if (s == "..") { if (pathc.size() < 1) return std::string(); else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
     if (script_file != "" && addExt && pathc.size() == 1 && pathc.front() == "startup.lua") {
@@ -61,11 +61,7 @@ char * fixpath(Computer *comp, const char * path, bool addExt) {
         ss << max_path.second;
         for (std::string s : pathc) ss << PATH_SEP << s;
     } else for (std::string s : pathc) ss << (ss.tellp() == 0 ? "" : "/") << s;
-    std::string retstr = ss.str();
-    char * retval = (char*)malloc(retstr.size() + 1);
-    strcpy(retval, retstr.c_str());
-    //if (addExt) printf("%s\n", retval);
-    return retval;
+    return ss.str();
 }
 
 bool fixpath_ro(Computer *comp, const char * path) {
@@ -195,16 +191,9 @@ int mounter_isReadOnly(lua_State *L) {
 
 extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
     if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
-    char * newpath = fixpath(get_comp(L), filename);
-    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) {
-        char * dname = new char[strlen(newpath) + 1];
-        strcpy(dname, newpath);
-        const char * ddname = dirname(dname);
-        createDirectory(ddname);
-        delete[] dname;
-    }
-    FILE* retval = fopen(newpath, mode);
-    free(newpath);
+    std::string newpath = fixpath(get_comp(L), filename);
+    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) createDirectory(newpath.substr(0, newpath.find_last_of('/')));
+    FILE* retval = fopen(newpath.c_str(), mode);
     if (retval != NULL) get_comp(L)->files_open++;
     return retval;
 }

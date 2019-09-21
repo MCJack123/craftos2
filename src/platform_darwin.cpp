@@ -32,130 +32,78 @@ extern "C" {
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
-char * rom_path_expanded = NULL;
+std::string rom_path_expanded;
 #else
 const char * rom_path = "/usr/local/share/craftos";
 #endif
 const char * base_path = "$HOME/.craftos";
-char * base_path_expanded = NULL;
+std::string base_path_expanded;
 
-void platformFree() {
-    if (base_path_expanded != NULL) free(base_path_expanded);
-    #ifdef CUSTOM_ROM_DIR
-    if (rom_path_expanded != NULL) free(rom_path_expanded);
-    #endif
-}
-
-const char * getBasePath() {
-    if (base_path_expanded != NULL) return base_path_expanded;
+std::string getBasePath() {
+    if (!base_path_expanded.empty()) return base_path_expanded;
     wordexp_t p;
     wordexp(base_path, &p, 0);
-    int size = 0;
-    for (int i = 0; i < p.we_wordc; i++) size += strlen(p.we_wordv[i]);
-    base_path_expanded = (char*)malloc(size + 1);
-    strcpy(base_path_expanded, p.we_wordv[0]);
-    for (int i = 1; i < p.we_wordc; i++) strcat(base_path_expanded, p.we_wordv[i]);
+    base_path_expanded = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
     wordfree(&p);
     return base_path_expanded;
 }
 
 #ifdef CUSTOM_ROM_DIR
-void platformInit(Computer *comp) {
-    addMount(comp, (std::string(getROMPath()) + "/rom").c_str(), "rom", config.romReadOnly);
-}
-
-const char * getROMPath() {
-    if (rom_path_expanded != NULL) return rom_path_expanded;
+std::string getROMPath() {
+    if (!rom_path_expanded.empty()) return rom_path_expanded;
     wordexp_t p;
     wordexp(rom_path, &p, 0);
-    int size = 0;
-    for (int i = 0; i < p.we_wordc; i++) size += strlen(p.we_wordv[i]);
-    char * retval = (char*)malloc(size + 1);
-    strcpy(retval, p.we_wordv[0]);
-    for (int i = 1; i < p.we_wordc; i++) strcat(retval, p.we_wordv[i]);
-    rom_path_expanded = retval;
+    rom_path_expanded = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) rom_path_expanded += p.we_wordv[i];
     wordfree(&p);
-    return retval;
-}
-
-char * getBIOSPath() {
-    const char * romPath = getROMPath();
-    char * retval = (char*)malloc(strlen(romPath) + 10);
-    strcpy(retval, romPath);
-    strcat(retval, "/bios.lua");
-    return retval;
+    return rom_path_expanded;
 }
 
 std::string getPlugInPath() { return std::string(getROMPath()) + "/plugins/"; }
 #else
-void platformInit(Computer *comp) {
-    addMount(comp, (std::string(rom_path) + "/rom").c_str(), "rom", config.romReadOnly);
-}
-
-const char * getROMPath() { return rom_path; }
-
-char * getBIOSPath() {
-    char * retval = (char*)malloc(strlen(rom_path) + 10);
-    strcpy(retval, rom_path);
-    strcat(retval, "/bios.lua");
-    return retval;
-}
-
+std::string getROMPath() { return rom_path; }
 std::string getPlugInPath() { return std::string(rom_path) + "/plugins/"; }
 #endif
 
-void setThreadName(std::thread &t, const char * name) {}
+void setThreadName(std::thread &t, std::string name) {}
 
-int createDirectory(const char * path) {
-    if (mkdir(path, 0777) != 0) {
-        if (errno == ENOENT && strcmp(path, "/") != 0) {
-            char * dir = (char*)malloc(strlen(path) + 1);
-            strcpy(dir, path);
-            if (createDirectory(dirname(dir))) {free(dir); return 1;}
-            free(dir);
-            mkdir(path, 0777);
+int createDirectory(std::string path) {
+    if (mkdir(path.c_str(), 0777) != 0) {
+        if (errno == ENOENT && path != "/") {
+            if (createDirectory(path.substr(0, path.find_last_of('/') - 1).c_str())) return 1;
+            mkdir(path.c_str(), 0777);
         } else return 1;
     }
     return 0;
 }
 
-int removeDirectory(char *path) {
+int removeDirectory(std::string path) {
     struct stat statbuf;
-    if (!stat(path, &statbuf)) {
+    if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
-            DIR *d = opendir(path);
-            size_t path_len = strlen(path);
+            DIR *d = opendir(path.c_str());
             int r = -1;
             if (d) {
                 struct dirent *p;
                 r = 0;
                 while (!r && (p=readdir(d))) {
                     int r2 = -1;
-                    char *buf;
-                    size_t len;
-
                     /* Skip the names "." and ".." as we don't want to recurse on them. */
                     if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-                    len = path_len + strlen(p->d_name) + 2; 
-                    buf = (char*)malloc(len);
-                    if (buf) {
-                        snprintf(buf, len, "%s/%s", path, p->d_name);
-                        r2 = removeDirectory(buf);
-                        free(buf);
-                    }
-                    r = r2;
+                    r = removeDirectory(path + "/" + std::string(p->d_name));
                 }
                 closedir(d);
             }
-            if (!r) r = rmdir(path);
+            if (!r) r = rmdir(path.c_str());
             return r;
-        } else return unlink(path);
+        } else return unlink(path.c_str());
     } else return -1;
 }
 
-unsigned long long getFreeSpace(char* path) {
+unsigned long long getFreeSpace(std::string path) {
 	struct statvfs st;
-	if (statvfs(path, &st) != 0) return 0;
+	if (statvfs(path.c_str(), &st) != 0) return 0;
 	return st.f_bavail * st.f_bsize;
 }
 

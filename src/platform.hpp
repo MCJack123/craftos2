@@ -16,18 +16,14 @@ extern "C" {
 }
 #include "Computer.hpp"
 #include <thread>
-extern void setThreadName(std::thread &t, const char * name);
-extern int createDirectory(const char * path);
-extern unsigned long long getFreeSpace(char* path);
-extern int removeDirectory(char* path);
+extern void setThreadName(std::thread &t, std::string name);
+extern int createDirectory(std::string path);
+extern unsigned long long getFreeSpace(std::string path);
+extern int removeDirectory(std::string path);
 extern void pushHostString(lua_State *L);
-extern const char * bios_path;
-extern const char * getBasePath();
-extern const char * getROMPath();
-extern char * getBIOSPath();
+extern std::string getBasePath();
+extern std::string getROMPath();
 extern std::string getPlugInPath();
-extern void platformFree();
-extern void platformInit(Computer * comp);
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

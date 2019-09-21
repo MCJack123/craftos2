@@ -9,8 +9,8 @@
  */
 
 #include "monitor.hpp"
-#include "../term.hpp"
-#include "../cli.hpp"
+#include "../os.hpp"
+#include "../CLITerminalWindow.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);

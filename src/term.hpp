@@ -18,5 +18,4 @@ extern int termHasEvent(Computer * computer);
 extern void* termRenderLoop(void*);
 extern void termHook(lua_State *L, lua_Debug *ar);
 extern void termQueueProvider(Computer *comp, event_provider p, void* data);
-extern void* queueTask(void*(*func)(void*), void* arg);
 #endif

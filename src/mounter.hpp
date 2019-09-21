@@ -13,7 +13,7 @@
 #include "lib.hpp"
 #include "Computer.hpp"
 extern library_t mounter_lib;
-extern char * fixpath(Computer *comp, const char * path, bool addExt = true);
+extern std::string fixpath(Computer *comp, const char * path, bool addExt = true);
 extern bool addMount(Computer *comp, const char * real_path, const char * comp_path, bool read_only);
 extern bool fixpath_ro(Computer *comp, const char * path);
 #endif

@@ -20,4 +20,17 @@ extern int http_handle_readLine(lua_State *L);
 extern int http_handle_read(lua_State *L);
 extern int http_handle_getResponseCode(lua_State *L);
 extern int http_handle_getResponseHeaders(lua_State *L);
+extern int req_read(lua_State *L);
+extern int req_readLine(lua_State *L);
+extern int req_readAll(lua_State *L);
+extern int req_close(lua_State *L);
+extern int req_free(lua_State *L);
+extern int req_getURL(lua_State *L);
+extern int req_getMethod(lua_State *L);
+extern int req_getRequestHeaders(lua_State *L);
+extern int res_write(lua_State *L);
+extern int res_writeLine(lua_State *L);
+extern int res_close(lua_State *L);
+extern int res_setStatusCode(lua_State *L);
+extern int res_setResponseHeader(lua_State *L);
 #endif

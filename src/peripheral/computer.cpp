@@ -9,7 +9,7 @@
  */
 
 #include "computer.hpp"
-#include "../term.hpp"
+#include "../os.hpp"
 #include <regex>
 #include <unordered_set>
 #include <cstring>

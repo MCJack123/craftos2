@@ -96,7 +96,6 @@ int main(int argc, char*argv[]) {
 #endif
         termClose();
     http_server_stop();
-    platformFree();
     config_save(true);
     return 0;
 }

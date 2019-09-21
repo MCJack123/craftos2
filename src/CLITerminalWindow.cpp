@@ -1,5 +1,5 @@
 #ifndef NO_CLI
-#include "cli.hpp"
+#include "CLITerminalWindow.hpp"
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>

@@ -9,26 +9,17 @@
  */
 
 #include "http_handle.hpp"
+#include "lib.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPClientSession.h>
+#include <Poco/Net/HTTPServerResponse.h>
+#include <Poco/Net/HTTPServerRequest.h>
 
-using Poco::Net::HTTPResponse;
-using Poco::Net::HTTPClientSession;
-
-typedef struct {
-    const char * key;
-    const char * value;
-} dict_val_t;
-
-typedef struct {
-    size_t size;
-    size_t offset;
-    char * data;
-} buffer_t;
+using namespace Poco::Net;
 
 typedef struct {
     bool closed;
@@ -37,6 +28,11 @@ typedef struct {
     HTTPResponse * handle;
     std::istream& stream;
 } http_handle_t;
+
+struct http_res {
+    std::string body;
+    HTTPServerResponse * res;
+};
 
 int http_handle_free(lua_State *L) {
     delete (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
@@ -104,4 +100,125 @@ int http_handle_getResponseHeaders(lua_State *L) {
         lua_settable(L, -3);
     }
     return 1;
+}
+
+int req_read(lua_State *L) {
+    HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return 0;
+    char tmp[2];
+    tmp[0] = req->stream().get();
+    lua_pushstring(L, tmp);
+    return 1;
+}
+
+int req_readLine(lua_State *L) {
+    HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return 0;
+    std::string line;
+    std::getline(req->stream(), line);
+    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+    lua_pushstring(L, line.c_str());
+    return 1;
+}
+
+int req_readAll(lua_State *L) {
+    HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return 0;
+    std::string ret;
+    char buffer[4096];
+    while (req->stream().read(buffer, sizeof(buffer)))
+        ret.append(buffer, sizeof(buffer));
+    ret.append(buffer, req->stream().gcount());
+    ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
+    lua_pushstring(L, ret.c_str());
+    return 1;
+}
+
+int req_close(lua_State *L) {
+    return 0;
+}
+
+int req_free(lua_State *L) {
+    delete (bool*)lua_touserdata(L, lua_upvalueindex(1));
+    return 0;
+}
+
+int req_getURL(lua_State *L) {
+    HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return 0;
+    lua_pushstring(L, req->getURI().c_str());
+    return 1;
+}
+
+int req_getMethod(lua_State *L) {
+    HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return 0;
+    lua_pushstring(L, req->getMethod().c_str());
+    return 1;
+}
+
+int req_getRequestHeaders(lua_State *L) {
+    HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return 0;
+    lua_newtable(L);
+    for (auto h = req->begin(); h != req->end(); h++) {
+        lua_pushstring(L, h->first.c_str());
+        lua_pushstring(L, h->second.c_str());
+        lua_settable(L, -3);
+    }
+    return 1;
+}
+
+int res_write(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    size_t len = 0;
+    const char * buf = lua_tolstring(L, 1, &len);
+    res->body += std::string(buf, len);
+    return 0;
+}
+
+int res_writeLine(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    size_t len = 0;
+    const char * buf = lua_tolstring(L, 1, &len);
+    res->body += std::string(buf, len);
+    res->body += "\n";
+    return 0;
+}
+
+int res_close(lua_State *L) {
+    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    std::string body((const std::string)res->body);
+    try {
+        res->res->setContentLength(body.size());
+        res->res->send().write(body.c_str(), body.size());
+    } catch (std::exception &e) {
+        *(bool*)lua_touserdata(L, lua_upvalueindex(2)) = true;
+        lua_pushfstring(L, "Could not send data: %s", e.what());
+        lua_error(L);
+    }
+    *(bool*)lua_touserdata(L, lua_upvalueindex(2)) = true;
+    return 0;
+}
+
+int res_setStatusCode(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    res->res->setStatus((HTTPResponse::HTTPStatus)lua_tointeger(L, 1));
+    return 0;
+}
+
+int res_setResponseHeader(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
+    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    res->res->set(lua_tostring(L, 1), lua_tostring(L, 2));
+    return 0;
 }

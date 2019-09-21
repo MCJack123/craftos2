@@ -360,22 +360,21 @@ void TerminalWindow::screenshot(std::string path) {
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        const char * p = getBasePath();
-        char * cpath = (char*)malloc(strlen(p) + 36);
-        strcpy(cpath, p);
+        std::string screenshotPath = getBasePath();
 #ifdef WIN32
-        strcat(cpath, "\\screenshots\\");
+        screenshotPath += "\\screenshots\\";
 #else
-        strcat(cpath, "/screenshots/");
+        screenshotPath += "/screenshots/";
 #endif
-        createDirectory(cpath);
-        strftime(&cpath[strlen(p)+13], 24, "%F_%H.%M.%S.", nowt);
+        createDirectory(screenshotPath.c_str());
+        char * tstr = new char[20];
+        strftime(tstr, 24, "%F_%H.%M.%S", nowt);
 #ifdef NO_PNG
-        screenshotPath = std::string((const char*)cpath) + "bmp";
+        screenshotPath += std::string(tstr) + ".bmp";
 #else
-        screenshotPath = std::string((const char*)cpath) + "png";
+        screenshotPath += std::string(tstr) + ".png";
 #endif
-        free(cpath);
+        delete[] tstr;
     }
 }
 
@@ -387,18 +386,17 @@ void TerminalWindow::record(std::string path) {
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        const char * p = getBasePath();
-        char * cpath = (char*)malloc(strlen(p) + 36);
-        strcpy(cpath, p);
+        std::string recordingPath = getBasePath();
 #ifdef WIN32
-        strcat(cpath, "\\screenshots\\");
+        recordingPath += "\\screenshots\\";
 #else
-        strcat(cpath, "/screenshots/");
+        recordingPath += "/screenshots/";
 #endif
-        createDirectory(cpath);
-        strftime(&cpath[strlen(p) + 13], 24, "%F_%H.%M.%S.", nowt);
-        recordingPath = std::string((const char*)cpath) + "gif";
-        free(cpath);
+        createDirectory(recordingPath.c_str());
+        char * tstr = new char[20];
+        strftime(tstr, 24, "%F_%H.%M.%S", nowt);
+        recordingPath += std::string(tstr) + ".gif";
+        delete[] tstr;
     }
 }
 
