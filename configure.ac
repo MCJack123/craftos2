@@ -1,13 +1,39 @@
+# Initialize
 AC_INIT([CraftOS-PC], [2.1])
 AC_CONFIG_SRCDIR([src/main.cpp])
 m4_include([m4/find_cxx.m4])
+m4_include([m4/find_cxx11.m4])
 
+# Options
+AC_ARG_WITH(png, [AS_HELP_STRING([--with-png], [support PNG screenshots])])
+AC_ARG_WITH(png, [AS_HELP_STRING([--without-png], [do not support PNG screenshots])])
+AC_ARG_WITH(ncurses, [AS_HELP_STRING([--with-ncurses], [support CLI mode])])
+AC_ARG_WITH(ncurses, [AS_HELP_STRING([--without-ncurses], [do not support CLI mode])])
+AC_ARG_WITH(hpdf, [AS_HELP_STRING([--with-hpdf], [make printer output PDF files])])
+AC_ARG_WITH(html, [AS_HELP_STRING([--with-html], [make printer output HTML files])])
+AC_ARG_WITH(txt, [AS_HELP_STRING([--with-txt], [make printer output text files])])
+
+if test "x$with_hpdf" = "xyes"; then PRINT_TYPE=0; fi
+if test "x$with_hpdf" = "xno"; then PRINT_TYPE=1; fi
+if test "x$with_html" = "xyes"; then
+    AS_IF([test "x$PRINT_TYPE" != "x"], [AC_MSG_ERROR([Only one print type can be specified.])], [])
+    PRINT_TYPE=1
+fi
+if test "x$with_txt" = "xyes"; then
+    AS_IF([test "x$PRINT_TYPE" != "x"], [AC_MSG_ERROR([Only one print type can be specified.])], [])
+    PRINT_TYPE=2
+fi
+
+# Check language
 AC_LANG([C++])
 CXXFLAGS="$CXXFLAGS -std=c++11"
 CPPFLAGS="$CPPFLAGS -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
+AX_CHECK_COMPILE_FLAG([-std=c++11], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++11.])])
+
+# Find required libraries
 
 AC_SEARCH_LIBS(pthread_create, pthread, [], [AC_MSG_ERROR([Could not find pthread library.])])
 AC_SEARCH_LIBS(dlopen, dl, [], [AC_MSG_ERROR([Could not find dl library.])])
@@ -40,17 +66,25 @@ AX_CXX_CHECK_LIB(PocoNet, [Poco::Net::HTTPRequest], [], [AC_MSG_ERROR([Could not
 AC_CHECK_HEADERS(Poco/Net/NetSSL.h, [], [AC_MSG_ERROR([Could not find Poco NetSSL headers.])])
 AX_CXX_CHECK_LIB(PocoNetSSL, [Poco::Net::HTTPSClientSession], [], [AC_MSG_ERROR([Could not find Poco NetSSL library.])])
 
+# Check optional features
+
 AC_SEARCH_LIBS(mpg123_init, mpg123)
 AC_SEARCH_LIBS(FLAC__stream_decoder_new, flac)
 
-AC_CHECK_HEADERS([png++/png.hpp], [], [NO_PNG=1])
-AC_SEARCH_LIBS(png_init_io, png, [], [NO_PNG=1])
+AS_IF([test "x$with_png" != "xno"], [
+    AC_CHECK_HEADERS([png++/png.hpp], [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find png++ header.])], [NO_PNG=1])])
+    AC_SEARCH_LIBS(png_init_io, png, [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find libpng library.])], [NO_PNG=1])])
+], [NO_PNG=1])
 
-AC_CHECK_HEADERS(hpdf.h, [], [PRINT_TYPE=1])
-AC_SEARCH_LIBS(HPDF_New, hpdf, [], [PRINT_TYPE=1])
+AS_IF([test "x$with_ncurses" != "xno"], [
+    AC_CHECK_HEADERS(ncurses.h, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses header.])], [NO_CLI=1])])
+    AC_SEARCH_LIBS(initscr, ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
+], [NO_CLI=1])
 
-AC_CHECK_HEADERS(ncurses.h, [], [NO_CLI=1])
-AC_SEARCH_LIBS(initscr, ncurses, [], [NO_CLI=1])
+AS_IF([test "x$PRINT_TYPE" = "x" || test "x$PRINT_TYPE" = "x0"], [
+    AC_CHECK_HEADERS(hpdf.h, [], [AS_IF([test "x$PRINT_TYPE" = "x0"], [AC_MSG_ERROR([Could not find hpdf header.])], [PRINT_TYPE=1])])
+    AC_SEARCH_LIBS(HPDF_New, hpdf, [], [AS_IF([test "x$PRINT_TYPE" = "x0"], [AC_MSG_ERROR([Could not find hpdf library.])], [PRINT_TYPE=1])])
+], [])
 
 if test "x$NO_PNG" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_PNG"; fi
 if test "x$NO_CLI" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_CLI"; fi

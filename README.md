@@ -34,13 +34,14 @@ $ craftos
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
 * Compiler supporting C++11
-  * Linux: G++ 5.2+, make
+  * Linux: G++ 4.9+, make
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
-* liblua 5.1
+* Lua 5.1
 * SDL 2.0+
 * SDL_mixer 2.0+
-* OpenSSL
+* OpenSSL 1.0.x
+* Windows: dirent.h
 * POCO NetSSL + JSON libraries + dependencies
   * Foundation
   * Util
@@ -49,12 +50,15 @@ $ craftos
   * JSON
   * Net
   * NetSSL
-* png++ 0.2.7+ (+libpng)
-  * Can be disabled with --without-png, will save as BMP instead
-  * Is disabled by default on Windows (since all of the NuGet pkgs suck on VS2019)
+
+### Optional
+* libpng 1.6 & png++ 0.2.7+
+  * Can be disabled with `--without-png`, will save as BMP instead
 * [libharu/libhpdf](https://github.com/libharu/libharu)
-  * This library is optional if built with PRINT_TYPE=1 (html) or PRINT_TYPE=2 (txt)
-* Windows: dirent.h
+  * Can be disabled with `--without-hpdf`, `--with-html` or `--with-txt`
+* ncurses
+  * Can be disabled with `--without-ncurses`, will disable CLI support
+* The path to the ROM package can be changed with `--prefix=<path>`
 
 You can get all of these dependencies with:
   * Windows: The VS solution includes all packages required except POCO (build yourself)
@@ -79,7 +83,7 @@ You can get all of these dependencies with:
 3. `./configure`
 4. `make macapp`
 5. Open the repository in a new Finder window
-6. Right click on CraftOS-PC.app -> Show Package Contents
+6. Right click on CraftOS-PC.app => Show Package Contents
 7. Open Contents -> Resources
 8. Copy the ROM package inside
 9. Run CraftOS-PC.app
@@ -95,19 +99,19 @@ You can get all of these dependencies with:
 
 ## FAQ
 ### Why is the ComputerCraft ROM/BIOS not included with the source?
-ComputerCraft and its assets are licensed under a copyleft license that requires anything using its code to be under the same license. Since I want CraftOS-PC 2 to remain under only the MIT license, I will not be distributing any original ComputerCraft files with the CraftOS-PC 2 source.
+ComputerCraft and its assets are licensed under a copyleft license that requires anything using its code to be under the same license. Since I want CraftOS-PC 2 to remain under only the MIT license, I will not be distributing any original ComputerCraft files with the CraftOS-PC 2 source. You can still aquire the ROM [separately](https://github.com/MCJack123/craftos2-rom).
 
-### Why did you choose C/C++?
-Since the original ComputerCraft code is written in Java, it may seem like a better idea to create an emulator based on the original mod code. But I found that using native C and C++ lets the emulator run much better.
+### Why did you choose C++?
+Since the original ComputerCraft code is written in Java, it may seem like a better idea to create an emulator based on the original mod code. But I found that using native C++ lets the emulator run much better than if it was in Java.
 
 **1. It runs much faster**
-One of the biggest issues I had with CraftOS-PC Classic was that it *ran too slow*. The Java VM adds much overhead to the program which, frankly, is unnecessary. As a native program, CraftOS-PC 2 runs (%d)% faster than CraftOS-Classic. The barebones nature of native code allows this speed boost to exist.
+One of the biggest issues I had with CraftOS-PC Classic was that it *ran too slow*. The Java VM adds much overhead to the program which, frankly, is unnecessary. As a native program, CraftOS-PC 2 runs 2x faster than CraftOS-Classic. The barebones nature of native code allows this speed boost to exist.
 
 **2. It uses less memory**
-Another problem with CraftOS-PC Classic was that it used much more memory than necessary. At startup, CraftOS-PC Classic used well over 150 MB of memory, which could grow to nearly a gigabyte with extensive use. CraftOS-PC 2 only uses 40 MB at startup, and under my testing has never gone over 100 MB. This is due to C's manual memory management and the absence of the entire JVM.
+Another problem with CraftOS-PC Classic was that it used much more memory than necessary. At startup, CraftOS-PC Classic used well over 150 MB of memory, which could grow to nearly a gigabyte with extensive use. CraftOS-PC 2 only uses 40 MB at startup on Mac (10 on Windows!), and under my testing has never gone over 100 MB. This is due to C++'s manual memory management and the absence of the entire JVM.
 
 **3. It's the language Lua's written in**
 Using the same language that Lua uses guarantees compatibility with the base API. LuaJ has many known issues that can hinder development and cause much confusion while writing programs. Writing CraftOS-PC 2 using liblua guarantees that Lua will behave as it should.
 
 **4. It doesn't rely on any single platform**
-I wanted to keep CraftOS-PC Classic's wide compatibility in CraftOS-PC 2. Using other languages such as C# or Swift are platform-dependent and are not guaranteed to work on any platform. C is a basic language that's always present and maintains a portable library that works on all platforms. I've moved all platform-specific code into the platform_*.cpp files so the rest of the code can remain as independent as possible.
+I wanted to keep CraftOS-PC Classic's wide compatibility in CraftOS-PC 2. Using other languages such as C# or Swift are platform-dependent and are not guaranteed to work on any platform. C++ is a basic language that's always present and maintains a portable library that works on all platforms. I've moved all platform-specific code into the platform_*.cpp files so the rest of the code can remain as independent as possible.

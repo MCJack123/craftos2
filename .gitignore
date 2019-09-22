@@ -15,3 +15,5 @@ ccemux.dylib
 codesign
 CraftOS-PC 2.code-workspace
 Makefile
+config.log
+config.status

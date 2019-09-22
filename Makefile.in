@@ -5,6 +5,10 @@ CPPFLAGS=@CPPFLAGS@
 CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
+PREFIX?=@prefix@
+ifneq (/usr/local,$(PREFIX))
+CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)\"
+endif
 SDIR=@srcdir@/src
 ODIR=obj
 _OBJ=CLITerminalWindow.o Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o liolib.o
@@ -18,7 +22,7 @@ craftos: $(OBJ) $(ODIR)/platform.o
 macapp: $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
-	$(CXX) $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation
+	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation
 ifneq (,$(wildcard codesign/Makefile))
 	make -C codesign
 endif
@@ -44,7 +48,7 @@ $(ODIR)/main.o: $(SDIR)/main.cpp $(SDIR)/Computer.hpp $(SDIR)/lib.hpp
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/platform_macapp.o: $(SDIR)/platform_macapp.mm $(SDIR)/platform.hpp
-	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
+	clang++ -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.hpp $(SDIR)/platform_linux.cpp $(SDIR)/platform_darwin.cpp
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
