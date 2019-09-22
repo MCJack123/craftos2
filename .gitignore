@@ -6,8 +6,6 @@ craftos
 /x64
 CraftOS-PC.app
 /autoscan.log
-/configure
-/configure.ac
 /Makefile - Copy
 /autom4te.cache
 /CraftOS-PC
@@ -16,3 +14,4 @@ ccemux.dylib
 .vscode/c_cpp_properties.json
 codesign
 CraftOS-PC 2.code-workspace
+Makefile
