@@ -50,7 +50,7 @@ $ craftos
   * Net
   * NetSSL
 * png++ 0.2.7+ (+libpng)
-  * Can be disabled with NO_PNG=1, will save as BMP instead
+  * Can be disabled with --without-png, will save as BMP instead
   * Is disabled by default on Windows (since all of the NuGet pkgs suck on VS2019)
 * [libharu/libhpdf](https://github.com/libharu/libharu)
   * This library is optional if built with PRINT_TYPE=1 (html) or PRINT_TYPE=2 (txt)
@@ -76,20 +76,22 @@ You can get all of these dependencies with:
 #### Mac
 1. Open a new Terminal window
 2. `cd` to the cloned repository
-3. `make macapp`
-4. Open the repository in a new Finder window
-5. Right click on CraftOS-PC.app -> Show Package Contents
-6. Open Contents -> Resources
-7. Copy the ROM package inside
-8. Run CraftOS-PC.app
+3. `./configure`
+4. `make macapp`
+5. Open the repository in a new Finder window
+6. Right click on CraftOS-PC.app -> Show Package Contents
+7. Open Contents -> Resources
+8. Copy the ROM package inside
+9. Run CraftOS-PC.app
 
 #### Linux
 1. Open a new terminal
 2. `cd` to the cloned repository
-3. `make`
-4. `sudo mkdir /usr/share/craftos`
-5. Copy the ComputerCraft ROM into `/usr/share/craftos/`
-6. `./craftos`
+3. `./configure`
+4. `make`
+5. `sudo mkdir /usr/share/craftos`
+6. Copy the ComputerCraft ROM into `/usr/share/craftos/`
+7. `./craftos`
 
 ## FAQ
 ### Why is the ComputerCraft ROM/BIOS not included with the source?
