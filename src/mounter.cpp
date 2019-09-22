@@ -39,7 +39,7 @@ std::vector<std::string> split(std::string strToSplit, char delimeter) {
     return splittedStrings;
 }
 
-std::string fixpath(Computer *comp, const char * path, bool addExt) {
+std::string fixpath(Computer *comp, const char * path, bool addExt, std::string * mountPath) {
     std::vector<std::string> elems = split(path, '/');
     std::list<std::string> pathc;
     for (std::string s : elems) {
@@ -54,12 +54,27 @@ std::string fixpath(Computer *comp, const char * path, bool addExt) {
     std::stringstream ss;
     if (addExt) {
         std::pair<size_t, std::string> max_path = std::make_pair(0, std::string(getBasePath()) + PATH_SEP + "computer" + PATH_SEP + std::to_string(comp->id));
-        for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++)
-            if (pathc.size() >= std::get<0>(*it).size() && std::get<0>(*it).size() > max_path.first && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
+        std::list<std::string> * mount_list = NULL;
+        for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++) {
+            if (pathc.size() >= std::get<0>(*it).size() && std::get<0>(*it).size() > max_path.first && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin())) {
                 max_path = std::make_pair(std::get<0>(*it).size(), std::get<1>(*it));
+                mount_list = &std::get<0>(*it);
+            }
+        }
         for (int i = 0; i < max_path.first; i++) pathc.pop_front();
         ss << max_path.second;
         for (std::string s : pathc) ss << PATH_SEP << s;
+        if (mountPath != NULL) {
+            if (mount_list == NULL) *mountPath = "hdd";
+            else {
+                std::stringstream ss2;
+                for (auto it = mount_list->begin(); it != mount_list->end(); it++) {
+                    if (it != mount_list->begin()) ss2 << "/";
+                    ss2 << *it;
+                }
+                *mountPath = ss2.str();
+            }
+        }
     } else for (std::string s : pathc) ss << (ss.tellp() == 0 ? "" : "/") << s;
     return ss.str();
 }

@@ -175,7 +175,9 @@ void mainLoop() {
         }
         std::this_thread::yield();
     }
+#ifndef NO_CLI
     if (cli) delwin(tmpwin);
+#endif
     exiting = true;
 }
 

@@ -143,12 +143,9 @@ int fs_getName(lua_State *L) {
 
 int fs_getDrive(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    const char * path = lua_tostring(L, 1);
-    // basic mountpoint check, will remove when adding mounter
-	int s = path[0] == '/';
-    if (path[s] == 'r' && path[s+1] == 'o' && path[s+2] == 'm' && path[s+3] == '/')
-        lua_pushstring(L, "rom");
-    else lua_pushstring(L, "hdd");
+    std::string retval;
+    fixpath(get_comp(L), lua_tostring(L, 1), true, &retval);
+    lua_pushstring(L, retval.c_str());
     return 1;
 }
 

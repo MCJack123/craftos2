@@ -17,9 +17,12 @@ extern unsigned char htoi(char c);
 extern bool cli;
 
 monitor::monitor(lua_State *L, const char * side) {
+#ifndef NO_CLI
     if (cli) {
         term = new CLITerminalWindow("CraftOS Terminal: Monitor " + std::string(side));
-    } else {
+    } else 
+#endif
+    {
         term = (TerminalWindow*)queueTask([ ](void* side)->void* {
             return new TerminalWindow("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);

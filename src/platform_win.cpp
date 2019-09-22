@@ -47,7 +47,7 @@ std::string getROMPath() {
     return rom_path_expanded;
 }
 
-std::string getPlugInPath() { getROMPath() + "/plugins/"; }
+std::string getPlugInPath() { return getROMPath() + "/plugins/"; }
 
 void setThreadName(std::thread &t, std::string name) {
 #ifdef DEBUG
@@ -56,14 +56,13 @@ void setThreadName(std::thread &t, std::string name) {
 }
 
 int createDirectory(std::string path) {
-	if (CreateDirectoryExA(path.substr(0, path.find_last_of('\\')-1).c_str(), path.c_str(), NULL) == 0) {
+	if (CreateDirectoryExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL) == 0) {
 		if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && path != "\\") {
-            if (createDirectory(path.substr(0, path.find_last_of('\\')-1))) return 1;
-			CreateDirectoryExA(path.substr(0, path.find_last_of('\\')-1).c_str(), path, NULL);
+            if (createDirectory(path.substr(0, path.find_last_of('\\', path.size() - 2)))) return 1;
+			CreateDirectoryExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL);
 		}
         else if (GetLastError() != ERROR_ALREADY_EXISTS) return 1;
 	}
-    free(dir);
 	return 0;
 }
 
@@ -88,9 +87,8 @@ char* dirname(char* path) {
 }
 
 unsigned long long getFreeSpace(std::string path) {
-	PathRemoveFileSpecA(path.c_str());
 	ULARGE_INTEGER retval;
-	GetDiskFreeSpaceExA(path.c_str(), &retval, NULL, NULL);
+	GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL);
 	return retval.QuadPart;
 }
 
@@ -107,7 +105,7 @@ int removeDirectory(std::string path) {
             do {
                 if (!(find.cFileName[0] == '.' && (strlen(find.cFileName) == 1 || (find.cFileName[1] == '.' && strlen(find.cFileName) == 2)))) {
                     std::string newpath = path;
-                    if (path[strlen(path) - 1] != '\\') newpath += "\\";
+                    if (path[path.size() - 1] != '\\') newpath += "\\";
                     newpath += find.cFileName;
                     int res = removeDirectory(newpath);
                     if (res) {
