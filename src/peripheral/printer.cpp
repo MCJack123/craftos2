@@ -212,14 +212,14 @@ int printer::endPage(lua_State *L) {
 #if PRINT_TYPE == PRINT_TYPE_HTML
     out << "<html>\n\t";
     if (title != "") out << "<head>\n\t\t<title>" << title << "</title>\n\t</head>\n\t";
-    out << "<body>\n\t\t<code>";
+    out << "<body>\n\t\t<pre>";
 #endif
     for (std::vector<char> r : body) {
         for (char c : r) out.put(c);
         out.put('\n');
     }
 #if PRINT_TYPE == PRINT_TYPE_HTML
-    out << "\n\t\t</code>\n\t</body>\n</html>";
+    out << "\n\t\t</pre>\n\t</body>\n</html>";
 #endif
     out.close();
 #endif

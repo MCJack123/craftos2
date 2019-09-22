@@ -250,6 +250,7 @@ void TerminalWindow::render() {
         // later
     }
     if (shouldScreenshot) {
+        shouldScreenshot = false;
         int w, h;
         if (gotResizeEvent) {locked = false; return;}
         if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) {locked = false; return;}
@@ -264,10 +265,11 @@ void TerminalWindow::render() {
         SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
         if (gotResizeEvent) {locked = false; return;}
         if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) {locked = false; return;}
-        SDL_SaveBMP(sshot, screenshotPath.c_str());
+        SDL_Surface *conv = SDL_ConvertSurfaceFormat(sshot, SDL_PIXELFORMAT_RGB888, 0);
         SDL_FreeSurface(sshot);
+        SDL_SaveBMP(conv, screenshotPath.c_str());
+        SDL_FreeSurface(conv);
 #endif
-        shouldScreenshot = false;
     }
     if (shouldRecord) {
         if (recordedFrames >= 150) stopRecording();
@@ -360,14 +362,14 @@ void TerminalWindow::screenshot(std::string path) {
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        std::string screenshotPath = getBasePath();
+        screenshotPath = getBasePath();
 #ifdef WIN32
         screenshotPath += "\\screenshots\\";
 #else
         screenshotPath += "/screenshots/";
 #endif
         createDirectory(screenshotPath.c_str());
-        char * tstr = new char[20];
+        char * tstr = new char[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
 #ifdef NO_PNG
         screenshotPath += std::string(tstr) + ".bmp";
@@ -386,7 +388,7 @@ void TerminalWindow::record(std::string path) {
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        std::string recordingPath = getBasePath();
+        recordingPath = getBasePath();
 #ifdef WIN32
         recordingPath += "\\screenshots\\";
 #else
