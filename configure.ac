@@ -4,6 +4,8 @@ m4_include([m4/find_cxx.m4])
 
 AC_LANG([C++])
 CXXFLAGS="$CXXFLAGS -std=c++11"
+CPPFLAGS="$CPPFLAGS -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include"
+LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
 
