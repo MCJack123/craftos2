@@ -1,5 +1,5 @@
 # CraftOS-PC 2 [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=master)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
-A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using a mixture of C/C++ and the original Lua API, as well as SDL for drawing.
+A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and the original Lua API, as well as SDL for drawing.
 
 ![Screenfetch](image1.png)
 
@@ -18,6 +18,13 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 3. Open CraftOS-PC from the Start Menu
 
 ### Mac
+#### Homebrew Cask
+```bash
+$ brew tap MCJack123/CraftOSPC
+$ brew install craftos-pc
+$ open /Applications/CraftOS-PC.app
+```
+#### Manual
 1. Download CraftOS-PC.dmg from the latest release
 2. Drag and drop into Applications (or not)
 3. Double-click CraftOS-PC(.app)
@@ -68,7 +75,7 @@ You can get all of these dependencies with:
 ### Instructions
 #### Windows
 1. Download [Visual Studio 2019](https://visualstudio.microsoft.com/) if not already installed
-2. [Build libcurl from source](https://medium.com/@chuy.max/compile-libcurl-on-windows-with-visual-studio-2017-x64-and-ssl-winssl-cff41ac7971d)
+2. [Build Poco from source](https://pocoproject.org/download.html#visualstudio)
 3. Open a new Explorer window in %ProgramFiles% (Win-R, %ProgramFiles%)
 4. Create a directory named `CraftOS-PC`
 5. Copy the contents of the CraftOS ROM into the directory
