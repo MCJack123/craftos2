@@ -9,10 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Skip based on commit message
-      uses: veggiemonk/skip-commit@1.0.0
-      env:
-        COMMIT_FILTER: '[ci skip]'
     - name: Download ROM
       run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos
     - name: Install dependencies
