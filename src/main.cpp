@@ -11,6 +11,7 @@
 #include "Computer.hpp"
 #include "config.hpp"
 #include "peripheral/drive.hpp"
+#include <functional>
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
