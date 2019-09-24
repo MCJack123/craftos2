@@ -27,7 +27,7 @@ extern void config_init();
 extern void config_save(bool deinit);
 extern void mainLoop();
 extern void http_server_stop();
-extern void* queueTask(void*(*func)(void*), void* arg);
+extern void* queueTask(std::function<void*(void*)> func, void* arg);
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 bool headless = false;
@@ -73,11 +73,6 @@ int main(int argc, char*argv[]) {
 #ifndef NO_CLI
     if (cli) cliInit();
     else 
-#else
-    if (cli) {
-        std::cerr << "Error: CLI mode is not enabled for this build.\n";
-        return 1;
-    }
 #endif
         termInit();
     config_init();

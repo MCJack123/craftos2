@@ -51,12 +51,7 @@ static Color defaultPalette[16] = {
 class window_exception: public std::exception {
     std::string err;
 public:
-    virtual const char * what() const throw() {
-        char * retval = (char*)malloc(strlen("Could not create new terminal: ") + err.length() + 1);
-        strcpy(retval, "Could not create new terminal: ");
-        strcat(retval, err.c_str());
-        return retval;
-    }
+    virtual const char * what() const throw() {return std::string("Could not create new terminal: " + err).c_str();}
     window_exception(std::string error): err(error) {}
     window_exception(): err("Unknown error") {}
 };
@@ -81,9 +76,10 @@ protected:
     int frameWait = 0;
     std::vector<std::string> recording;
     std::mutex recorderMutex;
+    bool overridden = false;
     TerminalWindow(int w, int h);
 public:
-    std::atomic_bool locked;
+    std::mutex locked;
     int charScale = 2;
     int dpiScale = 1;
     int charWidth = fontWidth * fontScale * charScale;
@@ -102,7 +98,7 @@ public:
     int lastSecond = time(0);
 
     TerminalWindow(std::string title);
-    ~TerminalWindow();
+    virtual ~TerminalWindow();
     void setPalette(Color * p);
     void setCharScale(int scale);
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);

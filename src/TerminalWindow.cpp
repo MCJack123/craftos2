@@ -16,8 +16,7 @@
 #include "favicon.h"
 #include "config.hpp"
 #include "gif.hpp"
-
-extern void* queueTask(void*(*)(void*), void*);
+#include "os.hpp"
 
 extern "C" struct {
     unsigned int 	 width;
@@ -54,7 +53,7 @@ TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
 }
 
 TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
-    locked.store(false);
+    locked.unlock();
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
@@ -62,14 +61,14 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) 
         throw window_exception("Failed to create window");
     id = SDL_GetWindowID(win);
-    char * icon_pixels = (char*)malloc(favicon_width * favicon_height * 4);
+    char * icon_pixels = new char[favicon_width * favicon_height * 4];
     memset(icon_pixels, 0xFF, favicon_width * favicon_height * 4);
     const char * icon_data = header_data;
     for (int i = 0; i < favicon_width * favicon_height; i++) HEADER_PIXEL(icon_data, (&icon_pixels[i*4]));
     SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(icon_pixels, favicon_width, favicon_height, 32, favicon_width * 4, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
     SDL_SetWindowIcon(win, icon);
     SDL_FreeSurface(icon);
-    free(icon_pixels);
+    delete[] icon_pixels;
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 #else
@@ -98,12 +97,13 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
 }
 
 TerminalWindow::~TerminalWindow() {
-    while (locked);
-    locked = true;
-    SDL_DestroyTexture(font);
-    SDL_FreeSurface(bmp);
-    SDL_DestroyRenderer(ren);
-    SDL_DestroyWindow(win);
+    std::lock_guard<std::mutex> locked_g(locked);
+    if (!overridden) {
+        SDL_DestroyTexture(font);
+        SDL_FreeSurface(bmp);
+        SDL_DestroyRenderer(ren);
+        SDL_DestroyWindow(win);
+    }
 }
 
 void TerminalWindow::setPalette(Color * p) {
@@ -167,8 +167,7 @@ static unsigned char circlePix[] = {
 };
 
 void TerminalWindow::render() {
-    while (locked);
-    locked = true;
+    std::lock_guard<std::mutex> locked_g(locked);
     if (gotResizeEvent) {
         gotResizeEvent = false;
         this->screen.resize(newHeight);
@@ -196,15 +195,15 @@ void TerminalWindow::render() {
         ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
         font = SDL_CreateTextureFromSurface(ren, bmp);*/
     }
-    if (SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF) != 0) {locked = false; return;}
-    if (SDL_RenderClear(ren) != 0) {locked = false; return;}
+    if (SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF) != 0) return;
+    if (SDL_RenderClear(ren) != 0) return;
     SDL_Rect rect;
     if (isPixel) {
         for (int y = 0; y < height * charHeight; y+=fontScale*charScale) {
             for (int x = 0; x < width * charWidth; x+=fontScale*charScale) {
                 char c = pixels[y / fontScale / charScale][x / fontScale / charScale];
-                if (SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF) != 0) {locked = false; return;}
-                if (SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale), y + (2 * fontScale * charScale), fontScale * charScale, fontScale * charScale)) != 0) {locked = false; return;}
+                if (SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF) != 0) return;
+                if (SDL_RenderFillRect(ren, setRect(&rect, x + (2 * fontScale * charScale), y + (2 * fontScale * charScale), fontScale * charScale, fontScale * charScale)) != 0) return;
             }
         }
     } else {
@@ -229,16 +228,16 @@ void TerminalWindow::render() {
                 if (x + 1 == width && y + 1 == height)
                     SDL_RenderFillRect(ren, setRect(&rect, (x + 1) * charWidth + (2 * fontScale * charScale), (y + 1) * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, 2 * fontScale * charScale));
                 */
-                if (gotResizeEvent) {locked = false; return;}
-                if (!drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4])) {locked = false; return;}
+                if (gotResizeEvent) return;
+                if (!drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4])) return;
             }
         }
 		if (blinkX >= width) blinkX = width - 1;
 		if (blinkY >= height) blinkY = height - 1;
 		if (blinkX < 0) blinkX = 0;
 		if (blinkY < 0) blinkY = 0;
-        if (gotResizeEvent) {locked = false; return;}
-        if (blink) if (!drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true)) {locked = false; return;}
+        if (gotResizeEvent) return;
+        if (blink) if (!drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true)) return;
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -252,19 +251,19 @@ void TerminalWindow::render() {
     if (shouldScreenshot) {
         shouldScreenshot = false;
         int w, h;
-        if (gotResizeEvent) {locked = false; return;}
-        if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) {locked = false; return;}
+        if (gotResizeEvent) return;
+        if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
         png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
-        if (gotResizeEvent) {locked = false; return;}
-        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) {locked = false; return;}
+        if (gotResizeEvent) return;
+        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) return;
         png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
         img.set_pixbuf(pixbuf);
         img.write(screenshotPath);
 #else
         SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-        if (gotResizeEvent) {locked = false; return;}
-        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) {locked = false; return;}
+        if (gotResizeEvent) return;
+        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) return;
         SDL_Surface *conv = SDL_ConvertSurfaceFormat(sshot, SDL_PIXELFORMAT_RGB888, 0);
         SDL_FreeSurface(sshot);
         SDL_SaveBMP(conv, screenshotPath.c_str());
@@ -276,9 +275,9 @@ void TerminalWindow::render() {
         else if (--frameWait < 1) {
             recorderMutex.lock();
             int w, h;
-            if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) { locked = false; return; }
+            if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) return;
             SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
-            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ABGR8888, sshot->pixels, sshot->pitch) != 0) { locked = false; return; }
+            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ABGR8888, sshot->pixels, sshot->pitch) != 0) return;
             uint32_t uw = static_cast<uint32_t>(w), uh = static_cast<uint32_t>(h);
             std::string rle = std::string((char*)&uw, 4) + std::string((char*)&uh, 4);
             uint32_t * px = ((uint32_t*)sshot->pixels);
@@ -302,10 +301,10 @@ void TerminalWindow::render() {
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
         if (circle == NULL) { printf("Error: %s\n", SDL_GetError()); assert(false); }
         SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, circle);
-        if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, 2 * charScale * fontScale * dpiScale, 10, 10)) != 0) { locked = false; return; }
+        if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, 2 * charScale * fontScale * dpiScale, 10, 10)) != 0) return;
         SDL_FreeSurface(circle);
     }
-    if (gotResizeEvent) {locked = false; return;}
+    if (gotResizeEvent) return;
     SDL_RenderPresent(ren);
 #ifndef HARDWARE_RENDERER
 #ifdef __linux__
@@ -314,7 +313,6 @@ void TerminalWindow::render() {
     if (SDL_UpdateWindowSurface(win) != 0) printf("Error rendering: %s\n", SDL_GetError());
 #endif
 #endif
-    locked = false;
 }
 
 void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {
@@ -415,14 +413,14 @@ void TerminalWindow::stopRecording() {
     GifBegin(&g, recordingPath.c_str(), ((uint32_t*)(&recording[0][0]))[0], ((uint32_t*)(&recording[0][0]))[1], 10);
     for (std::string s : recording) {
         uint32_t w = ((uint32_t*)&s[0])[0], h = ((uint32_t*)&s[0])[1];
-        uint32_t* ipixels = (uint32_t*)malloc(w * h * 4);
+        uint32_t* ipixels = new uint32_t[w * h];
         uint32_t* lp = ipixels;
         for (int i = 2; i*4 < s.size(); i++) {
             uint32_t c = ((uint32_t*)&s[0])[i];
             lp = memset_int(lp, c & 0xFFFFFF, ((c & 0xFF000000) >> 24) + 1);
         }
         GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 10);
-        free(ipixels);
+        delete[] ipixels;
     }
     GifEnd(&g);
     recording.clear();

@@ -2,7 +2,7 @@
  * platform_darwin.cpp
  * CraftOS-PC 2
  * 
- * This file implements functions specific to macOS.
+ * This file implements functions specific to macOS when run from the Terminal.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019 JackMacWindows.

@@ -8,7 +8,6 @@
  * Copyright (c) 2019 JackMacWindows.
  */
 
-
 extern "C" {
 #include <lauxlib.h>
 }
@@ -33,7 +32,7 @@ void gotEvent(Computer *comp);
 extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
 
 int nextTaskID = 0;
-std::queue< std::tuple<int, void*(*)(void*), void*> > taskQueue;
+std::queue< std::tuple<int, std::function<void*(void*)>, void*> > taskQueue;
 std::unordered_map<int, void*> taskQueueReturns;
 bool exiting = false;
 extern bool cli, headless;
@@ -41,7 +40,7 @@ extern Uint32 task_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
 extern std::unordered_map<int, unsigned char> keymap;
 
-void* queueTask(void*(*func)(void*), void* arg) {
+void* queueTask(std::function<void*(void*)> func, void* arg) {
     int myID = nextTaskID++;
     taskQueue.push(std::make_tuple(myID, func, arg));
     if (!headless && !cli) {
@@ -100,7 +99,7 @@ void mainLoop() {
                     e.type = SDL_KEYUP;
                     e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
                     for (Computer * c : computers) {
-                        if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                             e.key.windowID = c->term->id;
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
@@ -118,8 +117,8 @@ void mainLoop() {
                 taskQueueReturns[std::get<0>(v)] = retval;
                 taskQueue.pop();
             }
-            if (ch == KEY_SLEFT && CLITerminalWindow::selectedWindow > 0) {CLITerminalWindow::selectedWindow--; CLITerminalWindow::renderNavbar("");}
-            else if (ch == KEY_SRIGHT && CLITerminalWindow::selectedWindow < CLITerminalWindow::nextID - 1) {CLITerminalWindow::selectedWindow++; CLITerminalWindow::renderNavbar("");}
+            if (ch == KEY_SLEFT) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
+            else if (ch == KEY_SRIGHT) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
             else if (ch == KEY_MOUSE) {
                 getmouse(&me);
                 if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
@@ -132,7 +131,7 @@ void mainLoop() {
                 e.button.x = me.x + 1;
                 e.button.y = me.y + 1;
                 for (Computer * c : computers) {
-                    if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                    if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                         e.button.windowID = c->term->id;
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
@@ -144,7 +143,7 @@ void mainLoop() {
                     e.text.text[0] = ch;
                     e.text.text[1] = '\0';
                     for (Computer * c : computers) {
-                        if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                             e.text.windowID = c->term->id;
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
@@ -155,7 +154,7 @@ void mainLoop() {
                 e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
                 if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
                 for (Computer * c : computers) {
-                    if (CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                    if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                         e.key.windowID = c->term->id;
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
@@ -266,18 +265,14 @@ int getNextEvent(lua_State *L, const char * filter) {
 int os_getComputerID(lua_State *L) {lua_pushinteger(L, get_comp(L)->id); return 1;}
 int os_getComputerLabel(lua_State *L) {
     struct computer_configuration cfg = get_comp(L)->config;
-    if (cfg.label == NULL) return 0;
-    lua_pushstring(L, cfg.label);
+    if (cfg.label.empty()) return 0;
+    lua_pushstring(L, cfg.label.c_str());
     return 1;
 }
 
 int os_setComputerLabel(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    struct computer_configuration *cfg = &get_comp(L)->config;
-    if (cfg->label != NULL) free((char*)cfg->label);
-    char * label = (char*)malloc(lua_strlen(L, 1) + 1);
-    strcpy(label, lua_tostring(L, 1));
-    cfg->label = label;
+    get_comp(L)->config.label = lua_tostring(L, 1);
     return 0;
 }
 
@@ -414,8 +409,9 @@ int os_reboot(lua_State *L) {
 
 int os_system(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    system(lua_tostring(L, 1));
-    return 0;
+    if (!config.debug_enable) return 0;
+    lua_pushinteger(L, system(lua_tostring(L, 1)));
+    return 1;
 }
 
 

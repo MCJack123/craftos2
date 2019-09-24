@@ -35,6 +35,7 @@ extern bool cli;
 std::vector<Computer*> computers;
 std::unordered_set<Computer*> freedComputers; 
 
+// Basic CraftOS libraries
 library_t * libraries[] = {
     &bit_lib,
     &config_lib,
@@ -47,33 +48,42 @@ library_t * libraries[] = {
     &term_lib
 };
 
+// Constructor
 Computer::Computer(int i) {
     id = i;
+    // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
     addMount(this, (getROMPath() + "/rom").c_str(), "rom", ::config.romReadOnly);
     mounter_initializing = false;
+    // Create the root directory
 #ifdef _WIN32
     createDirectory((std::string(getBasePath()) + "\\computer\\" + std::to_string(id)).c_str());
 #else
     createDirectory((std::string(getBasePath()) + "/computer/" + std::to_string(id)).c_str());
 #endif
+    // Create the terminal
     if (headless) term = NULL;
 #ifndef NO_CLI
     else if (cli) term = new CLITerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
 #endif
     else term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
+    // Load config
     config = getComputerConfig(id);
 }
 
+// Destructor
 Computer::~Computer() {
+    // Destroy terminal
     if (!headless) delete term;
+    // Save config
     setComputerConfig(id, config);
-    freeComputerConfig(config);
+    // Deinitialize all peripherals
     for (auto p : peripherals) delete p.second;
     for (std::list<Computer*>::iterator c = referencers.begin(); c != referencers.end(); c++) {
         (*c)->peripherals_mutex.lock();
         for (auto it = (*c)->peripherals.begin(); it != (*c)->peripherals.end(); it++) {
             if (std::string(it->second->getMethods().name) == "computer" && ((computer*)it->second)->comp == this) {
+                // Detach computer peripherals pointing to this on other computers
                 delete (computer*)it->second;
                 it = (*c)->peripherals.erase(it);
                 if (it == (*c)->peripherals.end()) break;
@@ -84,11 +94,7 @@ Computer::~Computer() {
     }
 }
 
-struct error_tmp {
-    TerminalWindow * term;
-    std::string bios_path_expanded;
-};
-
+// Main computer loop
 void Computer::run() {
     running = 1;
     if (L != NULL) lua_close(L);
@@ -96,6 +102,7 @@ void Computer::run() {
         int status;
         lua_State *coro;
         if (!headless) {
+            // Initialize terminal contents
             term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
             term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
             term->pixels = std::vector<std::vector<char> >(term->height * term->fontHeight, std::vector<char>(term->width * term->fontWidth, 0x0F));
@@ -181,7 +188,7 @@ void Computer::run() {
         }
 
         // Set default globals
-        lua_pushstring(L, ::config.default_computer_settings);
+        lua_pushstring(L, ::config.default_computer_settings.c_str());
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
         pushHostString(L);
         lua_setglobal(L, "_HOST");
@@ -231,10 +238,11 @@ end");
             /* If something went wrong, error message is at the top of */
             /* the stack */
             fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)\n", bios_path_expanded.c_str(), lua_tostring(L, -1));
-            struct error_tmp ptr = {term, bios_path_expanded};
-            queueTask([ ](void* term)->void*{((struct error_tmp*)term)->term->showMessage(SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", std::string("Couldn't load BIOS from " + ((struct error_tmp*)term)->bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)").c_str()); return NULL;}, &ptr);
+            queueTask([bios_path_expanded](void* term)->void*{((TerminalWindow*)term)->showMessage(SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", std::string("Couldn't load BIOS from " + bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)").c_str()); return NULL;}, term);
             return;
         }
+
+        // Create renderer thread
         std::thread tid;
         if (!headless) {
             tid = std::thread(&termRenderLoop, this);
@@ -251,6 +259,7 @@ end");
                 if (lua_isstring(coro, -1)) narg = getNextEvent(coro, lua_tostring(coro, -1));
                 else narg = getNextEvent(coro, "");
             } else if (status != 0) {
+                // Catch runtime error
                 running = 0;
                 if (!headless) tid.join();
                 //usleep(5000000);
@@ -262,7 +271,8 @@ end");
                 return;
             }
         }
-
+        
+        // Shutdown threads
         if (!headless) tid.join();
         event_lock.notify_all();
         for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
@@ -272,6 +282,7 @@ end");
     }
 }
 
+// Gets the next event for the given computer
 bool Computer::getEvent(SDL_Event* e) {
     if (termEventQueue.size() == 0) return false;
     memcpy(e, &termEventQueue.front(), sizeof(SDL_Event));
@@ -279,6 +290,7 @@ bool Computer::getEvent(SDL_Event* e) {
     return true;
 }
 
+// Thread wrapper for running a computer
 void* computerThread(void* data) {
     Computer * comp = (Computer*)data;
     comp->run();
@@ -295,6 +307,7 @@ void* computerThread(void* data) {
 
 std::list<std::thread*> computerThreads;
 
+// Spin up a new computer
 Computer * startComputer(int id) {
     Computer * comp = new Computer(id);
     computers.push_back(comp);

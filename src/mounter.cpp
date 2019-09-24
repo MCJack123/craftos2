@@ -46,11 +46,7 @@ std::string fixpath(Computer *comp, const char * path, bool addExt, std::string 
         if (s == "..") { if (pathc.size() < 1) return std::string(); else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
-    if (script_file != "" && addExt && pathc.size() == 1 && pathc.front() == "startup.lua") {
-        char * retval = (char*)malloc(script_file.size() + 1);
-        strcpy(retval, script_file.c_str());
-        return retval;
-    }
+    if (script_file != "" && addExt && pathc.size() == 1 && pathc.front() == "startup.lua") return script_file;
     std::stringstream ss;
     if (addExt) {
         std::pair<size_t, std::string> max_path = std::make_pair(0, std::string(getBasePath()) + PATH_SEP + "computer" + PATH_SEP + std::to_string(comp->id));

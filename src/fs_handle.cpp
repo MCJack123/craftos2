@@ -39,7 +39,7 @@ int fs_handle_readAll(lua_State *L) {
     long pos = ftell(fp);
     fseek(fp, 0, SEEK_END);
     long size = ftell(fp) - pos;
-    char * retval = (char*)malloc(size + 1);
+    char * retval = new char[size + 1];
     memset(retval, 0, size + 1);
     fseek(fp, pos, SEEK_SET);
     int i;
@@ -49,7 +49,7 @@ int fs_handle_readAll(lua_State *L) {
         else retval[i] = checkChar(c);
     }
     lua_pushstring(L, retval);
-    free(retval);
+    delete[] retval;
     return 1;
 }
 
@@ -60,19 +60,16 @@ int fs_handle_readLine(lua_State *L) {
         lua_pushnil(L);
         return 1;
     }
-	char* retval = (char*)malloc(256);
+	char* retval = new char[256];
 	for (int i = 0; 1; i += 256) {
 		if (fgets(&retval[i], 256, fp) == NULL) break;
 		if (strlen(retval) < i + 255) break;
-		char* tmp = (char*)malloc(i + 512);
-		memcpy(tmp, retval, i + 256);
-		free(retval);
-		retval = tmp;
+		retval = (char*)realloc(retval, i + 512);
 	}
     int len = strlen(retval) - (retval[strlen(retval)-1] == '\n');
     if (retval[len-1] == '\r') retval[--len] = '\0';
     lua_pushlstring(L, retval, len);
-    free(retval);
+    delete[] retval;
     return 1;
 }
 
@@ -97,10 +94,10 @@ int fs_handle_readByte(lua_State *L) {
     if (feof(fp)) return 0;
     if (lua_isnumber(L, 1)) {
         size_t s = lua_tointeger(L, 1);
-        char* retval = (char*)malloc(s);
+        char* retval = new char[s];
         size_t read = fread(retval, s, 1, fp);
         lua_pushlstring(L, retval, read);
-        free(retval);
+        delete[] retval;
     } else {
         int retval = fgetc(fp);
         if (retval == EOF || feof(fp)) return 0;

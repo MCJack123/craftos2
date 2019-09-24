@@ -198,11 +198,11 @@ int printer::endPage(lua_State *L) {
     HPDF_Page_BeginText(page);
     HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 12.0);
     for (int i = 0; i < body.size(); i++) {
-        char * str = (char*)malloc(width + 1);
+        char * str = new char[width + 1];
         memcpy(str, &body[i][0], width);
         str[width] = 0;
         HPDF_Page_TextOut(page, 72, HPDF_Page_GetHeight(page) - (72 + ((i + 1) * 15)), (const char *)str);
-        free(str);
+        delete[] str;
     }
     HPDF_Page_EndText(page);
     HPDF_SaveToFile(out, outPath.c_str());

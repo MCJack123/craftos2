@@ -304,7 +304,7 @@ void* termRenderLoop(void* arg) {
         comp->term->render();
         long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
         //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
-        //peripheral_update(comp);
+        peripheral_update(comp);
         long t = (1000/config.clockSpeed) - count;
         if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
     }
@@ -469,8 +469,7 @@ int term_write(lua_State *L) {
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     int dummy = 0;
-    while (term->locked);
-    term->locked = true;
+    std::lock_guard<std::mutex> locked_g(term->locked);
     const char * str = lua_tostring(L, 1);
     #ifdef TESTING
     printf("%s\n", str);
@@ -479,7 +478,6 @@ int term_write(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
-    term->locked = false;
     return 0;
 }
 
@@ -491,8 +489,7 @@ int term_scroll(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    while (term->locked) if (!term->locked) break;
-    term->locked = true;
+    std::lock_guard<std::mutex> locked_g(term->locked);
     int lines = lua_tointeger(L, 1);
     for (int i = lines; i < term->height; i++) {
         term->screen[i-lines] = term->screen[i];
@@ -502,7 +499,6 @@ int term_scroll(lua_State *L) {
         term->screen[i-lines] = std::vector<char>(term->width, ' ');
         term->colors[i-lines] = std::vector<unsigned char>(term->width, computer->colors);
     }
-    term->locked = false;
     return 0;
 }
 
@@ -520,13 +516,11 @@ int term_setCursorPos(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    while (term->locked);
-    term->locked = true;
+    std::lock_guard<std::mutex> locked_g(term->locked);
     term->blinkX = lua_tointeger(L, 1) - 1;
     term->blinkY = lua_tointeger(L, 2) - 1;
     if (term->blinkX >= term->width) term->blinkX = term->width - 1;
     if (term->blinkY >= term->height) term->blinkY = term->height - 1;
-    term->locked = false;
     return 0;
 }
 
@@ -574,15 +568,13 @@ int term_clear(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    while (term->locked) if (!term->locked) break;
-    term->locked = true;
+    std::lock_guard<std::mutex> locked_g(term->locked);
     if (term->isPixel) {
         term->pixels = std::vector<std::vector<char> >(term->height * term->charHeight, std::vector<char>(term->width * term->charWidth, 15));
     } else {
         term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
         term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
     }
-    term->locked = false;
     return 0;
 }
 
@@ -595,11 +587,9 @@ int term_clearLine(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    while (term->locked) if (!term->locked) break;
-    term->locked = true;
+    std::lock_guard<std::mutex> locked_g(term->locked);
     term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, computer->colors);
-    term->locked = false;
     return 0;
 }
 
@@ -658,8 +648,7 @@ int term_blit(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    while (term->locked) if (!term->locked) break;
-    term->locked = true;
+    std::lock_guard<std::mutex> locked_g(term->locked);
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
@@ -671,7 +660,6 @@ int term_blit(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
-    term->locked = false;
     return 0;
 }
 

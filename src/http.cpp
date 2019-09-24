@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cctype>
 #include <functional>
+#include <chrono>
 extern "C" {
 #include <lauxlib.h>
 }
@@ -108,7 +109,7 @@ const char * http_success(lua_State *L, void* data) {
 
 const char * http_failure(lua_State *L, void* data) {
     lua_pushstring(L, (char*)data);
-    free(data);
+    delete[] (char*)data;
     return "http_failure";
 }
 
@@ -118,8 +119,8 @@ const char * http_check(lua_State *L, void* data) {
     lua_pushboolean(L, res->status == NULL);
     if (res->status == NULL) lua_pushnil(L);
     else lua_pushstring(L, res->status);
-    free(res->url);
-    free(res);
+    delete[] res->url;
+    delete res;
     return "http_check";
 }
 
@@ -143,16 +144,16 @@ void downloadThread(void* arg) {
         std::ostream& reqs = session->sendRequest(request);
         if (param->postData != NULL) reqs << param->postData;
         if (reqs.bad() || reqs.fail()) {
-            if (param->postData != NULL) free(param->postData);
-            if (param->url != param->old_url) free(param->old_url);
+            if (param->postData != NULL) delete[] param->postData;
+            if (param->url != param->old_url) delete[] param->old_url;
             termQueueProvider(param->comp, http_failure, param->url);
             delete param;
             return;
         }
     } catch (std::exception &e) {
         printf("Error while downloading: %s\n", e.what());
-        if (param->postData != NULL) free(param->postData);
-        if (param->url != param->old_url) free(param->old_url);
+        if (param->postData != NULL) delete[] param->postData;
+        if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
         delete param;
         return;
@@ -162,8 +163,8 @@ void downloadThread(void* arg) {
         handle = new http_handle_t(session->receiveResponse(*response));
     } catch (std::exception &e) {
         printf("Error while downloading: %s\n", e.what());
-        if (param->postData != NULL) free(param->postData);
-        if (param->url != param->old_url) free(param->old_url);
+        if (param->postData != NULL) delete[] param->postData;
+        if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
         delete param;
         return;
@@ -172,19 +173,19 @@ void downloadThread(void* arg) {
     handle->handle = response;
     handle->url = param->old_url;
     if (param->redirect && handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
-        if (param->url != param->old_url) free(param->url);
+        if (param->url != param->old_url) delete[] param->url;
         std::string location = handle->handle->get("Location");
         delete handle->handle;
         delete handle->session;
         delete handle;
-        param->url = (char*)malloc(location.size() + 1);
+        param->url = new char[location.size() + 1];
         strcpy(param->url, location.c_str());
         return downloadThread(param);
     }
     handle->closed = false;
     termQueueProvider(param->comp, http_success, handle);
-    if (param->postData != NULL) free(param->postData);
-    if (param->url != param->old_url) free(param->url);
+    if (param->postData != NULL) delete[] param->postData;
+    if (param->url != param->old_url) delete[] param->url;
     delete param;
 }
 
@@ -194,11 +195,11 @@ void* checkThread(void* arg) {
     if (strstr(param->url, "://") == NULL) status = "URL malformed";
     else if (strstr(param->url, "http") == NULL) status = "URL not http";
     else if (strstr(param->url, "192.168.") != NULL || strstr(param->url, "10.0.") != NULL) status = "Domain not permitted";
-    http_check_t * res = (http_check_t*)malloc(sizeof(http_check_t));
+    http_check_t * res = new http_check_t;
     res->url = param->url;
     res->status = status;
     termQueueProvider(param->comp, http_check, res);
-    free(param);
+    delete param;
     return NULL;
 }
 
@@ -210,12 +211,12 @@ int http_request(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    param->url = (char*)malloc(lua_strlen(L, 1) + 1); 
+    param->url = new char[lua_strlen(L, 1) + 1]; 
     strcpy(param->url, lua_tostring(L, 1));
     param->old_url = param->url;
     param->postData = NULL;
     if (lua_isstring(L, 2)) {
-        param->postData = (char*)malloc(lua_strlen(L, 2) + 1);
+        param->postData = new char[lua_strlen(L, 2) + 1];
         strcpy(param->postData, lua_tostring(L, 2));
     }
     if (lua_istable(L, 3)) {
@@ -245,9 +246,9 @@ int http_checkURL(lua_State *L) {
         return 1;
     }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    http_param_t * param = (http_param_t*)malloc(sizeof(http_param_t));
+    http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    param->url = (char*)malloc(lua_strlen(L, 1) + 1);
+    param->url = new char[lua_strlen(L, 1) + 1];
     strcpy(param->url, lua_tostring(L, 1));
     std::thread th(checkThread, param);
     setThreadName(th, "HTTP Check Thread");

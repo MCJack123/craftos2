@@ -1,24 +1,36 @@
+/*
+ * TCLIerminalWindow.hpp
+ * CraftOS-PC 2
+ * 
+ * This file defines the CLITerminalWindow class.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 #ifndef NO_CLI
 #include "TerminalWindow.hpp"
 #include <string>
 #include <ncurses.h>
 #include <vector>
+#include <set>
 
 class CLITerminalWindow: public TerminalWindow {
     friend void mainLoop();
     std::string title;
     unsigned last_pair;
+    static std::set<unsigned>::iterator selectedWindow;
 public:
-    static unsigned selectedWindow;
-    static unsigned nextID;
     static void renderNavbar(std::string title);
+    static void nextWindow();
+    static void previousWindow();
 
     CLITerminalWindow(std::string title);
-    ~CLITerminalWindow();
+    ~CLITerminalWindow() override;
     void setPalette(Color * p) {}
     void setCharScale(int scale) {}
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
-    virtual void render();
+    void render() override;
     bool resize(int w, int h) {return false;}
     void getMouse(int *x, int *y);
     void screenshot(std::string path = "") {}
