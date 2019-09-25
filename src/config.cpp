@@ -86,7 +86,9 @@ void config_init() {
         20,
         false,
         true,
-        true
+        true,
+        "",
+        0
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -107,6 +109,8 @@ void config_init() {
     if (root.isMember("ignoreHotkeys")) config.ignoreHotkeys = root["ignoreHotkeys"].asBool();
     if (root.isMember("checkUpdates")) config.checkUpdates = root["checkUpdates"].asBool();
     if (root.isMember("romReadOnly")) config.romReadOnly = root["romReadOnly"].asBool();
+    if (root.isMember("customFontPath")) config.customFontPath = root["customFontPath"].asString();
+    if (root.isMember("customFontScale")) config.customFontScale = root["customFontScale"].asInt();
 }
 
 void config_save(bool deinit) {
@@ -125,6 +129,8 @@ void config_save(bool deinit) {
     root["ignoreHotkeys"] = config.ignoreHotkeys;
     root["checkUpdates"] = config.checkUpdates;
     root["romReadOnly"] = config.romReadOnly;
+    root["customFontPath"] = config.customFontPath;
+    root["customFontScale"] = config.customFontScale;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();

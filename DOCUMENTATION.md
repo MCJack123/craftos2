@@ -6,6 +6,15 @@ Computers can be created with `periphemu.create("computer_<id>", "computer")`, w
 If the peripheral is detached with `periphemu.remove`, the peripheral will be detached but the computer window will stay open. To close the computer from Lua, call `peripheral.call("computer_<id>", "shutdown")`, and the peripheral will automatically be detached.  
 Computers can also be attached and detached from the shell when using the CraftOS ROM with `attach computer_<id> computer` and `detach computer_<id>`, respectively.
 
+## Using custom fonts
+The font used for CraftOS-PC can be changed in `.craftos/config/global.json`, with the `customFontPath` option. To set the font, set `customFontPath` to the absolute path to a BMP file containing the font glyphs. Each glyph must be exactly 6*s* x 9*s* px with 2*s* pixels between each glyph, where *s* is a number representing the scale of the font. `customFontScale` must also be set to a number representing the size of the font (1 = HD font (12x18), 2 = normal font (6x9), 3 = 1/2 size font (4x6)).
+
+For example, if the CCEmuX `hdfont.bmp` is placed at `/usr/share/craftos/hdfont.bmp`, we can add this to `global.json`:
+```json
+"customFontPath": "/usr/share/craftos/hdfont.bmp",
+"customFontScale": 1
+```
+
 ## `periphemu`
 Creates and removes peripherals from the registry.
 ### Functions

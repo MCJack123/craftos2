@@ -45,6 +45,8 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
     if (defaultDpi) *defaultDpi = kSysDefaultDpi;
 }
 
+int TerminalWindow::fontScale = 1;
+
 TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
     screen = std::vector<std::vector<char> >(h, std::vector<char>(w, ' '));
@@ -79,7 +81,16 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
     }
-    SDL_Surface* old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
+    SDL_Surface* old_bmp;
+    if (config.customFontPath.empty()) 
+        old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
+    else {
+        old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
+        fontScale = config.customFontScale;
+        charScale = 2 / fontScale;
+        charWidth = fontWidth * fontScale * charScale;
+        charHeight = fontHeight * fontScale * charScale;
+    }
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
@@ -331,10 +342,10 @@ void TerminalWindow::getMouse(int *x, int *y) {
 
 SDL_Rect TerminalWindow::getCharacterRect(char c) {
     SDL_Rect retval;
-    retval.w = fontWidth * fontScale;
-    retval.h = fontHeight * fontScale;
-    retval.x = ((fontWidth + 2) * fontScale)*(c & 0x0F)+fontScale;
-    retval.y = ((fontHeight + 2) * fontScale)*(c >> 4)+fontScale;
+    retval.w = fontWidth * 2/fontScale;
+    retval.h = fontHeight * 2/fontScale;
+    retval.x = ((fontWidth + 2) * 2/fontScale)*(c & 0x0F)+2/fontScale;
+    retval.y = ((fontHeight + 2) * 2/fontScale)*(c >> 4)+2/fontScale;
     return retval;
 }
 

@@ -28,6 +28,8 @@ struct configuration {
     bool ignoreHotkeys;
     bool checkUpdates;
     bool romReadOnly;
+    std::string customFontPath;
+    int customFontScale;
 };
 struct computer_configuration {
     std::string label;

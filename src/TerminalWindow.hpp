@@ -64,7 +64,7 @@ public:
     static const int fontWidth = 6;
     static const int fontHeight = 9;
 protected:
-    static const int fontScale = 1;
+    static int fontScale;
     bool shouldScreenshot = false;
     bool shouldRecord = false;
     bool gotResizeEvent = false;
