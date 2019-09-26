@@ -74,12 +74,26 @@ int http_handle_readLine(lua_State *L) {
     return 1;
 }
 
-int http_handle_read(lua_State *L) {
+int http_handle_readChar(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed || !handle->stream.good()) return 0;
     char retval[2];
     retval[0] = checkChar(handle->stream.get());
     lua_pushstring(L, retval);
+    return 1;
+}
+
+int http_handle_readByte(lua_State *L) {
+    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle->closed || !handle->stream.good()) return 0;
+    if (!lua_isnumber(L, 1)) {
+        lua_pushinteger(L, handle->stream.get());
+    } else {
+        int c = lua_tointeger(L, 1);
+        char * retval = new char[c+1];
+        handle->stream.read(retval, c);
+        lua_pushstring(L, retval);
+    }
     return 1;
 }
 

@@ -142,4 +142,8 @@ void pushHostString(lua_State *L) {
     lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
 }
 
+void updateNow(std::string tag_name) {
+    system("pkexec apt update; pkexec apt upgrade craftos-pc"); // yes this is crap but it kinda works
+}
+
 #endif // __INTELLISENSE__

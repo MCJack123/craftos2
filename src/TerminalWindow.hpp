@@ -82,8 +82,8 @@ public:
     std::mutex locked;
     int charScale = 2;
     int dpiScale = 1;
-    int charWidth = fontWidth * fontScale * charScale;
-    int charHeight = fontHeight * fontScale * charScale;
+    int charWidth = fontWidth * 2/fontScale * charScale;
+    int charHeight = fontHeight * 2/fontScale * charScale;
     std::vector<std::vector<char> > screen;
     std::vector<std::vector<unsigned char> > colors;
     std::vector<std::vector<char> > pixels;

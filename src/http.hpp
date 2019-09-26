@@ -11,5 +11,6 @@
 #ifndef HTTP_HPP
 #define HTTP_HPP
 #include "lib.hpp"
+extern void HTTPDownload(std::string url, std::function<void(std::istream&)> callback);
 extern library_t http_lib;
 #endif

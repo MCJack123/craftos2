@@ -24,6 +24,7 @@ extern void pushHostString(lua_State *L);
 extern std::string getBasePath();
 extern std::string getROMPath();
 extern std::string getPlugInPath();
+extern void updateNow(std::string tag_name);
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

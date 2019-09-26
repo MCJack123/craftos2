@@ -163,7 +163,7 @@ void Computer::run() {
                 lua_setglobal(L, api_name.c_str());
             }
             closedir(d);
-        } else printf("Could not open plugins from %s\n", plugin_path.c_str());
+        } //else printf("Could not open plugins from %s\n", plugin_path.c_str());
 
         // Delete unwanted globals
         lua_pushnil(L);

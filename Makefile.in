@@ -7,7 +7,7 @@ LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
 PREFIX?=@prefix@
 ifneq (/usr/local,$(PREFIX))
-CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)\"
+CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)/share/craftos\"
 endif
 SDIR=@srcdir@/src
 ODIR=obj
@@ -22,7 +22,7 @@ craftos: $(OBJ) $(ODIR)/platform.o
 macapp: $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
-	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation
+	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework AppKit
 ifneq (,$(wildcard codesign/Makefile))
 	make -C codesign
 endif

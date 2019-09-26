@@ -46,6 +46,7 @@ typedef struct {
     std::unordered_map<std::string, std::string> headers;
     std::string method;
     char * old_url;
+    bool isBinary;
     bool redirect;
 } http_param_t;
 
@@ -55,6 +56,7 @@ typedef struct http_handle {
     HTTPClientSession * session;
     HTTPResponse * handle;
     std::istream& stream;
+    bool isBinary;
     http_handle(std::istream& s): stream(s) {}
 } http_handle_t;
 
@@ -80,20 +82,27 @@ const char * http_success(lua_State *L, void* data) {
     lua_pushcclosure(L, http_handle_close, 1);
     lua_settable(L, -3);
 
-    lua_pushstring(L, "readLine");
-    lua_pushlightuserdata(L, handle);
-    lua_pushcclosure(L, http_handle_readLine, 1);
-    lua_settable(L, -3);
+    if (!handle->isBinary) {
+        lua_pushstring(L, "readLine");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_readLine, 1);
+        lua_settable(L, -3);
 
-    lua_pushstring(L, "readAll");
-    lua_pushlightuserdata(L, handle);
-    lua_pushcclosure(L, http_handle_readAll, 1);
-    lua_settable(L, -3);
+        lua_pushstring(L, "readAll");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_readAll, 1);
+        lua_settable(L, -3);
 
-    lua_pushstring(L, "read");
-    lua_pushlightuserdata(L, handle);
-    lua_pushcclosure(L, http_handle_read, 1);
-    lua_settable(L, -3);
+        lua_pushstring(L, "read");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_readChar, 1);
+        lua_settable(L, -3);
+    } else {
+        lua_pushstring(L, "read");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_readByte, 1);
+        lua_settable(L, -3);
+    }
 
     lua_pushstring(L, "getResponseCode");
     lua_pushlightuserdata(L, handle);
@@ -172,6 +181,7 @@ void downloadThread(void* arg) {
     handle->session = session;
     handle->handle = response;
     handle->url = param->old_url;
+    handle->isBinary = param->isBinary;
     if (param->redirect && handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
         if (param->url != param->old_url) delete[] param->url;
         std::string location = handle->handle->get("Location");
@@ -187,6 +197,20 @@ void downloadThread(void* arg) {
     if (param->postData != NULL) delete[] param->postData;
     if (param->url != param->old_url) delete[] param->url;
     delete param;
+}
+
+void HTTPDownload(std::string url, std::function<void(std::istream&)> callback) {
+    Poco::URI uri(url);
+    Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
+    Poco::Net::HTTPResponse response;
+    session.setTimeout(Poco::Timespan(5000000));
+    request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
+    session.sendRequest(request);
+    std::istream& stream = session.receiveResponse(response);
+    if (response.getStatus() / 100 == 3 && response.has("Location")) 
+        return HTTPDownload(response.get("Location"), callback);
+    callback(stream);
 }
 
 void* checkThread(void* arg) {
@@ -215,6 +239,7 @@ int http_request(lua_State *L) {
     strcpy(param->url, lua_tostring(L, 1));
     param->old_url = param->url;
     param->postData = NULL;
+    param->isBinary = false;
     if (lua_isstring(L, 2)) {
         param->postData = new char[lua_strlen(L, 2) + 1];
         strcpy(param->postData, lua_tostring(L, 2));
@@ -229,8 +254,7 @@ int http_request(lua_State *L) {
         }
         lua_pop(L, 1);
     }
-    if (lua_isboolean(L, 4)) 
-        ; // add binary support
+    if (lua_isboolean(L, 4)) param->isBinary = lua_toboolean(L, 4);
     if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
     param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
     std::thread th(downloadThread, param);

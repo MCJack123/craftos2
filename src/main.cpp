@@ -34,9 +34,9 @@ extern bool exiting;
 bool headless = false;
 bool cli = false;
 std::string script_file = "";
+std::string updateAtQuit;
 
 void update_thread() {
-    // Update checker (2.1 will add auto-install)
     try {
         Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
         Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", Poco::Net::HTTPMessage::HTTP_1_1);
@@ -47,9 +47,42 @@ void update_thread() {
         Poco::JSON::Parser parser;
         parser.parse(session.receiveResponse(response));
         Poco::JSON::Object::Ptr root = parser.asVar().extract<Poco::JSON::Object::Ptr>();
-        if (root->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) 
-            queueTask([ ](void* arg)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Update available!", (const char*)arg, NULL); return NULL;}, 
-                      (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
+        if (root->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) {
+            SDL_MessageBoxData msg;
+            SDL_MessageBoxButtonData buttons[] = {
+                {0, 0, "Skip This Version"},
+                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Ask Me Later"},
+                {0, 2, "Update On Quit"},
+                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"}
+            };
+            msg.flags = SDL_MESSAGEBOX_INFORMATION;
+            msg.window = NULL;
+            msg.title = "Update available!";
+            std::string message = (std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
+            msg.message = message.c_str();
+            msg.numbuttons = 4;
+            msg.buttons = buttons;
+            msg.colorScheme = NULL;
+            int* choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
+            int choice = *choicep;
+            delete choicep;
+            switch (choice) {
+                case 0:
+                    config.checkUpdates = false;
+                    return;
+                case 1:
+                    return;
+                case 2:
+                    updateAtQuit = root->getValue<std::string>("tag_name");
+                    return;
+                case 3:
+                    queueTask([root](void*)->void*{updateNow(root->getValue<std::string>("tag_name")); return NULL;}, NULL);
+                    return;
+                default:
+                    // this should never happen
+                    exit(choice);
+            }
+        }
     } catch (std::exception &e) {
         printf("Could not check for updates: %s\n", e.what());
     }
@@ -86,12 +119,16 @@ int main(int argc, char*argv[]) {
     mainLoop();
     for (std::thread *t : computerThreads) { t->join(); delete t; }
     driveQuit();
-#ifndef NO_CLI
+    http_server_stop();
+    config_save(true);
+    if (!updateAtQuit.empty()) {
+        updateNow(updateAtQuit);
+        while (true) std::this_thread::yield();
+    }
+    #ifndef NO_CLI
     if (cli) cliClose();
     else 
 #endif
         termClose();
-    http_server_stop();
-    config_save(true);
     return 0;
 }

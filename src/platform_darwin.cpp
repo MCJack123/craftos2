@@ -133,4 +133,8 @@ void pushHostString(lua_State *L) {
     lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
 }
 
+void updateNow(std::string tag_name) {
+    printf("Updating is not available on Mac terminal builds.\n");
+}
+
 #endif // __INTELLISENSE__

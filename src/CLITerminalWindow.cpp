@@ -22,7 +22,11 @@ std::set<unsigned>::iterator CLITerminalWindow::selectedWindow = currentIDs.begi
 
 void CLITerminalWindow::renderNavbar(std::string title) {
     move(LINES-1, 0);
+    attron(COLOR_PAIR(0x70));
+    clrtoeol();
     printw("%d: %s", *selectedWindow+1, title.c_str());
+    for (int i = getcurx(stdscr); i < COLS; i++) mvaddch(LINES-1, i, ' ' | COLOR_PAIR(0x70));
+    attroff(COLOR_PAIR(0x70));
 }
 
 CLITerminalWindow::CLITerminalWindow(std::string title): title(title), TerminalWindow(COLS, LINES-1) {
@@ -50,10 +54,8 @@ void CLITerminalWindow::render() {
         clear();
         for (int y = 0; y < screen.size(); y++) {
             for (int x = 0; x < screen[y].size(); x++) {
-                //wattron(term, COLOR_PAIR(colors[y][x]));
                 move(y, x);
                 addch(screen[y][x] | COLOR_PAIR(colors[y][x]));
-                //wattroff(term, COLOR_PAIR(colors[y][x]));
             }
         }
         renderNavbar(title);

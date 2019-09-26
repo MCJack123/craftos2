@@ -26,9 +26,17 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <sstream>
+#include <fstream>
+#include <Poco/Net/HTTPSClientSession.h>
+#include <Poco/Net/SSLException.h>
+#include <Poco/Net/HTTPRequest.h>
+#include <Poco/Net/HTTPResponse.h>
+#include <SDL2/SDL.h>
 #import <Foundation/Foundation.h>
+#import <AppKit/AppKit.h>
 #include "platform.hpp"
 #include "mounter.hpp"
+#include "http.hpp"
 
 const char * base_path = "$HOME/.craftos";
 std::string base_path_expanded;
@@ -49,7 +57,7 @@ std::string getROMPath() {
     char * retval = new char[path.length + 1];
     [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
 	rom_path_expanded = retval;
-    delete retval;
+    delete[] retval;
     return rom_path_expanded;
 }
 
@@ -58,7 +66,7 @@ std::string getPlugInPath() {
 	char * retval = new char[path.length + 1];
     [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
 	std::string s((const char*)retval);
-	delete retval;
+	delete[] retval;
 	return s;
 }
 
@@ -127,4 +135,68 @@ void pushHostString(lua_State *L) {
     struct utsname host;
     uname(&host);
     lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
+}
+
+@interface UpdateViewController : NSObject
+- (void) viewDidLoad;
+@end
+
+@implementation UpdateViewController
+- (void) viewDidLoad {
+    
+}
+@end
+
+void updateNow(std::string tag_name) {
+    UpdateViewController * vc = [UpdateViewController alloc]
+    NSWindow* win = [NSWindow windowWithContentViewController:vc];
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC.dmg", [controller](std::istream& in) {
+        @autoreleasepool {
+            NSString *tempFileTemplate = [NSTemporaryDirectory() stringByAppendingPathComponent:@"CraftOS-PC.dmg"];
+            const char *tempFileTemplateCString = [tempFileTemplate fileSystemRepresentation];
+            std::ofstream out(tempFileTemplateCString, std::ios::binary);
+            char c = in.get();
+            while (in.good()) {out.put(c); c = in.get();}
+            out.close();
+            printf("Wrote: %s\n", tempFileTemplateCString);
+            NSError * err = nil;
+            NSUserUnixTask * task = [[NSUserUnixTask alloc] initWithURL:[NSURL fileURLWithPath:@"/usr/bin/hdiutil" isDirectory:false] error:&err];
+            if (err != nil) {
+                NSLog(@"Could not open mount task: %@\n", [err localizedDescription]);
+                [controller close];
+                [controller release];
+                return;
+            }
+            NSPipe * pipe = [NSPipe pipe];
+            task.standardOutput = [pipe fileHandleForWriting];
+            [task executeWithArguments:@[@"attach", @"-plist", tempFileTemplate] completionHandler:^(NSError *error){
+                NSError * err2 = nil;
+                if (error == NULL) {
+                    NSDictionary * res = [NSPropertyListSerialization propertyListWithData:[[pipe fileHandleForReading] readDataToEndOfFile] options:NSPropertyListImmutable format:nil error:&err2];
+                    if (err2 != nil) {
+                        NSLog(@"Could not read property list: %@\n", [err2 localizedDescription]);
+                        [controller close];
+                        [controller release];
+                        return;
+                    }
+                    NSURL * path = [NSURL fileURLWithPath:@".install" relativeToURL:[NSURL fileURLWithPath:res[@"system-entities"][0][@"mount-point"] isDirectory:true]];
+                    if (![[NSFileManager defaultManager] isExecutableFileAtPath:[path path]]) {
+                        NSLog(@"Could not find %@\n", [path path]); 
+                        [controller close];
+                        [controller release];
+                        system((std::string("/usr/bin/hdiutil detach ") + [res[@"system-entities"][0][@"mount-point"] cStringUsingEncoding:NSASCIIStringEncoding]).c_str());
+                        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update failed", "This version does not support auto updating. Please go to https://github.com/MCJack123/craftos2/releases to install manually.", NULL);
+                        return;
+                    }
+                    //[[[NSUserUnixTask alloc] initWithURL:path error:nil] executeWithArguments:@[[NSBundle mainBundle].bundlePath] completionHandler:^(NSError *error) {if (error != nil) NSLog(@"Error running .install: %@\n", [error localizedDescription]);/*exit(0);*/}];
+                    int pid = fork();
+                    if (pid < 0) printf("Could not fork: %d\n", pid);
+                    else if (pid == 0) {system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str()); exit(0);}
+                    [controller close];
+                    [controller release];
+                    exit(0);
+                } else NSLog(@"Error: %@\n", [error localizedDescription]);
+            }];
+        }
+    });
 }

@@ -1,0 +1,24 @@
+#!/bin/sh
+# Mac distribution auto-updater
+# DO NOT RUN STANDALONE!
+SRCAPP=$(dirname $0)/CraftOS-PC.app
+DSTAPP=$1
+TMPDIR=$(mktemp)
+echo Temp dir: $TMPDIR
+mkdir $TMPDIR
+echo $SRCAPP -\> $DSTAPP
+if [ -d $DSTAPP/Contents/PlugIns ]; then
+    echo Backing up plugins...
+    cp -Rp $DSTAPP/Contents/PlugIns $TMPDIR/
+fi
+echo Installing new version...
+rm -rf $DSTAPP
+cp -Rp $SRCAPP $(dirname $DSTAPP)/
+if [ -d $TMPDIR/PlugIns ]; then
+    echo Replacing plugins...
+    cp -Rp $TMPDIR/PlugIns $DSTAPP/Contents/
+fi;
+echo Restarting...
+sleep 1
+open $DSTAPP
+nohup sh -c "sleep 1; hdiutil detach $(dirname $0)" &

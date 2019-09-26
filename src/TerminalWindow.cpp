@@ -45,7 +45,7 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
     if (defaultDpi) *defaultDpi = kSysDefaultDpi;
 }
 
-int TerminalWindow::fontScale = 1;
+int TerminalWindow::fontScale = 2;
 
 TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
@@ -84,12 +84,18 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     SDL_Surface* old_bmp;
     if (config.customFontPath.empty()) 
         old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
-    else {
+    else if (config.customFontPath == "hdfont") {
+        old_bmp = SDL_LoadBMP((getROMPath() + "/hdfont.bmp").c_str());
+        fontScale = 1;
+        charScale = 1;
+        charWidth = fontWidth * 2/fontScale * charScale;
+        charHeight = fontHeight * 2/fontScale * charScale;
+    } else {
         old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
         fontScale = config.customFontScale;
         charScale = 2 / fontScale;
-        charWidth = fontWidth * fontScale * charScale;
-        charHeight = fontHeight * fontScale * charScale;
+        charWidth = fontWidth * 2/fontScale * charScale;
+        charHeight = fontHeight * 2/fontScale * charScale;
     }
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
         SDL_DestroyRenderer(ren);
@@ -136,10 +142,10 @@ bool operator!=(Color lhs, Color rhs) {
 bool TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        x * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale, 
-        y * charHeight * dpiScale + 2 * charScale * fontScale * dpiScale, 
-        fontWidth * fontScale * charScale * dpiScale, 
-        fontHeight * fontScale * charScale * dpiScale
+        x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
+        y * charHeight * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
+        fontWidth * 2/fontScale * charScale * dpiScale, 
+        fontHeight * 2/fontScale * charScale * dpiScale
     };
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -321,7 +327,11 @@ void TerminalWindow::render() {
 #ifdef __linux__
     queueTask([ ](void* arg)->void*{SDL_UpdateWindowSurface((SDL_Window*)arg); return NULL;}, win);
 #else
-    if (SDL_UpdateWindowSurface(win) != 0) printf("Error rendering: %s\n", SDL_GetError());
+    if (SDL_UpdateWindowSurface(win) != 0) {
+        printf("Error rendering: %s\n", SDL_GetError());
+        SDL_DestroyRenderer(ren);
+        ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
+    }
 #endif
 #endif
 }
