@@ -39,9 +39,7 @@ AC_SEARCH_LIBS(pthread_create, pthread, [], [AC_MSG_ERROR([Could not find pthrea
 AC_SEARCH_LIBS(dlopen, dl, [], [AC_MSG_ERROR([Could not find dl library.])])
 
 AC_CHECK_HEADERS(lua.h lualib.h lauxlib.h, [], [AC_MSG_ERROR([Could not find Lua 5.1 headers.])])
-AC_SEARCH_LIBS(luaL_register, lua5.1, [LUA_FOUND=1], [])
-AS_IF([test "x$LUA_FOUND" = "x"], [AC_SEARCH_LIBS(luaL_register, lua, [LUA_FOUND=1], [])], [])
-AS_IF([test "x$LUA_FOUND" = "x"], [AC_MSG_ERROR([Could not find Lua 5.1.])], [])
+AC_SEARCH_LIBS(luaL_register, [lua5.1, lua], [], [AC_MSG_ERROR([Could not find Lua 5.1.])])
 
 AC_CHECK_HEADERS(SDL2/SDL.h, [], [AC_MSG_ERROR([Could not find SDL2 header.])])
 AC_SEARCH_LIBS(SDL_Init, SDL2, [], [AC_MSG_ERROR([Could not find SDL2 library.])])
