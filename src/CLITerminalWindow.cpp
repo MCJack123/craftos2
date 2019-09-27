@@ -52,6 +52,17 @@ void CLITerminalWindow::render() {
         std::lock_guard<std::mutex> locked_g(locked);
         move(0, 0);
         clear();
+        if (can_change_color()) {
+            unsigned short checksum = 0;
+            for (int i = 0; i < 48; i++) {
+                checksum = (checksum >> 1) + ((checksum & 1) << 15);
+                checksum += ((unsigned char*)palette)[i];
+            }
+            if (checksum != lastPaletteChecksum)
+                for (int i = 0; i < 16; i++) 
+                    init_color(15-i, palette[i].r * (1000/255), palette[i].g * (1000/255), palette[i].b * (1000/255));
+            lastPaletteChecksum = checksum;
+        }
         for (int y = 0; y < screen.size(); y++) {
             for (int x = 0; x < screen[y].size(); x++) {
                 move(y, x);

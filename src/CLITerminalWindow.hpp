@@ -19,6 +19,7 @@ class CLITerminalWindow: public TerminalWindow {
     friend void mainLoop();
     std::string title;
     unsigned last_pair;
+    unsigned short lastPaletteChecksum = 0;
     static std::set<unsigned>::iterator selectedWindow;
 public:
     static void renderNavbar(std::string title);
