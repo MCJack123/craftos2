@@ -30,6 +30,7 @@ struct configuration {
     bool romReadOnly;
     std::string customFontPath;
     int customFontScale;
+    int customCharScale;
 };
 struct computer_configuration {
     std::string label;

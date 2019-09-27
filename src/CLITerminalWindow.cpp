@@ -54,10 +54,8 @@ void CLITerminalWindow::render() {
         clear();
         if (can_change_color()) {
             unsigned short checksum = 0;
-            for (int i = 0; i < 48; i++) {
-                checksum = (checksum >> 1) + ((checksum & 1) << 15);
-                checksum += ((unsigned char*)palette)[i];
-            }
+            for (int i = 0; i < 48; i++) 
+                checksum = (checksum >> 1) + ((checksum & 1) << 15) + ((unsigned char*)palette)[i];
             if (checksum != lastPaletteChecksum)
                 for (int i = 0; i < 16; i++) 
                     init_color(15-i, palette[i].r * (1000/255), palette[i].g * (1000/255), palette[i].b * (1000/255));

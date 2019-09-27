@@ -59,6 +59,22 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
+    if (config.customFontPath == "hdfont") {
+        fontScale = 1;
+        charScale = 1;
+        charWidth = fontWidth * 2/fontScale * charScale;
+        charHeight = fontHeight * 2/fontScale * charScale;
+    } else if (!config.customFontPath.empty()) {
+        fontScale = config.customFontScale;
+        charScale = 2 / fontScale;
+        charWidth = fontWidth * 2/fontScale * charScale;
+        charHeight = fontHeight * 2/fontScale * charScale;
+    }
+    if (config.customCharScale > 0) {
+        charScale = config.customCharScale;
+        charWidth = fontWidth * 2/fontScale * charScale;
+        charHeight = fontHeight * 2/fontScale * charScale;
+    }
     win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) 
         throw window_exception("Failed to create window");
@@ -84,19 +100,8 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     SDL_Surface* old_bmp;
     if (config.customFontPath.empty()) 
         old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
-    else if (config.customFontPath == "hdfont") {
-        old_bmp = SDL_LoadBMP((getROMPath() + "/hdfont.bmp").c_str());
-        fontScale = 1;
-        charScale = 1;
-        charWidth = fontWidth * 2/fontScale * charScale;
-        charHeight = fontHeight * 2/fontScale * charScale;
-    } else {
-        old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
-        fontScale = config.customFontScale;
-        charScale = 2 / fontScale;
-        charWidth = fontWidth * 2/fontScale * charScale;
-        charHeight = fontHeight * 2/fontScale * charScale;
-    }
+    else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP((getROMPath() + "/hdfont.bmp").c_str());
+    else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);

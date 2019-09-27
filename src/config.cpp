@@ -88,6 +88,7 @@ void config_init() {
         true,
         true,
         "",
+        0,
         0
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
@@ -111,6 +112,7 @@ void config_init() {
     if (root.isMember("romReadOnly")) config.romReadOnly = root["romReadOnly"].asBool();
     if (root.isMember("customFontPath")) config.customFontPath = root["customFontPath"].asString();
     if (root.isMember("customFontScale")) config.customFontScale = root["customFontScale"].asInt();
+    if (root.isMember("customCharScale")) config.customCharScale = root["customCharScale"].asInt();
 }
 
 void config_save(bool deinit) {
@@ -131,6 +133,7 @@ void config_save(bool deinit) {
     root["romReadOnly"] = config.romReadOnly;
     root["customFontPath"] = config.customFontPath;
     root["customFontScale"] = config.customFontScale;
+    root["customCharScale"] = config.customCharScale;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
