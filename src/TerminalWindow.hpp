@@ -114,9 +114,8 @@ public:
 
 private:
     SDL_Window *win;
-    SDL_Renderer *ren;
+    SDL_Surface *surf;
     SDL_Surface *bmp;
-    SDL_Texture *font;
 
     static SDL_Rect getCharacterRect(char c);
 };
