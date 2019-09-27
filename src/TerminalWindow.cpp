@@ -79,6 +79,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) 
         throw window_exception("Failed to create window");
     id = SDL_GetWindowID(win);
+#ifndef __APPLE__
     char * icon_pixels = new char[favicon_width * favicon_height * 4];
     memset(icon_pixels, 0xFF, favicon_width * favicon_height * 4);
     const char * icon_data = header_data;
@@ -87,6 +88,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     SDL_SetWindowIcon(win, icon);
     SDL_FreeSurface(icon);
     delete[] icon_pixels;
+#endif
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 #else
