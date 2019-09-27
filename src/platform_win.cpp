@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <cstring>
 #include <unordered_map>
 #include <processenv.h>
@@ -177,6 +178,26 @@ void pushHostString(lua_State *L) {
     double version = info.dwMajorVersion
         + (info.dwMinorVersion / 10.0);
     lua_pushfstring(L, "%s %s %d.%d", windows_version_map[version], ARCHITECTURE, info.dwMajorVersion, info.dwMinorVersion);
+}
+
+void updateNow(std::string tagname) {
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC-Setup.exe", [](std::istream&) {
+        char str[261];
+        GetTempPathA(261, str);
+        std::string path = std::string(str) + "\\setup.exe"
+        std::ofstream out(path);
+        char c = in.get();
+        while (in.good()) {out.put(c); c = in.get();}
+        out.close();
+        STARTUPINFOA info;
+        memset(&info, sizeof(info), 0);
+        info.cb = sizeof(info);
+        PROCESS_INFORMATION process;
+        CreateProcessA(path.c_str(), NULL, NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
+        CloseHandle(process.hProcess);
+        CloseHandle(process.hThread);
+        exit(0);
+    });
 }
 
 #endif

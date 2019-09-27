@@ -27,6 +27,7 @@ extern void cliClose();
 extern void config_init();
 extern void config_save(bool deinit);
 extern void mainLoop();
+extern void awaitTasks();
 extern void http_server_stop();
 extern void* queueTask(std::function<void*(void*)> func, void* arg);
 extern std::list<std::thread*> computerThreads;
@@ -123,9 +124,9 @@ int main(int argc, char*argv[]) {
     config_save(true);
     if (!updateAtQuit.empty()) {
         updateNow(updateAtQuit);
-        while (true) std::this_thread::yield();
+        awaitTasks();
     }
-    #ifndef NO_CLI
+#ifndef NO_CLI
     if (cli) cliClose();
     else 
 #endif

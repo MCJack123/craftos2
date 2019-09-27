@@ -43,7 +43,7 @@ extern std::unordered_map<int, unsigned char> keymap;
 void* queueTask(std::function<void*(void*)> func, void* arg) {
     int myID = nextTaskID++;
     taskQueue.push(std::make_tuple(myID, func, arg));
-    if (!headless && !cli) {
+    if (!headless && !cli && !exiting) {
         SDL_Event ev;
         ev.type = task_event_type;
         SDL_PushEvent(&ev);
@@ -52,6 +52,19 @@ void* queueTask(std::function<void*(void*)> func, void* arg) {
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
     return retval;
+}
+
+void awaitTasks() {
+    while (true) {
+        if (taskQueue.size() > 0) {
+            auto v = taskQueue.front();
+            void* retval = std::get<1>(v)(std::get<2>(v));
+            taskQueueReturns[std::get<0>(v)] = retval;
+            taskQueue.pop();
+        }
+        SDL_PumpEvents();
+        std::this_thread::yield();
+    }
 }
 
 void mainLoop() {
