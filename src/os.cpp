@@ -20,6 +20,7 @@ extern "C" {
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <unordered_set>
 #include "os.hpp"
 #include "platform.hpp"
 #include "term.hpp"
@@ -314,6 +315,7 @@ int os_clock(lua_State *L) {
 }
 
 Uint32 notifyEvent(Uint32 interval, void* param) {
+    if (exiting) return interval;
     ((Computer*)param)->event_lock.notify_all();
     return interval;
 }

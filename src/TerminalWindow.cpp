@@ -56,7 +56,7 @@ TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
 }
 
 TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
-    locked.unlock();
+    //locked.unlock();
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
