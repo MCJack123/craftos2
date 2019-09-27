@@ -121,8 +121,8 @@ void TerminalWindow::setPalette(Color * p) {
 void TerminalWindow::setCharScale(int scale) {
     if (scale < 1) scale = 1;
     charScale = scale;
-    charWidth = fontWidth * fontScale * charScale;
-    charHeight = fontHeight * fontScale * charScale;
+    charWidth = fontWidth * (2/fontScale) * charScale;
+    charHeight = fontHeight * (2/fontScale) * charScale;
     SDL_SetWindowSize(win, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale));
 }
 
@@ -309,8 +309,8 @@ SDL_Rect TerminalWindow::getCharacterRect(char c) {
 
 bool TerminalWindow::resize(int w, int h) {
     surf = SDL_GetWindowSurface(win);
-    newWidth = (w - 4*fontScale*charScale) / charWidth;
-    newHeight = (h - 4*fontScale*charScale) / charHeight;
+    newWidth = (w - 4*(2/fontScale)*charScale) / charWidth;
+    newHeight = (h - 4*(2/fontScale)*charScale) / charHeight;
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
     while (gotResizeEvent) std::this_thread::yield();
