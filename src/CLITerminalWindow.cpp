@@ -39,6 +39,7 @@ CLITerminalWindow::CLITerminalWindow(std::string title): title(title), TerminalW
 CLITerminalWindow::~CLITerminalWindow() {
     auto pos = currentIDs.find(id);
     auto next = currentIDs.erase(pos);
+    if (currentIDs.size() == 0) return;
     if (next == currentIDs.end()) next--;
     selectedWindow = next;
 }
