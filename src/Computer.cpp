@@ -242,13 +242,6 @@ end");
             return;
         }
 
-        // Create renderer thread
-        std::thread tid;
-        if (!headless) {
-            tid = std::thread(&termRenderLoop, this);
-            setThreadName(tid, std::string("Computer " + std::to_string(id) + " Render Thread").c_str());
-        }
-
         /* Ask Lua to run our little script */
         status = LUA_YIELD;
         int narg = 0;
@@ -261,7 +254,6 @@ end");
             } else if (status != 0) {
                 // Catch runtime error
                 running = 0;
-                if (!headless) tid.join();
                 //usleep(5000000);
                 printf("%s\n", lua_tostring(coro, -1));
                 for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
@@ -273,7 +265,6 @@ end");
         }
         
         // Shutdown threads
-        if (!headless) tid.join();
         event_lock.notify_all();
         for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
             if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);

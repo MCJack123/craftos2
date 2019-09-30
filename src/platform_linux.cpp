@@ -143,7 +143,7 @@ void pushHostString(lua_State *L) {
 }
 
 void updateNow(std::string tag_name) {
-    system("pkexec apt update; pkexec apt upgrade craftos-pc"); // yes this is crap but it kinda works
+    int i = system("pkexec apt update; pkexec apt upgrade craftos-pc"); // yes this is crap but it kinda works
 }
 
 #endif // __INTELLISENSE__

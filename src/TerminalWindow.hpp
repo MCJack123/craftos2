@@ -57,12 +57,14 @@ public:
 };
 
 class TerminalWindow {
+    friend void mainLoop();
 public:
     int id;
     int width;
     int height;
     static const int fontWidth = 6;
     static const int fontHeight = 9;
+    static std::list<TerminalWindow*> renderTargets;
 protected:
     static int fontScale;
     bool shouldScreenshot = false;
@@ -93,6 +95,8 @@ public:
     int blinkX = 0;
     int blinkY = 0;
     bool blink = true;
+    bool canBlink = true;
+    std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
     int lastFPS = 0;
     int currentFPS = 0;
     int lastSecond = time(0);

@@ -249,14 +249,7 @@ int monitor::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-void monitor::update() {
-    if (!canBlink) term->blink = false;
-    else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - last_blink).count() > 500) {
-        term->blink = !term->blink;
-        last_blink = std::chrono::high_resolution_clock::now();
-    }
-    term->render();
-}
+void monitor::update() {}
 
 const char * monitor_keys[30] = {
     "write",

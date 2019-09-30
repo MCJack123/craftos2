@@ -57,9 +57,7 @@ public:
     PANEL * cli_panel;
     WINDOW * cli_term;
 #endif
-    bool canBlink = true;
     unsigned char colors = 0xF0;
-    std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
     std::chrono::high_resolution_clock::time_point last_event = std::chrono::high_resolution_clock::now();
     bool getting_event = false;
     bool lastResizeEvent = false;

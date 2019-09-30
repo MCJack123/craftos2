@@ -15,7 +15,7 @@ typedef const char * (*event_provider)(lua_State *L, void* data);
 extern library_t term_lib;
 extern const char * termGetEvent(lua_State *L);
 extern int termHasEvent(Computer * computer);
-extern void* termRenderLoop(void*);
+extern void termRenderLoop();
 extern void termHook(lua_State *L, lua_Debug *ar);
 extern void termQueueProvider(Computer *comp, event_provider p, void* data);
 #endif

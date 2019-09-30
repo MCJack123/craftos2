@@ -32,6 +32,8 @@ extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& si
 extern void peripheral_update();
 extern bool headless;
 extern bool cli;
+extern bool exiting;
+std::thread * renderThread;
 std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
     {SDL_SCANCODE_1, 2},
@@ -221,15 +223,22 @@ std::unordered_map<int, unsigned char> keymap_cli = {
 #endif
 
 Uint32 task_event_type;
+Uint32 render_event_type;
+
+void termRenderLoop();
 
 void termInit() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
-    task_event_type = SDL_RegisterEvents(1);
+    task_event_type = SDL_RegisterEvents(2);
+    render_event_type = task_event_type + 1;
+    renderThread = new std::thread(termRenderLoop);
 }
 
 void termClose() {
+    renderThread->join();
+    delete renderThread;
     SDL_Quit();
 }
 
@@ -292,23 +301,33 @@ void termHook(lua_State *L, lua_Debug *ar) {
     }
 }
 
-void* termRenderLoop(void* arg) {
-    Computer * comp = (Computer*)arg;
-    while (comp->running == 1) {
-        if (!comp->canBlink) comp->term->blink = false;
-        else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - comp->last_blink).count() > 500) {
-            comp->term->blink = !comp->term->blink;
-            comp->last_blink = std::chrono::high_resolution_clock::now();
-        }
+void termRenderLoop() {
+    while (!exiting) {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-        comp->term->render();
-        long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-        //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
-        peripheral_update(comp);
-        long t = (1000/config.clockSpeed) - count;
-        if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
+        bool pushEvent = false;
+        for (TerminalWindow* term : TerminalWindow::renderTargets) {
+            if (!term->canBlink) term->blink = false;
+            else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
+                term->blink = !term->blink;
+                term->last_blink = std::chrono::high_resolution_clock::now();
+            }
+            term->render();
+            pushEvent = true;
+        }
+        if (pushEvent) {
+            SDL_Event ev;
+            ev.type = render_event_type;
+            SDL_PushEvent(&ev);
+            long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
+            //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
+            long t = (1000/config.clockSpeed) - count;
+            if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
+        } else {
+            int time = 1000/config.clockSpeed;
+            std::chrono::milliseconds ms(time);
+            std::this_thread::sleep_for(ms);
+        }
     }
-    return NULL;
 }
 
 void termQueueProvider(Computer *comp, event_provider p, void* data) {
@@ -526,7 +545,7 @@ int term_setCursorPos(lua_State *L) {
 
 int term_setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    get_comp(L)->canBlink = lua_toboolean(L, 1);
+    get_comp(L)->term->canBlink = lua_toboolean(L, 1);
     return 0;
 }
 
@@ -544,7 +563,7 @@ int term_getCursorPos(lua_State *L) {
 }
 
 int term_getCursorBlink(lua_State *L) {
-    lua_pushboolean(L, get_comp(L)->canBlink);
+    lua_pushboolean(L, get_comp(L)->term->canBlink);
     return 1;
 }
 

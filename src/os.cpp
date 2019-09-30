@@ -38,6 +38,7 @@ std::unordered_map<int, void*> taskQueueReturns;
 bool exiting = false;
 extern bool cli, headless;
 extern Uint32 task_event_type;
+extern Uint32 render_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
 extern std::unordered_map<int, unsigned char> keymap;
 
@@ -90,6 +91,9 @@ void mainLoop() {
                     taskQueueReturns[std::get<0>(v)] = retval;
                     taskQueue.pop();
                 }
+            } else if (e.type == render_event_type) {
+                for (TerminalWindow* term : TerminalWindow::renderTargets)
+                    SDL_UpdateWindowSurface(term->win);
             } else {
                 for (Computer * c : computers) {
                     if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->id || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||
