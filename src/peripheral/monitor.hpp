@@ -17,7 +17,6 @@
 class monitor : public peripheral {
 private:
     unsigned char colors = 0xF0;
-    bool canBlink = true;
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
     int write(lua_State *L);
     int scroll(lua_State *L);

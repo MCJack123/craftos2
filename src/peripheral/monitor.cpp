@@ -27,7 +27,7 @@ monitor::monitor(lua_State *L, const char * side) {
             return new TerminalWindow("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);
     }
-    canBlink = false;
+    term->canBlink = false;
 }
 
 monitor::~monitor() {delete term;}
@@ -70,7 +70,7 @@ int monitor::setCursorPos(lua_State *L) {
 
 int monitor::setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    canBlink = lua_toboolean(L, 1);
+    term->canBlink = lua_toboolean(L, 1);
     return 0;
 }
 
@@ -81,7 +81,7 @@ int monitor::getCursorPos(lua_State *L) {
 }
 
 int monitor::getCursorBlink(lua_State *L) {
-    lua_pushboolean(L, canBlink);
+    lua_pushboolean(L, term->canBlink);
     return 1;
 }
 
