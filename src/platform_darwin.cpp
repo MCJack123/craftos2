@@ -88,7 +88,6 @@ int removeDirectory(std::string path) {
                 struct dirent *p;
                 r = 0;
                 while (!r && (p=readdir(d))) {
-                    int r2 = -1;
                     /* Skip the names "." and ".." as we don't want to recurse on them. */
                     if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
                     r = removeDirectory(path + "/" + std::string(p->d_name));

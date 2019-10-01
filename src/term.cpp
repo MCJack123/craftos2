@@ -487,7 +487,6 @@ int term_write(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    int dummy = 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
     const char * str = lua_tostring(L, 1);
     #ifdef TESTING

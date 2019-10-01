@@ -29,7 +29,7 @@ void CLITerminalWindow::renderNavbar(std::string title) {
     attroff(COLOR_PAIR(0x70));
 }
 
-CLITerminalWindow::CLITerminalWindow(std::string title): title(title), TerminalWindow(COLS, LINES-1) {
+CLITerminalWindow::CLITerminalWindow(std::string title): TerminalWindow(COLS, LINES-1), title(title) {
     overridden = true;
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++);
     selectedWindow = currentIDs.insert(currentIDs.end(), id);

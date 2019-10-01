@@ -209,7 +209,7 @@ void TerminalWindow::render() {
             for (int x = 0; x < width * charWidth; x+=(2/fontScale)*charScale) {
                 char c = pixels[y / (2/fontScale) / charScale][x / (2/fontScale) / charScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2/fontScale) * charScale, (2/fontScale) * charScale), rgb(palette[c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2/fontScale) * charScale, (2/fontScale) * charScale), rgb(palette[(int)c])) != 0) return;
             }
         }
     } else {

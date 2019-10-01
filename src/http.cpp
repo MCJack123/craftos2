@@ -575,7 +575,7 @@ public:
     Computer * comp;
     HTTPServer *srv;
     bool binary;
-    websocket_server(Computer * c, bool b, HTTPServer *s): comp(c), binary(b), srv(s) {}
+    websocket_server(Computer * c, bool b, HTTPServer *s): comp(c), srv(s), binary(b) {}
     void handleRequest(HTTPServerRequest &request, HTTPServerResponse &response) {
         WebSocket * ws = NULL;
         try {
