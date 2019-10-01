@@ -4,10 +4,10 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 ![Screenfetch](image1.png)
 
 ## Requirements for released builds
-* 64-bit operating system
-  * Windows 7+ (might work on Vista)
+* Supported operating systems:
+  * Windows 7+ x64 (might work on Vista)
   * macOS 10.9+
-  * Ubuntu 18.04, 19.04 (i386 is supported)
+  * Ubuntu 18.04, 19.04
 * Administrator privileges
 * 7 MB free space
 
@@ -47,6 +47,8 @@ $ craftos
 * Lua 5.1
 * SDL 2.0+
 * SDL_mixer 2.0+
+  * For MP3 support, libmpg123 is required
+  * For FLAC support, libFLAC is required
 * OpenSSL 1.0.x
 * Windows: dirent.h
 * POCO NetSSL + JSON libraries + dependencies
@@ -65,13 +67,13 @@ $ craftos
   * Can be disabled with `--without-hpdf`, `--with-html` or `--with-txt`
 * ncurses
   * Can be disabled with `--without-ncurses`, will disable CLI support
-* The path to the ROM package can be changed with `--prefix=<path>`
+* The path to the ROM package can be changed with `--prefix=<path>`, which will store the ROM at `<path>/share/craftos`
 
 You can get all of these dependencies with:
   * Windows: The VS solution includes all packages required except POCO (build yourself)
-  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer png++ libharu poco; git clone https://github.com/MCJack123/craftos2-rom`
+  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
   * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
-  * Arch Linux: `sudo pacman -S lua51 sdl2 sdl2_mixer openssl-1.0 png++ libharu ncurses`
+  * Arch Linux: `sudo pacman -S lua51 sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
 
 ### Instructions
 #### Windows
