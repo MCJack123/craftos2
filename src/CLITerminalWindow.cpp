@@ -17,6 +17,8 @@
 #include <ncurses.h>
 #include <panel.h>
 
+extern void termRenderLoop();
+extern std::thread * renderThread;
 std::set<unsigned> currentIDs;
 std::set<unsigned>::iterator CLITerminalWindow::selectedWindow = currentIDs.begin();
 
@@ -34,6 +36,7 @@ CLITerminalWindow::CLITerminalWindow(std::string title): TerminalWindow(COLS, LI
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++);
     selectedWindow = currentIDs.insert(currentIDs.end(), id);
     last_pair = 0;
+    renderTargets.push_back(this);
 }
 
 CLITerminalWindow::~CLITerminalWindow() {
@@ -69,6 +72,7 @@ void CLITerminalWindow::render() {
         }
         renderNavbar(title);
         move(blinkY, blinkX);
+        curs_set(canBlink);
         refresh();
     }
 }
@@ -101,9 +105,12 @@ void cliInit() {
     mousemask(BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_RELEASED | BUTTON2_PRESSED | BUTTON2_CLICKED | BUTTON2_RELEASED | BUTTON3_PRESSED | BUTTON3_CLICKED | BUTTON3_RELEASED | REPORT_MOUSE_POSITION, NULL);
     start_color();
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
+    renderThread = new std::thread(termRenderLoop);
 }
 
 void cliClose() {
+    renderThread->join();
+    delete renderThread;
     echo();
     nocbreak();
     nodelay(stdscr, FALSE);
