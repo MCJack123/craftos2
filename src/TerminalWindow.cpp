@@ -105,6 +105,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
     SDL_FreeSurface(old_bmp);
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
+    renderTargets.push_back(this);
 }
 
 TerminalWindow::~TerminalWindow() {
