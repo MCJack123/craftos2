@@ -543,9 +543,12 @@ int term_setCursorPos(lua_State *L) {
     return 0;
 }
 
+bool can_blink_headless = true;
+
 int term_setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    get_comp(L)->term->canBlink = lua_toboolean(L, 1);
+    if (!headless) get_comp(L)->term->canBlink = lua_toboolean(L, 1);
+    else can_blink_headless = lua_toboolean(L, 1);
     return 0;
 }
 
@@ -563,7 +566,8 @@ int term_getCursorPos(lua_State *L) {
 }
 
 int term_getCursorBlink(lua_State *L) {
-    lua_pushboolean(L, get_comp(L)->term->canBlink);
+    if (headless) lua_pushboolean(L, can_blink_headless);
+    else lua_pushboolean(L, get_comp(L)->term->canBlink);
     return 1;
 }
 

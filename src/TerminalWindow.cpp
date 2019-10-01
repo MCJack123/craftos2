@@ -109,11 +109,10 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
 }
 
 TerminalWindow::~TerminalWindow() {
-    locked.lock();
+    std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++)
         if (*it == this)
             it = renderTargets.erase(it);
-    std::lock_guard<std::mutex> locked_g(locked);
     if (!overridden) {
         SDL_FreeSurface(bmp);
         SDL_DestroyWindow(win);
