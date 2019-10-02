@@ -257,7 +257,7 @@ int buttonConvert2(Uint32 state) {
 }
 
 int convertX(TerminalWindow * term, int x) {
-    if (term->isPixel) {
+    if (term->mode != 0) {
         if (x < 2 * term->charScale) return 0;
         else if (x >= term->charWidth * term->width + 2 * term->charScale)
             return TerminalWindow::fontWidth * term->width - 1;
@@ -271,7 +271,7 @@ int convertX(TerminalWindow * term, int x) {
 }
 
 int convertY(TerminalWindow * term, int x) {
-    if (term->isPixel) {
+    if (term->mode != 0) {
         if (x < 2 * term->charScale) return 0;
         else if (x >= term->charHeight * term->height + 2 * term->charScale)
             return TerminalWindow::fontHeight * term->height - 1;
@@ -591,8 +591,8 @@ int term_clear(lua_State *L) {
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    if (term->isPixel) {
-        term->pixels = std::vector<std::vector<char> >(term->height * term->charHeight, std::vector<char>(term->width * term->charWidth, 15));
+    if (term->mode > 0) {
+        term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->charHeight, std::vector<unsigned char>(term->width * term->charWidth, 15));
     } else {
         term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
         term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
@@ -699,9 +699,11 @@ int term_getPaletteColor(lua_State *L) {
         }
         return 3;
     }
-    int color = log2i(lua_tointeger(L, 1));
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
+    int color;
+    if (term->mode == 2) color = lua_tointeger(L, 1);
+    else color = log2i(lua_tointeger(L, 1));
     lua_pushnumber(L, term->palette[color].r/255.0);
     lua_pushnumber(L, term->palette[color].g/255.0);
     lua_pushnumber(L, term->palette[color].b/255.0);
@@ -718,7 +720,9 @@ int term_setPaletteColor(lua_State *L) {
     Computer * computer = get_comp(L);
     if (headless || !computer->config.isColor) return 0;
     TerminalWindow * term = computer->term;
-    int color = log2i(lua_tointeger(L, 1));
+    int color;
+    if (term->mode == 2) color = lua_tointeger(L, 1);
+    else color = log2i(lua_tointeger(L, 1));
     if (lua_isnoneornil(L, 3)) {
         unsigned int rgb = lua_tointeger(L, 2);
         term->palette[color].r = rgb >> 16 & 0xFF;
@@ -729,13 +733,14 @@ int term_setPaletteColor(lua_State *L) {
         term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
         term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
     }
+    //printf("%d -> %d, %d, %d\n", color, term->palette[color].r, term->palette[color].g, term->palette[color].b);
     return 0;
 }
 
 int term_setGraphicsMode(lua_State *L) {
-    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
+    if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "boolean or number", 1);
     if (headless || cli) return 0;
-    get_comp(L)->term->isPixel = lua_toboolean(L, 1);
+    get_comp(L)->term->mode = lua_isboolean(L, 1) ? lua_toboolean(L, 1) : lua_tointeger(L, 1);
     return 0;
 }
 
@@ -744,7 +749,7 @@ int term_getGraphicsMode(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    lua_pushboolean(L, get_comp(L)->term->isPixel);
+    lua_pushboolean(L, get_comp(L)->term->mode != 0);
     return 1;
 }
 
@@ -758,7 +763,8 @@ int term_setPixel(lua_State *L) {
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x >= term->width * 6 || y >= term->height * 9 || x < 0 || y < 0) return 0;
-    term->pixels[y][x] = log2i(lua_tointeger(L, 3));
+    if (term->mode == 1) term->pixels[y][x] = log2i(lua_tointeger(L, 3));
+    else if (term->mode == 2) term->pixels[y][x] = lua_tointeger(L, 3);
     //printf("Wrote pixel %ld = %d\n", lua_tointeger(L, 3), term->pixels[y][x]);
     return 0;
 }
@@ -775,7 +781,8 @@ int term_getPixel(lua_State *L) {
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
-    lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    else if (term->mode == 2) lua_pushinteger(L, term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
     return 1;
 }
 

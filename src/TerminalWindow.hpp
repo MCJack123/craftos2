@@ -88,9 +88,9 @@ public:
     int charHeight = fontHeight * 2/fontScale * charScale;
     std::vector<std::vector<char> > screen;
     std::vector<std::vector<unsigned char> > colors;
-    std::vector<std::vector<char> > pixels;
-    volatile bool isPixel = false;
-    Color palette[16];
+    std::vector<std::vector<unsigned char> > pixels;
+    volatile int mode = 0;
+    Color palette[256];
     Color background = {0x1f, 0x1f, 0x1f};
     int blinkX = 0;
     int blinkY = 0;

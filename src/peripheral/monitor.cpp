@@ -92,8 +92,8 @@ int monitor::getSize(lua_State *L) {
 }
 
 int monitor::clear(lua_State *L) {
-    if (term->isPixel) {
-        term->pixels = std::vector<std::vector<char> >(term->height * term->charHeight, std::vector<char>(term->width * term->charWidth, 15));
+    if (term->mode != 0) {
+        term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->charHeight, std::vector<unsigned char>(term->width * term->charWidth, 15));
     } else {
         term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
         term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
@@ -173,12 +173,12 @@ int monitor::setPaletteColor(lua_State *L) {
 
 int monitor::setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    term->isPixel = lua_toboolean(L, 1);
+    term->mode = lua_toboolean(L, 1);
     return 0;
 }
 
 int monitor::getGraphicsMode(lua_State *L) {
-    lua_pushboolean(L, term->isPixel);
+    lua_pushboolean(L, term->mode);
     return 1;
 }
 
