@@ -72,7 +72,7 @@ TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
     screen = std::vector<std::vector<char> >(h, std::vector<char>(w, ' '));
     colors = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, 0xF0));
-    pixels = std::vector<std::vector<char> >(h*fontHeight, std::vector<char>(w*fontWidth, 0x0F));
+    pixels = std::vector<std::vector<unsigned char> >(h*fontHeight, std::vector<unsigned char>(w*fontWidth, 0x0F));
 }
 
 TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
@@ -213,7 +213,7 @@ void TerminalWindow::render() {
             if (newWidth > width) std::fill(colors[i].begin() + width, colors[i].end(), 0xF0);
         }
         this->pixels.resize(newHeight * fontHeight);
-        if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<char>(newWidth * fontWidth, 0x0F));
+        if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<unsigned char>(newWidth * fontWidth, 0x0F));
         for (unsigned i = 0; i < pixels.size(); i++) {
             pixels[i].resize(newWidth * fontWidth);
             if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0x0F);
@@ -226,11 +226,11 @@ void TerminalWindow::render() {
     if (surf != NULL) SDL_FreeSurface(surf);
     surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 32, SDL_GetWindowPixelFormat(win));
     SDL_Rect rect;
-    if (gotResizeEvent || SDL_FillRect(surf, NULL, rgb(palette[15])) != 0) return;
-    if (isPixel) {
+    if (gotResizeEvent || SDL_FillRect(surf, NULL, rgb(defaultPalette[15])) != 0) return;
+    if (mode != 0) {
         for (int y = 0; y < height * charHeight; y+=(2/fontScale)*charScale) {
             for (int x = 0; x < width * charWidth; x+=(2/fontScale)*charScale) {
-                char c = pixels[y / (2/fontScale) / charScale][x / (2/fontScale) / charScale];
+                unsigned char c = pixels[y / (2/fontScale) / charScale][x / (2/fontScale) / charScale];
                 if (gotResizeEvent) return;
                 if (SDL_FillRect(surf, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2/fontScale) * charScale, (2/fontScale) * charScale), rgb(palette[(int)c])) != 0) return;
             }
@@ -258,11 +258,10 @@ void TerminalWindow::render() {
         shouldScreenshot = false;
         if (gotResizeEvent) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
-        png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
-        if (gotResizeEvent) return;
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
+        png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
         memcpy((void*)&pixbuf.get_bytes()[0], temp->pixels, temp->h * temp->pitch);
-        png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);
+        png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
         img.set_pixbuf(pixbuf);
         img.write(screenshotPath);
         SDL_FreeSurface(temp);
