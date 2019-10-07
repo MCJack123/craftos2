@@ -62,7 +62,7 @@ int fs_list(lua_State *L) {
         int i;
         for (i = 0; (dir = readdir(d)) != NULL; i++) {
             int found = 0;
-            for (int j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++) 
+            for (unsigned j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++) 
                 if (strcmp(dir->d_name, ignored_files[j]) == 0) { i--; found = 1; }
             if (found) continue;
             lua_pushinteger(L, i + 1);
@@ -330,7 +330,7 @@ std::list<std::string> matchWildcard(lua_State *L, std::list<std::string> option
             int i;
             for (i = 0; (dir = readdir(d)) != NULL; i++) {
                 int found = 0;
-                for (int j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++)
+                for (unsigned j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++)
                     if (strcmp(dir->d_name, ignored_files[j]) == 0) { i--; found = 1; }
                 if (found) continue;
                 if (*pathc == "*" || std::string(dir->d_name) == *pathc) nextOptions.push_back(*it + (*it == "" ? "" : "/") + std::string(dir->d_name));

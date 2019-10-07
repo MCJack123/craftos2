@@ -17,6 +17,8 @@
 #include <ncurses.h>
 #include <panel.h>
 
+extern void termRenderLoop();
+extern std::thread * renderThread;
 std::set<unsigned> currentIDs;
 std::set<unsigned>::iterator CLITerminalWindow::selectedWindow = currentIDs.begin();
 
@@ -29,11 +31,12 @@ void CLITerminalWindow::renderNavbar(std::string title) {
     attroff(COLOR_PAIR(0x70));
 }
 
-CLITerminalWindow::CLITerminalWindow(std::string title): title(title), TerminalWindow(COLS, LINES-1) {
+CLITerminalWindow::CLITerminalWindow(std::string title): TerminalWindow(COLS, LINES-1), title(title) {
     overridden = true;
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++);
     selectedWindow = currentIDs.insert(currentIDs.end(), id);
     last_pair = 0;
+    renderTargets.push_back(this);
 }
 
 CLITerminalWindow::~CLITerminalWindow() {
@@ -62,14 +65,15 @@ void CLITerminalWindow::render() {
                     init_color(15-i, palette[i].r * (1000/255), palette[i].g * (1000/255), palette[i].b * (1000/255));
             lastPaletteChecksum = checksum;
         }
-        for (int y = 0; y < screen.size(); y++) {
-            for (int x = 0; x < screen[y].size(); x++) {
+        for (int y = 0; (unsigned)y < screen.size(); y++) {
+            for (int x = 0; (unsigned)x < screen[y].size(); x++) {
                 move(y, x);
                 addch(screen[y][x] | COLOR_PAIR(colors[y][x]));
             }
         }
         renderNavbar(title);
         move(blinkY, blinkX);
+        curs_set(canBlink);
         refresh();
     }
 }
@@ -102,9 +106,12 @@ void cliInit() {
     mousemask(BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_RELEASED | BUTTON2_PRESSED | BUTTON2_CLICKED | BUTTON2_RELEASED | BUTTON3_PRESSED | BUTTON3_CLICKED | BUTTON3_RELEASED | REPORT_MOUSE_POSITION, NULL);
     start_color();
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
+    renderThread = new std::thread(termRenderLoop);
 }
 
 void cliClose() {
+    renderThread->join();
+    delete renderThread;
     echo();
     nocbreak();
     nodelay(stdscr, FALSE);

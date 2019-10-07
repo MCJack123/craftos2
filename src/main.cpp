@@ -105,12 +105,12 @@ int main(int argc, char*argv[]) {
         std::cerr << "Error: Cannot combine headless & CLI options\n";
         return 1;
     }
+    config_init();
 #ifndef NO_CLI
     if (cli) cliInit();
     else 
 #endif
         termInit();
-    config_init();
     driveInit();
     if (!headless && !cli && config.checkUpdates) {
         std::thread update_bg(update_thread);

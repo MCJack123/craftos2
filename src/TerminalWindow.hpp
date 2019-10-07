@@ -29,24 +29,7 @@ typedef struct color {
     Uint8 b;
 } Color;
 
-static Color defaultPalette[16] = {
-    {0xf0, 0xf0, 0xf0},
-    {0xf2, 0xb2, 0x33},
-    {0xe5, 0x7f, 0xd8},
-    {0x99, 0xb2, 0xf2},
-    {0xde, 0xde, 0x6c},
-    {0x7f, 0xcc, 0x19},
-    {0xf2, 0xb2, 0xcc},
-    {0x4c, 0x4c, 0x4c},
-    {0x99, 0x99, 0x99},
-    {0x4c, 0x99, 0xb2},
-    {0xb2, 0x66, 0xe5},
-    {0x33, 0x66, 0xcc},
-    {0x7f, 0x66, 0x4c},
-    {0x57, 0xa6, 0x4e},
-    {0xcc, 0x4c, 0x4c},
-    {0x11, 0x11, 0x11}
-};
+extern Color defaultPalette[16];
 
 class window_exception: public std::exception {
     std::string err;
@@ -57,12 +40,14 @@ public:
 };
 
 class TerminalWindow {
+    friend void mainLoop();
 public:
-    int id;
+    unsigned id;
     int width;
     int height;
     static const int fontWidth = 6;
     static const int fontHeight = 9;
+    static std::list<TerminalWindow*> renderTargets;
 protected:
     static int fontScale;
     bool shouldScreenshot = false;
@@ -93,6 +78,8 @@ public:
     int blinkX = 0;
     int blinkY = 0;
     bool blink = true;
+    bool canBlink = true;
+    std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
     int lastFPS = 0;
     int currentFPS = 0;
     int lastSecond = time(0);
@@ -114,9 +101,8 @@ public:
 
 private:
     SDL_Window *win;
-    SDL_Renderer *ren;
+    SDL_Surface *surf = NULL;
     SDL_Surface *bmp;
-    SDL_Texture *font;
 
     static SDL_Rect getCharacterRect(char c);
 };

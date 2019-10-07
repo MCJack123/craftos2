@@ -51,7 +51,6 @@ int peripheral_getMethods(lua_State *L) {
 }
 
 int peripheral_call(lua_State *L) {
-    int top = lua_gettop(L);
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     Computer * computer = get_comp(L);

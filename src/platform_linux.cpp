@@ -49,7 +49,7 @@ std::string getBasePath() {
     wordexp_t p;
     wordexp(base_path, &p, 0);
     base_path_expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
+    for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
     wordfree(&p);
     return base_path_expanded;
 }
@@ -95,7 +95,6 @@ int removeDirectory(std::string path) {
                 struct dirent *p;
                 r = 0;
                 while (!r && (p=readdir(d))) {
-                    int r2 = -1;
                     /* Skip the names "." and ".." as we don't want to recurse on them. */
                     if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
                     r = removeDirectory(path + "/" + std::string(p->d_name));
@@ -143,7 +142,9 @@ void pushHostString(lua_State *L) {
 }
 
 void updateNow(std::string tag_name) {
-    system("pkexec apt update; pkexec apt upgrade craftos-pc"); // yes this is crap but it kinda works
+    int * i = new int;
+    *i = system("pkexec apt update; pkexec apt upgrade craftos-pc");
+    delete i; // to silence warnings
 }
 
 #endif // __INTELLISENSE__

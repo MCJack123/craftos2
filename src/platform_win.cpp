@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <processenv.h>
 #include <shlwapi.h>
+#include "http.hpp"
 
 const char * base_path = "%USERPROFILE%\\.craftos";
 const char * rom_path = "%ProgramFiles%\\CraftOS-PC";
@@ -181,19 +182,20 @@ void pushHostString(lua_State *L) {
 }
 
 void updateNow(std::string tagname) {
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC-Setup.exe", [](std::istream&) {
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [](std::istream& in) {
         char str[261];
         GetTempPathA(261, str);
-        std::string path = std::string(str) + "\\setup.exe"
-        std::ofstream out(path);
-        char c = in.get();
-        while (in.good()) {out.put(c); c = in.get();}
+        std::string path = std::string(str) + "\\setup.exe";
+        std::ofstream out(path, std::ios::binary);
+        //char c = in.get();
+        //while (in.good()) {out.put(c); c = in.get();}
+        out << in.rdbuf();
         out.close();
         STARTUPINFOA info;
-        memset(&info, sizeof(info), 0);
+        memset(&info, 0, sizeof(info));
         info.cb = sizeof(info);
         PROCESS_INFORMATION process;
-        CreateProcessA(path.c_str(), NULL, NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
+        CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
         CloseHandle(process.hProcess);
         CloseHandle(process.hThread);
         exit(0);

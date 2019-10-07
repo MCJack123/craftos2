@@ -1,5 +1,5 @@
 language: c++
-script: ./configure && make && make test
+script: CFLAGS=-Wall ./configure && make && make test
 dist: bionic
 before_install:
   - sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos

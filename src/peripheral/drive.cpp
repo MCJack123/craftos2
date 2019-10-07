@@ -1,8 +1,8 @@
 /*
- * peripheral/computer.cpp
+ * peripheral/drive.cpp
  * CraftOS-PC 2
  * 
- * This file defines the methods for the computer peripheral.
+ * This file defines the methods for the drive peripheral.
  * 
  * This code is licensed under the MIT License.
  * Copyright (c) 2019 JackMacWindows.
@@ -152,7 +152,7 @@ int drive::insertDisk(lua_State *L, bool init) {
 }
 
 void driveInit() {
-    int code = Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
+    Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
     Mix_OpenAudio(44100, AUDIO_S16, 2, 2048);
 }
 

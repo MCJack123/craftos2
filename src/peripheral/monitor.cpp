@@ -27,7 +27,7 @@ monitor::monitor(lua_State *L, const char * side) {
             return new TerminalWindow("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);
     }
-    canBlink = false;
+    term->canBlink = false;
 }
 
 monitor::~monitor() {delete term;}
@@ -35,7 +35,7 @@ monitor::~monitor() {delete term;}
 int monitor::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     const char * str = lua_tostring(L, 1);
-    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;
     }
@@ -70,7 +70,7 @@ int monitor::setCursorPos(lua_State *L) {
 
 int monitor::setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    canBlink = lua_toboolean(L, 1);
+    term->canBlink = lua_toboolean(L, 1);
     return 0;
 }
 
@@ -81,7 +81,7 @@ int monitor::getCursorPos(lua_State *L) {
 }
 
 int monitor::getCursorBlink(lua_State *L) {
-    lua_pushboolean(L, canBlink);
+    lua_pushboolean(L, term->canBlink);
     return 1;
 }
 
@@ -143,7 +143,7 @@ int monitor::blit(lua_State *L) {
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
-    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         colors = htoi(bg[i]) << 4 | htoi(fg[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;
@@ -249,14 +249,7 @@ int monitor::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-void monitor::update() {
-    if (!canBlink) term->blink = false;
-    else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - last_blink).count() > 500) {
-        term->blink = !term->blink;
-        last_blink = std::chrono::high_resolution_clock::now();
-    }
-    term->render();
-}
+void monitor::update() {}
 
 const char * monitor_keys[30] = {
     "write",
