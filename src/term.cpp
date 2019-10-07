@@ -231,6 +231,9 @@ void termInit() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
+#if SDL_VERSION_ATLEAST(2, 0, 8)
+    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+#endif
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);

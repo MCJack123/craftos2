@@ -45,7 +45,7 @@ $ craftos
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
 * Lua 5.1
-* SDL 2.0+
+* SDL 2.0.8+ (may work on older versions on non-Linux)
 * SDL_mixer 2.0+
   * For MP3 support, libmpg123 is required
   * For FLAC support, libFLAC is required
