@@ -1,8 +1,8 @@
 /*
- * peripheral/computer.cpp
+ * peripheral/drive.cpp
  * CraftOS-PC 2
  * 
- * This file defines the methods for the computer peripheral.
+ * This file defines the methods for the drive peripheral.
  * 
  * This code is licensed under the MIT License.
  * Copyright (c) 2019 JackMacWindows.

@@ -1,5 +1,5 @@
 /*
- * TCLIerminalWindow.hpp
+ * CLITerminalWindow.hpp
  * CraftOS-PC 2
  * 
  * This file defines the CLITerminalWindow class.

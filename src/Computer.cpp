@@ -129,7 +129,7 @@ void Computer::run() {
         // Load libraries
         luaL_openlibs(coro);
         lua_sethook(coro, termHook, LUA_MASKCOUNT, 100);
-        for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
+        for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);
         lua_getglobal(coro, "redstone");
         lua_setglobal(coro, "rs");
@@ -256,7 +256,7 @@ end");
                 running = 0;
                 //usleep(5000000);
                 printf("%s\n", lua_tostring(coro, -1));
-                for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
+                for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
                     if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
                 lua_close(L);
                 L = NULL;
@@ -266,7 +266,7 @@ end");
         
         // Shutdown threads
         event_lock.notify_all();
-        for (int i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
+        for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
             if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
         lua_close(L);   /* Cya, Lua */
         L = NULL;

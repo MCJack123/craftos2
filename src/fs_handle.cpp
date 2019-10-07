@@ -61,7 +61,7 @@ int fs_handle_readLine(lua_State *L) {
         return 1;
     }
 	char* retval = new char[256];
-	for (int i = 0; 1; i += 256) {
+	for (unsigned i = 0; 1; i += 256) {
 		if (fgets(&retval[i], 256, fp) == NULL) break;
 		if (strlen(retval) < i + 255) break;
 		retval = (char*)realloc(retval, i + 512);

@@ -28,7 +28,7 @@
 #include <queue>
 #include <tuple>
 
-extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
+extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 extern void peripheral_update();
 extern bool headless;
 extern bool cli;
@@ -231,6 +231,9 @@ void termInit() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
+#if SDL_VERSION_ATLEAST(2, 0, 8)
+    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+#endif
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
@@ -492,7 +495,7 @@ int term_write(lua_State *L) {
     #ifdef TESTING
     printf("%s\n", str);
     #endif
-    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
@@ -674,7 +677,7 @@ int term_blit(lua_State *L) {
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
-    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         if (computer->config.isColor || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
             computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
         if (computer->config.isColor || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) 

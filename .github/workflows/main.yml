@@ -17,7 +17,7 @@ jobs:
         sudo apt install -y liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
     - name: Build CraftOS-PC
       run: |
-        ./configure
+        CFLAGS=-Wall ./configure
         make
     - name: Run CraftOSTest
       run: make test

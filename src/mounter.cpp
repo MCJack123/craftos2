@@ -57,7 +57,7 @@ std::string fixpath(Computer *comp, const char * path, bool addExt, std::string 
                 mount_list = &std::get<0>(*it);
             }
         }
-        for (int i = 0; i < max_path.first; i++) pathc.pop_front();
+        for (size_t i = 0; i < max_path.first; i++) pathc.pop_front();
         ss << max_path.second;
         for (std::string s : pathc) ss << PATH_SEP << s;
         if (mountPath != NULL) {

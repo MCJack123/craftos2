@@ -37,7 +37,9 @@ extern "C" {
 
 using namespace Poco::Net;
 
+#ifdef __INTELLISENSE__
 #pragma region Client
+#endif
 
 typedef struct {
     Computer *comp;
@@ -281,8 +283,10 @@ int http_checkURL(lua_State *L) {
     return 1;
 }
 
+#ifdef __INTELLISENSE__
 #pragma endregion
 #pragma region Server
+#endif
 
 struct http_res {
     std::string body;
@@ -448,8 +452,10 @@ int http_removeListener(lua_State *L) {
     return 0;
 }
 
+#ifdef __INTELLISENSE__
 #pragma endregion
 #pragma region WebSockets
+#endif
 
 struct websocket_failure_data {
     char * url;
@@ -704,7 +710,9 @@ int http_websocket(lua_State *L) {
     return 1;
 }
 
+#ifdef __INTELLISENSE__
 #pragma endregion
+#endif
 
 const char * http_keys[5] = {
     "request",

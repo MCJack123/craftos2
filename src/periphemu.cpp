@@ -22,7 +22,7 @@
 #include <string>
 #include <algorithm>
 
-monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn) {
+monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
     for (auto p : comp->peripherals) {
         if (strcmp(p.second->getMethods().name, "monitor") == 0) {
             monitor * m = (monitor*)p.second;
