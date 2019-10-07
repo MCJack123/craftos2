@@ -118,7 +118,7 @@ public:
 
 private:
     SDL_Window *win;
-    SDL_Surface *surf;
+    SDL_Surface *surf = NULL;
     SDL_Surface *bmp;
 
     static SDL_Rect getCharacterRect(char c);

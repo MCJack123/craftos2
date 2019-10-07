@@ -92,8 +92,12 @@ void mainLoop() {
                     taskQueue.pop();
                 }
             } else if (e.type == render_event_type) {
-                for (TerminalWindow* term : TerminalWindow::renderTargets)
+                for (TerminalWindow* term : TerminalWindow::renderTargets) {
+                    SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
                     SDL_UpdateWindowSurface(term->win);
+                    SDL_FreeSurface(term->surf);
+                    term->surf = NULL;
+                }
             } else {
                 for (Computer * c : computers) {
                     if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->id || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||

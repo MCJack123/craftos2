@@ -81,7 +81,6 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) 
         throw window_exception("Failed to create window");
     id = SDL_GetWindowID(win);
-    surf = SDL_GetWindowSurface(win);
 #ifndef __APPLE__
     char * icon_pixels = new char[favicon_width * favicon_height * 4];
     memset(icon_pixels, 0xFF, favicon_width * favicon_height * 4);
@@ -114,6 +113,7 @@ TerminalWindow::~TerminalWindow() {
         if (*it == this)
             it = renderTargets.erase(it);
     if (!overridden) {
+        if (surf != NULL) SDL_FreeSurface(surf);
         SDL_FreeSurface(bmp);
         SDL_DestroyWindow(win);
     }
@@ -202,6 +202,10 @@ void TerminalWindow::render() {
         this->width = newWidth;
         this->height = newHeight;
     }
+    int ww = 0, wh = 0;
+    SDL_GetWindowSize(win, &ww, &wh);
+    if (surf != NULL) SDL_FreeSurface(surf);
+    surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 32, SDL_GetWindowPixelFormat(win));
     SDL_Rect rect;
     if (gotResizeEvent || SDL_FillRect(surf, NULL, rgb(palette[15])) != 0) return;
     if (isPixel) {
@@ -315,8 +319,6 @@ SDL_Rect TerminalWindow::getCharacterRect(char c) {
 }
 
 bool TerminalWindow::resize(int w, int h) {
-    surf = SDL_GetWindowSurface(win);
-    assert(surf != NULL);
     newWidth = (w - 4*(2/fontScale)*charScale) / charWidth;
     newHeight = (h - 4*(2/fontScale)*charScale) / charHeight;
     gotResizeEvent = (newWidth != width || newHeight != height);

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <math.h>
 extern "C" {
 #include <lauxlib.h>
@@ -39,5 +40,6 @@ Computer * get_comp(lua_State *L) {
     lua_gettable(L, LUA_REGISTRYINDEX);
     void * retval = lua_touserdata(L, -1);
     lua_pop(L, 1);
+    assert(retval != NULL);
     return (Computer*)retval;
 }
