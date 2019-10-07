@@ -752,7 +752,8 @@ int term_getGraphicsMode(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    lua_pushboolean(L, get_comp(L)->term->mode != 0);
+    if (get_comp(L)->term->mode == 0) lua_pushboolean(L, false);
+    else lua_pushinteger(L, get_comp(L)->term->mode);
     return 1;
 }
 

@@ -6,6 +6,12 @@ Computers can be created with `periphemu.create("computer_<id>", "computer")`, w
 If the peripheral is detached with `periphemu.remove`, the peripheral will be detached but the computer window will stay open. To close the computer from Lua, call `peripheral.call("computer_<id>", "shutdown")`, and the peripheral will automatically be detached.  
 Computers can also be attached and detached from the shell when using the CraftOS ROM with `attach computer_<id> computer` and `detach computer_<id>`, respectively.
 
+## Command line interface
+On supported systems, CraftOS-PC can be run from the terminal with the `--cli` flag. You can use Shift+Arrow Keys to change the currently open window. In this mode, some features are not supported, including:
+* Holding keys: CLI mode cannot detect key releases, and thus sends both a `key` and `key_up` event at the same time. Because of this, it cannot detect if you are holding any keys down.
+* Using modifier keys: CLI mode cannot detect pressing modifier keys, so programs using Control, Alt, or Shift (**including edit**) will not work.
+* The macOS terminal does not support custom colors, so `term.setPaletteColor` will not function in CLI mode.
+
 ## Using custom fonts
 The font used for CraftOS-PC can be changed in `.craftos/config/global.json`, with the `customFontPath` option. To set the font, set `customFontPath` to the absolute path to a BMP file containing the font glyphs. Each glyph must be exactly 6*s* x 9*s* px with 2*s* pixels between each glyph, where *s* is a number representing the scale of the font. `customFontScale` must also be set to a number representing the size of the font (1 = HD font (12x18), 2 = normal font (6x9), 3 = 1/2 size font (4x6)).
 
@@ -65,16 +71,30 @@ Mounts and unmounts real directories.
 Graphics mode extension in the `term` API.
 ### Functions
 * *nil* setGraphicsMode(*boolean* mode): Sets whether the terminal is in pixel-graphics mode
-  * mode: `true` for graphics, `false` for text
-* *boolean* getGraphicsMode(): Returns the current graphics mode setting.
+  * mode: `2` for 256-color graphics mode, `true` or `1` for 16-color graphics mode, `false` or `0` for text mode
+* *boolean* getGraphicsMode(): Returns the current graphics mode setting (false for text mode, number for graphics mode).
 * *nil* setPixel(*number* x, *number* y, *color* color): Sets a pixel at a location.
   * x: The X coordinate of the pixel
   * y: The Y coordinate of the pixel
   * color: The color of the pixel
+    * In mode 1, this should be a color in `colors`
+    * In mode 2, this should be an index from 0-255
 * *color* getPixel(*number* x, *number* y): Returns the color of a pixel at a location.
   * x: The X coordinate of the pixel
   * y: The Y coordinate of the pixel
   * Returns: The color of the pixel
+* *nil* setPaletteColor(*number* color, *number* r[, *number* g, *number* b]): Sets the RGB values for a color. (Override)
+  * color: The color to change
+    * In mode 1, this should be a color in `colors`
+    * In mode 2, this should be an index from 0-255
+  * r: Either the red value from 0.0 to 1.0, or an RGB hex value
+  * g: The green value from 0.0 to 1.0
+  * b: The blue value from 0.0 to 1.0
+* *number*, *number*, *number* getPaletteColor(*number* color): Returns the RGB values for a color. (Override)
+  * color: The color to change
+    * In mode 1, this should be a color in `colors`
+    * In mode 2, this should be an index from 0-255
+  * Returns: The RGB values for the color, each from 0.0 to 1.0
 * *nil* screenshot([*string* path]): Takes a screenshot.
   * path: The real path to save to (defaults to `~/.craftos/screenshots/<date>_<time>.<bmp|png>`)
 
