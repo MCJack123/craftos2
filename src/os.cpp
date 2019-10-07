@@ -30,7 +30,7 @@ extern "C" {
 
 void gettingEvent(Computer *comp);
 void gotEvent(Computer *comp);
-extern monitor * findMonitorFromWindowID(Computer *comp, int id, std::string& sideReturn);
+extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
 int nextTaskID = 0;
 std::queue< std::tuple<int, std::function<void*(void*)>, void*> > taskQueue;
@@ -233,7 +233,7 @@ int getNextEvent(lua_State *L, const char * filter) {
             if (computer->alarms.size() > 0 && computer->alarms.back() == -1) computer->alarms.pop_back();
             if (computer->timers.size() > 0) {
                 std::chrono::steady_clock::time_point t = std::chrono::steady_clock::now();
-                for (int i = 0; i < computer->timers.size(); i++) {
+                for (unsigned i = 0; i < computer->timers.size(); i++) {
                     if (t >= computer->timers[i] && computer->timers[i].time_since_epoch().count() > 0) {
                         lua_pushinteger(param, i);
                         computer->eventQueue.push("timer");
@@ -245,7 +245,7 @@ int getNextEvent(lua_State *L, const char * filter) {
             if (computer->alarms.size() > 0) {
                 time_t t = time(NULL);
                 struct tm tm = *localtime(&t);
-                for (int i = 0; i < computer->alarms.size(); i++) {
+                for (unsigned i = 0; i < computer->alarms.size(); i++) {
                     if ((double)tm.tm_hour + ((double)tm.tm_min/60.0) + ((double)tm.tm_sec/3600.0) == computer->alarms[i]) {
                         lua_pushinteger(param, i);
                         computer->eventQueue.push("alarm");
@@ -340,7 +340,7 @@ int os_startTimer(lua_State *L) {
 int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
-    int id = lua_tointeger(L, 1);
+    unsigned id = lua_tointeger(L, 1);
     if (id == computer->timers.size() - 1) computer->timers.pop_back();
     else computer->timers[id] = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(0));
     return 0;
@@ -414,7 +414,7 @@ int os_setAlarm(lua_State *L) {
 int os_cancelAlarm(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
-    int id = lua_tointeger(L, 1);
+    unsigned id = lua_tointeger(L, 1);
     if (id == computer->alarms.size() - 1) computer->alarms.pop_back();
     else computer->alarms[id] = -1;
     return 0;

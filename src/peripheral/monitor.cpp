@@ -35,7 +35,7 @@ monitor::~monitor() {delete term;}
 int monitor::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     const char * str = lua_tostring(L, 1);
-    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;
     }
@@ -143,7 +143,7 @@ int monitor::blit(lua_State *L) {
     const char * str = lua_tostring(L, 1);
     const char * fg = lua_tostring(L, 2);
     const char * bg = lua_tostring(L, 3);
-    for (int i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
         colors = htoi(bg[i]) << 4 | htoi(fg[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;

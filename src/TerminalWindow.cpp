@@ -26,6 +26,25 @@ extern "C" struct {
     unsigned char	 pixel_data[128 * 175 * 3 + 1];
 } font_image;
 
+Color defaultPalette[16] = {
+    {0xf0, 0xf0, 0xf0},
+    {0xf2, 0xb2, 0x33},
+    {0xe5, 0x7f, 0xd8},
+    {0x99, 0xb2, 0xf2},
+    {0xde, 0xde, 0x6c},
+    {0x7f, 0xcc, 0x19},
+    {0xf2, 0xb2, 0xcc},
+    {0x4c, 0x4c, 0x4c},
+    {0x99, 0x99, 0x99},
+    {0x4c, 0x99, 0xb2},
+    {0xb2, 0x66, 0xe5},
+    {0x33, 0x66, 0xcc},
+    {0x7f, 0x66, 0x4c},
+    {0x57, 0xa6, 0x4e},
+    {0xcc, 0x4c, 0x4c},
+    {0x11, 0x11, 0x11}
+};
+
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
     const float kSysDefaultDpi =
@@ -85,7 +104,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     char * icon_pixels = new char[favicon_width * favicon_height * 4];
     memset(icon_pixels, 0xFF, favicon_width * favicon_height * 4);
     const char * icon_data = header_data;
-    for (int i = 0; i < favicon_width * favicon_height; i++) HEADER_PIXEL(icon_data, (&icon_pixels[i*4]));
+    for (unsigned i = 0; i < favicon_width * favicon_height; i++) HEADER_PIXEL(icon_data, (&icon_pixels[i*4]));
     SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(icon_pixels, favicon_width, favicon_height, 32, favicon_width * 4, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
     SDL_SetWindowIcon(win, icon);
     SDL_FreeSurface(icon);
@@ -183,19 +202,19 @@ void TerminalWindow::render() {
         gotResizeEvent = false;
         this->screen.resize(newHeight);
         if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<char>(newWidth, ' '));
-        for (int i = 0; i < screen.size(); i++) {
+        for (unsigned i = 0; i < screen.size(); i++) {
             screen[i].resize(newWidth);
             if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
         }
         this->colors.resize(newHeight);
         if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<unsigned char>(newWidth, 0xF0));
-        for (int i = 0; i < colors.size(); i++) {
+        for (unsigned i = 0; i < colors.size(); i++) {
             colors[i].resize(newWidth);
             if (newWidth > width) std::fill(colors[i].begin() + width, colors[i].end(), 0xF0);
         }
         this->pixels.resize(newHeight * fontHeight);
         if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<char>(newWidth * fontWidth, 0x0F));
-        for (int i = 0; i < pixels.size(); i++) {
+        for (unsigned i = 0; i < pixels.size(); i++) {
             pixels[i].resize(newWidth * fontWidth);
             if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0x0F);
         }
@@ -388,7 +407,7 @@ void TerminalWindow::stopRecording() {
         uint32_t w = ((uint32_t*)&s[0])[0], h = ((uint32_t*)&s[0])[1];
         uint32_t* ipixels = new uint32_t[w * h];
         uint32_t* lp = ipixels;
-        for (int i = 2; i*4 < s.size(); i++) {
+        for (unsigned i = 2; i*4 < s.size(); i++) {
             uint32_t c = ((uint32_t*)&s[0])[i];
             lp = memset_int(lp, c & 0xFFFFFF, ((c & 0xFF000000) >> 24) + 1);
         }

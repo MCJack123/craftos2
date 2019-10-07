@@ -149,10 +149,10 @@ int printer::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (cursorY >= height) return 0;
     const char * str = lua_tostring(L, 1);
-    int i = 0;
+    unsigned i = 0;
     for (i = 0; i < strlen(str) && i + cursorX < width; i++) 
         body[cursorY][i+cursorX] = str[i] == '\n' ? '?' : str[i];
-    cursorX += i;
+    cursorX += (int)i;
     //printf("%s\n", &body[cursorY][0]);
     return 0;
 }
@@ -197,7 +197,7 @@ int printer::endPage(lua_State *L) {
 #if PRINT_TYPE == PRINT_TYPE_PDF
     HPDF_Page_BeginText(page);
     HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 12.0);
-    for (int i = 0; i < body.size(); i++) {
+    for (unsigned i = 0; i < body.size(); i++) {
         char * str = new char[width + 1];
         memcpy(str, &body[i][0], width);
         str[width] = 0;
