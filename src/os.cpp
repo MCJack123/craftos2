@@ -93,10 +93,12 @@ void mainLoop() {
                 }
             } else if (e.type == render_event_type) {
                 for (TerminalWindow* term : TerminalWindow::renderTargets) {
+                    term->locked.lock();
                     SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
                     SDL_UpdateWindowSurface(term->win);
                     SDL_FreeSurface(term->surf);
                     term->surf = NULL;
+                    term->locked.unlock();
                 }
             } else {
                 for (Computer * c : computers) {

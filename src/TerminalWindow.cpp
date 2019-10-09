@@ -225,6 +225,10 @@ void TerminalWindow::render() {
     SDL_GetWindowSize(win, &ww, &wh);
     if (surf != NULL) SDL_FreeSurface(surf);
     surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 24, SDL_PIXELFORMAT_RGB888);
+    if (surf == NULL) {
+        printf("Could not allocate renderer: %s\n", SDL_GetError());
+        return;
+    }
     SDL_Rect rect;
     if (gotResizeEvent || SDL_FillRect(surf, NULL, rgb(defaultPalette[15])) != 0) return;
     if (mode != 0) {
