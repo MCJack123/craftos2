@@ -10,7 +10,6 @@ Computers can also be attached and detached from the shell when using the CraftO
 On supported systems, CraftOS-PC can be run from the terminal with the `--cli` flag. You can use Shift+Arrow Keys to change the currently open window. In this mode, some features are not supported, including:
 * Holding keys: CLI mode cannot detect key releases, and thus sends both a `key` and `key_up` event at the same time. Because of this, it cannot detect if you are holding any keys down.
 * Using modifier keys: CLI mode cannot detect pressing modifier keys, so programs using Control, Alt, or Shift (**including edit**) will not work.
-* The macOS terminal does not support custom colors, so `term.setPaletteColor` will not function in CLI mode.
 
 ## Using custom fonts
 The font used for CraftOS-PC can be changed in `.craftos/config/global.json`, with the `customFontPath` option. To set the font, set `customFontPath` to the absolute path to a BMP file containing the font glyphs. Each glyph must be exactly 6*s* x 9*s* px with 2*s* pixels between each glyph, where *s* is a number representing the scale of the font. `customFontScale` must also be set to a number representing the size of the font (1 = HD font (12x18), 2 = normal font (6x9), 3 = 1/2 size font (4x6)).

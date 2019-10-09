@@ -224,7 +224,7 @@ void TerminalWindow::render() {
     int ww = 0, wh = 0;
     SDL_GetWindowSize(win, &ww, &wh);
     if (surf != NULL) SDL_FreeSurface(surf);
-    surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 32, SDL_GetWindowPixelFormat(win));
+    surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 24, SDL_PIXELFORMAT_RGB888);
     SDL_Rect rect;
     if (gotResizeEvent || SDL_FillRect(surf, NULL, rgb(defaultPalette[15])) != 0) return;
     if (mode != 0) {
