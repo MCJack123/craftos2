@@ -6,7 +6,9 @@ CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
 PREFIX?=@prefix@
-ifneq (/usr/local,$(PREFIX))
+prefix=$(PREFIX)
+exec_prefix=@exec_prefix@
+ifneq (/usr,$(PREFIX))
 CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)/share/craftos\"
 endif
 SDIR=@srcdir@/src
