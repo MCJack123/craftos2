@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="README.md">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="packages.config" />
     <None Include="CraftOSTest.lua">
       <Filter>Resource Files</Filter>
@@ -36,6 +33,9 @@
     </None>
     <None Include="LICENSE">
       <Filter>Resource Files</Filter>
+    </None>
+    <None Include="README.md">
+      <Filter>Source Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

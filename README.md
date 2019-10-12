@@ -18,6 +18,8 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 3. Open CraftOS-PC from the Start Menu
 
 ### Mac
+#### __*Catalina Users: READ THIS*__
+macOS Catalina adds a new policy requiring all apps to be notarized with a Developer ID. Because I don't have a paid dev account, CraftOS-PC cannot be notarized, meaning Catalina users can't just double click on the app at first launch. **When opening CraftOS-PC for the first time, make sure to right-click on the app and click Open, instead of double-clicking the app as usual.**
 #### Homebrew Cask
 ```bash
 $ brew tap MCJack123/CraftOSPC
