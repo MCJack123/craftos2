@@ -128,9 +128,11 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
 
 TerminalWindow::~TerminalWindow() {
     std::lock_guard<std::mutex> locked_g(locked);
-    for (auto it = renderTargets.begin(); it != renderTargets.end(); it++)
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
+        if (it == renderTargets.end()) break;
+    }
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
         SDL_FreeSurface(bmp);
