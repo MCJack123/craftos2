@@ -69,7 +69,7 @@ void update_thread() {
             delete choicep;
             switch (choice) {
                 case 0:
-                    config.checkUpdates = false;
+                    config.skipUpdate = CRAFTOSPC_VERSION;
                     return;
                 case 1:
                     return;
@@ -112,10 +112,8 @@ int main(int argc, char*argv[]) {
 #endif
         termInit();
     driveInit();
-    if (!headless && !cli && config.checkUpdates) {
-        std::thread update_bg(update_thread);
-        update_bg.detach();
-    }
+    if (!headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
+        std::thread(update_thread).detach();
     startComputer(0);
     mainLoop();
     for (std::thread *t : computerThreads) { t->join(); delete t; }

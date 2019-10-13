@@ -88,7 +88,8 @@ void config_init() {
         true,
         "",
         0,
-        0
+        0,
+        ""
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -112,6 +113,7 @@ void config_init() {
     if (root.isMember("customFontPath")) config.customFontPath = root["customFontPath"].asString();
     if (root.isMember("customFontScale")) config.customFontScale = root["customFontScale"].asInt();
     if (root.isMember("customCharScale")) config.customCharScale = root["customCharScale"].asInt();
+    if (root.isMember("skipUpdate")) config.skipUpdate = root["skipUpdate"].asString();
 }
 
 void config_save(bool deinit) {
@@ -133,6 +135,7 @@ void config_save(bool deinit) {
     root["customFontPath"] = config.customFontPath;
     root["customFontScale"] = config.customFontScale;
     root["customCharScale"] = config.customCharScale;
+    root["skipUpdate"] = config.skipUpdate;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();

@@ -31,6 +31,7 @@ struct configuration {
     std::string customFontPath;
     int customFontScale;
     int customCharScale;
+    std::string skipUpdate;
 };
 struct computer_configuration {
     std::string label;
