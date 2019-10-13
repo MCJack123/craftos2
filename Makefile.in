@@ -7,7 +7,7 @@ LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
 PREFIX?=@prefix@
 prefix=$(PREFIX)
-exec_prefix=@exec_prefix@
+DESTDIR?=@exec_prefix@
 ifneq (/usr,$(PREFIX))
 CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)/share/craftos\"
 endif
@@ -41,6 +41,10 @@ endif
 	install_name_tool -change /usr/local/opt/poco/lib/libPocoXML.63.dylib "@rpath/libPocoXML.63.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/sdl2_mixer/lib/libSDL2_mixer-2.0.0.dylib "@rpath/libSDL2_mixer-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib "@rpath/libSDL2-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/flac/lib/libFLAC.8.dylib "@rpath/libFLAC.8.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/mpg123/lib/libmpg123.0.dylib "@rpath/libmpg123.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/openssl/lib/libcrypto.1.0.0.dylib "@rpath/libcrypto.1.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/openssl/lib/libssl.1.0.0.dylib "@rpath/libssl.1.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	cp Info.plist CraftOS-PC.app/Contents/
 
 $(ODIR):
@@ -77,7 +81,7 @@ clean: $(ODIR)
 rebuild: clean craftos
 
 install: craftos
-	cp craftos @bindir@/craftos
+	cp craftos $(DESTDIR)/craftos
 
 test: craftos
 	./craftos --headless --script $(shell pwd)/CraftOSTest.lua

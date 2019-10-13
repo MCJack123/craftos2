@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
-      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/share/craftos
+      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
     - name: Install dependencies
       run: |
         sudo apt update
