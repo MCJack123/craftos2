@@ -240,7 +240,12 @@ int fs_open(lua_State *L) {
     const char * mode = lua_tostring(L, 2);
     if (computer->files_open >= config.maximumFilesOpen) err(L, 1, "Too many files open");
 	//printf("fs.open(\"%s\", \"%s\")\n", path, mode);
-    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) createDirectory(path.substr(0, path.find_last_of('/')));
+    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) 
+#ifdef WIN32
+        createDirectory(path.substr(0, path.find_last_of('\\')));
+#else
+        createDirectory(path.substr(0, path.find_last_of('/')));
+#endif
 	FILE * fp = fopen(path.c_str(), mode);
 	if (fp == NULL) { 
 		lua_pushnil(L);
