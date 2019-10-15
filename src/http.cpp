@@ -84,15 +84,16 @@ const char * http_success(lua_State *L, void* data) {
     lua_pushcclosure(L, http_handle_close, 1);
     lua_settable(L, -3);
 
+    lua_pushstring(L, "readAll");
+    lua_pushlightuserdata(L, handle);
+    lua_pushboolean(L, handle->isBinary);
+    lua_pushcclosure(L, http_handle_readAll, 2);
+    lua_settable(L, -3);
+
     if (!handle->isBinary) {
         lua_pushstring(L, "readLine");
         lua_pushlightuserdata(L, handle);
         lua_pushcclosure(L, http_handle_readLine, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "readAll");
-        lua_pushlightuserdata(L, handle);
-        lua_pushcclosure(L, http_handle_readAll, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "read");

@@ -127,10 +127,14 @@ int fs_handle_writeLine(lua_State *L) {
 
 int fs_handle_writeByte(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    const char b = lua_tointeger(L, 1) & 0xFF;
-    FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
-    fputc(b, fp);
+    if (lua_isnumber(L, 1)) {
+        const char b = lua_tointeger(L, 1) & 0xFF;
+        FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
+        fputc(b, fp);
+    } else if (lua_isstring(L, 1)) {
+        FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
+        fwrite(lua_tostring(L, 1), lua_strlen(L, 1), 1, fp);
+    } else bad_argument(L, "number or string", 1);
     return 0;
 }
 

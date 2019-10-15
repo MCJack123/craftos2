@@ -59,8 +59,8 @@ int http_handle_readAll(lua_State *L) {
     while (handle->stream.read(buffer, sizeof(buffer)))
         ret.append(buffer, sizeof(buffer));
     ret.append(buffer, handle->stream.gcount());
-    ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
-    lua_pushstring(L, ret.c_str());
+    if (!lua_toboolean(L, lua_upvalueindex(2))) ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
+    lua_pushlstring(L, ret.c_str(), ret.length());
     return 1;
 }
 
