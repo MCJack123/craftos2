@@ -163,7 +163,7 @@ void downloadThread(void* arg) {
             return;
         }
     } catch (std::exception &e) {
-        printf("Error while downloading: %s\n", e.what());
+        printf("Error while downloading %s: %s\n", param->url, e.what());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
@@ -174,7 +174,7 @@ void downloadThread(void* arg) {
     try {
         handle = new http_handle_t(session->receiveResponse(*response));
     } catch (std::exception &e) {
-        printf("Error while downloading: %s\n", e.what());
+        printf("Error while downloading %s: %s\n", param->url, e.what());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
@@ -186,8 +186,12 @@ void downloadThread(void* arg) {
     handle->url = param->old_url;
     handle->isBinary = param->isBinary;
     if (param->redirect && handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
-        if (param->url != param->old_url) delete[] param->url;
         std::string location = handle->handle->get("Location");
+        if (location.find("://") == std::string::npos) {
+            if (location[0] == '/') location = uri.getScheme() + "://" + uri.getHost() + location;
+            else location = uri.getScheme() + "://" + uri.getHost() + uri.getPath() + "/" + location;
+        }
+        if (param->url != param->old_url) delete[] param->url;
         delete handle->handle;
         delete handle->session;
         delete handle;
