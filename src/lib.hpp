@@ -16,7 +16,7 @@ extern "C" {
 #include <lualib.h>
 }
 
-#define CRAFTOSPC_VERSION "v2.1"
+#define CRAFTOSPC_VERSION "v2.1.1"
 
 class Computer;
 typedef struct library {

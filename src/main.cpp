@@ -92,15 +92,19 @@ void update_thread() {
 int main(int argc, char*argv[]) {
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "--headless") headless = true;
-#ifndef NO_CLI
         else if (std::string(argv[i]) == "--cli") cli = true;
-#endif
         else if (std::string(argv[i]) == "--script") script_file = argv[++i];
         else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
             std::cerr << "Usage: " << argv[0] << " [--cli] [--headless] [--script <file>]\n";
             return 0;
         }
     }
+#ifdef NO_CLI
+    if (cli) {
+        std::cerr << "Warning: CraftOS-PC was not built with CLI support, but the --cli flag was specified anyway. Continuing in GUI mode.\n";
+        cli = false;
+    }
+#endif
     if (headless && cli) {
         std::cerr << "Error: Cannot combine headless & CLI options\n";
         return 1;

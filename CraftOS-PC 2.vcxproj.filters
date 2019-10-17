@@ -37,6 +37,9 @@
     <None Include="README.md">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="Info.plist">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\Ccblink.ico">
