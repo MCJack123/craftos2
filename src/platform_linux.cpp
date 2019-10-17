@@ -142,9 +142,7 @@ void pushHostString(lua_State *L) {
 }
 
 void updateNow(std::string tag_name) {
-    int * i = new int;
-    *i = system("pkexec apt update; pkexec apt upgrade craftos-pc");
-    delete i; // to silence warnings
+    
 }
 
 #endif // __INTELLISENSE__

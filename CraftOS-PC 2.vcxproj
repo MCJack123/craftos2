@@ -157,7 +157,7 @@
     <None Include="DOCUMENTATION.md" />
     <None Include="Info.plist" />
     <None Include="LICENSE" />
-    <None Include="Makefile" />
+    <None Include="Makefile.in" />
     <None Include="packages.config" />
     <None Include="README.md" />
     <None Include="src\platform_macapp.mm">

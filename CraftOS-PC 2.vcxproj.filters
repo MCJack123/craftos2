@@ -19,9 +19,6 @@
     <None Include="CraftOSTest.lua">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="Makefile">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="src\platform_macapp.mm">
       <Filter>Source Files</Filter>
     </None>
@@ -38,6 +35,9 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="Info.plist">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Makefile.in">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
