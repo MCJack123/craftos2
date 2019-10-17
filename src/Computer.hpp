@@ -68,6 +68,7 @@ public:
     struct computer_configuration config;
     std::unordered_map<int, void *> userdata;
     std::condition_variable event_lock;
+    std::chrono::system_clock::time_point system_start = std::chrono::system_clock::now();
 
     Computer(int i);
     ~Computer();

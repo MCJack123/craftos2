@@ -320,7 +320,8 @@ int os_queueEvent(lua_State *L) {
 }
 
 int os_clock(lua_State *L) {
-    lua_pushinteger(L, clock() / CLOCKS_PER_SEC);
+    Computer * computer = get_comp(L);
+    lua_pushnumber(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - computer->system_start).count() / 1000.0);
     return 1;
 }
 
