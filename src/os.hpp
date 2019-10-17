@@ -13,6 +13,6 @@
 #include "lib.hpp"
 #include <functional>
 extern library_t os_lib;
-extern int getNextEvent(lua_State* L, const char* filter);
+extern int getNextEvent(lua_State* L, std::string filter);
 extern void* queueTask(std::function<void*(void*)> func, void* arg);
 #endif

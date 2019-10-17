@@ -148,9 +148,10 @@ printer::~printer() {
 int printer::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (cursorY >= height) return 0;
-    const char * str = lua_tostring(L, 1);
+    size_t str_sz;
+    const char * str = lua_tolstring(L, 1, &str_sz);
     unsigned i = 0;
-    for (i = 0; i < strlen(str) && i + cursorX < width; i++) 
+    for (i = 0; i < str_sz && i + cursorX < width; i++) 
         body[cursorY][i+cursorX] = str[i] == '\n' ? '?' : str[i];
     cursorX += (int)i;
     //printf("%s\n", &body[cursorY][0]);
@@ -235,7 +236,7 @@ int printer::getInkLevel(lua_State *L) {
 
 int printer::setPageTitle(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    title = std::string(lua_tostring(L, 1));
+    title = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
     return 0;
 }
 

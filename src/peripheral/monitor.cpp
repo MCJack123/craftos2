@@ -34,8 +34,9 @@ monitor::~monitor() {delete term;}
 
 int monitor::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    const char * str = lua_tostring(L, 1);
-    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    size_t str_sz;
+    const char * str = lua_tolstring(L, 1, &str_sz);
+    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;
     }
@@ -140,10 +141,15 @@ int monitor::blit(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
-    const char * str = lua_tostring(L, 1);
-    const char * fg = lua_tostring(L, 2);
-    const char * bg = lua_tostring(L, 3);
-    for (unsigned i = 0; i < strlen(str) && term->blinkX < term->width; i++, term->blinkX++) {
+    size_t str_sz, fg_sz, bg_sz;
+    const char * str = lua_tolstring(L, 1, &str_sz);
+    const char * fg = lua_tolstring(L, 2, &fg_sz);
+    const char * bg = lua_tolstring(L, 3, &bg_sz);
+    if (str_sz != fg_sz || fg_sz != bg_sz) {
+        lua_pushstring(L, "Arguments must be the same length");
+        lua_error(L);
+    }
+    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
         colors = htoi(bg[i]) << 4 | htoi(fg[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;

@@ -249,7 +249,7 @@ int http_request(lua_State *L) {
     param->isBinary = false;
     if (lua_isstring(L, 2)) {
         param->postData = new char[lua_strlen(L, 2) + 1];
-        strcpy(param->postData, lua_tostring(L, 2));
+        memcpy(param->postData, lua_tostring(L, 2), lua_strlen(L, 2));
     }
     if (lua_istable(L, 3)) {
         lua_pushvalue(L, 3);

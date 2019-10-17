@@ -249,7 +249,7 @@ end");
         while (status == LUA_YIELD && running == 1) {
             status = lua_resume(coro, narg);
             if (status == LUA_YIELD) {
-                if (lua_isstring(coro, -1)) narg = getNextEvent(coro, lua_tostring(coro, -1));
+                if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
                 else narg = getNextEvent(coro, "");
             } else if (status != 0) {
                 // Catch runtime error

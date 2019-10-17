@@ -196,7 +196,7 @@ int config_set(lua_State *L) {
     else if (strcmp(name, "disable_lua51_features") == 0)
         config.disable_lua51_features = lua_toboolean(L, 2);
     else if (strcmp(name, "default_computer_settings") == 0) 
-        config.default_computer_settings = lua_tostring(L, 2);
+        config.default_computer_settings = std::string(lua_tostring(L, 2), lua_strlen(L, 2));
     else if (strcmp(name, "logPeripheralErrors") == 0)
         config.logPeripheralErrors = lua_toboolean(L, 2);
     else if (strcmp(name, "computerSpaceLimit") == 0)

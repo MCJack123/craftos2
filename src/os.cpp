@@ -204,7 +204,7 @@ void mainLoop() {
     exiting = true;
 }
 
-int getNextEvent(lua_State *L, const char * filter) {
+int getNextEvent(lua_State *L, std::string filter) {
     Computer * computer = get_comp(L);
     if (computer->paramQueue == NULL) computer->paramQueue = lua_newthread(L);
     std::string ev;
@@ -269,7 +269,7 @@ int getNextEvent(lua_State *L, const char * filter) {
         ev = computer->eventQueue.front();
         computer->eventQueue.pop();
         std::this_thread::yield();
-    } while (strlen(filter) > 0 && ev != std::string(filter));
+    } while (!filter.empty() && ev != filter);
     lua_pop(computer->paramQueue, 1);
     param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) return 0;
@@ -296,7 +296,7 @@ int os_getComputerLabel(lua_State *L) {
 
 int os_setComputerLabel(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    get_comp(L)->config.label = lua_tostring(L, 1);
+    get_comp(L)->config.label = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
     return 0;
 }
 
@@ -304,7 +304,7 @@ int os_queueEvent(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * computer = get_comp(L);
     //if (paramQueue == NULL) paramQueue = lua_newthread(L);
-    const char * name = lua_tostring(L, 1);
+    std::string name = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
     if (!lua_checkstack(computer->paramQueue, 1)) {
         lua_pushstring(L, "Could not allocate space for event");
         lua_error(L);
