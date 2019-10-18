@@ -7,7 +7,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 * Supported operating systems:
   * Windows 7+ x64 (might work on Vista)
   * macOS 10.9+
-  * Ubuntu 18.04, 19.04
+  * Ubuntu 18.04, 19.04, 19.10
 * Administrator privileges
 * 7 MB free space
 
@@ -31,7 +31,7 @@ $ open /Applications/CraftOS-PC.app
 2. Drag and drop into Applications (or not)
 3. Double-click CraftOS-PC(.app)
 
-### Ubuntu (18.04 & 19.04)
+### Ubuntu (PPA)
 ```bash
 $ sudo add-apt-repository ppa:jackmacwindows/ppa
 $ sudo apt update
