@@ -405,7 +405,7 @@ uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
 void TerminalWindow::stopRecording() {
     shouldRecord = false;
     recorderMutex.lock();
-    if (recording.size() < 1) return;
+    if (recording.size() < 1) { recorderMutex.unlock(); return; }
     GifWriter g;
     GifBegin(&g, recordingPath.c_str(), ((uint32_t*)(&recording[0][0]))[0], ((uint32_t*)(&recording[0][0]))[1], 10);
     for (std::string s : recording) {
