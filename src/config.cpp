@@ -271,26 +271,22 @@ int config_list(lua_State *L) {
     lua_settable(L, -3);
 
     lua_pushnumber(L, 11);
-    lua_pushstring(L, "readFail");
-    lua_settable(L, -3);
-
-    lua_pushnumber(L, 12);
     lua_pushstring(L, "abortTimeout");
     lua_settable(L, -3);
 
-    lua_pushnumber(L, 13);
+    lua_pushnumber(L, 12);
     lua_pushstring(L, "ignoreHotkeys");
     lua_settable(L, -3);
 
-    lua_pushnumber(L, 14);
+    lua_pushnumber(L, 13);
     lua_pushstring(L, "isColor");
     lua_settable(L, -3);
 
-    lua_pushnumber(L, 15);
+    lua_pushnumber(L, 14);
     lua_pushstring(L, "checkUpdates");
     lua_settable(L, -3);
 
-    lua_pushnumber(L, 16);
+    lua_pushnumber(L, 15);
     lua_pushstring(L, "romReadOnly");
     lua_settable(L, -3);
     return 1;
