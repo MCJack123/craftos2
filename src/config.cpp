@@ -292,45 +292,20 @@ int config_list(lua_State *L) {
     return 1;
 }
 
-// TODO: trim down code (so much redundancy)
 int config_getType(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    const char * name = lua_tostring(L, 1);
-    if (strcmp(name, "http_enable") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "debug_enable") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "disable_lua51_features") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "default_computer_settings") == 0)
-        lua_pushinteger(L, 1);
-    else if (strcmp(name, "logPeripheralErrors") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "computerSpaceLimit") == 0)
-        lua_pushinteger(L, 2);
-    else if (strcmp(name, "maximumFilesOpen") == 0)
-        lua_pushinteger(L, 2);
-    else if (strcmp(name, "maxNotesPerTick") == 0)
-        lua_pushinteger(L, 2);
-    else if (strcmp(name, "clockSpeed") == 0)
-        lua_pushinteger(L, 2);
-    /*else if (strcmp(name, "http_whitelist") == 0)
-        lua_pushinteger(L, 3);
-    else if (strcmp(name, "http_blacklist") == 0)
-        lua_pushinteger(L, 3);*/
-    else if (strcmp(name, "showFPS") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "abortTimeout") == 0)
-        lua_pushinteger(L, 2);
-    else if (strcmp(name, "ignoreHotkeys") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "isColor") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "checkUpdates") == 0)
-        lua_pushinteger(L, 0);
-    else if (strcmp(name, "romReadOnly") == 0)
-        lua_pushinteger(L, 0);
-    else lua_pushinteger(L, -1);
+    std::string name = lua_tostring(L, 1);
+    if (name == "http_enable" || name == "debug_enable" || 
+        name == "disable_lua51_features" || name == "logPeripheralErrors" || 
+        name == "showFPS" || name == "ignoreHotkeys" || name == "isColor" ||
+        name == "checkUpdates" || name == "romReadOnly")
+        lua_pushstring(L, "boolean");
+    else if (name == "default_computer_settings")
+        lua_pushstring(L, "string");
+    else if (name == "computerSpaceLimit" || name == "maximumFilesOpen" || 
+             name == "maxNotesPerTick" || name == "clockSpeed" || name == "abortTimeout")
+        lua_pushstring(L, "number");
+    else lua_pushnil(L);
     return 1;
 }
 
