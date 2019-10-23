@@ -67,6 +67,7 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 
 int TerminalWindow::fontScale = 2;
 std::list<TerminalWindow*> TerminalWindow::renderTargets;
+std::mutex TerminalWindow::renderTargetsLock;
 
 TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
@@ -128,11 +129,13 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
 
 TerminalWindow::~TerminalWindow() {
     std::lock_guard<std::mutex> locked_g(locked);
+    TerminalWindow::renderTargetsLock.lock();
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
+    TerminalWindow::renderTargetsLock.unlock();
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
         SDL_FreeSurface(bmp);

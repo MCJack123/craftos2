@@ -103,12 +103,14 @@ void Computer::run() {
         lua_State *coro;
         if (!headless) {
             // Initialize terminal contents
+            term->locked.lock();
+            term->blinkX = 0;
+            term->blinkY = 0;
             term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
             term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
             term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->fontHeight, std::vector<unsigned char>(term->width * term->fontWidth, 0x0F));
             memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
-            term->blinkX = 0;
-            term->blinkY = 0;
+            term->locked.unlock();
         }
         colors = 0xF0;
 

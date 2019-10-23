@@ -308,6 +308,7 @@ void termRenderLoop() {
     while (!exiting) {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         bool pushEvent = false;
+        TerminalWindow::renderTargetsLock.lock();
         for (TerminalWindow* term : TerminalWindow::renderTargets) {
             if (!term->canBlink) term->blink = false;
             else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
@@ -317,6 +318,7 @@ void termRenderLoop() {
             term->render();
             pushEvent = true;
         }
+        TerminalWindow::renderTargetsLock.unlock();
         if (pushEvent) {
             SDL_Event ev;
             ev.type = render_event_type;

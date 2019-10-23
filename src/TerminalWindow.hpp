@@ -48,6 +48,7 @@ public:
     static const int fontWidth = 6;
     static const int fontHeight = 9;
     static std::list<TerminalWindow*> renderTargets;
+    static std::mutex renderTargetsLock;
 protected:
     static int fontScale;
     bool shouldScreenshot = false;
