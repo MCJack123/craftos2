@@ -23,7 +23,7 @@ macOS Catalina adds a new policy requiring all apps to be notarized with a Devel
 #### Homebrew Cask
 ```bash
 $ brew tap MCJack123/CraftOSPC
-$ brew install craftos-pc
+$ brew cask install craftos-pc
 $ open /Applications/CraftOS-PC.app
 ```
 #### Manual
