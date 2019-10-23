@@ -24,10 +24,7 @@ craftos: $(OBJ) $(ODIR)/platform.o
 macapp: $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
-	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework AppKit
-ifneq (,$(wildcard codesign/Makefile))
-	make -C codesign
-endif
+	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework AppKit -mmacosx-version-min=10.9.5
 	install_name_tool -add_rpath @executable_path/../Frameworks CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/lua@5.1/lib/liblua.5.1.dylib "@rpath/liblua.5.1.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libharu/lib/libhpdf-2.3.0.dylib "@rpath/libhpdf-2.3.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
@@ -46,6 +43,9 @@ endif
 	install_name_tool -change /usr/local/opt/openssl/lib/libcrypto.1.0.0.dylib "@rpath/libcrypto.1.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/openssl/lib/libssl.1.0.0.dylib "@rpath/libssl.1.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	cp Info.plist CraftOS-PC.app/Contents/
+ifneq (,$(wildcard codesign/Makefile))
+	make -C codesign
+endif
 
 $(ODIR):
 	mkdir $@
