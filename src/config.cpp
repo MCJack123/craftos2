@@ -181,7 +181,7 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.checkUpdates);
     else if (strcmp(name, "romReadOnly") == 0)
         lua_pushboolean(L, config.romReadOnly);
-    else return 0;
+    else lua_pushnil(L);
     return 1;
 }
 

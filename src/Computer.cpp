@@ -94,10 +94,125 @@ Computer::~Computer() {
     }
 }
 
+int setthreadenv(lua_State *L) {
+    lua_newtable(L);
+    lua_pushstring(L, "__gc");
+    lua_pushcfunction(L, [](lua_State *L)->int {
+        lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+        lua_pushthread(L);
+        lua_pushnil(L);
+        lua_settable(L, -3);
+        return 0;
+    });
+    lua_settable(L, -3);
+    lua_setmetatable(L, -2);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+    lua_pushthread(L);
+    lua_gettable(L, -2);
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushthread(L);
+        lua_newtable(L);
+        lua_settable(L, -3);
+        lua_pushthread(L);
+        lua_gettable(L, -2);
+    }
+    printf("Old stack height: %zu\n", lua_objlen(L, -1));
+    lua_pushvalue(L, 1);
+    lua_pushvalue(L, -2);
+    lua_settable(L, -4);
+    lua_pop(L, 2);
+    return 0;
+}
+
+#define CO_RUN	0	/* running */
+#define CO_SUS	1	/* suspended */
+#define CO_NOR	2	/* 'normal' (it resumed another coroutine) */
+#define CO_DEAD	3
+
+static const char *const statnames[] =
+    {"running", "suspended", "normal", "dead"};
+
+static int costatus (lua_State *L, lua_State *co) {
+  if (L == co) return CO_RUN;
+  switch (lua_status(co)) {
+    case LUA_YIELD:
+      return CO_SUS;
+    case 0: {
+      lua_Debug ar;
+      if (lua_getstack(co, 0, &ar) > 0)  /* does it have frames? */
+        return CO_NOR;  /* it is running */
+      else if (lua_gettop(co) == 0)
+          return CO_DEAD;
+      else
+        return CO_SUS;  /* initial state */
+    }
+    default:  /* some error occured */
+      return CO_DEAD;
+  }
+}
+
+static int auxresume (lua_State *L, lua_State *co, int narg) {
+  int status = costatus(L, co);
+  if (!lua_checkstack(co, narg))
+    luaL_error(L, "too many arguments to resume");
+  if (status != CO_SUS) {
+    lua_pushfstring(L, "cannot resume %s coroutine", statnames[status]);
+    return -1;  /* error flag */
+  }
+  lua_xmove(L, co, narg);
+  lua_setlevel(L, co);
+  status = lua_resume(co, narg);
+  if (status == 0 || status == LUA_YIELD) {
+    int nres = lua_gettop(co);
+    if (!lua_checkstack(L, nres + 1))
+      luaL_error(L, "too many results to resume");
+    lua_xmove(co, L, nres);  /* move yielded values */
+    return nres;
+  }
+  else {
+    lua_xmove(co, L, 1);  /* move error message */
+    return -1;  /* error flag */
+  }
+}
+
+int coroutine_resume (lua_State *L) {
+    lua_State *co = lua_tothread(L, 1);
+    int r;
+    luaL_argcheck(L, co, 1, "coroutine expected");
+    lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+    lua_pushvalue(L, 1);
+    lua_gettable(L, -2);
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushvalue(L, 1);
+        lua_newtable(L);
+        lua_settable(L, -3);
+        lua_pushvalue(L, 1);
+        lua_gettable(L, -2);
+    }
+    lua_pushstring(L, "_caller");
+    lua_pushthread(L);
+    lua_settable(L, -3);
+    lua_pop(L, 2);
+    r = auxresume(L, co, lua_gettop(L) - 1);
+    if (r < 0) {
+        lua_pushboolean(L, 0);
+        lua_insert(L, -2);
+        return 2;  /* return false + error message */
+    }
+    else {
+        lua_pushboolean(L, 1);
+        lua_insert(L, -(r + 1));
+        return r + 1;  /* return true + `resume' returns */
+    }
+}
+
 // Main computer loop
 void Computer::run() {
     running = 1;
     if (L != NULL) lua_close(L);
+    setjmp(on_panic);
     while (running) {
         int status;
         lua_State *coro;
@@ -127,10 +242,13 @@ void Computer::run() {
         lua_pushstring(L, "computer");
         lua_pushlightuserdata(L, this);
         lua_settable(L, LUA_REGISTRYINDEX);
+        lua_newtable(L);
+        lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
 
         // Load libraries
         luaL_openlibs(coro);
-        lua_sethook(coro, termHook, LUA_MASKCOUNT, 100);
+        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE, 100);
+        lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);
         lua_getglobal(coro, "redstone");
@@ -199,11 +317,22 @@ void Computer::run() {
             lua_setglobal(L, "_HEADLESS");
         }
 
+        lua_getglobal(L, "coroutine");
+        lua_pushstring(L, "resume");
+        lua_pushcfunction(L, coroutine_resume);
+        lua_settable(L, -3);
+        lua_pop(L, 1);
+
         // Load patched pcall/xpcall
-        luaL_loadstring(L, "local nativeResume = coroutine.resume; return function( _fn, _fnErrorHandler )\n\
+        luaL_loadstring(L, "local nativeResume = coroutine.resume\n\
+local setthreadenv, printf = ...\n\
+return function( _fn, _fnErrorHandler )\n\
     local typeT = type( _fn )\n\
     assert( typeT == \"function\", \"bad argument #1 to xpcall (function expected, got \"..typeT..\")\" )\n\
     local co = coroutine.create( _fn )\n\
+    --setthreadenv( co )\n\
+    --printf(#getregistry('_coroutine_stack')[co], #getregistry('_coroutine_stack')[coroutine.running()])\n\
+    --assert(getregistry('_coroutine_stack')[co] == getregistry('_coroutine_stack')[coroutine.running()])\n\
     local tResults = { nativeResume( co ) }\n\
     while coroutine.status( co ) ~= \"dead\" do\n\
         tResults = { nativeResume( co, coroutine.yield( unpack( tResults, 2 ) ) ) }\n\
@@ -214,7 +343,13 @@ void Computer::run() {
         return false, _fnErrorHandler( tResults[2] )\n\
     end\n\
 end");
-        lua_call(L, 0, 1);
+        lua_pushcfunction(L, setthreadenv);
+        lua_pushcfunction(L, [](lua_State *L)->int {
+            for (int i = 1; i <= lua_gettop(L); i++) printf("%s\t", lua_tostring(L, i));
+            printf("\n");
+            return 0;
+        });
+        lua_call(L, 2, 1);
         lua_setglobal(L, "xpcall");
         
         luaL_loadstring(L, "return function( _fn, ... )\n\
@@ -232,6 +367,36 @@ end");
 end");
         lua_call(L, 0, 1);
         lua_setglobal(L, "pcall");
+
+        lua_pushcfunction(L, [](lua_State *L)->int {
+            lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+            lua_pushthread(L);
+            lua_gettable(L, -2);
+            if (lua_isnil(L, -1)) {
+                lua_pop(L, 1);
+                lua_pushthread(L);
+                lua_newtable(L);
+                lua_settable(L, -3);
+                lua_pushthread(L);
+                lua_gettable(L, -2);
+            }
+            return 1;
+        });
+        lua_setglobal(L, "getstack");
+
+        lua_pushcfunction(L, [](lua_State *L)->int {
+            lua_getfield(L, LUA_REGISTRYINDEX, lua_tostring(L, 1));
+            return 1;
+        });
+        lua_setglobal(L, "getregistry");
+
+        lua_pushcfunction(L, [](lua_State *L)->int {
+            lua_Debug *ar = (lua_Debug*)lua_touserdata(L, 1);
+            if (ar == NULL) return 0;
+            lua_pushfstring(L, "%s:%s:%d", ar->short_src, ar->name, ar->linedefined);
+            return 1;
+        });
+        lua_setglobal(L, "getdebug");
 
         /* Load the file containing the script we are going to run */
         std::string bios_path_expanded = getROMPath() + "/bios.lua";
@@ -257,11 +422,8 @@ end");
                 // Catch runtime error
                 running = 0;
                 //usleep(5000000);
-                printf("%s\n", lua_tostring(coro, -1));
-                for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
-                    if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
-                lua_close(L);
-                L = NULL;
+                lua_pushcfunction(L, termPanic);
+                lua_call(L, 1, 0);
                 return;
             }
         }

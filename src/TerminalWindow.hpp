@@ -41,6 +41,7 @@ public:
 
 class TerminalWindow {
     friend void mainLoop();
+    friend int termPanic(lua_State *L);
 public:
     unsigned id;
     int width;

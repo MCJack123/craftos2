@@ -22,6 +22,7 @@ extern "C" {
 #include <unordered_map>
 #include <atomic>
 #include <condition_variable>
+#include <csetjmp>
 #ifdef _WIN32
 #include <SDL.h>
 #else
@@ -69,6 +70,7 @@ public:
     std::unordered_map<int, void *> userdata;
     std::condition_variable event_lock;
     std::chrono::system_clock::time_point system_start = std::chrono::system_clock::now();
+    jmp_buf on_panic;
 
     Computer(int i);
     ~Computer();
