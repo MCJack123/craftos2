@@ -315,64 +315,54 @@ int termPanic(lua_State *L) {
     longjmp(comp->on_panic, 0);
 }
 
+extern "C" {
+    extern int lua_getstack_patch(lua_State*, int, lua_Debug*, lua_State**);
+}
+
+void luaL_where (lua_State *L, int level) {
+  lua_Debug ar;
+  lua_State * L_ret;
+  if (lua_getstack_patch(L, level, &ar, &L_ret)) {  /* check function at level */
+    lua_getinfo(L_ret, "Sl", &ar);  /* get info about it */
+    if (ar.currentline > 0) {  /* is there info? */
+      lua_pushfstring(L, "%s:%d: ", ar.short_src, ar.currentline);
+      return;
+    }
+  }
+  lua_pushliteral(L, "");  /* else, no information available... */
+}
+
 void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
-    lua_getinfo(L, "nS", ar);
-    lua_pushthread(L);
-    lua_State *coro = lua_tothread(L, -1);
-    lua_getfield(coro, LUA_REGISTRYINDEX, "_coroutine_stack");
-    lua_pushthread(coro);
-    lua_gettable(coro, -2);
-    if (lua_isnil(L, -1)) {
-        lua_pop(coro, 1);
-        lua_pushthread(coro);
-        lua_newtable(coro);
-        lua_settable(coro, -3);
-        lua_pushthread(coro);
-        lua_gettable(coro, -2);
-    }
-    if (lua_type(coro, -1) != LUA_TTABLE)
-        printf("Not a table: %s\n", lua_typename(coro, lua_type(coro, -1)));
-    int len = lua_objlen(coro, -1);
-    lua_Debug * back = NULL;
-    if (len > 0) {
-        lua_pushinteger(coro, len);
-        lua_gettable(coro, -2);
-        back = (lua_Debug*)lua_touserdata(coro, -1);
-        lua_pop(coro, 1);
-    }
-    if (ar->name != NULL && (std::string(ar->name) == "yield" || std::string(ar->name) == "nativeResume")) return;
+    lua_getinfo(L, "nSlf", ar);
     if (ar->event == LUA_HOOKCOUNT) {
         if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
-            printf("Too long without yielding\n");
             computer->last_event = std::chrono::high_resolution_clock::now();
+            luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
+            lua_concat(L, 2);
+            printf("%s\n", lua_tostring(L, -1));
             lua_error(L);
         }
-    } else if (ar->event == LUA_HOOKCALL) {
-        lua_pushinteger(coro, len+1);
-        lua_Debug *next = (lua_Debug*)lua_newuserdata(coro, sizeof(lua_Debug));
-        memcpy(next, ar, sizeof(lua_Debug));
-        lua_settable(coro, -3);
-        //printf("Call: %s (%s), stack is %d\n", ar->name == NULL ? "(null)" : ar->name, (back == NULL || back->name == NULL) ? "(null)" : back->name, len+1);
-    } else if (ar->event == LUA_HOOKRET) {
-        lua_pushinteger(coro, len);
-        lua_pushnil(coro);
-        lua_settable(coro, -3);
-        //printf("Return: %s (%s), stack is %d\n", ar->name == NULL ? "(null)" : ar->name, (back == NULL || back->name == NULL) ? "(null)" : back->name, len-1);
-        if (back != NULL && ((ar->name != NULL && back->name != NULL) ? (std::string(ar->name) != std::string(back->name)) : ((ar->name == NULL) != (back->name == NULL)))) {
-            //printf("Uneven returns!\n");
-        }
     } else if (ar->event == LUA_HOOKLINE) {
-        /*lua_pushinteger(coro, len);
-        lua_Debug *next = (lua_Debug*)lua_newuserdata(coro, sizeof(lua_Debug));
-        memcpy(next, ar, sizeof(lua_Debug));
-        lua_settable(coro, -3);*/
-    } else if (ar->event == LUA_HOOKTAILRET) {
-        lua_pushinteger(coro, len);
-        lua_pushnil(coro);
-        lua_settable(coro, -3);
-        //printf("Tail return: (%s), stack is %d\n", (back == NULL || back->name == NULL) ? "(null)" : back->name, len - 1);
+        for (std::pair<std::string, int> b : computer->breakpoints) {
+            if (b.first == std::string(ar->source) && b.second == ar->currentline) {
+                lua_State *coro = lua_newthread(L);
+                lua_getglobal(coro, "os");
+                lua_getfield(coro, -1, "run");
+                lua_getfenv(L, -2);
+                lua_xmove(L, coro, 1);
+                lua_pushstring(coro, "/rom/programs/lua.lua");
+                int status = lua_resume(coro, 2);
+                int narg;
+                while (status == LUA_YIELD) {
+                    if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
+                    else narg = getNextEvent(coro, "");
+                    status = lua_resume(coro, narg);
+                }
+                lua_pop(L, 1);
+            }
+        }
     }
 }
 

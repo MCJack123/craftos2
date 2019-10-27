@@ -71,6 +71,7 @@ public:
     std::condition_variable event_lock;
     std::chrono::system_clock::time_point system_start = std::chrono::system_clock::now();
     jmp_buf on_panic;
+    std::list< std::pair<std::string, int> > breakpoints;
 
     Computer(int i);
     ~Computer();

@@ -181,21 +181,16 @@ int coroutine_resume (lua_State *L) {
     int r;
     luaL_argcheck(L, co, 1, "coroutine expected");
     lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+    lua_pushinteger(L, lua_objlen(L, -1) + 1);
     lua_pushvalue(L, 1);
-    lua_gettable(L, -2);
-    if (lua_isnil(L, -1)) {
-        lua_pop(L, 1);
-        lua_pushvalue(L, 1);
-        lua_newtable(L);
-        lua_settable(L, -3);
-        lua_pushvalue(L, 1);
-        lua_gettable(L, -2);
-    }
-    lua_pushstring(L, "_caller");
-    lua_pushthread(L);
     lua_settable(L, -3);
-    lua_pop(L, 2);
+    lua_pop(L, 1);
     r = auxresume(L, co, lua_gettop(L) - 1);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+    lua_pushinteger(L, lua_objlen(L, -1));
+    lua_pushnil(L);
+    lua_settable(L, -3);
+    lua_pop(L, 1);
     if (r < 0) {
         lua_pushboolean(L, 0);
         lua_insert(L, -2);
@@ -206,6 +201,111 @@ int coroutine_resume (lua_State *L) {
         lua_insert(L, -(r + 1));
         return r + 1;  /* return true + `resume' returns */
     }
+}
+
+extern int fs_getName(lua_State *L);
+
+extern "C" {
+    LUA_API int lua_getstack_patch (lua_State *L, int level, lua_Debug *ar, lua_State **L_ret) {
+        if (level == 0) return lua_getstack(L, 0, ar);
+        lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+        for (int i = lua_objlen(L, -1); i > 0; i--) {
+            lua_pushinteger(L, i);
+            lua_gettable(L, -2);
+            *L_ret = lua_tothread(L, -1);
+            lua_pop(L, 1);
+            int r;
+            for (int j = 0; level > 0; level--, j++) 
+                if ((r = lua_getstack(*L_ret, j, ar)) == 0) break;
+            if (level == 0 && r == 1) {
+                lua_pop(L, 1);
+                return 1;
+            }
+        }
+        lua_pop(L, 1);
+        return 0;
+    }
+
+    int db_breakpoint(lua_State *L) {
+        if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+        if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+        lua_pushcfunction(L, fs_getName);
+        lua_pushvalue(L, 1);
+        lua_call(L, 1, 1);
+        Computer * computer = get_comp(L);
+        computer->breakpoints.push_back(std::make_pair(std::string("@") + lua_tostring(L, 3), lua_tointeger(L, 2)));
+        return 0;
+    }
+
+    int db_unsetbreakpoint(lua_State *L) {
+        
+    }
+}
+
+static void getfunc (lua_State *L, int opt) {
+    if (lua_isfunction(L, 1)) lua_pushvalue(L, 1);
+    else {
+        lua_Debug ar;
+        int level = opt ? luaL_optint(L, 1, 1) : luaL_checkint(L, 1);
+        luaL_argcheck(L, level >= 0, 1, "level must be non-negative");
+        lua_State *L_ret;
+        if (lua_getstack_patch(L, level, &ar, &L_ret) == 0)
+            luaL_argerror(L, 1, "invalid level");
+        lua_getinfo(L_ret, "f", &ar);
+        if (lua_isnil(L, -1))
+            luaL_error(L, "no function environment for tail call at level %d",
+                            level);
+    }
+}
+
+static int luaB_getfenv (lua_State *L) {
+    getfunc(L, 1);
+    if (lua_iscfunction(L, -1))  /* is a C function? */
+        lua_pushvalue(L, LUA_GLOBALSINDEX);  /* return the thread's global env. */
+    else
+        lua_getfenv(L, -1);
+    return 1;
+}
+
+static int luaB_setfenv (lua_State *L) {
+    luaL_checktype(L, 2, LUA_TTABLE);
+    getfunc(L, 0);
+    lua_pushvalue(L, 2);
+    if (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0) {
+        /* change environment of current thread */
+        lua_pushthread(L);
+        lua_insert(L, -2);
+        lua_setfenv(L, -2);
+        return 0;
+    }
+    else if (lua_iscfunction(L, -2) || lua_setfenv(L, -2) == 0)
+        luaL_error(L,
+            LUA_QL("setfenv") " cannot change environment of given object");
+    return 1;
+}
+
+void luaL_where (lua_State *L, int level) {
+  lua_Debug ar;
+  lua_State * L_ret;
+  if (lua_getstack_patch(L, level, &ar, &L_ret)) {  /* check function at level */
+    lua_getinfo(L_ret, "Sl", &ar);  /* get info about it */
+    if (ar.currentline > 0) {  /* is there info? */
+      lua_pushfstring(L, "%s:%d: ", ar.short_src, ar.currentline);
+      return;
+    }
+  }
+  lua_pushliteral(L, "");  /* else, no information available... */
+}
+
+static int luaB_error (lua_State *L) {
+  int level = luaL_optint(L, 2, 1);
+  lua_settop(L, 1);
+  if (lua_isstring(L, 1) && level > 0) {  /* add extra information? */
+    luaL_where(L, level);
+    lua_pushvalue(L, 1);
+    lua_concat(L, 2);
+  }
+  return lua_error(L);
 }
 
 // Main computer loop
@@ -247,17 +347,28 @@ void Computer::run() {
 
         // Load libraries
         luaL_openlibs(coro);
-        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE, 100);
+        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE, 100);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);
         lua_getglobal(coro, "redstone");
         lua_setglobal(coro, "rs");
 
-        // Load overridden IO library
+        // Load overridden IO & debug library
         lua_pushcfunction(L, luaopen_io);
         lua_pushstring(L, "io");
         lua_call(L, 1, 0);
+        lua_pushcfunction(L, luaopen_debug);
+        lua_pushstring(L, "debug");
+        lua_call(L, 1, 0);
+
+        // Load overridden [sg]etfenv, error functions
+        lua_pushcfunction(L, luaB_getfenv);
+        lua_setglobal(L, "getfenv");
+        lua_pushcfunction(L, luaB_setfenv);
+        lua_setglobal(L, "setfenv");
+        lua_pushcfunction(L, luaB_error);
+        lua_setglobal(L, "error");
 
         // Load any plugins available
         lua_getglobal(L, "package");
@@ -287,8 +398,6 @@ void Computer::run() {
 
         // Delete unwanted globals
         lua_pushnil(L);
-        lua_setglobal(L, "collectgarbage");
-        lua_pushnil(L);
         lua_setglobal(L, "dofile");
         lua_pushnil(L);
         lua_setglobal(L, "loadfile");
@@ -300,11 +409,13 @@ void Computer::run() {
         lua_setglobal(L, "package");
         lua_pushnil(L);
         lua_setglobal(L, "print");
-        lua_pushnil(L);
-        lua_setglobal(L, "newproxy");
         if (!::config.debug_enable) {
             lua_pushnil(L);
+            lua_setglobal(L, "collectgarbage");
+            lua_pushnil(L);
             lua_setglobal(L, "debug");
+            lua_pushnil(L);
+            lua_setglobal(L, "newproxy");
         }
 
         // Set default globals
@@ -368,36 +479,6 @@ end");
         lua_call(L, 0, 1);
         lua_setglobal(L, "pcall");
 
-        lua_pushcfunction(L, [](lua_State *L)->int {
-            lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
-            lua_pushthread(L);
-            lua_gettable(L, -2);
-            if (lua_isnil(L, -1)) {
-                lua_pop(L, 1);
-                lua_pushthread(L);
-                lua_newtable(L);
-                lua_settable(L, -3);
-                lua_pushthread(L);
-                lua_gettable(L, -2);
-            }
-            return 1;
-        });
-        lua_setglobal(L, "getstack");
-
-        lua_pushcfunction(L, [](lua_State *L)->int {
-            lua_getfield(L, LUA_REGISTRYINDEX, lua_tostring(L, 1));
-            return 1;
-        });
-        lua_setglobal(L, "getregistry");
-
-        lua_pushcfunction(L, [](lua_State *L)->int {
-            lua_Debug *ar = (lua_Debug*)lua_touserdata(L, 1);
-            if (ar == NULL) return 0;
-            lua_pushfstring(L, "%s:%s:%d", ar->short_src, ar->name, ar->linedefined);
-            return 1;
-        });
-        lua_setglobal(L, "getdebug");
-
         /* Load the file containing the script we are going to run */
         std::string bios_path_expanded = getROMPath() + "/bios.lua";
         status = luaL_loadfile(coro, bios_path_expanded.c_str());
@@ -405,7 +486,15 @@ end");
             /* If something went wrong, error message is at the top of */
             /* the stack */
             fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)\n", bios_path_expanded.c_str(), lua_tostring(L, -1));
-            queueTask([bios_path_expanded](void* term)->void*{((TerminalWindow*)term)->showMessage(SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", std::string("Couldn't load BIOS from " + bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)").c_str()); return NULL;}, term);
+            queueTask([bios_path_expanded](void* term)->void*{
+                ((TerminalWindow*)term)->showMessage(
+                    SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
+                    std::string(
+                        "Couldn't load BIOS from " + bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)"
+                    ).c_str()
+                ); 
+                return NULL;
+            }, term);
             return;
         }
 
@@ -421,7 +510,6 @@ end");
             } else if (status != 0) {
                 // Catch runtime error
                 running = 0;
-                //usleep(5000000);
                 lua_pushcfunction(L, termPanic);
                 lua_call(L, 1, 0);
                 return;
@@ -448,6 +536,9 @@ bool Computer::getEvent(SDL_Event* e) {
 // Thread wrapper for running a computer
 void* computerThread(void* data) {
     Computer * comp = (Computer*)data;
+#ifdef __APPLE__
+    pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
+#endif
     comp->run();
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {

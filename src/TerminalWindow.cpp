@@ -19,12 +19,15 @@
 #include "os.hpp"
 #define rgb(color) ((color.r << 16) | (color.g << 8) | color.b)
 
-extern "C" struct {
-    unsigned int 	 width;
-    unsigned int 	 height;
-    unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
-    unsigned char	 pixel_data[128 * 175 * 3 + 1];
-} font_image;
+extern "C" {
+    struct font_image {
+        unsigned int 	 width;
+        unsigned int 	 height;
+        unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
+        unsigned char	 pixel_data[128 * 175 * 2 + 1];
+    };
+    extern struct font_image font_image;
+}
 
 Color defaultPalette[16] = {
     {0xf0, 0xf0, 0xf0},
