@@ -206,6 +206,7 @@ int coroutine_resume (lua_State *L) {
 extern int fs_getName(lua_State *L);
 
 extern "C" {
+    extern int db_errorfb (lua_State *L);
     LUA_API int lua_getstack_patch (lua_State *L, int level, lua_Debug *ar, lua_State **L_ret) {
         if (level == 0) return lua_getstack(L, 0, ar);
         lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
@@ -238,7 +239,21 @@ extern "C" {
     }
 
     int db_unsetbreakpoint(lua_State *L) {
-        
+        if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+        if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+        lua_pushcfunction(L, fs_getName);
+        lua_pushvalue(L, 1);
+        lua_call(L, 1, 1);
+        Computer * computer = get_comp(L);
+        for (auto it = computer->breakpoints.begin(); it != computer->breakpoints.end(); it++) {
+            if (it->first == std::string(lua_tostring(L, 3)) && it->second == lua_tointeger(L, 2)) {
+                computer->breakpoints.erase(it);
+                lua_pushboolean(L, true);
+                break;
+            }
+        }
+        if (!lua_isboolean(L, -1)) lua_pushboolean(L, false);
+        return 1;
     }
 }
 
@@ -301,6 +316,13 @@ static int luaB_error (lua_State *L) {
   int level = luaL_optint(L, 2, 1);
   lua_settop(L, 1);
   if (lua_isstring(L, 1) && level > 0) {  /* add extra information? */
+    if (config.logErrors) {
+        lua_pushcfunction(L, db_errorfb);
+        lua_pushvalue(L, 1);
+        lua_call(L, 1, 1);
+        printf("%s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
     luaL_where(L, level);
     lua_pushvalue(L, 1);
     lua_concat(L, 2);
@@ -421,6 +443,8 @@ void Computer::run() {
         // Set default globals
         lua_pushstring(L, ::config.default_computer_settings.c_str());
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
+        lua_pushboolean(L, ::config.disable_lua51_features);
+        lua_setglobal(L, "_CC_DISABLE_LUA51_FEATURES");
         pushHostString(L);
         lua_setglobal(L, "_HOST");
         if (headless) {

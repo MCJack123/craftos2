@@ -100,7 +100,7 @@ void config_init() {
     if (root.isMember("debug_enable")) config.debug_enable = root["debug_enable"].asBool();
     if (root.isMember("disable_lua51_features")) config.disable_lua51_features = root["disable_lua51_features"].asBool();
     if (root.isMember("default_computer_settings")) config.default_computer_settings = root["default_computer_settings"].asString();
-    if (root.isMember("logPeripheralErrors")) config.logPeripheralErrors = root["logPeripheralErrors"].asBool();
+    if (root.isMember("logErrors")) config.logErrors = root["logErrors"].asBool();
     if (root.isMember("showFPS")) config.showFPS = root["showFPS"].asBool();
     if (root.isMember("computerSpaceLimit")) config.computerSpaceLimit = root["computerSpaceLimit"].asInt();
     if (root.isMember("maximumFilesOpen")) config.maximumFilesOpen = root["maximumFilesOpen"].asInt();
@@ -122,7 +122,7 @@ void config_save(bool deinit) {
     root["debug_enable"] = config.debug_enable;
     root["disable_lua51_features"] = config.disable_lua51_features;
     root["default_computer_settings"] = config.default_computer_settings;
-    root["logPeripheralErrors"] = config.logPeripheralErrors;
+    root["logErrors"] = config.logErrors;
     root["showFPS"] = config.showFPS;
     root["computerSpaceLimit"] = config.computerSpaceLimit;
     root["maximumFilesOpen"] = config.maximumFilesOpen;
@@ -155,8 +155,8 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.disable_lua51_features);
     else if (strcmp(name, "default_computer_settings") == 0)
         lua_pushstring(L, config.default_computer_settings.c_str());
-    else if (strcmp(name, "logPeripheralErrors") == 0)
-        lua_pushboolean(L, config.logPeripheralErrors);
+    else if (strcmp(name, "logErrors") == 0)
+        lua_pushboolean(L, config.logErrors);
     else if (strcmp(name, "computerSpaceLimit") == 0)
         lua_pushinteger(L, config.computerSpaceLimit);
     else if (strcmp(name, "maximumFilesOpen") == 0)
@@ -197,8 +197,8 @@ int config_set(lua_State *L) {
         config.disable_lua51_features = lua_toboolean(L, 2);
     else if (strcmp(name, "default_computer_settings") == 0) 
         config.default_computer_settings = std::string(lua_tostring(L, 2), lua_strlen(L, 2));
-    else if (strcmp(name, "logPeripheralErrors") == 0)
-        config.logPeripheralErrors = lua_toboolean(L, 2);
+    else if (strcmp(name, "logErrors") == 0)
+        config.logErrors = lua_toboolean(L, 2);
     else if (strcmp(name, "computerSpaceLimit") == 0)
         config.computerSpaceLimit = lua_tointeger(L, 2);
     else if (strcmp(name, "maximumFilesOpen") == 0)
@@ -247,7 +247,7 @@ int config_list(lua_State *L) {
     lua_settable(L, -3);
 
     lua_pushnumber(L, 5);
-    lua_pushstring(L, "logPeripheralErrors");
+    lua_pushstring(L, "logErrors");
     lua_settable(L, -3);
 
     lua_pushnumber(L, 6);
@@ -296,7 +296,7 @@ int config_getType(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     std::string name = lua_tostring(L, 1);
     if (name == "http_enable" || name == "debug_enable" || 
-        name == "disable_lua51_features" || name == "logPeripheralErrors" || 
+        name == "disable_lua51_features" || name == "logErrors" || 
         name == "showFPS" || name == "ignoreHotkeys" || name == "isColor" ||
         name == "checkUpdates" || name == "romReadOnly")
         lua_pushstring(L, "boolean");

@@ -18,7 +18,7 @@ struct configuration {
     //String[] http_blacklist;
     bool disable_lua51_features;
     std::string default_computer_settings;
-    bool logPeripheralErrors;
+    bool logErrors;
     bool showFPS;
     int computerSpaceLimit;
     int maximumFilesOpen;

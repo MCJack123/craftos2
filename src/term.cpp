@@ -812,13 +812,13 @@ int term_setPaletteColor(lua_State *L) {
 
 int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "boolean or number", 1);
-    if (headless || cli) return 0;
+    if (headless || cli || !get_comp(L)->config.isColor) return 0;
     get_comp(L)->term->mode = lua_isboolean(L, 1) ? lua_toboolean(L, 1) : lua_tointeger(L, 1);
     return 0;
 }
 
 int term_getGraphicsMode(lua_State *L) {
-    if (headless || cli) {
+    if (headless || cli || !get_comp(L)->config.isColor) {
         lua_pushboolean(L, false);
         return 1;
     }
