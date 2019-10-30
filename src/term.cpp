@@ -350,8 +350,26 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 lua_State *coro = lua_newthread(L);
                 lua_getglobal(coro, "os");
                 lua_getfield(coro, -1, "run");
+                lua_newtable(coro);
+                lua_pushstring(coro, "locals");
+                lua_newtable(coro);
+                const char * name;
+                for (int i = 1; (name = lua_getlocal(L, ar, i)) != NULL; i++) {
+                    if (std::string(name) == "(*temporary)") {
+                        lua_pop(L, 1);
+                        continue;
+                    }
+                    lua_pushstring(coro, name);
+                    lua_xmove(L, coro, 1);
+                    lua_settable(coro, -3);
+                }
+                lua_settable(coro, -3);
+                lua_newtable(coro);
+                lua_pushstring(coro, "__index");
                 lua_getfenv(L, -2);
                 lua_xmove(L, coro, 1);
+                lua_settable(coro, -3);
+                lua_setmetatable(coro, -2);
                 lua_pushstring(coro, "/rom/programs/lua.lua");
                 int status = lua_resume(coro, 2);
                 int narg;
