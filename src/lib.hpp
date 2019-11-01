@@ -11,6 +11,7 @@
 
 #ifndef LIB_HPP
 #define LIB_HPP
+#include <functional>
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -24,8 +25,8 @@ typedef struct library {
     int count;
     const char ** keys;
     lua_CFunction * values;
-    void (*init)(Computer *);
-    void (*deinit)(Computer *);
+    std::function<void(Computer*)> init;
+    std::function<void(Computer*)> deinit;
 } library_t;
 
 #include "Computer.hpp"

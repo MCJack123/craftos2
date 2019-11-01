@@ -101,8 +101,10 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
         charHeight = fontHeight * 2/fontScale * charScale;
     }
     win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == nullptr || win == NULL || win == (SDL_Window*)0) 
+    if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
+        overridden = true;
         throw window_exception("Failed to create window");
+    }
     id = SDL_GetWindowID(win);
 #ifndef __APPLE__
     char * icon_pixels = new char[favicon_width * favicon_height * 4];
@@ -122,9 +124,15 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
         SDL_DestroyWindow(win);
+        overridden = true;
         throw window_exception("Failed to load font");
     }
     bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
+    if (bmp == nullptr || bmp == NULL || bmp == (SDL_Surface*)0) {
+        SDL_DestroyWindow(win);
+        overridden = true;
+        throw window_exception("Failed to convert font");
+    }
     SDL_FreeSurface(old_bmp);
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
     renderTargets.push_back(this);

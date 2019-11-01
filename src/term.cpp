@@ -18,11 +18,13 @@
 #endif
 #include "periphemu.hpp"
 #include "peripheral/monitor.hpp"
+#include "peripheral/debugger.hpp"
 #include <unordered_map>
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
 #include <chrono>
 #include <algorithm>
 #include <queue>
@@ -345,41 +347,78 @@ void termHook(lua_State *L, lua_Debug *ar) {
             lua_error(L);
         }
     } else if (ar->event == LUA_HOOKLINE) {
-        for (std::pair<std::string, int> b : computer->breakpoints) {
-            if (b.first == std::string(ar->source) && b.second == ar->currentline) {
-                lua_State *coro = lua_newthread(L);
-                lua_getglobal(coro, "os");
-                lua_getfield(coro, -1, "run");
-                lua_newtable(coro);
-                lua_pushstring(coro, "locals");
-                lua_newtable(coro);
-                const char * name;
-                for (int i = 1; (name = lua_getlocal(L, ar, i)) != NULL; i++) {
-                    if (std::string(name) == "(*temporary)") {
-                        lua_pop(L, 1);
-                        continue;
+        if (computer->debugger == NULL && ::config.debug_enable) {
+            for (std::pair<std::string, int> b : computer->breakpoints) {
+                if (b.first == std::string(ar->source) && b.second == ar->currentline) {
+                    lua_State *coro = lua_newthread(L);
+                    lua_getglobal(coro, "os");
+                    lua_getfield(coro, -1, "run");
+                    lua_newtable(coro);
+                    lua_pushstring(coro, "locals");
+                    lua_newtable(coro);
+                    const char * name;
+                    for (int i = 1; (name = lua_getlocal(L, ar, i)) != NULL; i++) {
+                        if (std::string(name) == "(*temporary)") {
+                            lua_pop(L, 1);
+                            continue;
+                        }
+                        lua_pushstring(coro, name);
+                        lua_xmove(L, coro, 1);
+                        lua_settable(coro, -3);
                     }
-                    lua_pushstring(coro, name);
+                    lua_settable(coro, -3);
+                    lua_newtable(coro);
+                    lua_pushstring(coro, "__index");
+                    lua_getfenv(L, -2);
                     lua_xmove(L, coro, 1);
                     lua_settable(coro, -3);
+                    lua_setmetatable(coro, -2);
+                    lua_pushstring(coro, "/rom/programs/lua.lua");
+                    int status = lua_resume(coro, 2);
+                    int narg;
+                    while (status == LUA_YIELD) {
+                        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
+                        else narg = getNextEvent(coro, "");
+                        status = lua_resume(coro, narg);
+                    }
+                    lua_pop(L, 1);
+                    computer->last_event = std::chrono::high_resolution_clock::now();
                 }
-                lua_settable(coro, -3);
-                lua_newtable(coro);
-                lua_pushstring(coro, "__index");
-                lua_getfenv(L, -2);
-                lua_xmove(L, coro, 1);
-                lua_settable(coro, -3);
-                lua_setmetatable(coro, -2);
-                lua_pushstring(coro, "/rom/programs/lua.lua");
-                int status = lua_resume(coro, 2);
-                int narg;
-                while (status == LUA_YIELD) {
-                    if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
-                    else narg = getNextEvent(coro, "");
-                    status = lua_resume(coro, narg);
-                }
-                lua_pop(L, 1);
             }
+        } else if (computer->debugger != NULL) {
+            debugger * dbg = (debugger*)computer->debugger;
+            if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
+                dbg->last_info = ar;
+                dbg->breakNotify.notify_all();
+                std::mutex mtx;
+                std::unique_lock<std::mutex> lock(mtx);
+                dbg->breakNotify.notify_all();
+                dbg->runNotify.wait(lock);
+                dbg->last_info = NULL;
+                computer->last_event = std::chrono::high_resolution_clock::now();
+            } else {
+                for (std::pair<std::string, int> b : computer->breakpoints) {
+                    if (b.first == std::string(ar->source) && b.second == ar->currentline) {
+                        dbg->last_info = ar;
+                        dbg->breakNotify.notify_all();
+                        std::mutex mtx;
+                        std::unique_lock<std::mutex> lock(mtx);
+                        dbg->breakNotify.notify_all();
+                        dbg->runNotify.wait(lock);
+                        dbg->last_info = NULL;
+                        computer->last_event = std::chrono::high_resolution_clock::now();
+                    }
+                }
+            }
+        }
+    } else if (computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
+        debugger * dbg = (debugger*)computer->debugger;
+        if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN) {
+            std::mutex mtx;
+            std::unique_lock<std::mutex> lock(mtx);
+            dbg->breakNotify.notify_all();
+            dbg->runNotify.wait(lock);
+            computer->last_event = std::chrono::high_resolution_clock::now();
         }
     }
 }
@@ -606,6 +645,11 @@ int term_scroll(lua_State *L) {
     return 0;
 }
 
+template<typename T>
+inline T min(T a, T b) {return a < b ? a : b;}
+template<typename T>
+inline T max(T a, T b) {return a > b ? a : b;}
+
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
@@ -621,10 +665,8 @@ int term_setCursorPos(lua_State *L) {
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    term->blinkX = lua_tointeger(L, 1) - 1;
-    term->blinkY = lua_tointeger(L, 2) - 1;
-    if (term->blinkX >= term->width) term->blinkX = term->width - 1;
-    if (term->blinkY >= term->height) term->blinkY = term->height - 1;
+    term->blinkX = max(0, min((int)lua_tointeger(L, 1) - 1, term->width - 1));
+    term->blinkY = max(0, min((int)lua_tointeger(L, 2) - 1, term->height - 1));
     return 0;
 }
 
@@ -878,6 +920,34 @@ int term_getPixel(lua_State *L) {
     return 1;
 }
 
+int term_drawPixels(lua_State *L) {
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (!lua_istable(L, 3)) bad_argument(L, "table", 3);
+    Computer * computer = get_comp(L);
+    TerminalWindow * term = computer->term;
+    int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
+    for (int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->pixels.size(); y++) {
+        lua_pushinteger(L, y);
+        lua_gettable(L, 3); 
+        if (lua_isstring(L, -1)) {
+            size_t str_sz;
+            const char * str = lua_tolstring(L, -1, &str_sz);
+            if (init_x + str_sz - 1 < term->pixels[init_y+y-1].size())
+                memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
+        } else if (lua_istable(L, -1)) {
+            for (int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->pixels[init_y+y-1].size(); x++) {
+                lua_pushinteger(L, x);
+                lua_gettable(L, -2);
+                term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                lua_pop(L, 1);
+            }
+        }
+        lua_pop(L, 1);
+    }
+    return 0;
+}
+
 int term_screenshot(lua_State *L) {
     if (headless || cli) return 0;
     Computer * computer = get_comp(L);
@@ -896,7 +966,7 @@ int term_nativePaletteColor(lua_State *L) {
     return 3;
 }
 
-const char * term_keys[30] = {
+const char * term_keys[31] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -926,10 +996,11 @@ const char * term_keys[30] = {
     "setPixel",
     "getPixel",
     "screenshot",
-    "nativePaletteColor"
+    "nativePaletteColor",
+    "drawPixels"
 };
 
-lua_CFunction term_values[30] = {
+lua_CFunction term_values[31] = {
     term_write,
     term_scroll,
     term_setCursorPos,
@@ -959,7 +1030,8 @@ lua_CFunction term_values[30] = {
     term_setPixel,
     term_getPixel,
     term_screenshot,
-    term_nativePaletteColor
+    term_nativePaletteColor,
+    term_drawPixels
 };
 
-library_t term_lib = {"term", 30, term_keys, term_values, NULL, NULL};
+library_t term_lib = {"term", 31, term_keys, term_values, NULL, NULL};

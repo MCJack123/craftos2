@@ -72,10 +72,13 @@ public:
     std::chrono::system_clock::time_point system_start = std::chrono::system_clock::now();
     jmp_buf on_panic;
     std::list< std::pair<std::string, int> > breakpoints;
+    void * debugger = NULL;
+    bool isDebugger = false;
 
-    Computer(int i);
+    Computer(int i): Computer(i, false) {}
+    Computer(int i, bool debug);
     ~Computer();
-    void run();
+    void run(std::string bios_name);
     bool getEvent(SDL_Event* e);
 };
 

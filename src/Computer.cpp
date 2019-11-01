@@ -49,11 +49,12 @@ library_t * libraries[] = {
 };
 
 // Constructor
-Computer::Computer(int i) {
+Computer::Computer(int i, bool debug): isDebugger(debug) {
     id = i;
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
     addMount(this, (getROMPath() + "/rom").c_str(), "rom", ::config.romReadOnly);
+    if (debug) addMount(this, (getROMPath() + "/debug").c_str(), "debug", true);
     mounter_initializing = false;
     // Create the root directory
 #ifdef _WIN32
@@ -64,9 +65,9 @@ Computer::Computer(int i) {
     // Create the terminal
     if (headless) term = NULL;
 #ifndef NO_CLI
-    else if (cli) term = new CLITerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
+    else if (cli) term = new CLITerminalWindow("CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id));
 #endif
-    else term = new TerminalWindow("CraftOS Terminal: Computer " + std::to_string(id));
+    else term = new TerminalWindow("CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id));
     // Load config
     config = getComputerConfig(id);
 }
@@ -230,23 +231,17 @@ extern "C" {
     int db_breakpoint(lua_State *L) {
         if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
         if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-        lua_pushcfunction(L, fs_getName);
-        lua_pushvalue(L, 1);
-        lua_call(L, 1, 1);
         Computer * computer = get_comp(L);
-        computer->breakpoints.push_back(std::make_pair(std::string("@") + lua_tostring(L, 3), lua_tointeger(L, 2)));
+        computer->breakpoints.push_back(std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2)));
         return 0;
     }
 
     int db_unsetbreakpoint(lua_State *L) {
         if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
         if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-        lua_pushcfunction(L, fs_getName);
-        lua_pushvalue(L, 1);
-        lua_call(L, 1, 1);
         Computer * computer = get_comp(L);
         for (auto it = computer->breakpoints.begin(); it != computer->breakpoints.end(); it++) {
-            if (it->first == std::string(lua_tostring(L, 3)) && it->second == lua_tointeger(L, 2)) {
+            if (it->first == "@/" + fixpath(computer, lua_tostring(L, 1), false) && it->second == lua_tointeger(L, 2)) {
                 computer->breakpoints.erase(it);
                 lua_pushboolean(L, true);
                 break;
@@ -331,7 +326,7 @@ static int luaB_error (lua_State *L) {
 }
 
 // Main computer loop
-void Computer::run() {
+void Computer::run(std::string bios_name) {
     running = 1;
     if (L != NULL) lua_close(L);
     setjmp(on_panic);
@@ -369,10 +364,11 @@ void Computer::run() {
 
         // Load libraries
         luaL_openlibs(coro);
-        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE, 100);
+        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET, 100);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);
+        if (isDebugger) load_library(this, coro, *((library_t*)debugger));
         lua_getglobal(coro, "redstone");
         lua_setglobal(coro, "rs");
 
@@ -504,7 +500,7 @@ end");
         lua_setglobal(L, "pcall");
 
         /* Load the file containing the script we are going to run */
-        std::string bios_path_expanded = getROMPath() + "/bios.lua";
+        std::string bios_path_expanded = getROMPath() + "/" + bios_name;
         status = luaL_loadfile(coro, bios_path_expanded.c_str());
         if (status) {
             /* If something went wrong, error message is at the top of */
@@ -563,7 +559,7 @@ void* computerThread(void* data) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
 #endif
-    comp->run();
+    comp->run("bios.lua");
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {
@@ -582,7 +578,7 @@ Computer * startComputer(int id) {
     Computer * comp = new Computer(id);
     computers.push_back(comp);
     std::thread * th = new std::thread(computerThread, comp);
-    setThreadName(*th, std::string("Computer " + std::to_string(id) + " Main Thread").c_str());
+    setThreadName(*th, std::string("Computer " + std::to_string(id) + " Thread").c_str());
     computerThreads.push_back(th);
     return comp;
 }

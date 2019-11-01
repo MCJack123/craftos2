@@ -11,6 +11,7 @@
 #include "periphemu.hpp"
 #include "peripheral/peripheral.hpp"
 #include "peripheral/computer.hpp"
+#include "peripheral/debugger.hpp"
 #include "peripheral/drive.hpp"
 #include "peripheral/modem.hpp"
 #include "peripheral/monitor.hpp"
@@ -56,10 +57,9 @@ int periphemu_create(lua_State* L) {
 	std::string type = lua_tostring(L, 2);
 	std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
 	if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
-    computer->peripherals_mutex.lock();
+    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
 	if (computer->peripherals.find(side) != computer->peripherals.end()) {
 		lua_pushboolean(L, false);
-        computer->peripherals_mutex.unlock();
 		return 1;
 	}
 	//lua_pop(L, 2);
@@ -69,10 +69,10 @@ int periphemu_create(lua_State* L) {
 		else if (type == std::string("computer")) computer->peripherals[side] = new class computer(L, side.c_str());
 		else if (type == std::string("modem")) computer->peripherals[side] = new modem(L, side.c_str());
         else if (type == std::string("drive")) computer->peripherals[side] = new drive(L, side.c_str());
+		else if (type == std::string("debugger") && computer->debugger == NULL) computer->peripherals[side] = new debugger(L, side.c_str());
         else {
 			printf("not found: %s\n", type.c_str());
 			lua_pushboolean(L, false);
-            computer->peripherals_mutex.unlock();
 			return 1;
 		}
 	} catch (std::exception &e) {
@@ -80,7 +80,6 @@ int periphemu_create(lua_State* L) {
 		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
 		lua_error(L);
 	}
-    computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
     termQueueProvider(computer, peripheral_attach, sidearg);
