@@ -526,6 +526,11 @@ int term_scroll(lua_State *L) {
     return 0;
 }
 
+template<typename T>
+inline T min(T a, T b) {return a < b ? a : b;}
+template<typename T>
+inline T max(T a, T b) {return a > b ? a : b;}
+
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
@@ -541,10 +546,8 @@ int term_setCursorPos(lua_State *L) {
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    term->blinkX = lua_tointeger(L, 1) - 1;
-    term->blinkY = lua_tointeger(L, 2) - 1;
-    if (term->blinkX >= term->width) term->blinkX = term->width - 1;
-    if (term->blinkY >= term->height) term->blinkY = term->height - 1;
+    term->blinkX = max(0, min((int)lua_tointeger(L, 1) - 1, term->width - 1));
+    term->blinkY = max(0, min((int)lua_tointeger(L, 2) - 1, term->height - 1));
     return 0;
 }
 
