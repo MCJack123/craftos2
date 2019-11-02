@@ -39,6 +39,12 @@ $ sudo apt install craftos-pc
 $ craftos
 ```
 
+## v2.2: Where are my files?
+CraftOS-PC v2.2 moves the save directory to be more appropriate for each platform. Your files are not gone; they're automatically moved over before launching if the old folder is still present. You can find the computer data files at these locations:
+* Windows: `%appdata%\CraftOS-PC` (`C:\Users\<user>\AppData\Roaming\CraftOS-PC`)
+* Mac: `~/Library/Application Support/CraftOS-PC`
+* Linux: `$XDG_DATA_HOME/craftos-pc` or `~/.local/share/craftos-pc`
+
 ## Building
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)

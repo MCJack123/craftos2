@@ -40,17 +40,16 @@ extern "C" {
 #include "os.hpp"
 
 extern bool exiting;
-const char * base_path = "$HOME/.craftos";
-std::string base_path_expanded;
 std::string rom_path_expanded;
 
 std::string getBasePath() {
-    if (!base_path_expanded.empty()) return base_path_expanded;
-    wordexp_t p;
-    wordexp(base_path, &p, 0);
-    base_path_expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
-    return base_path_expanded;
+    return std::string([[[NSFileManager defaultManager] 
+                         URLForDirectory:NSApplicationSupportDirectory 
+                         inDomain:NSUserDomainMask 
+                         appropriateForURL:[NSURL fileURLWithString:@"/"] 
+                         shouldCreate:NO 
+                         error:nil
+                        ] fileSystemRepresentation]) + "/CraftOS-PC";
 }
 
 std::string getROMPath() {
@@ -245,4 +244,15 @@ void updateNow(std::string tag_name) {
             }];
         }
     });
+}
+
+void migrateData() {
+    wordexp_t p;
+    struct stat st;
+    wordexp("$HOME/.craftos", &p, 0);
+    std::string oldpath = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    wordfree(&p);
+    if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
+        [[NSFileManager defaultManager] moveItemAtPath:[NSString stringWithCString:oldpath.c_str() encoding:NSASCIIStringEncoding] toPath:[NSString stringWithCString:getBasePath().c_str() encoding:NSASCIIStringEncoding] error:nil];
 }

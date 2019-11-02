@@ -113,6 +113,7 @@ int main(int argc, char*argv[]) {
         std::cerr << "Error: Cannot combine headless & CLI options\n";
         return 1;
     }
+    migrateData();
     config_init();
 #ifndef NO_CLI
     if (cli) cliInit();
