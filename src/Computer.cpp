@@ -162,7 +162,8 @@ static int auxresume (lua_State *L, lua_State *co, int narg) {
     return -1;  /* error flag */
   }
   lua_xmove(L, co, narg);
-  lua_setlevel(L, co);
+  //lua_setlevel(L, co); // Windows library does not have lua_setlevel exported
+  memcpy((char*)co + 10*sizeof(void*) + 3*sizeof(char) + 2*sizeof(int), (char*)L + 10 * sizeof(void*) + 3 * sizeof(char) + 2 * sizeof(int), sizeof(short));
   status = lua_resume(co, narg);
   if (status == 0 || status == LUA_YIELD) {
     int nres = lua_gettop(co);

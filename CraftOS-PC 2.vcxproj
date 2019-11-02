@@ -188,6 +188,7 @@
     <ClInclude Include="src\os.hpp" />
     <ClInclude Include="src\periphemu.hpp" />
     <ClInclude Include="src\peripheral\computer.hpp" />
+    <ClInclude Include="src\peripheral\debugger.hpp" />
     <ClInclude Include="src\peripheral\drive.hpp" />
     <ClInclude Include="src\peripheral\modem.hpp" />
     <ClInclude Include="src\peripheral\monitor.hpp" />
@@ -206,6 +207,7 @@
     <ClCompile Include="src\fs_handle.cpp" />
     <ClCompile Include="src\http.cpp" />
     <ClCompile Include="src\http_handle.cpp" />
+    <ClCompile Include="src\ldblib.c" />
     <ClCompile Include="src\lib.cpp" />
     <ClCompile Include="src\liolib.c" />
     <ClCompile Include="src\main.cpp" />
@@ -213,6 +215,7 @@
     <ClCompile Include="src\os.cpp" />
     <ClCompile Include="src\periphemu.cpp" />
     <ClCompile Include="src\peripheral\computer_p.cpp" />
+    <ClCompile Include="src\peripheral\debugger.cpp" />
     <ClCompile Include="src\peripheral\drive.cpp" />
     <ClCompile Include="src\peripheral\modem.cpp" />
     <ClCompile Include="src\peripheral\monitor.cpp" />

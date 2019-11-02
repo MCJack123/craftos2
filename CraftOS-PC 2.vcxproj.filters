@@ -122,6 +122,9 @@
     <ClInclude Include="src\peripheral\drive.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\peripheral\debugger.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\peripheral\monitor.cpp">
@@ -197,6 +200,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\font.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\debugger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ldblib.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
