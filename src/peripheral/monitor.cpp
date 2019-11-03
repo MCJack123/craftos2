@@ -290,4 +290,4 @@ const char * monitor_keys[30] = {
     "getTextScale"
 };
 
-library_t monitor::methods = {"monitor", 30, monitor_keys, NULL, NULL, NULL};
+library_t monitor::methods = {"monitor", 30, monitor_keys, NULL, nullptr, nullptr};

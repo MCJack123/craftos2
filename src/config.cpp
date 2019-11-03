@@ -323,4 +323,4 @@ lua_CFunction config_values[4] = {
     config_getType
 };
 
-library_t config_lib = {"config", 4, config_keys, config_values, NULL, config_deinit};
+library_t config_lib = {"config", 4, config_keys, config_values, nullptr, config_deinit};

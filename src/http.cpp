@@ -744,4 +744,4 @@ lua_CFunction http_values[5] = {
     http_websocket
 };
 
-library_t http_lib = {"http", 5, http_keys, http_values, NULL, NULL};
+library_t http_lib = {"http", 5, http_keys, http_values, nullptr, nullptr};

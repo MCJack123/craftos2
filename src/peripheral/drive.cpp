@@ -202,4 +202,4 @@ const char * drive_keys[12] = {
 };
 
 std::unordered_set<int> drive::usedMounts;
-library_t drive::methods = {"drive", 12, drive_keys, NULL, NULL, NULL};
+library_t drive::methods = {"drive", 12, drive_keys, NULL, nullptr, nullptr};

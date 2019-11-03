@@ -125,7 +125,7 @@ int main(int argc, char*argv[]) {
         std::thread(update_thread).detach();
     startComputer(0);
     mainLoop();
-    for (std::thread *t : computerThreads) { t->join(); delete t; }
+    for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     driveQuit();
     http_server_stop();
     config_save(true);

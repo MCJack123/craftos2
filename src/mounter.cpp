@@ -229,4 +229,4 @@ lua_CFunction mounter_values[4] = {
     mounter_isReadOnly
 };
 
-library_t mounter_lib = {"mounter", 4, mounter_keys, mounter_values, NULL, NULL};
+library_t mounter_lib = {"mounter", 4, mounter_keys, mounter_values, nullptr, nullptr};

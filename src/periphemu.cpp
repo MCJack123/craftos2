@@ -118,4 +118,4 @@ lua_CFunction periphemu_values[2] = {
 	periphemu_remove
 };
 
-library_t periphemu_lib = { "periphemu", 2, periphemu_keys, periphemu_values, NULL, NULL };
+library_t periphemu_lib = { "periphemu", 2, periphemu_keys, periphemu_values, nullptr, nullptr };

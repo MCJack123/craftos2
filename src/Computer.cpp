@@ -162,8 +162,11 @@ static int auxresume (lua_State *L, lua_State *co, int narg) {
     return -1;  /* error flag */
   }
   lua_xmove(L, co, narg);
-  //lua_setlevel(L, co); // Windows library does not have lua_setlevel exported
+#ifndef WIN32
+  lua_setlevel(L, co);
+#else // Windows library does not have lua_setlevel exported
   memcpy((char*)co + 10*sizeof(void*) + 3*sizeof(char) + 2*sizeof(int), (char*)L + 10 * sizeof(void*) + 3 * sizeof(char) + 2 * sizeof(int), sizeof(short));
+#endif
   status = lua_resume(co, narg);
   if (status == 0 || status == LUA_YIELD) {
     int nres = lua_gettop(co);
@@ -336,14 +339,13 @@ void Computer::run(std::string bios_name) {
         lua_State *coro;
         if (!headless) {
             // Initialize terminal contents
-            term->locked.lock();
+            std::lock_guard<std::mutex> lock(term->locked);
             term->blinkX = 0;
             term->blinkY = 0;
             term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
             term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
             term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->fontHeight, std::vector<unsigned char>(term->width * term->fontWidth, 0x0F));
             memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
-            term->locked.unlock();
         }
         colors = 0xF0;
 

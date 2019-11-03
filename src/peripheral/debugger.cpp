@@ -37,7 +37,7 @@ void* debuggerThread(void* data) {
         }
     }
     delete (library_t*)comp->debugger;
-    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
+    //queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
     return NULL;
 }
 
@@ -48,10 +48,8 @@ int debugger_lib_waitForBreak(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     Computer * comp = get_comp(L);
     std::thread th([dbg](Computer*comp){
-        std::mutex mtx;
-        std::unique_lock<std::mutex> lock(mtx);
-        dbg->runNotify.notify_all();
-        dbg->runNotify.notify_all();
+        std::unique_lock<std::mutex> lock(dbg->breakMutex);
+        dbg->breakNotify.notify_all();
         dbg->breakNotify.wait(lock);
         if (freedComputers.find(comp) == freedComputers.end())
             termQueueProvider(comp, debugger_break, NULL);
@@ -95,11 +93,13 @@ static void settabsi (lua_State *L, const char *i, int v) {
 int debugger_lib_getInfo(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    if (dbg->last_info == NULL) {
+    if (dbg->thread == NULL) {
         lua_pushnil(L);
         return 1;
     }
-    lua_Debug ar = *dbg->last_info;
+    lua_Debug ar;
+    lua_getstack(dbg->thread, 0, &ar);
+    lua_getinfo(dbg->thread, "nSl", &ar);
     lua_createtable(L, 0, 2);
     settabss(L, "source", ar.source);
     settabss(L, "short_src", ar.short_src);
@@ -119,6 +119,29 @@ int debugger_lib_setBreakpoint(lua_State *L) {
     return 0;
 }
 
+int debugger_lib_run(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    int n = lua_gettop(L);
+    int oldtop = lua_gettop(dbg->thread);
+    lua_xmove(L, dbg->thread, n);
+    lua_call(dbg->thread, n-1, LUA_MULTRET);
+    int top = lua_gettop(dbg->thread) - oldtop;
+    lua_xmove(dbg->thread, L, top);
+    return top;
+}
+
+int debugger_lib_status(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_pushboolean(L, dbg->thread != NULL);
+    if (dbg->breakType == DEBUGGER_BREAK_TYPE_NONSTOP) lua_pushstring(L, "nonstop");
+    else if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) lua_pushstring(L, "line");
+    else if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN) lua_pushstring(L, "return");
+    else lua_pushnil(L);
+    return 2;
+}
+
 const char * debugger_lib_keys[] = {
     "waitForBreak",
     "step",
@@ -126,6 +149,8 @@ const char * debugger_lib_keys[] = {
     "stepOut",
     "getInfo",
     "setBreakpoint",
+    "run",
+    "status",
 };
 
 lua_CFunction debugger_lib_values[] = {
@@ -135,9 +160,11 @@ lua_CFunction debugger_lib_values[] = {
     debugger_lib_stepOut,
     debugger_lib_getInfo,
     debugger_lib_setBreakpoint,
+    debugger_lib_run,
+    debugger_lib_status,
 };
 
-library_t debugger_lib = {"debugger", 6, debugger_lib_keys, debugger_lib_values, NULL, NULL};
+library_t debugger_lib = {"debugger", 8, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
 
 library_t * debugger::createDebuggerLibrary() {
     library_t * lib = new library_t;
@@ -160,7 +187,7 @@ void debugger::run() {
         printf("Did break\n");
         std::this_thread::sleep_for(std::chrono::seconds(3));
         breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
-        runNotify.notify_all();
+        breakNotify.notify_all();
     }
 }
 
@@ -214,4 +241,4 @@ const char * debugger_keys[] = {
     "setBreakpoint"
 };
 
-library_t debugger::methods = {"debugger", 2, debugger_keys, NULL, NULL, NULL};
+library_t debugger::methods = {"debugger", 2, debugger_keys, NULL, nullptr, nullptr};

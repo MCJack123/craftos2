@@ -89,4 +89,4 @@ lua_CFunction peripheral_values[4] = {
     peripheral_call
 };
 
-library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values, NULL, NULL};
+library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values, nullptr, nullptr};
