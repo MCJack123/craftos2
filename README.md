@@ -5,9 +5,10 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 
 ## Requirements for released builds
 * Supported operating systems:
-  * Windows 7+ x64 (might work on Vista)
+  * Windows Vista x64 or later
   * macOS 10.9+
   * Ubuntu 18.04, 19.04, 19.10
+  * Arch Linux with AUR helper
 * Administrator privileges
 * 7 MB free space
 
@@ -38,6 +39,9 @@ $ sudo apt update
 $ sudo apt install craftos-pc
 $ craftos
 ```
+
+### Arch Linux
+Install the `craftos-pc` package using your chosen AUR helper (e.g. `yay -S craftos-pc`).
 
 ## v2.2: Where are my files?
 CraftOS-PC v2.2 moves the save directory to be more appropriate for each platform. Your files are not gone; they're automatically moved over before launching if the old folder is still present. You can find the computer data files at these locations:
