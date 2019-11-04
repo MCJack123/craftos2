@@ -111,4 +111,4 @@ const char * modem_keys[6] = {
     "isWireless"
 };
 
-library_t modem::methods = {"modem", 6, modem_keys, NULL, NULL, NULL};
+library_t modem::methods = {"modem", 6, modem_keys, NULL, nullptr, nullptr};

@@ -12,7 +12,7 @@ On supported systems, CraftOS-PC can be run from the terminal with the `--cli` f
 * Using modifier keys: CLI mode cannot detect pressing modifier keys, so programs using Control, Alt, or Shift (**including edit**) will not work.
 
 ## Using custom fonts
-The font used for CraftOS-PC can be changed in `.craftos/config/global.json`, with the `customFontPath` option. To set the font, set `customFontPath` to the absolute path to a BMP file containing the font glyphs. Each glyph must be exactly 6*s* x 9*s* px with 2*s* pixels between each glyph, where *s* is a number representing the scale of the font. `customFontScale` must also be set to a number representing the size of the font (1 = HD font (12x18), 2 = normal font (6x9), 3 = 1/2 size font (4x6)).
+The font used for CraftOS-PC can be changed in `<save dir>/config/global.json`, with the `customFontPath` option. To set the font, set `customFontPath` to the absolute path to a BMP file containing the font glyphs. Each glyph must be exactly 6*s* x 9*s* px with 2*s* pixels between each glyph, where *s* is a number representing the scale of the font. `customFontScale` must also be set to a number representing the size of the font (1 = HD font (12x18), 2 = normal font (6x9), 3 = 1/2 size font (4x6)).
 
 For example, if the CCEmuX `hdfont.bmp` is placed at `/usr/share/craftos/hdfont.bmp`, we can add this to `global.json`:
 ```json
@@ -38,7 +38,7 @@ See [disk API](computercraft.info/wiki/Disk_(API)) for other functions.
 ### Methods
 * *nil* insertDisk(*string/number* path): Replaces the loaded disk with the specified resource.
   * path: Either a disk ID or path to load
-	* If number: Mounts the floppy disk (~/.craftos/computer/disk/`id`) to /disk[n]
+	* If number: Mounts the floppy disk (`<save dir>/computer/disk/<id>`) to /disk[n]
 	* If path to directory: Mounts the real path specified to /disk[n]
 	* If path to file: Loads the file as an audio disc (use `disk.playAudio` or the "dj" command)
   
@@ -95,7 +95,7 @@ Graphics mode extension in the `term` API.
     * In mode 2, this should be an index from 0-255
   * Returns: The RGB values for the color, each from 0.0 to 1.0
 * *nil* screenshot([*string* path]): Takes a screenshot.
-  * path: The real path to save to (defaults to `~/.craftos/screenshots/<date>_<time>.<bmp|png>`)
+  * path: The real path to save to (defaults to `<save dir>/screenshots/<date>_<time>.<bmp|png>`)
 
 ## `http`
 HTTP server extension in the `http` API.

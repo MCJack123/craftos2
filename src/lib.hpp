@@ -28,6 +28,7 @@ typedef struct library {
     lua_CFunction * values;
     std::function<void(Computer*)> init;
     std::function<void(Computer*)> deinit;
+    ~library() {}
 } library_t;
 
 #include "Computer.hpp"

@@ -338,6 +338,15 @@ void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
     lua_getinfo(L, "nSlf", ar);
     if (ar->event == LUA_HOOKCOUNT) {
+        // if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
+        //     computer->last_event = std::chrono::high_resolution_clock::now();
+        //     luaL_where(L, 1);
+        //     lua_pushstring(L, "Too long without yielding");
+        //     lua_concat(L, 2);
+        //     printf("%s\n", lua_tostring(L, -1));
+        //     lua_error(L);
+        // }
+    } else if (ar->event == LUA_HOOKLINE) {
         if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
             computer->last_event = std::chrono::high_resolution_clock::now();
             luaL_where(L, 1);
@@ -346,7 +355,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
             printf("%s\n", lua_tostring(L, -1));
             lua_error(L);
         }
-    } else if (ar->event == LUA_HOOKLINE) {
         if (computer->debugger == NULL && ::config.debug_enable) {
             for (std::pair<std::string, int> b : computer->breakpoints) {
                 if (b.first == std::string(ar->source) && b.second == ar->currentline) {
@@ -388,24 +396,20 @@ void termHook(lua_State *L, lua_Debug *ar) {
         } else if (computer->debugger != NULL) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
-                dbg->last_info = ar;
+                dbg->thread = L;
+                std::unique_lock<std::mutex> lock(dbg->breakMutex);
                 dbg->breakNotify.notify_all();
-                std::mutex mtx;
-                std::unique_lock<std::mutex> lock(mtx);
-                dbg->breakNotify.notify_all();
-                dbg->runNotify.wait(lock);
-                dbg->last_info = NULL;
+                dbg->breakNotify.wait(lock);
+                dbg->thread = NULL;
                 computer->last_event = std::chrono::high_resolution_clock::now();
             } else {
                 for (std::pair<std::string, int> b : computer->breakpoints) {
                     if (b.first == std::string(ar->source) && b.second == ar->currentline) {
-                        dbg->last_info = ar;
+                        dbg->thread = L;
+                        std::unique_lock<std::mutex> lock(dbg->breakMutex);
                         dbg->breakNotify.notify_all();
-                        std::mutex mtx;
-                        std::unique_lock<std::mutex> lock(mtx);
-                        dbg->breakNotify.notify_all();
-                        dbg->runNotify.wait(lock);
-                        dbg->last_info = NULL;
+                        dbg->breakNotify.wait(lock);
+                        dbg->thread = NULL;
                         computer->last_event = std::chrono::high_resolution_clock::now();
                     }
                 }
@@ -414,10 +418,11 @@ void termHook(lua_State *L, lua_Debug *ar) {
     } else if (computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN) {
-            std::mutex mtx;
-            std::unique_lock<std::mutex> lock(mtx);
+            std::unique_lock<std::mutex> lock(dbg->breakMutex);
+            dbg->thread = L;
             dbg->breakNotify.notify_all();
-            dbg->runNotify.wait(lock);
+            dbg->breakNotify.wait(lock);
+            dbg->thread = NULL;
             computer->last_event = std::chrono::high_resolution_clock::now();
         }
     }
@@ -1034,4 +1039,4 @@ lua_CFunction term_values[31] = {
     term_drawPixels
 };
 
-library_t term_lib = {"term", 31, term_keys, term_values, NULL, NULL};
+library_t term_lib = {"term", 31, term_keys, term_values, nullptr, nullptr};

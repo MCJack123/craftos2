@@ -34,9 +34,9 @@ public:
     Computer * computer;
     int breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
     bool didBreak = false;
+    std::mutex breakMutex;
     std::condition_variable breakNotify;
-    std::condition_variable runNotify;
-    lua_Debug * last_info = NULL;
+    lua_State * thread = NULL;
     debugger(lua_State *L, const char * side);
     ~debugger();
     void update(){}

@@ -40,7 +40,7 @@ const char * rom_path = "/usr/share/craftos";
 #ifdef FS_ROOT
 const char * base_path = "";
 #else
-const char * base_path = "$HOME/.craftos";
+const char * base_path = "$XDG_DATA_HOME/craftos-pc";
 #endif
 std::string base_path_expanded;
 
@@ -51,6 +51,12 @@ std::string getBasePath() {
     base_path_expanded = p.we_wordv[0];
     for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
     wordfree(&p);
+    if (base_path_expanded == "/craftos-pc") {
+        wordexp("$HOME/.local/share/craftos-pc", &p, 0);
+        base_path_expanded = p.we_wordv[0];
+        for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
+        wordfree(&p);
+    }
     return base_path_expanded;
 }
 
@@ -143,6 +149,40 @@ void pushHostString(lua_State *L) {
 
 void updateNow(std::string tag_name) {
     
+}
+
+int recursiveCopy(std::string fromDir, std::string toDir) {
+    struct stat statbuf;
+    if (!stat(fromDir.c_str(), &statbuf)) {
+        if (S_ISDIR(statbuf.st_mode)) {
+            createDirectory(toDir);
+            DIR *d = opendir(fromDir.c_str());
+            int r = -1;
+            if (d) {
+                struct dirent *p;
+                r = 0;
+                while (!r && (p=readdir(d))) {
+                    /* Skip the names "." and ".." as we don't want to recurse on them. */
+                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+                    r = recursiveCopy(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
+                }
+                closedir(d);
+            }
+            if (!r) r = rmdir(fromDir.c_str());
+            return r;
+        } else return rename(fromDir.c_str(), toDir.c_str());
+    } else return -1;
+}
+
+void migrateData() {
+    wordexp_t p;
+    struct stat st;
+    wordexp("$HOME/.craftos", &p, 0);
+    std::string oldpath = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    wordfree(&p);
+    if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
+        recursiveCopy(oldpath, getBasePath());
 }
 
 #endif // __INTELLISENSE__
