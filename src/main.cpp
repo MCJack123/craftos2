@@ -120,7 +120,7 @@ int main(int argc, char*argv[]) {
 #endif
         termInit();
     driveInit();
-    if (!headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
+    if (!CRAFTOSPC_INDEV && !headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
     startComputer(0);
     mainLoop();
