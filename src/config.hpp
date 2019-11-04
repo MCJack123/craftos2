@@ -10,10 +10,15 @@
 
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
+#define MOUNT_MODE_NONE      0
+#define MOUNT_MODE_RO_STRICT 1
+#define MOUNT_MODE_RO        2
+#define MOUNT_MODE_RW        3
 #include <string>
 struct configuration {
     bool http_enable;
     bool debug_enable;
+    int mount_mode;
     //String[] http_whitelist;
     //String[] http_blacklist;
     bool disable_lua51_features;
@@ -32,6 +37,7 @@ struct configuration {
     int customFontScale;
     int customCharScale;
     std::string skipUpdate;
+    bool configReadOnly;
 };
 struct computer_configuration {
     std::string label;
