@@ -126,14 +126,16 @@ void injectMounts(lua_State *L, const char * comp_path, int idx) {
 int mounter_mount(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
-    bool read_only = false;
-    if (lua_isboolean(L, 3)) read_only = lua_toboolean(L, 3);
+    if (config.mount_mode == MOUNT_MODE_NONE) {lua_pushstring(L, "Mounting is disabled"); lua_error(L);}
+    bool read_only = config.mount_mode != MOUNT_MODE_RW;
+    if (lua_isboolean(L, 3) && config.mount_mode != MOUNT_MODE_RO_STRICT) read_only = lua_toboolean(L, 3);
     lua_pushboolean(L, addMount(get_comp(L), lua_tostring(L, 2), lua_tostring(L, 1), read_only));
     return 1;
 }
 
 int mounter_unmount(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (config.mount_mode == MOUNT_MODE_NONE) {lua_pushstring(L, "Mounting is disabled"); lua_error(L);}
     Computer * computer = get_comp(L);
     const char * comp_path = lua_tostring(L, 1);
     std::vector<std::string> elems = split(comp_path, '/');
@@ -229,4 +231,4 @@ lua_CFunction mounter_values[4] = {
     mounter_isReadOnly
 };
 
-library_t mounter_lib = {"mounter", 4, mounter_keys, mounter_values, NULL, NULL};
+library_t mounter_lib = {"mounter", 4, mounter_keys, mounter_values, nullptr, nullptr};
