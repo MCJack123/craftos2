@@ -503,7 +503,11 @@ end");
         lua_setglobal(L, "pcall");
 
         /* Load the file containing the script we are going to run */
+#ifdef WIN32
+        std::string bios_path_expanded = getROMPath() + "\\" + bios_name;
+#else
         std::string bios_path_expanded = getROMPath() + "/" + bios_name;
+#endif
         status = luaL_loadfile(coro, bios_path_expanded.c_str());
         if (status) {
             /* If something went wrong, error message is at the top of */

@@ -20,6 +20,8 @@
 #include <unordered_map>
 #include <processenv.h>
 #include <shlwapi.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "http.hpp"
 
 const char * base_path = "%appdata%\\CraftOS-PC";
@@ -27,13 +29,6 @@ const char * rom_path = "%ProgramFiles%\\CraftOS-PC";
 std::string base_path_expanded;
 std::string rom_path_expanded;
 char expand_tmp[32767];
-
-std::wstring s2ws(const std::string& str) {
-	int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
-	std::wstring wstrTo(size_needed, 0);
-	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
-	return wstrTo;
-}
 
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
@@ -202,11 +197,13 @@ void updateNow(std::string tagname) {
     });
 }
 
+std::vector<std::string> failedCopy;
+
 int recursiveCopy(std::string path, std::string toPath) {
 	DWORD attr = GetFileAttributesA(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
 	if (attr & FILE_ATTRIBUTE_DIRECTORY) {
-        if (CreateDirectoryExA(toPath.substr(0, toPath.find_last_of('\\', toPath.size() - 2)).c_str(), toPath.c_str(), NULL)) return GetLastError();
+        if (CreateDirectoryExA(toPath.substr(0, toPath.find_last_of('\\', toPath.size() - 2)).c_str(), toPath.c_str(), NULL) == 0) return GetLastError();
         WIN32_FIND_DATA find;
         std::string s = path;
         if (path[path.size() - 1] != '\\') s += "\\";
@@ -220,8 +217,9 @@ int recursiveCopy(std::string path, std::string toPath) {
                     newpath += find.cFileName;
                     int res = recursiveCopy(newpath, toPath + "\\" + std::string(find.cFileName));
                     if (res) {
-                        FindClose(h);
-                        return res;
+                        //FindClose(h);
+                        //return res;
+                        failedCopy.push_back(toPath + "\\" + std::string(find.cFileName));
                     }
                 }
             } while (FindNextFileA(h, &find));
@@ -234,8 +232,11 @@ int recursiveCopy(std::string path, std::string toPath) {
 void migrateData() {
     DWORD size = ExpandEnvironmentStringsA("%USERPROFILE%\\.craftos", expand_tmp, 32767);
     std::string oldpath = expand_tmp;
+    struct stat st;
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0)
         recursiveCopy(oldpath, getBasePath());
+    if (!failedCopy.empty())
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
 }
 
 #endif
