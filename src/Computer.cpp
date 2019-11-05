@@ -392,30 +392,32 @@ void Computer::run(std::string bios_name) {
         lua_setglobal(L, "error");
 
         // Load any plugins available
-        lua_getglobal(L, "package");
-        lua_pushstring(L, "loadlib");
-        lua_gettable(L, -2);
-        struct dirent *dir;
-        std::string plugin_path = getPlugInPath();
-        DIR * d = opendir(plugin_path.c_str());
-        struct stat st;
-        if (d) {
-            for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-                if (stat((plugin_path + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
-                std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
-                lua_pushvalue(L, -1);
-                lua_pushfstring(L, "%s/%s", plugin_path.c_str(), dir->d_name);
-                lua_pushfstring(L, "luaopen_%s", api_name.c_str());
-                if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
-                if (lua_isnil(L, -2)) {printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); lua_pop(L, 2); continue;}
-                if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
-                lua_pushstring(L, getROMPath().c_str());
-                lua_pushstring(L, getBasePath().c_str());
-                lua_call(L, 2, 1);
-                lua_setglobal(L, api_name.c_str());
-            }
-            closedir(d);
-        } //else printf("Could not open plugins from %s\n", plugin_path.c_str());
+        if (!::config.vanilla) {
+            lua_getglobal(L, "package");
+            lua_pushstring(L, "loadlib");
+            lua_gettable(L, -2);
+            struct dirent *dir;
+            std::string plugin_path = getPlugInPath();
+            DIR * d = opendir(plugin_path.c_str());
+            struct stat st;
+            if (d) {
+                for (int i = 0; (dir = readdir(d)) != NULL; i++) {
+                    if (stat((plugin_path + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+                    std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
+                    lua_pushvalue(L, -1);
+                    lua_pushfstring(L, "%s/%s", plugin_path.c_str(), dir->d_name);
+                    lua_pushfstring(L, "luaopen_%s", api_name.c_str());
+                    if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
+                    if (lua_isnil(L, -2)) {printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); lua_pop(L, 2); continue;}
+                    if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
+                    lua_pushstring(L, getROMPath().c_str());
+                    lua_pushstring(L, getBasePath().c_str());
+                    lua_call(L, 2, 1);
+                    lua_setglobal(L, api_name.c_str());
+                }
+                closedir(d);
+            } //else printf("Could not open plugins from %s\n", plugin_path.c_str());
+        }
 
         // Delete unwanted globals
         lua_pushnil(L);
@@ -437,6 +439,44 @@ void Computer::run(std::string bios_name) {
             lua_setglobal(L, "debug");
             lua_pushnil(L);
             lua_setglobal(L, "newproxy");
+        }
+        if (::config.vanilla) {
+            lua_pushnil(L);
+            lua_setglobal(L, "config");
+            lua_pushnil(L);
+            lua_setglobal(L, "mounter");
+            lua_pushnil(L);
+            lua_setglobal(L, "periphemu");
+            lua_getglobal(L, "term");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "getGraphicsMode");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setGraphicsMode");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "getPixel");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setPixel");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "drawPixels");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "screenshot");
+            lua_pop(L, 1);
+            if (::config.http_enable) {
+                lua_getglobal(L, "http");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "addListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "removeListener");
+                lua_pop(L, 1);
+            }
+            if (::config.debug_enable) {
+                lua_getglobal(L, "debug");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "setbreakpoint");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "unsetbreakpoint");
+                lua_pop(L, 1);
+            }
         }
 
         // Set default globals

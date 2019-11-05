@@ -38,6 +38,7 @@ struct configuration {
     int customCharScale;
     std::string skipUpdate;
     bool configReadOnly;
+    bool vanilla;
 };
 struct computer_configuration {
     std::string label;
