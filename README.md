@@ -1,43 +1,9 @@
-# CraftOS-PC 2 [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=master)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
-A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and the original Lua API, as well as SDL for drawing.
+# CraftOS-PC Accelerated [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=luajit)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
+A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and the LuaJIT API, as well as SDL for drawing. 
+
+CraftOS-PC Accelerated uses LuaJIT instead of the standard PUC Lua, which offers improved performance at the expense of possible incompatibility.
 
 ![Screenfetch](image1.png)
-
-## Requirements for released builds
-* Supported operating systems:
-  * Windows 7+ x64 (might work on Vista)
-  * macOS 10.9+
-  * Ubuntu 18.04, 19.04, 19.10
-* Administrator privileges
-* 7 MB free space
-
-## Installing
-### Windows
-1. Download CraftOS-PC-Setup.exe from the latest release
-2. Follow the instructions in the setup program
-3. Open CraftOS-PC from the Start Menu
-
-### Mac
-#### __*Catalina Users: READ THIS*__
-macOS Catalina adds a new policy requiring all apps to be notarized with a Developer ID. Because I don't have a paid dev account, CraftOS-PC cannot be notarized, meaning Catalina users can't just double click on the app at first launch. **When opening CraftOS-PC for the first time, make sure to right-click on the app and click Open, instead of double-clicking the app as usual.**
-#### Homebrew Cask
-```bash
-$ brew tap MCJack123/CraftOSPC
-$ brew cask install craftos-pc
-$ open /Applications/CraftOS-PC.app
-```
-#### Manual
-1. Download CraftOS-PC.dmg from the latest release
-2. Drag and drop into Applications (or not)
-3. Double-click CraftOS-PC(.app)
-
-### Ubuntu (PPA)
-```bash
-$ sudo add-apt-repository ppa:jackmacwindows/ppa
-$ sudo apt update
-$ sudo apt install craftos-pc
-$ craftos
-```
 
 ## Building
 ### Requirements
@@ -46,7 +12,7 @@ $ craftos
   * Linux: G++ 4.9+, make
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
-* Lua 5.1
+* LuaJIT 2.0
 * SDL 2.0.8+ (may work on older versions on non-Linux)
 * SDL_mixer 2.0+
   * For MP3 support, libmpg123 is required

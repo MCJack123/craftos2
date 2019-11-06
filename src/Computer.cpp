@@ -199,7 +199,7 @@ void Computer::run() {
             lua_setglobal(L, "_HEADLESS");
         }
 
-        // Load patched pcall/xpcall
+        /* Load patched pcall/xpcall
         luaL_loadstring(L, "local nativeResume = coroutine.resume; return function( _fn, _fnErrorHandler )\n\
     local typeT = type( _fn )\n\
     assert( typeT == \"function\", \"bad argument #1 to xpcall (function expected, got \"..typeT..\")\" )\n\
