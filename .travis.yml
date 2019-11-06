@@ -3,7 +3,7 @@ script: CFLAGS=-Wall ./configure && make && make test
 dist: bionic
 before_install:
   - sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-  - sudo apt install -y liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses-dev
+  - sudo apt install -y libluajit-5.1-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses-dev
 addons:
   apt:
     update: true
