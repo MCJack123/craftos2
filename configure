@@ -2074,47 +2074,6 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-# AC_CHECK_LIB
-
-# ===========================================================================
-#  https://www.gnu.org/software/autoconf-archive/ax_check_compile_flag.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_CHECK_COMPILE_FLAG(FLAG, [ACTION-SUCCESS], [ACTION-FAILURE], [EXTRA-FLAGS], [INPUT])
-#
-# DESCRIPTION
-#
-#   Check whether the given FLAG works with the current language's compiler
-#   or gives an error.  (Warnings, however, are ignored)
-#
-#   ACTION-SUCCESS/ACTION-FAILURE are shell commands to execute on
-#   success/failure.
-#
-#   If EXTRA-FLAGS is defined, it is added to the current language's default
-#   flags (e.g. CFLAGS) when the check is done.  The check is thus made with
-#   the flags: "CFLAGS EXTRA-FLAGS FLAG".  This can for example be used to
-#   force the compiler to issue an error when a bad flag is given.
-#
-#   INPUT gives an alternative input source to AC_COMPILE_IFELSE.
-#
-#   NOTE: Implementation based on AX_CFLAGS_GCC_OPTION. Please keep this
-#   macro in sync with AX_CHECK_{PREPROC,LINK}_FLAG.
-#
-# LICENSE
-#
-#   Copyright (c) 2008 Guido U. Draheim <guidod@gmx.de>
-#   Copyright (c) 2011 Maarten Bosmans <mkbosmans@gmail.com>
-#
-#   Copying and distribution of this file, with or without modification, are
-#   permitted in any medium without royalty provided the copyright notice
-#   and this notice are preserved.  This file is offered as-is, without any
-#   warranty.
-
-#serial 6
-
-
 
 # Options
 
@@ -2183,7 +2142,7 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 CXXFLAGS="$CXXFLAGS -std=c++11"
-CPPFLAGS="$CPPFLAGS -I/usr/include/luajit-2.0 -I/usr/local/opt/openssl/include"
+CPPFLAGS="$CPPFLAGS -I/usr/include/luajit-2.0 -I/usr/include/luajit-2.1 -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'

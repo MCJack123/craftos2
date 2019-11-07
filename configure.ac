@@ -1,8 +1,7 @@
 # Initialize
 AC_INIT([CraftOS-PC Accelerated], [2.1])
 AC_CONFIG_SRCDIR([src/main.cpp])
-m4_include([m4/find_cxx.m4])
-m4_include([m4/find_cxx11.m4])
+AC_CONFIG_MACRO_DIRS([m4])
 
 # Options
 AC_ARG_WITH(png, [AS_HELP_STRING([--with-png], [support PNG screenshots])])
@@ -27,7 +26,7 @@ fi
 # Check language
 AC_LANG([C++])
 CXXFLAGS="$CXXFLAGS -std=c++11"
-CPPFLAGS="$CPPFLAGS -I/usr/include/luajit-2.0 -I/usr/local/opt/openssl/include"
+CPPFLAGS="$CPPFLAGS -I/usr/include/luajit-2.0 -I/usr/include/luajit-2.1 -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
