@@ -177,7 +177,7 @@ end
 
 testStart("bit")
 	test("blshift", 96, 6, 4)
-	test("brshift", 0xFFFFF000, 0xFFFF0000, 4)
+	test("brshift", -0x1000, 0xFFFF0000, 4)
 	test("blogic_rshift", 0x0FFFF000, 0xFFFF0000, 4)
 	test("bxor", 2, 7, 5)
 	test("bor", 13, 5, 8)

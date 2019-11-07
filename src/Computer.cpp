@@ -11,7 +11,6 @@
 #include "Computer.hpp"
 #include "platform.hpp"
 #include "term.hpp"
-#include "bit.hpp"
 #include "CLITerminalWindow.hpp"
 #include "config.hpp"
 #include "fs.hpp"
@@ -37,7 +36,7 @@ std::unordered_set<Computer*> freedComputers;
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
-    &bit_lib,
+    //&bit_lib,
     &config_lib,
     &fs_lib,
     &mounter_lib,
@@ -198,6 +197,16 @@ void Computer::run() {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_HEADLESS");
         }
+
+        // Change names of bit API members
+        lua_getglobal(L, "bit");
+        lua_getfield(L, -1, "rshift");
+        lua_setfield(L, -2, "blogic_rshift");
+        lua_getfield(L, -1, "arshift");
+        lua_setfield(L, -2, "brshift");
+        lua_getfield(L, -1, "lshift");
+        lua_setfield(L, -2, "blshift");
+        lua_pop(L, 1);
 
         /* Load the file containing the script we are going to run */
         std::string bios_path_expanded = getROMPath() + "/bios.lua";
