@@ -1,9 +1,49 @@
-# CraftOS-PC *Accelerated* [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=luajit)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
+# CraftOS-PC *Accelerated* [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=luajit)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg?branch=luajit)](https://github.com/MCJack123/craftos2/actions)
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and the LuaJIT API, as well as SDL for drawing. 
 
 CraftOS-PC *Accelerated* uses LuaJIT instead of the standard PUC Lua, which offers improved performance at the expense of possible incompatibility.
 
 ![Screenfetch](image1.png)
+
+## Requirements for released builds
+* Supported operating systems:
+  * Windows Vista x64 or later
+  * macOS 10.9+
+  * Ubuntu 18.04, 19.04, 19.10
+  * Arch Linux with AUR helper
+* Administrator privileges
+* 7 MB free space
+
+## Installing
+### Windows
+1. Download CraftOS-PC-Setup.exe from the latest CraftOS-PC *Accelerated* release
+2. Follow the instructions in the setup program
+3. Open CraftOS-PC from the Start Menu
+
+### Mac
+#### __*Catalina Users: READ THIS*__
+macOS Catalina adds a new policy requiring all apps to be notarized with a Developer ID. Because I don't have a paid dev account, CraftOS-PC cannot be notarized, meaning Catalina users can't just double click on the app at first launch. **When opening CraftOS-PC for the first time, make sure to right-click on the app and click Open, instead of double-clicking the app as usual.**
+#### Homebrew Cask
+```bash
+$ brew tap MCJack123/CraftOSPC
+$ brew cask install craftos-pc-accelerated
+$ open /Applications/CraftOS-PC.app
+```
+#### Manual
+1. Download CraftOS-PC.dmg from the latest CraftOS-PC *Accelerated* release
+2. Drag and drop into Applications (or not)
+3. Double-click CraftOS-PC(.app)
+
+### Ubuntu (PPA)
+```bash
+$ sudo add-apt-repository ppa:jackmacwindows/ppa
+$ sudo apt update
+$ sudo apt install craftos-pc-accelerated
+$ craftos
+```
+
+### Arch Linux
+Install the `craftos-pc-accelerated` package using your chosen AUR helper (e.g. `yay -S craftos-pc-accelerated`).
 
 ## Building
 ### Requirements
