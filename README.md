@@ -1,7 +1,7 @@
-# CraftOS-PC Accelerated [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=luajit)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
+# CraftOS-PC *Accelerated* [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=luajit)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and the LuaJIT API, as well as SDL for drawing. 
 
-CraftOS-PC Accelerated uses LuaJIT instead of the standard PUC Lua, which offers improved performance at the expense of possible incompatibility.
+CraftOS-PC *Accelerated* uses LuaJIT instead of the standard PUC Lua, which offers improved performance at the expense of possible incompatibility.
 
 ![Screenfetch](image1.png)
 
