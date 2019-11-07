@@ -3,12 +3,12 @@ CXX=@CXX@
 CFLAGS=@CFLAGS@
 CPPFLAGS=@CPPFLAGS@
 CXXFLAGS=@CXXFLAGS@
-ifdef OS
-ifeq ($(shell uname), Darwin)
-CPPFLAGS+= -pagezero_size 10000 -image_base 100000000
-endif
-endif
 LDFLAGS=@LDFLAGS@
+ifndef OS
+ifeq ($(shell uname), Darwin)
+LDFLAGS+= -pagezero_size 10000 -image_base 100000000
+endif
+endif
 LIBS=@LIBS@
 PREFIX?=@prefix@
 prefix=$(PREFIX)

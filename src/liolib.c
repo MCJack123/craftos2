@@ -128,9 +128,10 @@ static int io_fclose (lua_State *L) {
 
 
 static int aux_close (lua_State *L) {
-  lua_getfenv(L, 1);
+  /*lua_getfenv(L, 1);
   lua_getfield(L, -1, "__close");
-  return (lua_tocfunction(L, -1))(L);
+  return (lua_tocfunction(L, -1))(L);*/
+  return io_fclose(L);
 }
 
 
@@ -540,20 +541,20 @@ static void newfenv (lua_State *L, lua_CFunction cls) {
 LUALIB_API int luaopen_io (lua_State *L) {
   createmeta(L);
   /* create (private) environment (with fields IO_INPUT, IO_OUTPUT, __close) */
-  newfenv(L, io_fclose);
-  lua_replace(L, LUA_ENVIRONINDEX);
+  //newfenv(L, io_fclose);
+  //lua_replace(L, LUA_ENVIRONINDEX);
   /* open library */
   luaL_register(L, LUA_IOLIBNAME, iolib);
   /* create (and set) default files */
-  newfenv(L, io_noclose);  /* close function for default files */
-  createstdfile(L, stdin, IO_INPUT, "stdin");
-  createstdfile(L, stdout, IO_OUTPUT, "stdout");
-  createstdfile(L, stderr, 0, "stderr");
-  lua_pop(L, 1);  /* pop environment for default files */
-  lua_getfield(L, -1, "popen");
-  newfenv(L, io_pclose);  /* create environment for 'popen' */
-  lua_setfenv(L, -2);  /* set fenv for 'popen' */
-  lua_pop(L, 1);  /* pop 'popen' */
+  //newfenv(L, io_noclose);  /* close function for default files */
+  //createstdfile(L, stdin, IO_INPUT, "stdin");
+  //createstdfile(L, stdout, IO_OUTPUT, "stdout");
+  //createstdfile(L, stderr, 0, "stderr");
+  //lua_pop(L, 1);  /* pop environment for default files */
+  //lua_getfield(L, -1, "popen");
+  //newfenv(L, io_pclose);  /* create environment for 'popen' */
+  //lua_setfenv(L, -2);  /* set fenv for 'popen' */
+  //lua_pop(L, 1);  /* pop 'popen' */
   return 1;
 }
 

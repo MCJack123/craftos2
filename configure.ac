@@ -26,7 +26,7 @@ fi
 # Check language
 AC_LANG([C++])
 CXXFLAGS="$CXXFLAGS -std=c++11"
-CPPFLAGS="$CPPFLAGS -I/usr/include/luajit-2.0 -I/usr/include/luajit-2.1 -I/usr/local/opt/openssl/include"
+CPPFLAGS="$CPPFLAGS -I/usr/include/luajit-2.0 -I/usr/include/luajit-2.1 -I/usr/local/include/luajit-2.0 -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
