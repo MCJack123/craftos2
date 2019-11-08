@@ -1,7 +1,7 @@
 /*  GIMP header image file format (RGB): src/favicon.h  */
 
-static unsigned int width = 16;
-static unsigned int height = 16;
+static unsigned int favicon_width = 16;
+static unsigned int favicon_height = 16;
 
 /*  Call this macro repeatedly.  After each use, the pixel data can be extracted  */
 

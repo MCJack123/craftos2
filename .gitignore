@@ -8,7 +8,7 @@ craftos
 /autoscan.log
 /Makefile - Copy
 /autom4te.cache
-/CraftOS-PC
+/CraftOS-PC*/
 /CraftOS-PC.xcodeproj
 ccemux.dylib
 .vscode/c_cpp_properties.json
