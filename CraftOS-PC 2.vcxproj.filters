@@ -48,6 +48,9 @@
     <Image Include="image1.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="x64\favicon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\TerminalWindow.hpp">
