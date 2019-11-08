@@ -23,7 +23,7 @@
 #include "http.hpp"
 
 const char * base_path = "%USERPROFILE%\\.craftos";
-const char * rom_path = "%ProgramFiles%\\CraftOS-PC";
+const char * rom_path = "%ProgramFiles%\\CraftOS-PC Accelerated";
 std::string base_path_expanded;
 std::string rom_path_expanded;
 char expand_tmp[32767];
