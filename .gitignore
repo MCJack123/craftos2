@@ -4,7 +4,7 @@ craftos
 /Debug
 /packages
 /x64
-CraftOS-PC.app
+*.app
 /autoscan.log
 /Makefile - Copy
 /autom4te.cache
@@ -17,4 +17,4 @@ CraftOS-PC 2.code-workspace
 Makefile
 config.log
 config.status
-CraftOS-PC.dmg
+*.dmg

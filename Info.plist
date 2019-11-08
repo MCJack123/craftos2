@@ -13,7 +13,7 @@
 	<key>CFBundleIconFile</key>
 	<string>CraftOS-PC.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>cc.craftos-pc.CraftOS-PC</string>
+	<string>cc.craftos-pc.CraftOS-PC-Accelerated</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
