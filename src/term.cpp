@@ -425,6 +425,15 @@ void termHook(lua_State *L, lua_Debug *ar) {
             dbg->thread = NULL;
             computer->last_event = std::chrono::high_resolution_clock::now();
         }
+        if (dbg->isProfiling && ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end())
+            dbg->profile[ar->source][ar->name] = std::make_tuple(std::get<0>(dbg->profile[ar->source][ar->name]), std::chrono::high_resolution_clock::now(), std::get<2>(dbg->profile[ar->source][ar->name]) + (std::chrono::high_resolution_clock::now() - std::get<1>(dbg->profile[ar->source][ar->name])));
+    } else if (computer->debugger != NULL && ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
+        debugger * dbg = (debugger*)computer->debugger;
+        if (dbg->isProfiling) {
+            if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
+            if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = std::make_tuple(1, std::chrono::high_resolution_clock::now(), std::chrono::milliseconds(0));
+            else dbg->profile[ar->source][ar->name] = std::make_tuple(std::get<0>(dbg->profile[ar->source][ar->name]) + 1, std::chrono::high_resolution_clock::now(), std::get<2>(dbg->profile[ar->source][ar->name]));
+        }
     }
 }
 

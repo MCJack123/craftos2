@@ -33,10 +33,13 @@ private:
 public:
     Computer * computer;
     int breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
+    std::string breakFunc;
     bool didBreak = false;
     std::mutex breakMutex;
     std::condition_variable breakNotify;
     lua_State * thread = NULL;
+    std::unordered_map<std::string, std::unordered_map<std::string, std::tuple<unsigned long, std::chrono::high_resolution_clock::time_point, std::chrono::high_resolution_clock::duration> > > profile;
+    bool isProfiling = false;
     debugger(lua_State *L, const char * side);
     ~debugger();
     void update(){}

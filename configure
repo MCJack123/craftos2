@@ -2182,7 +2182,7 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 CXXFLAGS="$CXXFLAGS -std=c++11"
-CPPFLAGS="$CPPFLAGS -I/usr/include/lua5.1 -I/usr/local/opt/openssl/include"
+CPPFLAGS="$CPPFLAGS -I/usr/include/lua5.1 -I/usr/local/include/lua5.1 -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'

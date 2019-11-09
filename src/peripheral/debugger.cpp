@@ -75,8 +75,19 @@ int debugger_lib_continue(lua_State *L) {
 int debugger_lib_stepOut(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    dbg->breakType = DEBUGGER_BREAK_TYPE_RETURN;
-    return 0;
+    if (dbg->thread == NULL) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    lua_Debug ar;
+    lua_getstack(dbg->thread, 0, &ar);
+    lua_getinfo(dbg->thread, "nSl", &ar);
+    if (ar.name != NULL) {
+        dbg->breakType = DEBUGGER_BREAK_TYPE_RETURN;
+        dbg->breakFunc = ar.name;
+    }
+    lua_pushboolean(L, ar.name != NULL);
+    return 1;
 }
 
 static void settabss (lua_State *L, const char *i, const char *v) {
@@ -142,6 +153,37 @@ int debugger_lib_status(lua_State *L) {
     return 2;
 }
 
+int debugger_lib_startProfiling(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    if (lua_toboolean(L, 1)) dbg->profile.clear();
+    dbg->isProfiling = lua_toboolean(L, 1);
+    return 0;
+}
+
+int debugger_lib_profile(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_newtable(L);
+    for (auto it = dbg->profile.begin(); it != dbg->profile.end(); it++) {
+        if (it->second.size() > 0) {
+            lua_pushstring(L, it->first.c_str());
+            lua_newtable(L);
+            for (auto itt = it->second.begin(); itt != it->second.end(); itt++) {
+                lua_pushstring(L, itt->first.c_str());
+                lua_newtable(L);
+                lua_pushinteger(L, std::get<0>(itt->second));
+                lua_setfield(L, -2, "count");
+                lua_pushnumber(L, std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(std::get<2>(itt->second)).count());
+                lua_setfield(L, -2, "time");
+                lua_settable(L, -3);
+            }
+            lua_settable(L, -3);
+        }
+    }
+    return 1;
+}
+
 const char * debugger_lib_keys[] = {
     "waitForBreak",
     "step",
@@ -151,6 +193,8 @@ const char * debugger_lib_keys[] = {
     "setBreakpoint",
     "run",
     "status",
+    "startProfiling",
+    "profile",
 };
 
 lua_CFunction debugger_lib_values[] = {
@@ -162,9 +206,11 @@ lua_CFunction debugger_lib_values[] = {
     debugger_lib_setBreakpoint,
     debugger_lib_run,
     debugger_lib_status,
+    debugger_lib_startProfiling,
+    debugger_lib_profile,
 };
 
-library_t debugger_lib = {"debugger", 8, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
+library_t debugger_lib = {"debugger", 10, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
 
 library_t * debugger::createDebuggerLibrary() {
     library_t * lib = new library_t;
