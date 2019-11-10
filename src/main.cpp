@@ -29,7 +29,7 @@ extern void config_save(bool deinit);
 extern void mainLoop();
 extern void awaitTasks();
 extern void http_server_stop();
-extern void* queueTask(std::function<void*(void*)> func, void* arg);
+extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 bool headless = false;

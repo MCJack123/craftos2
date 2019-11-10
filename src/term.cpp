@@ -219,8 +219,10 @@ std::unordered_map<int, unsigned char> keymap_cli = {
     {KEY_LEFT, 203},
     {KEY_RIGHT, 205},
     {KEY_DOWN, 208},
-    {KEY_HOME, 199},
-    {KEY_END, 207}
+    {KEY_SHOME, 199},
+    {KEY_SEND, 207},
+    {KEY_HOME, 29},
+    {KEY_END, 56}
 };
 #endif
 
@@ -393,7 +395,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     computer->last_event = std::chrono::high_resolution_clock::now();
                 }
             }
-        } else if (computer->debugger != NULL) {
+        } else if (!computer->isDebugger && computer->debugger != NULL) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
                 dbg->thread = L;
@@ -415,7 +417,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 }
             }
         }
-    } else if (computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
+    } else if (!computer->isDebugger && computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN) {
             std::unique_lock<std::mutex> lock(dbg->breakMutex);
@@ -427,7 +429,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         }
         if (dbg->isProfiling && ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end())
             dbg->profile[ar->source][ar->name] = std::make_tuple(std::get<0>(dbg->profile[ar->source][ar->name]), std::chrono::high_resolution_clock::now(), std::get<2>(dbg->profile[ar->source][ar->name]) + (std::chrono::high_resolution_clock::now() - std::get<1>(dbg->profile[ar->source][ar->name])));
-    } else if (computer->debugger != NULL && ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
+    } else if (!computer->isDebugger && computer->debugger != NULL && ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->isProfiling) {
             if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
@@ -438,6 +440,9 @@ void termHook(lua_State *L, lua_Debug *ar) {
 }
 
 void termRenderLoop() {
+#ifdef __APPLE__
+    pthread_setname_np("Render Thread");
+#endif
     while (!exiting) {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         bool pushEvent = false;
@@ -447,9 +452,10 @@ void termRenderLoop() {
             else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
                 term->blink = !term->blink;
                 term->last_blink = std::chrono::high_resolution_clock::now();
+                term->changed = true;
             }
+            pushEvent = pushEvent || term->changed;
             term->render();
-            pushEvent = true;
         }
         TerminalWindow::renderTargetsLock.unlock();
         if (pushEvent) {
@@ -635,6 +641,7 @@ int term_write(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
+    term->changed = true;
     return 0;
 }
 
@@ -656,6 +663,7 @@ int term_scroll(lua_State *L) {
         term->screen[i-lines] = std::vector<char>(term->width, ' ');
         term->colors[i-lines] = std::vector<unsigned char>(term->width, computer->colors);
     }
+    term->changed = true;
     return 0;
 }
 
@@ -681,6 +689,7 @@ int term_setCursorPos(lua_State *L) {
     std::lock_guard<std::mutex> locked_g(term->locked);
     term->blinkX = max(0, min((int)lua_tointeger(L, 1) - 1, term->width - 1));
     term->blinkY = max(0, min((int)lua_tointeger(L, 2) - 1, term->height - 1));
+    term->changed = true;
     return 0;
 }
 
@@ -688,8 +697,10 @@ bool can_blink_headless = true;
 
 int term_setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    if (!headless) get_comp(L)->term->canBlink = lua_toboolean(L, 1);
-    else can_blink_headless = lua_toboolean(L, 1);
+    if (!headless) {
+        get_comp(L)->term->canBlink = lua_toboolean(L, 1);
+        get_comp(L)->term->changed = true;
+    } else can_blink_headless = lua_toboolean(L, 1);
     return 0;
 }
 
@@ -739,6 +750,7 @@ int term_clear(lua_State *L) {
         term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
         term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
     }
+    term->changed = true;
     return 0;
 }
 
@@ -754,6 +766,7 @@ int term_clearLine(lua_State *L) {
     std::lock_guard<std::mutex> locked_g(term->locked);
     term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, computer->colors);
+    term->changed = true;
     return 0;
 }
 
@@ -829,6 +842,7 @@ int term_blit(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
+    term->changed = true;
     return 0;
 }
 
@@ -880,6 +894,7 @@ int term_setPaletteColor(lua_State *L) {
         term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
         term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
     }
+    term->changed = true;
     //printf("%d -> %d, %d, %d\n", color, term->palette[color].r, term->palette[color].g, term->palette[color].b);
     return 0;
 }
@@ -888,6 +903,7 @@ int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "boolean or number", 1);
     if (headless || cli || !get_comp(L)->config.isColor) return 0;
     get_comp(L)->term->mode = lua_isboolean(L, 1) ? lua_toboolean(L, 1) : lua_tointeger(L, 1);
+    get_comp(L)->term->changed = true;
     return 0;
 }
 
@@ -908,11 +924,13 @@ int term_setPixel(lua_State *L) {
     if (headless || cli) return 0;
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
+    std::lock_guard<std::mutex> lock(term->locked);
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x >= term->width * 6 || y >= term->height * 9 || x < 0 || y < 0) return 0;
     if (term->mode == 1) term->pixels[y][x] = log2i(lua_tointeger(L, 3));
     else if (term->mode == 2) term->pixels[y][x] = lua_tointeger(L, 3);
+    term->changed = true;
     //printf("Wrote pixel %ld = %d\n", lua_tointeger(L, 3), term->pixels[y][x]);
     return 0;
 }
@@ -940,6 +958,7 @@ int term_drawPixels(lua_State *L) {
     if (!lua_istable(L, 3)) bad_argument(L, "table", 3);
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
+    std::lock_guard<std::mutex> lock(term->locked);
     int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
     for (int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->pixels.size(); y++) {
         lua_pushinteger(L, y);
@@ -959,6 +978,7 @@ int term_drawPixels(lua_State *L) {
         }
         lua_pop(L, 1);
     }
+    term->changed = true;
     return 0;
 }
 

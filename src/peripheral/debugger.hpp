@@ -20,11 +20,12 @@
 
 class debugger: public peripheral {
     friend int debugger_lib_getInfo(lua_State *L);
+    friend void debuggerThread(Computer*, debugger*, std::string);
 private:
     bool running = true;
+    bool deleteThis = false;
     Computer * monitor;
-    std::thread compThread;
-    void run();
+    std::thread * compThread;
     int _break(lua_State *L);
     int setBreakpoint(lua_State *L);
     void init(Computer * comp);

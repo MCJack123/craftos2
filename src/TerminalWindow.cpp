@@ -236,7 +236,10 @@ void TerminalWindow::render() {
         }
         this->width = newWidth;
         this->height = newHeight;
+        changed = true;
     }
+    if (!changed) return;
+    changed = false;
     int ww = 0, wh = 0;
     SDL_GetWindowSize(win, &ww, &wh);
     if (surf != NULL) SDL_FreeSurface(surf);

@@ -22,9 +22,9 @@
 extern bool cli;
 extern std::list<std::thread*> computerThreads;
 extern std::unordered_set<Computer*> freedComputers;
+extern std::thread::id mainThreadID;
 
-void* debuggerThread(void* data) {
-    Computer * comp = (Computer*)data;
+void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread (Debugger)").c_str());
 #endif
@@ -37,8 +37,12 @@ void* debuggerThread(void* data) {
         }
     }
     delete (library_t*)comp->debugger;
-    //queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
-    return NULL;
+    if (!dbg->deleteThis) {
+        dbg->computer->peripherals_mutex.lock();
+        dbg->computer->peripherals.erase(side);
+        dbg->computer->peripherals_mutex.unlock();
+        queueTask([comp](void*arg)->void*{delete (debugger*)arg; delete comp; return NULL;}, dbg, true);
+    }
 }
 
 const char * debugger_break(lua_State *L, void* userp) {return "debugger_break";}
@@ -133,13 +137,13 @@ int debugger_lib_setBreakpoint(lua_State *L) {
 int debugger_lib_run(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    int n = lua_gettop(L);
     int oldtop = lua_gettop(dbg->thread);
-    lua_xmove(L, dbg->thread, n);
-    lua_call(dbg->thread, n-1, LUA_MULTRET);
+    lua_settop(L, 1);
+    lua_xmove(L, dbg->thread, 1);
+    lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0));
     int top = lua_gettop(dbg->thread) - oldtop;
     lua_xmove(dbg->thread, L, top);
-    return top;
+    return top + 1;
 }
 
 int debugger_lib_status(lua_State *L) {
@@ -184,6 +188,18 @@ int debugger_lib_profile(lua_State *L) {
     return 1;
 }
 
+int debugger_lib_getfenv(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_Debug ar;
+    lua_getstack(dbg->thread, 0, &ar);
+    lua_getinfo(dbg->thread, "f", &ar);
+    lua_getfenv(dbg->thread, -1);
+    lua_xmove(dbg->thread, L, 1);
+    lua_pop(dbg->thread, 1);
+    return 1;
+}
+
 const char * debugger_lib_keys[] = {
     "waitForBreak",
     "step",
@@ -195,6 +211,7 @@ const char * debugger_lib_keys[] = {
     "status",
     "startProfiling",
     "profile",
+    "getfenv",
 };
 
 lua_CFunction debugger_lib_values[] = {
@@ -208,9 +225,10 @@ lua_CFunction debugger_lib_values[] = {
     debugger_lib_status,
     debugger_lib_startProfiling,
     debugger_lib_profile,
+    debugger_lib_getfenv,
 };
 
-library_t debugger_lib = {"debugger", 10, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
+library_t debugger_lib = {"debugger", 11, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
 
 library_t * debugger::createDebuggerLibrary() {
     library_t * lib = new library_t;
@@ -222,19 +240,6 @@ library_t * debugger::createDebuggerLibrary() {
 void debugger::init(Computer * comp) {
     lua_pushlightuserdata(comp->L, this);
     lua_setfield(comp->L, LUA_REGISTRYINDEX, "_debugger");
-}
-
-void debugger::run() {
-    std::mutex mtx;
-    std::unique_lock<std::mutex> lock(mtx);
-    while (running) {
-        breakNotify.wait(lock);
-        if (!running) break;
-        printf("Did break\n");
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-        breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
-        breakNotify.notify_all();
-    }
 }
 
 int debugger::_break(lua_State *L) {
@@ -255,23 +260,24 @@ debugger::debugger(lua_State *L, const char * side) {
     monitor = (Computer*)queueTask([this](void*)->void*{return new Computer(computer->id, true);}, NULL);
     monitor->debugger = createDebuggerLibrary();
     computers.push_back(monitor);
-    compThread = std::thread(debuggerThread, monitor);
-    setThreadName(compThread, std::string("Computer " + std::to_string(computer->id) + " Thread (Debugger)").c_str());
-    computerThreads.push_back(&compThread);
+    compThread = new std::thread(debuggerThread, monitor, this, side);
+    setThreadName(*compThread, std::string("Computer " + std::to_string(computer->id) + " Thread (Debugger)").c_str());
+    computerThreads.push_back(compThread);
     if (computer->debugger != NULL) throw std::bad_exception();
     computer->debugger = this;
 }
 
 debugger::~debugger() {
+    deleteThis = true;
     if (freedComputers.find(monitor) == freedComputers.end()) {
         monitor->running = 0;
         monitor->event_lock.notify_all();
-        compThread.join();
+        compThread->join();
         delete monitor;
     }
-    if (compThread.joinable()) compThread.join();
     running = false;
     breakNotify.notify_all();
+    if (compThread->joinable()) compThread->join();
     computer->debugger = NULL;
 }
 

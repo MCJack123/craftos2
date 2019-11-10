@@ -70,6 +70,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else term = new TerminalWindow("CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id));
     // Load config
     config = getComputerConfig(id);
+    if (debug) config.isColor = true;
 }
 
 // Destructor

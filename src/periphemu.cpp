@@ -24,6 +24,7 @@
 #include <algorithm>
 
 monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
+	std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
     for (auto p : comp->peripherals) {
         if (strcmp(p.second->getMethods().name, "monitor") == 0) {
             monitor * m = (monitor*)p.second;

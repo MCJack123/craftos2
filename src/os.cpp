@@ -33,7 +33,7 @@ void gotEvent(Computer *comp);
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
 int nextTaskID = 0;
-std::queue< std::tuple<int, std::function<void*(void*)>, void*> > taskQueue;
+std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
 std::unordered_map<int, void*> taskQueueReturns;
 bool exiting = false;
 extern bool cli, headless;
@@ -43,15 +43,16 @@ extern std::unordered_map<int, unsigned char> keymap_cli;
 extern std::unordered_map<int, unsigned char> keymap;
 std::thread::id mainThreadID;
 
-void* queueTask(std::function<void*(void*)> func, void* arg) {
+void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
     int myID = nextTaskID++;
-    taskQueue.push(std::make_tuple(myID, func, arg));
+    taskQueue.push(std::make_tuple(myID, func, arg, async));
     if (!headless && !cli && !exiting) {
         SDL_Event ev;
         ev.type = task_event_type;
         SDL_PushEvent(&ev);
     }
+    if (async) return NULL;
     while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
@@ -116,6 +117,7 @@ void mainLoop() {
                         c->event_lock.notify_all();
                     }
                 }
+                if (e.type == SDL_QUIT) break;
             }
 #ifndef NO_CLI
         } else if (cli) {
@@ -194,7 +196,7 @@ void mainLoop() {
             while (taskQueue.size() > 0) {
                 auto v = taskQueue.front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
-                taskQueueReturns[std::get<0>(v)] = retval;
+                if (!std::get<3>(v)) taskQueueReturns[std::get<0>(v)] = retval;
                 taskQueue.pop();
             }
         }
