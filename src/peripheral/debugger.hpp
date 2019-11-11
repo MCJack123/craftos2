@@ -28,6 +28,7 @@ private:
     std::thread * compThread;
     int _break(lua_State *L);
     int setBreakpoint(lua_State *L);
+    int print(lua_State *L);
     void init(Computer * comp);
     library_t * createDebuggerLibrary();
     static library_t methods;

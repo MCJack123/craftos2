@@ -16,8 +16,6 @@
 #include <sstream>
 #include <functional>
 #include <unordered_set>
-#include <Poco/Net/TCPServerConnection.h>
-#include <Poco/Net/TCPServerConnectionFactory.h>
 
 extern bool cli;
 extern std::list<std::thread*> computerThreads;
@@ -255,12 +253,26 @@ int debugger::setBreakpoint(lua_State *L) {
     return 0;
 }
 
+const char * debugger_print(lua_State *L, void* arg) {
+    lua_pushstring(L, (char*)arg);
+    delete[] (char*)arg;
+    return "debugger_print";
+}
+
+int debugger::print(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    char * str = new char[lua_strlen(L, 1)];
+    memcpy(str, lua_tostring(L, 1), lua_strlen(L, 1));
+    termQueueProvider(monitor, debugger_print, str);
+    return 0;
+}
+
 debugger::debugger(lua_State *L, const char * side) {
     computer = get_comp(L);
     monitor = (Computer*)queueTask([this](void*)->void*{return new Computer(computer->id, true);}, NULL);
     monitor->debugger = createDebuggerLibrary();
     computers.push_back(monitor);
-    compThread = new std::thread(debuggerThread, monitor, this, side);
+    compThread = new std::thread(debuggerThread, monitor, this, std::string(side));
     setThreadName(*compThread, std::string("Computer " + std::to_string(computer->id) + " Thread (Debugger)").c_str());
     computerThreads.push_back(compThread);
     if (computer->debugger != NULL) throw std::bad_exception();
@@ -285,12 +297,14 @@ int debugger::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "stop" || m == "break") return _break(L);
     else if (m == "setBreakpoint") return setBreakpoint(L);
+    else if (m == "print") return print(L);
     else return 0;
 }
 
 const char * debugger_keys[] = {
     "stop",
-    "setBreakpoint"
+    "setBreakpoint",
+    "print"
 };
 
-library_t debugger::methods = {"debugger", 2, debugger_keys, NULL, nullptr, nullptr};
+library_t debugger::methods = {"debugger", 3, debugger_keys, NULL, nullptr, nullptr};
