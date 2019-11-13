@@ -198,6 +198,13 @@ int debugger_lib_getfenv(lua_State *L) {
     return 1;
 }
 
+int debugger_lib_unblock(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    termQueueProvider(dbg->computer, debugger_break, NULL);
+    return 0;
+}
+
 const char * debugger_lib_keys[] = {
     "waitForBreak",
     "step",
@@ -210,6 +217,7 @@ const char * debugger_lib_keys[] = {
     "startProfiling",
     "profile",
     "getfenv",
+    "unblock",
 };
 
 lua_CFunction debugger_lib_values[] = {
@@ -224,9 +232,10 @@ lua_CFunction debugger_lib_values[] = {
     debugger_lib_startProfiling,
     debugger_lib_profile,
     debugger_lib_getfenv,
+    debugger_lib_unblock,
 };
 
-library_t debugger_lib = {"debugger", 11, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
+library_t debugger_lib = {"debugger", 12, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
 
 library_t * debugger::createDebuggerLibrary() {
     library_t * lib = new library_t;

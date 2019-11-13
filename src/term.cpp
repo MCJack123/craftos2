@@ -398,21 +398,27 @@ void termHook(lua_State *L, lua_Debug *ar) {
         } else if (!computer->isDebugger && computer->debugger != NULL) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
+                bool lastBlink = computer->term->canBlink;
+                computer->term->canBlink = false;
                 dbg->thread = L;
                 std::unique_lock<std::mutex> lock(dbg->breakMutex);
                 dbg->breakNotify.notify_all();
                 dbg->breakNotify.wait(lock);
                 dbg->thread = NULL;
                 computer->last_event = std::chrono::high_resolution_clock::now();
+                computer->term->canBlink = lastBlink;
             } else {
                 for (std::pair<std::string, int> b : computer->breakpoints) {
                     if (b.first == std::string(ar->source) && b.second == ar->currentline) {
+                        bool lastBlink = computer->term->canBlink;
+                        computer->term->canBlink = false;
                         dbg->thread = L;
                         std::unique_lock<std::mutex> lock(dbg->breakMutex);
                         dbg->breakNotify.notify_all();
                         dbg->breakNotify.wait(lock);
                         dbg->thread = NULL;
                         computer->last_event = std::chrono::high_resolution_clock::now();
+                        computer->term->canBlink = lastBlink;
                     }
                 }
             }
@@ -420,12 +426,15 @@ void termHook(lua_State *L, lua_Debug *ar) {
     } else if (!computer->isDebugger && computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN) {
+            bool lastBlink = computer->term->canBlink;
+            computer->term->canBlink = false;
             std::unique_lock<std::mutex> lock(dbg->breakMutex);
             dbg->thread = L;
             dbg->breakNotify.notify_all();
             dbg->breakNotify.wait(lock);
             dbg->thread = NULL;
             computer->last_event = std::chrono::high_resolution_clock::now();
+            computer->term->canBlink = lastBlink;
         }
         if (dbg->isProfiling && ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end())
             dbg->profile[ar->source][ar->name] = std::make_tuple(std::get<0>(dbg->profile[ar->source][ar->name]), std::chrono::high_resolution_clock::now(), std::get<2>(dbg->profile[ar->source][ar->name]) + (std::chrono::high_resolution_clock::now() - std::get<1>(dbg->profile[ar->source][ar->name])));
