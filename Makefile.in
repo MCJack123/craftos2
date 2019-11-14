@@ -4,7 +4,7 @@ CFLAGS=@CFLAGS@
 CPPFLAGS=@CPPFLAGS@
 CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
-LIBS=@LIBS@ craftos2-lua/src/liblua.a
+LIBS=craftos2-lua/src/liblua.a @LIBS@
 PREFIX?=@prefix@
 prefix=$(PREFIX)
 DESTDIR?=@exec_prefix@
@@ -25,7 +25,7 @@ craftos2-lua/src/liblua.a: craftos2-lua
 	$(error Please build Lua for your platform inside the craftos2-lua directory)
 
 craftos: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
-	$(CXX) $(LDFLAGS) -o $@ craftos2-lua/src/liblua.a $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 macapp: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
