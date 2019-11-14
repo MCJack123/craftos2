@@ -37,6 +37,7 @@ public:
     int breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
     std::string breakFunc;
     bool didBreak = false;
+    std::string breakReason;
     std::mutex breakMutex;
     std::condition_variable breakNotify;
     lua_State * thread = NULL;

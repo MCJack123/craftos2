@@ -205,6 +205,13 @@ int debugger_lib_unblock(lua_State *L) {
     return 0;
 }
 
+int debugger_lib_getReason(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_pushstring(L, dbg->breakReason.c_str());
+    return 1;
+}
+
 const char * debugger_lib_keys[] = {
     "waitForBreak",
     "step",
@@ -218,6 +225,7 @@ const char * debugger_lib_keys[] = {
     "profile",
     "getfenv",
     "unblock",
+    "getReason",
 };
 
 lua_CFunction debugger_lib_values[] = {
@@ -233,9 +241,10 @@ lua_CFunction debugger_lib_values[] = {
     debugger_lib_profile,
     debugger_lib_getfenv,
     debugger_lib_unblock,
+    debugger_lib_getReason,
 };
 
-library_t debugger_lib = {"debugger", 12, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
+library_t debugger_lib = {"debugger", 13, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
 
 library_t * debugger::createDebuggerLibrary() {
     library_t * lib = new library_t;
@@ -278,7 +287,7 @@ int debugger::print(lua_State *L) {
 
 debugger::debugger(lua_State *L, const char * side) {
     computer = get_comp(L);
-    monitor = (Computer*)queueTask([this](void*)->void*{return new Computer(computer->id, true);}, NULL);
+    monitor = (Computer*)queueTask([](void*computer)->void*{return new Computer(((Computer*)computer)->id, true);}, computer);
     monitor->debugger = createDebuggerLibrary();
     computers.push_back(monitor);
     compThread = new std::thread(debuggerThread, monitor, this, std::string(side));
