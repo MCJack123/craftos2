@@ -300,6 +300,11 @@ int log2i(int num) {
 
 extern library_t * libraries[9];
 int termPanic(lua_State *L) {
+    lua_getglobal(L, "debug");
+    lua_getfield(L, -1, "traceback");
+    lua_call(L, 0, 1);
+    printf("%s\n", lua_tostring(L, -1));
+    lua_pop(L, 2);
     lua_Debug ar;
     lua_getstack(L, 1, &ar);
     lua_getinfo(L, "nSl", &ar);
@@ -319,36 +324,12 @@ int termPanic(lua_State *L) {
     longjmp(comp->on_panic, 0);
 }
 
-extern "C" {
-    extern int lua_getstack_patch(lua_State*, int, lua_Debug*, lua_State**);
-}
-
-void luaL_where (lua_State *L, int level) {
-  lua_Debug ar;
-  lua_State * L_ret;
-  if (lua_getstack_patch(L, level, &ar, &L_ret)) {  /* check function at level */
-    lua_getinfo(L_ret, "Sl", &ar);  /* get info about it */
-    if (ar.currentline > 0) {  /* is there info? */
-      lua_pushfstring(L, "%s:%d: ", ar.short_src, ar.currentline);
-      return;
-    }
-  }
-  lua_pushliteral(L, "");  /* else, no information available... */
-}
+extern "C" {extern void luaL_where (lua_State *L, int level);}
 
 void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
     lua_getinfo(L, "nSlf", ar);
     if (ar->event == LUA_HOOKCOUNT) {
-        // if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
-        //     computer->last_event = std::chrono::high_resolution_clock::now();
-        //     luaL_where(L, 1);
-        //     lua_pushstring(L, "Too long without yielding");
-        //     lua_concat(L, 2);
-        //     printf("%s\n", lua_tostring(L, -1));
-        //     lua_error(L);
-        // }
-    } else if (ar->event == LUA_HOOKLINE) {
         if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
             computer->last_event = std::chrono::high_resolution_clock::now();
             luaL_where(L, 1);
@@ -357,6 +338,15 @@ void termHook(lua_State *L, lua_Debug *ar) {
             printf("%s\n", lua_tostring(L, -1));
             lua_error(L);
         }
+    } else if (ar->event == LUA_HOOKLINE) {
+        // if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
+        //     computer->last_event = std::chrono::high_resolution_clock::now();
+        //     luaL_where(L, 1);
+        //     lua_pushstring(L, "Too long without yielding");
+        //     lua_concat(L, 2);
+        //     printf("%s\n", lua_tostring(L, -1));
+        //     lua_error(L);
+        // }
         if (computer->debugger == NULL && ::config.debug_enable) {
             for (std::pair<std::string, int> b : computer->breakpoints) {
                 if (b.first == std::string(ar->source) && b.second == ar->currentline) {

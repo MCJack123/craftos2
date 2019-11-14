@@ -56,7 +56,6 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Linux: G++ 4.9+, make
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
-* Lua 5.1
 * SDL 2.0.8+ (may work on older versions on non-Linux)
 * SDL_mixer 2.0+
   * For MP3 support, libmpg123 is required
@@ -83,9 +82,9 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 
 You can get all of these dependencies with:
   * Windows: The VS solution includes all packages required except POCO and png (build yourself)
-  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-_ixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
-  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
-  * Arch Linux: `sudo pacman -S lua51 sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
+  * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
+  * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
+  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
 
 ### Instructions
 #### Windows
@@ -102,22 +101,26 @@ You can get all of these dependencies with:
 #### Mac
 1. Open a new Terminal window
 2. `cd` to the cloned repository
-3. `./configure`
-4. `make macapp`
-5. Open the repository in a new Finder window
-6. Right click on CraftOS-PC.app => Show Package Contents
-7. Open Contents -> Resources
-8. Copy the ROM package inside
-9. Run CraftOS-PC.app
+3. `git submodule update --init --recursive`
+4. `make -C craftos2-lua macosx`
+5. `./configure`
+6. `make macapp`
+7. Open the repository in a new Finder window
+8. Right click on CraftOS-PC.app => Show Package Contents
+9. Open Contents -> Resources
+10. Copy the ROM package inside
+11. Run CraftOS-PC.app
 
 #### Linux
 1. Open a new terminal
 2. `cd` to the cloned repository
-3. `./configure`
-4. `make`
-5. `sudo mkdir /usr/share/craftos`
-6. Copy the ComputerCraft ROM into `/usr/share/craftos/`
-7. `./craftos`
+3. `git submodule update --init --recursive`
+4. `make -C craftos2-lua linux`
+5. `./configure`
+6. `make`
+7. `sudo mkdir /usr/local/share/craftos`
+8. Copy the ComputerCraft ROM into `/usr/local/share/craftos/`
+9. `./craftos`
 
 ## FAQ
 ### Why is the ComputerCraft ROM/BIOS not included with the source?
