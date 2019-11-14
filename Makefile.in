@@ -25,7 +25,7 @@ craftos2-lua/src/liblua.a: craftos2-lua
 	$(error Please build Lua for your platform inside the craftos2-lua directory)
 
 craftos: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ craftos2-lua/src/liblua.a $^ $(LIBS)
 
 macapp: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
