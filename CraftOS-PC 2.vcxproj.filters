@@ -193,9 +193,6 @@
     <ClCompile Include="src\peripheral\computer_p.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\liolib.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\peripheral\drive.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -203,9 +200,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\debugger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ldblib.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
