@@ -302,8 +302,8 @@ extern library_t * libraries[9];
 int termPanic(lua_State *L) {
     lua_getglobal(L, "debug");
     lua_getfield(L, -1, "traceback");
-    lua_call(L, 0, 1);
-    printf("%s\n", lua_tostring(L, -1));
+    //lua_call(L, 0, 1);
+    //printf("%s\n", lua_tostring(L, -1));
     lua_pop(L, 2);
     lua_Debug ar;
     lua_getstack(L, 1, &ar);
@@ -315,7 +315,7 @@ int termPanic(lua_State *L) {
         fprintf(stderr, "An unexpected error occurred in a Lua function: %s:%s:%d: %s\n", ar.short_src, ar.name == NULL ? "(null)" : ar.name, ar.currentline, lua_tostring(L, 1));
     else
     #endif
-        queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(ar.short_src) + ":" + std::string(ar.name == NULL ? "(null)" : ar.name) + ":" + std::to_string(ar.currentline) + ": " + std::string(lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), comp->term->win); return NULL;}, L);
+        queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(ar.short_src) + ":" + std::string(ar.name == NULL ? "(null)" : ar.name) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), comp->term->win); return NULL;}, L);
     comp->event_lock.notify_all();
     for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
         if (libraries[i]->deinit != NULL) libraries[i]->deinit(comp);
@@ -446,7 +446,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             computer->term->canBlink = false;
             std::unique_lock<std::mutex> lock(dbg->breakMutex);
             dbg->thread = L;
-            dbg->breakReason = lua_tostring(L, -2);
+            dbg->breakReason = lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2);
             dbg->breakNotify.notify_all();
             dbg->breakNotify.wait(lock);
             dbg->thread = NULL;

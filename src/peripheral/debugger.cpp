@@ -111,17 +111,19 @@ int debugger_lib_getInfo(lua_State *L) {
         return 1;
     }
     lua_Debug ar;
-    lua_getstack(dbg->thread, 0, &ar);
-    lua_getinfo(dbg->thread, "nSl", &ar);
-    lua_createtable(L, 0, 2);
-    settabss(L, "source", ar.source);
-    settabss(L, "short_src", ar.short_src);
-    settabsi(L, "linedefined", ar.linedefined);
-    settabsi(L, "lastlinedefined", ar.lastlinedefined);
-    settabss(L, "what", ar.what);
-    settabsi(L, "currentline", ar.currentline);
-    settabss(L, "name", ar.name);
-    settabss(L, "namewhat", ar.namewhat);
+    if (!lua_getstack(dbg->thread, lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0, &ar)) lua_pushnil(L);
+    else {
+        lua_getinfo(dbg->thread, "nSl", &ar);
+        lua_createtable(L, 0, 2);
+        settabss(L, "source", ar.source);
+        settabss(L, "short_src", ar.short_src);
+        settabsi(L, "linedefined", ar.linedefined);
+        settabsi(L, "lastlinedefined", ar.lastlinedefined);
+        settabss(L, "what", ar.what);
+        settabsi(L, "currentline", ar.currentline);
+        settabss(L, "name", ar.name);
+        settabss(L, "namewhat", ar.namewhat);
+    }
     return 1;
 }
 
