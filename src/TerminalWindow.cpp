@@ -238,7 +238,7 @@ void TerminalWindow::render() {
         this->height = newHeight;
         changed = true;
     }
-    if (!changed) return;
+    if (!changed && !shouldScreenshot && !shouldRecord) return;
     changed = false;
     int ww = 0, wh = 0;
     SDL_GetWindowSize(win, &ww, &wh);
