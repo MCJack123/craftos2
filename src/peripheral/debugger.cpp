@@ -16,6 +16,9 @@
 #include <sstream>
 #include <functional>
 #include <unordered_set>
+extern "C" {
+#include <lauxlib.h>
+}
 
 extern bool cli;
 extern std::list<std::thread*> computerThreads;
@@ -137,13 +140,38 @@ int debugger_lib_setBreakpoint(lua_State *L) {
 int debugger_lib_run(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    int oldtop = lua_gettop(dbg->thread);
+    lua_Debug ar;
     lua_settop(L, 1);
-    lua_xmove(L, dbg->thread, 1);
-    lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0));
-    int top = lua_gettop(dbg->thread) - oldtop;
-    lua_xmove(dbg->thread, L, top);
-    return top + 1;
+    lua_State *coro = lua_newthread(dbg->thread);
+    luaL_loadstring(coro, lua_tostring(L, 1));
+    luaL_loadstring(dbg->thread, "return setmetatable({_echo = function(...) return ... end, getfenv = getfenv, locals = ..., _ENV = getfenv(2)}, {__index = getfenv(2)})");
+    lua_newtable(dbg->thread);
+    lua_getstack(dbg->thread, 1, &ar);
+    const char * name;
+    for (int i = 1; (name = lua_getlocal(dbg->thread, &ar, i)) != NULL; i++) {
+        if (std::string(name) == "(*temporary)") {
+            lua_pop(dbg->thread, 1);
+            continue;
+        }
+        lua_setfield(dbg->thread, -2, name);
+    }
+    lua_call(dbg->thread, 1, 1);
+    lua_pushvalue(dbg->thread, -1);
+    lua_setfenv(dbg->thread, -3);
+    lua_xmove(dbg->thread, coro, 1);
+    lua_setfenv(coro, -2);
+    int status = lua_resume(coro, 0);
+    int narg;
+    while (status == LUA_YIELD) {
+        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
+        else narg = getNextEvent(coro, "");
+        status = lua_resume(coro, narg);
+    }
+    lua_pushboolean(L, status == 0);
+    int top2 = lua_gettop(coro);
+    lua_xmove(coro, L, top2);
+    lua_pop(dbg->thread, 1);
+    return top2 + 1;
 }
 
 int debugger_lib_status(lua_State *L) {
@@ -214,6 +242,25 @@ int debugger_lib_getReason(lua_State *L) {
     return 1;
 }
 
+int debugger_lib_getLocals(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_Debug ar;
+    lua_getstack(dbg->thread, 1, &ar);
+    lua_newtable(L);
+    const char * name;
+    for (int i = 1; (name = lua_getlocal(dbg->thread, &ar, i)) != NULL; i++) {
+        if (std::string(name) == "(*temporary)") {
+            lua_pop(dbg->thread, 1);
+            continue;
+        }
+        lua_pushstring(L, name);
+        lua_xmove(dbg->thread, L, 1);
+        lua_settable(L, -3);
+    }
+    return 1;
+}
+
 const char * debugger_lib_keys[] = {
     "waitForBreak",
     "step",
@@ -228,6 +275,7 @@ const char * debugger_lib_keys[] = {
     "getfenv",
     "unblock",
     "getReason",
+    "getLocals",
 };
 
 lua_CFunction debugger_lib_values[] = {
@@ -244,9 +292,10 @@ lua_CFunction debugger_lib_values[] = {
     debugger_lib_getfenv,
     debugger_lib_unblock,
     debugger_lib_getReason,
+    debugger_lib_getLocals,
 };
 
-library_t debugger_lib = {"debugger", 13, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
+library_t debugger_lib = {"debugger", 14, debugger_lib_keys, debugger_lib_values, nullptr, nullptr};
 
 library_t * debugger::createDebuggerLibrary() {
     library_t * lib = new library_t;

@@ -330,7 +330,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
     lua_getinfo(L, "nSlf", ar);
     if (ar->event == LUA_HOOKCOUNT) {
-        if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
+        if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
             computer->last_event = std::chrono::high_resolution_clock::now();
             luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
@@ -339,14 +339,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
             lua_error(L);
         }
     } else if (ar->event == LUA_HOOKLINE) {
-        // if (!computer->getting_event && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
-        //     computer->last_event = std::chrono::high_resolution_clock::now();
-        //     luaL_where(L, 1);
-        //     lua_pushstring(L, "Too long without yielding");
-        //     lua_concat(L, 2);
-        //     printf("%s\n", lua_tostring(L, -1));
-        //     lua_error(L);
-        // }
         if (computer->debugger == NULL && ::config.debug_enable) {
             for (std::pair<std::string, int> b : computer->breakpoints) {
                 if (b.first == std::string(ar->source) && b.second == ar->currentline) {
@@ -387,37 +379,39 @@ void termHook(lua_State *L, lua_Debug *ar) {
             }
         } else if (!computer->isDebugger && computer->debugger != NULL) {
             debugger * dbg = (debugger*)computer->debugger;
-            if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
-                bool lastBlink = computer->term->canBlink;
-                computer->term->canBlink = false;
-                dbg->thread = L;
-                dbg->breakReason = "Pause";
-                std::unique_lock<std::mutex> lock(dbg->breakMutex);
-                dbg->breakNotify.notify_all();
-                dbg->breakNotify.wait(lock);
-                dbg->thread = NULL;
-                computer->last_event = std::chrono::high_resolution_clock::now();
-                computer->term->canBlink = lastBlink;
-            } else {
-                for (std::pair<std::string, int> b : computer->breakpoints) {
-                    if (b.first == std::string(ar->source) && b.second == ar->currentline) {
-                        bool lastBlink = computer->term->canBlink;
-                        computer->term->canBlink = false;
-                        dbg->thread = L;
-                        dbg->breakReason = "Breakpoint";
-                        std::unique_lock<std::mutex> lock(dbg->breakMutex);
-                        dbg->breakNotify.notify_all();
-                        dbg->breakNotify.wait(lock);
-                        dbg->thread = NULL;
-                        computer->last_event = std::chrono::high_resolution_clock::now();
-                        computer->term->canBlink = lastBlink;
+            if (dbg->thread == NULL) {
+                if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
+                    bool lastBlink = computer->term->canBlink;
+                    computer->term->canBlink = false;
+                    dbg->thread = L;
+                    dbg->breakReason = "Pause";
+                    std::unique_lock<std::mutex> lock(dbg->breakMutex);
+                    dbg->breakNotify.notify_all();
+                    dbg->breakNotify.wait(lock);
+                    dbg->thread = NULL;
+                    computer->last_event = std::chrono::high_resolution_clock::now();
+                    computer->term->canBlink = lastBlink;
+                } else {
+                    for (std::pair<std::string, int> b : computer->breakpoints) {
+                        if (b.first == std::string(ar->source) && b.second == ar->currentline) {
+                            bool lastBlink = computer->term->canBlink;
+                            computer->term->canBlink = false;
+                            dbg->thread = L;
+                            dbg->breakReason = "Breakpoint";
+                            std::unique_lock<std::mutex> lock(dbg->breakMutex);
+                            dbg->breakNotify.notify_all();
+                            dbg->breakNotify.wait(lock);
+                            dbg->thread = NULL;
+                            computer->last_event = std::chrono::high_resolution_clock::now();
+                            computer->term->canBlink = lastBlink;
+                        }
                     }
                 }
             }
         }
     } else if (!computer->isDebugger && computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
         debugger * dbg = (debugger*)computer->debugger;
-        if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN) {
+        if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL) {
             bool lastBlink = computer->term->canBlink;
             computer->term->canBlink = false;
             std::unique_lock<std::mutex> lock(dbg->breakMutex);
@@ -442,16 +436,18 @@ void termHook(lua_State *L, lua_Debug *ar) {
         if (config.logErrors) printf("Got error: %s\n", lua_tostring(L, -2));
         if (!computer->isDebugger && computer->debugger != NULL) {
             debugger * dbg = (debugger*)computer->debugger;
-            bool lastBlink = computer->term->canBlink;
-            computer->term->canBlink = false;
-            std::unique_lock<std::mutex> lock(dbg->breakMutex);
-            dbg->thread = L;
-            dbg->breakReason = lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2);
-            dbg->breakNotify.notify_all();
-            dbg->breakNotify.wait(lock);
-            dbg->thread = NULL;
-            computer->last_event = std::chrono::high_resolution_clock::now();
-            computer->term->canBlink = lastBlink;
+            if (dbg->thread == NULL) {
+                bool lastBlink = computer->term->canBlink;
+                computer->term->canBlink = false;
+                std::unique_lock<std::mutex> lock(dbg->breakMutex);
+                dbg->thread = L;
+                dbg->breakReason = lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2);
+                dbg->breakNotify.notify_all();
+                dbg->breakNotify.wait(lock);
+                dbg->thread = NULL;
+                computer->last_event = std::chrono::high_resolution_clock::now();
+                computer->term->canBlink = lastBlink;
+            }
         }
     }
 }
