@@ -13,6 +13,8 @@ extern "C" {
 #include <stdlib.h>
 #endif
 
+#define PLUGIN_VERSION 2
+
 void bad_argument(lua_State *L, const char * type, int pos) {
     lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
     lua_error(L);
@@ -131,6 +133,10 @@ int ccemux_setClipboard(lua_State *L) {
 
 int ccemux_attach(lua_State *L) {
     int args = lua_gettop(L);
+    if (lua_isstring(L, 2) && std::string(lua_tostring(L, 2)) == "disk_drive") {
+        lua_pushstring(L, "drive");
+        lua_replace(L, 2);
+    }
     lua_getglobal(L, "periphemu");
     lua_pushstring(L, "create");
     lua_gettable(L, -2);
@@ -177,6 +183,14 @@ int luaopen_ccemux(lua_State *L) {
         } else lua_pushcfunction(L, M[i].func);
         lua_settable(L, -3);
     }
+    return 1;
+}
+
+#ifdef _WIN32
+_declspec(dllexport)
+#endif
+int version(lua_State *L) {
+    lua_pushinteger(L, PLUGIN_VERSION);
     return 1;
 }
 }

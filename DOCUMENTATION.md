@@ -129,17 +129,24 @@ Upon loading a new computer, the `plugins` folder inside the install directory i
 For each plugin found, CraftOS-PC loads and calls the plugin's `luaopen` function. This function should have the same signature as a `lua_CFunction`:
 ```
 int luaopen_plugin(lua_State *L);
-``
+```
 The function will recieve the ROM path and the base path, and should return one value: the API that will be exported to the global table.  
+Plugins must also have an exported function named `version`, which tells CraftOS-PC what version of the API it's using.
+As of v2.2, the version is currently `2`. You can use the template `version` function in the example below.
+If this version number changes, make sure to update the version in your plugin and recompile to ensure full compatibility.
+
 If your plugin needs access to the CraftOS-PC `Computer` object, copy the `get_comp(L)` function in `lib.cpp`.
 This function takes in a `lua_State` and returns a pointer to the `Computer` object associated with it.
 You can then access the properties of the computer.
 The `Computer` object also has a userdata property that allows temporary per-computer storage if necessary.  
+
+When compiling a plugin, make sure to link in the custom `craftos2-lua` library instead of the original Lua library.
   
 Here's an example of a C plugin (from https://github.com/mostvotedplaya/Lua-C-Module):
 ```c
 #include <lua.h>
 #include <lauxlib.h>
+#define PLUGIN_VERSION 2
 
 int addition(lua_State *L) {
     if (!lua_isnumber(L, 1)) {
@@ -183,6 +190,11 @@ int luaopen_example(lua_State *L) {
     luaL_register(L, "example", M);
     return 1;
 }
+
+#ifdef _WIN32
+_declspec(dllexport) 
+#endif
+int version(lua_State *L) {lua_pushinteger(L, PLUGIN_VERSION); return 1;}
 ```
 Compile as a shared library and copy to:
 * Windows: `C:\Program Files\CraftOS-PC\plugins\example.dll`

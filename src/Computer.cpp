@@ -30,6 +30,8 @@ extern "C" {
 #include <lauxlib.h>
 }
 
+#define PLUGIN_VERSION 2
+
 extern bool headless;
 extern bool cli;
 std::vector<Computer*> computers;
@@ -183,7 +185,21 @@ void Computer::run(std::string bios_name) {
             if (d) {
                 for (int i = 0; (dir = readdir(d)) != NULL; i++) {
                     if (stat((plugin_path + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+                    if (std::string(dir->d_name) == ".DS_Store" || std::string(dir->d_name) == "desktop.ini") continue;
                     std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
+                    lua_pushvalue(L, -1);
+                    lua_pushfstring(L, "%s/%s", plugin_path.c_str(), dir->d_name);
+                    lua_pushfstring(L, "version", api_name.c_str());
+                    if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
+                    if (lua_isnil(L, -2)) {
+                        printf("The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str()); 
+                        lua_pop(L, 2);
+                    } else {
+                        if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
+                        lua_call(L, 0, 1);
+                        if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) printf("The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
+                        lua_pop(L, 1);
+                    }
                     lua_pushvalue(L, -1);
                     lua_pushfstring(L, "%s/%s", plugin_path.c_str(), dir->d_name);
                     lua_pushfstring(L, "luaopen_%s", api_name.c_str());
