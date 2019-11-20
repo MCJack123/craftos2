@@ -338,6 +338,13 @@ Uint32 notifyEvent(Uint32 interval, void* param) {
 int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
+    if (lua_tonumber(L, 1) <= 0.0) {
+        int* id = new int;
+        *id = computer->timers.size() * 1000;
+        termQueueProvider(computer, [](lua_State *L, void* id)->const char*{lua_pushinteger(L, *(int*)id); delete (int*)id; return "timer";}, id);
+        lua_pushinteger(L, *id);
+        return 1;
+    }
     computer->timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, computer->timers.size() - 1);
     SDL_AddTimer(lua_tonumber(L, 1) * 1000, notifyEvent, computer);
