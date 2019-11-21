@@ -74,7 +74,7 @@ std::mutex TerminalWindow::renderTargetsLock;
 
 TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
-    screen = std::vector<std::vector<char> >(h, std::vector<char>(w, ' '));
+    screen = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, ' '));
     colors = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, 0xF0));
     pixels = std::vector<std::vector<unsigned char> >(h*fontHeight, std::vector<unsigned char>(w*fontWidth, 0x0F));
 }
@@ -170,7 +170,7 @@ bool operator!=(Color lhs, Color rhs) {
     return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b;
 }
 
-bool TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool TerminalWindow::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
         x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
@@ -217,7 +217,7 @@ void TerminalWindow::render() {
     if (gotResizeEvent) {
         gotResizeEvent = false;
         this->screen.resize(newHeight);
-        if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<char>(newWidth, ' '));
+        if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<unsigned char>(newWidth, ' '));
         for (unsigned i = 0; i < screen.size(); i++) {
             screen[i].resize(newWidth);
             if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
@@ -350,7 +350,7 @@ void TerminalWindow::getMouse(int *x, int *y) {
     //convert_to_renderer_coordinates(ren, x, y);
 }
 
-SDL_Rect TerminalWindow::getCharacterRect(char c) {
+SDL_Rect TerminalWindow::getCharacterRect(unsigned char c) {
     SDL_Rect retval;
     retval.w = fontWidth * 2/fontScale;
     retval.h = fontHeight * 2/fontScale;
