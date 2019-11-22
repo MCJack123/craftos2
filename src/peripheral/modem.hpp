@@ -13,8 +13,10 @@
 
 class modem: public peripheral {
 private:
+    friend const char * modem_message(lua_State *, void*);
     std::unordered_set<uint16_t> openPorts;
     Computer * comp;
+    lua_State * eventQueue;
     std::string side;
     int isOpen(lua_State *L);
     int open(lua_State *L);

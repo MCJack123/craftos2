@@ -79,6 +79,12 @@ $(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR
 $(ODIR)/peripheral_computer.o: $(SDIR)/peripheral/computer_p.cpp $(SDIR)/peripheral/computer.hpp $(SDIR)/peripheral/peripheral.hpp
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
+mac-plugin:
+	$(CXX) -std=c++11 -dynamiclib -fpic -o ccemux.dylib examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
+
+linux-plugin:
+	$(CXX) -std=c++11 -shared -fpic -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
+
 clean: $(ODIR)
 	rm -f craftos
 	rm -f obj/*

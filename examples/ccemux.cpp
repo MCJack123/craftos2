@@ -137,6 +137,10 @@ int ccemux_attach(lua_State *L) {
         lua_pushstring(L, "drive");
         lua_replace(L, 2);
     }
+    if (lua_isstring(L, 2) && std::string(lua_tostring(L, 2)) == "wireless_modem") {
+        lua_pushstring(L, "modem");
+        lua_replace(L, 2);
+    }
     lua_getglobal(L, "periphemu");
     lua_pushstring(L, "create");
     lua_gettable(L, -2);
