@@ -114,7 +114,8 @@ void config_init() {
         0,
         "",
         false,
-        false
+        false,
+        0
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -142,6 +143,7 @@ void config_init() {
     if (root.isMember("skipUpdate")) config.skipUpdate = root["skipUpdate"].asString();
     if (root.isMember("configReadOnly")) config.configReadOnly = root["configReadOnly"].asBool();
     if (root.isMember("vanilla")) config.vanilla = root["vanilla"].asBool();
+    if (root.isMember("initialComputer")) config.initialComputer = root["initialComputer"].asInt();
 }
 
 void config_save(bool deinit) {
@@ -167,6 +169,7 @@ void config_save(bool deinit) {
     root["skipUpdate"] = config.skipUpdate;
     root["configReadOnly"] = config.configReadOnly;
     root["vanilla"] = config.vanilla;
+    root["initialComputer"] = config.initialComputer;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -218,6 +221,8 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.configReadOnly);
     else if (strcmp(name, "vanilla") == 0)
         lua_pushboolean(L, config.vanilla);
+    else if (strcmp(name, "initialComputer") == 0)
+        lua_pushinteger(L, config.initialComputer);
     else lua_pushnil(L);
     return 1;
 }
@@ -277,6 +282,8 @@ int config_set(lua_State *L) {
         config.configReadOnly = lua_toboolean(L, 2);
     else if (strcmp(name, "vanilla") == 0)
         config.vanilla = lua_toboolean(L, 2);
+    else if (strcmp(name, "initialComputer") == 0)
+        config.initialComputer = lua_tointeger(L, 2);
     config_save(false);
     return 0;
 }
@@ -300,6 +307,7 @@ const char * configuration_keys[] = {
     "romReadOnly",
     "configReadOnly",
     "vanilla",
+    "initialComputer",
     NULL,
 };
 
@@ -326,7 +334,7 @@ int config_getType(lua_State *L) {
         lua_pushstring(L, "string");
     else if (name == "computerSpaceLimit" || name == "maximumFilesOpen" || 
              name == "maxNotesPerTick" || name == "clockSpeed" || 
-             name == "abortTimeout" || name == "mount_mode")
+             name == "abortTimeout" || name == "mount_mode" || name == "initialComputer")
         lua_pushstring(L, "number");
     else lua_pushnil(L);
     return 1;

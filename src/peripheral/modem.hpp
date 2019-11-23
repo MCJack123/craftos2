@@ -27,6 +27,7 @@ private:
     void receive(uint16_t port, uint16_t replyPort, lua_State *param);
 public:
     static library_t methods;
+    static peripheral * init(lua_State *L, const char * side) {return new modem(L, side);}
     library_t getMethods() {return methods;}
     modem(lua_State *L, const char * side);
     ~modem();

@@ -25,6 +25,7 @@ private:
     int isOn(lua_State *L);
 public:
     static library_t methods;
+    static peripheral * init(lua_State *L, const char * side) {return new computer(L, side);}
     library_t getMethods() {return methods;}
     computer(lua_State *L, const char * side);
     ~computer();

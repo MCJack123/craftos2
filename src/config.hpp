@@ -39,6 +39,7 @@ struct configuration {
     std::string skipUpdate;
     bool configReadOnly;
     bool vanilla;
+    int initialComputer;
 };
 struct computer_configuration {
     std::string label;

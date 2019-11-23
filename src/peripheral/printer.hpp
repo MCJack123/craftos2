@@ -55,6 +55,7 @@ private:
     int getPaperLevel(lua_State *L);
 
 public:
+    static peripheral * init(lua_State *L, const char * side) {return new printer(L, side);}
     printer(lua_State *L, const char * side);
     ~printer();
     int call(lua_State *L, const char * method);

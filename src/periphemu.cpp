@@ -37,6 +37,14 @@ monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& side
     return NULL;
 }
 
+std::unordered_map<std::string, peripheral_init> initializers = {
+	{"monitor", &monitor::init},
+	{"printer", &printer::init},
+	{"computer", &computer::init},
+	{"modem", &modem::init},
+	{"drive", &drive::init},
+};
+
 const char * peripheral_attach(lua_State *L, void* arg) {
     std::string * side = (std::string*)arg;
     lua_pushstring(L, side->c_str());
@@ -65,12 +73,8 @@ int periphemu_create(lua_State* L) {
 	}
 	//lua_pop(L, 2);
 	try {
-		if (type == std::string("monitor")) computer->peripherals[side] = new monitor(L, side.c_str());
-		else if (type == std::string("printer")) computer->peripherals[side] = new printer(L, side.c_str());
-		else if (type == std::string("computer")) computer->peripherals[side] = new class computer(L, side.c_str());
-		else if (type == std::string("modem")) computer->peripherals[side] = new modem(L, side.c_str());
-        else if (type == std::string("drive")) computer->peripherals[side] = new drive(L, side.c_str());
-		else if (type == std::string("debugger") && computer->debugger == NULL) computer->peripherals[side] = new debugger(L, side.c_str());
+		if (type == std::string("debugger") && computer->debugger == NULL) computer->peripherals[side] = new debugger(L, side.c_str());
+		else if (initializers.find(type) != initializers.end()) computer->peripherals[side] = initializers[type](L, side.c_str());
         else {
 			printf("not found: %s\n", type.c_str());
 			lua_pushboolean(L, false);

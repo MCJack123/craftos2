@@ -123,7 +123,7 @@ int main(int argc, char*argv[]) {
     driveInit();
     if (!CRAFTOSPC_INDEV && !headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
-    startComputer(0);
+    startComputer(config.initialComputer);
     mainLoop();
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     driveQuit();

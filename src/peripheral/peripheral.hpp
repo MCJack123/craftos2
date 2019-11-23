@@ -13,6 +13,7 @@ class peripheral;
 #ifndef PERIPHERAL_HPP
 #define PERIPHERAL_HPP
 #include "../lib.hpp"
+typedef peripheral*(*peripheral_init)(lua_State*, const char *);
 extern library_t peripheral_lib;
 extern void peripheral_update(Computer *comp);
 
