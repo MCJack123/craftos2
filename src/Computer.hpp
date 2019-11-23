@@ -19,6 +19,7 @@ extern "C" {
 #include <tuple>
 #include <list>
 #include <queue>
+#include <map>
 #include <unordered_map>
 #include <atomic>
 #include <condition_variable>
@@ -71,7 +72,7 @@ public:
     std::condition_variable event_lock;
     std::chrono::system_clock::time_point system_start = std::chrono::system_clock::now();
     jmp_buf on_panic;
-    std::list< std::pair<std::string, int> > breakpoints;
+    std::map< int, std::pair<std::string, int> > breakpoints;
     void * debugger = NULL;
     bool isDebugger = false;
 

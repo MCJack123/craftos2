@@ -139,8 +139,8 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
 }
 
 TerminalWindow::~TerminalWindow() {
-    std::lock_guard<std::mutex> locked_g(locked);
     TerminalWindow::renderTargetsLock.lock();
+    std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);

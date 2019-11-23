@@ -107,22 +107,19 @@ extern "C" {
         if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
         if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
         Computer * computer = get_comp(L);
-        computer->breakpoints.push_back(std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2)));
-        return 0;
+        int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
+        computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+        lua_pushinteger(L, id);
+        return 1;
     }
 
     int db_unsetbreakpoint(lua_State *L) {
-        if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-        if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+        if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
         Computer * computer = get_comp(L);
-        for (auto it = computer->breakpoints.begin(); it != computer->breakpoints.end(); it++) {
-            if (it->first == "@/" + fixpath(computer, lua_tostring(L, 1), false) && it->second == lua_tointeger(L, 2)) {
-                computer->breakpoints.erase(it);
-                lua_pushboolean(L, true);
-                break;
-            }
-        }
-        if (!lua_isboolean(L, -1)) lua_pushboolean(L, false);
+        if (computer->breakpoints.find(lua_tointeger(L, 1)) != computer->breakpoints.end()) {
+            computer->breakpoints.erase(lua_tointeger(L, 1));
+            lua_pushboolean(L, true);
+        } else lua_pushboolean(L, false);
         return 1;
     }
 }

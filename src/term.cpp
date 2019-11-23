@@ -326,6 +326,26 @@ int termPanic(lua_State *L) {
 
 extern "C" {extern void luaL_where (lua_State *L, int level);}
 
+bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, const char * reason) {
+    bool lastBlink = computer->term->canBlink;
+    computer->term->canBlink = false;
+    dbg->thread = L;
+    dbg->breakReason = reason;
+    while (!dbg->didBreak) {
+        std::lock_guard<std::mutex> guard(dbg->breakMutex);
+        dbg->breakNotify.notify_all();
+        std::this_thread::yield();
+    }
+    assert(dbg->didBreak);
+    std::unique_lock<std::mutex> lock(dbg->breakMutex);
+    dbg->breakNotify.wait(lock);
+    bool retval = !dbg->running;
+    dbg->thread = NULL;
+    computer->last_event = std::chrono::high_resolution_clock::now();
+    computer->term->canBlink = lastBlink;
+    return retval;
+}
+
 void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
     lua_getinfo(L, "nSlf", ar);
@@ -340,8 +360,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
         }
     } else if (ar->event == LUA_HOOKLINE) {
         if (computer->debugger == NULL && ::config.debug_enable) {
-            for (std::pair<std::string, int> b : computer->breakpoints) {
-                if (b.first == std::string(ar->source) && b.second == ar->currentline) {
+            for (std::pair<int, std::pair<std::string, int> > b : computer->breakpoints) {
+                if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
                     lua_State *coro = lua_newthread(L);
                     lua_getglobal(coro, "os");
                     lua_getfield(coro, -1, "run");
@@ -381,52 +401,24 @@ void termHook(lua_State *L, lua_Debug *ar) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->thread == NULL) {
                 if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
-                    bool lastBlink = computer->term->canBlink;
-                    computer->term->canBlink = false;
-                    dbg->thread = L;
-                    dbg->breakReason = "Pause";
-                    std::unique_lock<std::mutex> lock(dbg->breakMutex);
-                    dbg->breakNotify.notify_all();
-                    dbg->breakNotify.wait(lock);
-                    dbg->thread = NULL;
-                    computer->last_event = std::chrono::high_resolution_clock::now();
-                    computer->term->canBlink = lastBlink;
-                } else {
-                    for (std::pair<std::string, int> b : computer->breakpoints) {
-                        if (b.first == std::string(ar->source) && b.second == ar->currentline) {
-                            bool lastBlink = computer->term->canBlink;
-                            computer->term->canBlink = false;
-                            dbg->thread = L;
-                            dbg->breakReason = "Breakpoint";
-                            std::unique_lock<std::mutex> lock(dbg->breakMutex);
-                            dbg->breakNotify.notify_all();
-                            dbg->breakNotify.wait(lock);
-                            dbg->thread = NULL;
-                            computer->last_event = std::chrono::high_resolution_clock::now();
-                            computer->term->canBlink = lastBlink;
-                        }
-                    }
-                }
+                    if (dbg->stepCount == 0 && debuggerBreak(L, computer, dbg, "Pause")) return;
+                    else dbg->stepCount--;
+                } else for (std::pair<int, std::pair<std::string, int> > b : computer->breakpoints)
+                        if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) 
+                            if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
             }
         }
     } else if (!computer->isDebugger && computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
         debugger * dbg = (debugger*)computer->debugger;
-        if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL) {
-            bool lastBlink = computer->term->canBlink;
-            computer->term->canBlink = false;
-            std::unique_lock<std::mutex> lock(dbg->breakMutex);
-            dbg->thread = L;
-            dbg->breakReason = "Pause";
-            dbg->breakNotify.notify_all();
-            dbg->breakNotify.wait(lock);
-            dbg->thread = NULL;
-            computer->last_event = std::chrono::high_resolution_clock::now();
-            computer->term->canBlink = lastBlink;
-        }
+        if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL && debuggerBreak(L, computer, dbg, "Pause")) return;
         if (dbg->isProfiling && ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end())
             dbg->profile[ar->source][ar->name] = std::make_tuple(std::get<0>(dbg->profile[ar->source][ar->name]), std::chrono::high_resolution_clock::now(), std::get<2>(dbg->profile[ar->source][ar->name]) + (std::chrono::high_resolution_clock::now() - std::get<1>(dbg->profile[ar->source][ar->name])));
     } else if (!computer->isDebugger && computer->debugger != NULL && ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
         debugger * dbg = (debugger*)computer->debugger;
+        if (dbg->thread == NULL) {
+            if ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require") && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
+                (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
+        }
         if (dbg->isProfiling) {
             if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
             if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = std::make_tuple(1, std::chrono::high_resolution_clock::now(), std::chrono::milliseconds(0));
@@ -436,18 +428,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
         if (config.logErrors) printf("Got error: %s\n", lua_tostring(L, -2));
         if (!computer->isDebugger && computer->debugger != NULL) {
             debugger * dbg = (debugger*)computer->debugger;
-            if (dbg->thread == NULL) {
-                bool lastBlink = computer->term->canBlink;
-                computer->term->canBlink = false;
-                std::unique_lock<std::mutex> lock(dbg->breakMutex);
-                dbg->thread = L;
-                dbg->breakReason = lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2);
-                dbg->breakNotify.notify_all();
-                dbg->breakNotify.wait(lock);
-                dbg->thread = NULL;
-                computer->last_event = std::chrono::high_resolution_clock::now();
-                computer->term->canBlink = lastBlink;
-            }
+            if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_ERROR)) 
+                if (debuggerBreak(L, computer, dbg, lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2))) return;
         }
     }
 }
@@ -502,6 +484,11 @@ int termHasEvent(Computer * computer) {
     if (computer->running != 1) return 0;
     return computer->event_provider_queue.size() + computer->lastResizeEvent + computer->termEventQueue.size();
 }
+
+template<typename T>
+inline T min(T a, T b) {return a < b ? a : b;}
+template<typename T>
+inline T max(T a, T b) {return a > b ? a : b;}
 
 const char * termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
@@ -596,7 +583,7 @@ const char * termGetEvent(lua_State *L) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 0, y = 0;
             term->getMouse(&x, &y);
-            lua_pushinteger(L, e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1));
+            lua_pushinteger(L, max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
             lua_pushinteger(L, convertX(term, x));
             lua_pushinteger(L, convertY(term, y));
             return "mouse_scroll";
@@ -679,11 +666,6 @@ int term_scroll(lua_State *L) {
     term->changed = true;
     return 0;
 }
-
-template<typename T>
-inline T min(T a, T b) {return a < b ? a : b;}
-template<typename T>
-inline T max(T a, T b) {return a > b ? a : b;}
 
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
