@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <queue>
 #include <tuple>
+#include <cassert>
 
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 extern void peripheral_update();
@@ -954,8 +955,8 @@ int term_drawPixels(lua_State *L) {
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
-    int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
-    for (int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->pixels.size(); y++) {
+    unsigned int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
+    for (unsigned int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->pixels.size(); y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 
         if (lua_isstring(L, -1)) {
@@ -964,7 +965,7 @@ int term_drawPixels(lua_State *L) {
             if (init_x + str_sz - 1 < term->pixels[init_y+y-1].size())
                 memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
-            for (int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->pixels[init_y+y-1].size(); x++) {
+            for (unsigned int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->pixels[init_y+y-1].size(); x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
                 term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);

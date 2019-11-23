@@ -16,6 +16,7 @@
 #include <sstream>
 #include <functional>
 #include <unordered_set>
+#include <cassert>
 extern "C" {
 #include <lauxlib.h>
 }
