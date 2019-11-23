@@ -74,6 +74,7 @@ int debugger_lib_confirmBreak(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     dbg->confirmBreak = true;
+    return 0;
 }
 
 int debugger_lib_step(lua_State *L) {
