@@ -113,14 +113,27 @@ int periphemu_remove(lua_State* L) {
 	return 1;
 }
 
-const char* periphemu_keys[2] = {
+int periphemu_names(lua_State *L) {
+    lua_newtable(L);
+    int i = 1;
+    for (auto entry : initializers) {
+        lua_pushinteger(L, i++);
+        lua_pushstring(L, entry.first.c_str());
+        lua_settable(L, -3);
+    }
+    return 1;
+}
+
+const char* periphemu_keys[3] = {
 	"create",
-	"remove"
+	"remove",
+    "names",
 };
 
-lua_CFunction periphemu_values[2] = {
+lua_CFunction periphemu_values[3] = {
 	periphemu_create,
-	periphemu_remove
+	periphemu_remove,
+    periphemu_names,
 };
 
-library_t periphemu_lib = { "periphemu", 2, periphemu_keys, periphemu_values, nullptr, nullptr };
+library_t periphemu_lib = { "periphemu", 3, periphemu_keys, periphemu_values, nullptr, nullptr };

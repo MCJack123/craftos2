@@ -402,7 +402,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->thread == NULL) {
                 if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
-                    if (dbg->stepCount == 0 && debuggerBreak(L, computer, dbg, "Pause")) return;
+                    if (dbg->stepCount >= 0) {dbg->stepCount = 0; debuggerBreak(L, computer, dbg, "Pause");}
                     else dbg->stepCount--;
                 } else for (std::pair<int, std::pair<std::string, int> > b : computer->breakpoints)
                         if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) 

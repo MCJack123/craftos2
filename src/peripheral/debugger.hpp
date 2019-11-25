@@ -39,7 +39,7 @@ public:
     std::atomic_bool running;
     Computer * computer;
     int breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
-    unsigned int stepCount = 0;
+    int stepCount = 0;
     int breakMask = 0;
     std::string breakFunc;
     bool didBreak = false;

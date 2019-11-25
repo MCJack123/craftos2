@@ -31,6 +31,7 @@ Creates and removes peripherals from the registry.
 * *boolean* remove(*string* side): Removes a peripheral.
   * side: The side to remove
   * Returns: `true` on success, `false` on failure (already removed)
+* *table* names(): Returns a list of available peripherals.
 
 ## `drive` peripheral
 Floppy drive emulator that supports loading mounts (see mounter API), floppy disks (by ID), and audio files.
