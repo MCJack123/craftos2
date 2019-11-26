@@ -82,7 +82,7 @@ Computer::~Computer() {
     // Save config
     setComputerConfig(id, config);
     // Deinitialize all peripherals
-    for (auto p : peripherals) delete p.second;
+    for (auto p : peripherals) p.second->getDestructor()(p.second);
     for (std::list<Computer*>::iterator c = referencers.begin(); c != referencers.end(); c++) {
         (*c)->peripherals_mutex.lock();
         for (auto it = (*c)->peripherals.begin(); it != (*c)->peripherals.end(); it++) {
@@ -122,6 +122,19 @@ extern "C" {
         } else lua_pushboolean(L, false);
         return 1;
     }
+}
+
+library_t * getLibrary(std::string name) {
+    if (name == "bit") return &bit_lib;
+    else if (name == "config") return &config_lib;
+    else if (name == "fs") return &fs_lib; 
+    else if (name == "mounter") return &mounter_lib; 
+    else if (name == "os") return &os_lib; 
+    else if (name == "peripheral") return &peripheral_lib; 
+    else if (name == "periphemu") return &periphemu_lib; 
+    else if (name == "redstone" || name == "rs") return &rs_lib; 
+    else if (name == "term") return &term_lib; 
+    else return NULL;
 }
 
 // Main computer loop
@@ -172,6 +185,8 @@ void Computer::run(std::string bios_name) {
 
         // Load any plugins available
         if (!::config.vanilla) {
+            lua_newtable(L);
+            lua_setfield(L, LUA_REGISTRYINDEX, "plugin_info");
             lua_getglobal(L, "package");
             lua_pushstring(L, "loadlib");
             lua_gettable(L, -2);
@@ -186,7 +201,7 @@ void Computer::run(std::string bios_name) {
                     std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
                     lua_pushvalue(L, -1);
                     lua_pushfstring(L, "%s/%s", plugin_path.c_str(), dir->d_name);
-                    lua_pushfstring(L, "version", api_name.c_str());
+                    lua_pushfstring(L, "plugin_info", api_name.c_str());
                     if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
                     if (lua_isnil(L, -2)) {
                         printf("The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str()); 
@@ -194,7 +209,35 @@ void Computer::run(std::string bios_name) {
                     } else {
                         if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
                         lua_call(L, 0, 1);
-                        if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) printf("The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
+                        if (!lua_istable(L, -1)) printf("The plugin \"%s\" returned invalid info. Use at your own risk.", api_name.c_str());
+                        else {
+                            lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
+                            lua_pushvalue(L, -2);
+                            lua_setfield(L, -2, api_name.c_str());
+                            lua_pop(L, 1);
+
+                            lua_getfield(L, -1, "version");
+                            if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) printf("The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
+                            lua_pop(L, 1);
+
+                            lua_getfield(L, -1, "register_getLibrary");
+                            if (lua_isfunction(L, -1)) {
+                                lua_pushlightuserdata(L, (void*)&getLibrary);
+                                lua_call(L, 1, 0);
+                            } else lua_pop(L, 1);
+                            
+                            lua_getfield(L, -1, "register_registerPeripheral");
+                            if (lua_isfunction(L, -1)) {
+                                lua_pushlightuserdata(L, (void*)&registerPeripheral);
+                                lua_call(L, 1, 0);
+                            } else lua_pop(L, 1);
+
+                            lua_getfield(L, -1, "register_addMount");
+                            if (lua_isfunction(L, -1)) {
+                                lua_pushlightuserdata(L, (void*)&addMount);
+                                lua_call(L, 1, 0);
+                            } else lua_pop(L, 1);
+                        }
                         lua_pop(L, 1);
                     }
                     lua_pushvalue(L, -1);
@@ -356,7 +399,7 @@ void* computerThread(void* data) {
             if (it == computers.end()) break;
         }
     }
-    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
+    queueTask([](void* arg)->void*{delete (Computer*)arg; return NULL;}, comp);
     return NULL;
 }
 

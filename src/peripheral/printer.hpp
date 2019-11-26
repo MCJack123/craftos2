@@ -56,6 +56,8 @@ private:
 
 public:
     static peripheral * init(lua_State *L, const char * side) {return new printer(L, side);}
+    static void deinit(peripheral * p) {delete (printer*)p;}
+    destructor getDestructor() {return deinit;}
     printer(lua_State *L, const char * side);
     ~printer();
     int call(lua_State *L, const char * method);

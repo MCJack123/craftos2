@@ -305,7 +305,7 @@ int termPanic(lua_State *L) {
     lua_getfield(L, -1, "traceback");
     //lua_call(L, 0, 1);
     //printf("%s\n", lua_tostring(L, -1));
-    lua_pop(L, 2);
+    lua_pop(L, 1);
     lua_Debug ar;
     lua_getstack(L, 1, &ar);
     lua_getinfo(L, "nSl", &ar);

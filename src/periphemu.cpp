@@ -45,6 +45,10 @@ std::unordered_map<std::string, peripheral_init> initializers = {
 	{"drive", &drive::init},
 };
 
+void registerPeripheral(std::string name, peripheral_init initializer) {
+	initializers[name] = initializer;
+}
+
 const char * peripheral_attach(lua_State *L, void* arg) {
     std::string * side = (std::string*)arg;
     lua_pushstring(L, side->c_str());
@@ -104,7 +108,7 @@ int periphemu_remove(lua_State* L) {
     if (std::string(computer->peripherals[side]->getMethods().name) == "drive") {
         computer->peripherals[side]->call(L, "ejectDisk");
     }
-	queueTask([ ](void* p)->void*{delete (peripheral*)p; return NULL;}, computer->peripherals[side]);
+	queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, computer->peripherals[side]);
 	computer->peripherals.erase(side);
     computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);

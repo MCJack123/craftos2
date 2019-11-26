@@ -23,6 +23,7 @@ Computer * get_comp(lua_State *L) {
 // add your functions here...
 
 struct luaL_reg M[] = {
+    // add functions here as {name, function}...
     {NULL, NULL}
 };
 
@@ -39,8 +40,10 @@ int luaopen_myplugin(lua_State *L) {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-int version(lua_State *L) {
+int plugin_info(lua_State *L) {
+    lua_newtable(L);
     lua_pushinteger(L, PLUGIN_VERSION);
+    lua_setfield(L, -2, "version");
     return 1;
 }
 }

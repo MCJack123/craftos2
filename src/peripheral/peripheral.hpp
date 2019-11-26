@@ -19,9 +19,11 @@ extern void peripheral_update(Computer *comp);
 
 class peripheral {
 public:
+    typedef void(*destructor)(peripheral*);
     peripheral() {} // unused
     peripheral(lua_State *L, const char * side) {}
-    virtual ~peripheral(){}
+    virtual ~peripheral()=0;
+    virtual destructor getDestructor()=0;
     virtual int call(lua_State *L, const char * method)=0;
     virtual void update()=0;
     virtual library_t getMethods()=0;
