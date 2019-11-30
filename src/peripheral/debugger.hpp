@@ -21,6 +21,8 @@
 #define DEBUGGER_BREAK_FUNC_ERROR   1
 #define DEBUGGER_BREAK_FUNC_LOAD    2
 #define DEBUGGER_BREAK_FUNC_RUN     4
+#define DEBUGGER_BREAK_FUNC_RESUME  8
+#define DEBUGGER_BREAK_FUNC_YIELD   16
 
 class debugger: public peripheral {
     friend int debugger_lib_getInfo(lua_State *L);
@@ -36,6 +38,12 @@ private:
     library_t * createDebuggerLibrary();
     static library_t methods;
 public:
+    struct profile_entry {
+        bool running;
+        unsigned long count;
+        std::chrono::high_resolution_clock::time_point start;
+        std::chrono::high_resolution_clock::duration time;
+    };
     std::atomic_bool running;
     Computer * computer;
     int breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
@@ -48,7 +56,7 @@ public:
     std::mutex breakMutex;
     std::condition_variable breakNotify;
     lua_State * volatile thread = NULL;
-    std::unordered_map<std::string, std::unordered_map<std::string, std::tuple<unsigned long, std::chrono::high_resolution_clock::time_point, std::chrono::high_resolution_clock::duration> > > profile;
+    std::unordered_map<std::string, std::unordered_map<std::string, profile_entry > > profile;
     bool isProfiling = false;
     static void deinit(peripheral * p) {delete (debugger*)p;}
     destructor getDestructor() {return deinit;}

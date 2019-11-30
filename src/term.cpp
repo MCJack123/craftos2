@@ -412,8 +412,10 @@ void termHook(lua_State *L, lua_Debug *ar) {
     } else if (!computer->isDebugger && computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL && debuggerBreak(L, computer, dbg, "Pause")) return;
-        if (dbg->isProfiling && ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end())
-            dbg->profile[ar->source][ar->name] = std::make_tuple(std::get<0>(dbg->profile[ar->source][ar->name]), std::chrono::high_resolution_clock::now(), std::get<2>(dbg->profile[ar->source][ar->name]) + (std::chrono::high_resolution_clock::now() - std::get<1>(dbg->profile[ar->source][ar->name])));
+        if (dbg->isProfiling && ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) != dbg->profile[ar->source].end()) {
+            dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
+            dbg->profile[ar->source][ar->name].running = false;
+        }
     } else if (!computer->isDebugger && computer->debugger != NULL && ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->thread == NULL) {
@@ -422,8 +424,17 @@ void termHook(lua_State *L, lua_Debug *ar) {
         }
         if (dbg->isProfiling) {
             if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
-            if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = std::make_tuple(1, std::chrono::high_resolution_clock::now(), std::chrono::milliseconds(0));
-            else dbg->profile[ar->source][ar->name] = std::make_tuple(std::get<0>(dbg->profile[ar->source][ar->name]) + 1, std::chrono::high_resolution_clock::now(), std::get<2>(dbg->profile[ar->source][ar->name]));
+            if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
+            else {
+                if (dbg->profile[ar->source][ar->name].running) {
+                    //printf("Function %s:%s skipped return for %d ms\n", ar->source, ar->name, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start).count());
+                    dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
+                    dbg->profile[ar->source][ar->name].running = false;
+                }
+                dbg->profile[ar->source][ar->name].running = true;
+                dbg->profile[ar->source][ar->name].count++;
+                dbg->profile[ar->source][ar->name].start = std::chrono::high_resolution_clock::now();
+            }
         }
     } else if (ar->event == LUA_HOOKERROR) {
         if (config.logErrors) printf("Got error: %s\n", lua_tostring(L, -2));
@@ -432,6 +443,14 @@ void termHook(lua_State *L, lua_Debug *ar) {
             if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_ERROR)) 
                 if (debuggerBreak(L, computer, dbg, lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2))) return;
         }
+    } else if (ar->event == LUA_HOOKRESUME && !computer->isDebugger && computer->debugger != NULL) {
+        debugger * dbg = (debugger*)computer->debugger;
+        if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RESUME)) 
+            if (debuggerBreak(L, computer, dbg, "Resume")) return;
+    } else if (ar->event == LUA_HOOKYIELD && !computer->isDebugger && computer->debugger != NULL) {
+        debugger * dbg = (debugger*)computer->debugger;
+        if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
+            if (debuggerBreak(L, computer, dbg, "Yield")) return;
     }
 }
 
