@@ -668,11 +668,6 @@ int term_scroll(lua_State *L) {
     return 0;
 }
 
-template<typename T>
-inline T min(T a, T b) {return a < b ? a : b;}
-template<typename T>
-inline T max(T a, T b) {return a > b ? a : b;}
-
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
