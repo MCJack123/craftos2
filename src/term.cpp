@@ -347,6 +347,57 @@ bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, const char
     return retval;
 }
 
+void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
+    lua_State *coro = lua_newthread(L);
+    lua_getglobal(coro, "os");
+    lua_getfield(coro, -1, "run");
+    lua_newtable(coro);
+    lua_pushstring(coro, "locals");
+    lua_newtable(coro);
+    const char * name;
+    for (int i = 1; (name = lua_getlocal(L, ar, i)) != NULL; i++) {
+        if (std::string(name) == "(*temporary)") {
+            lua_pop(L, 1);
+            continue;
+        }
+        lua_pushstring(coro, name);
+        lua_xmove(L, coro, 1);
+        lua_settable(coro, -3);
+    }
+    lua_settable(coro, -3);
+    lua_newtable(coro);
+    lua_pushstring(coro, "__index");
+    lua_getfenv(L, -2);
+    lua_xmove(L, coro, 1);
+    lua_settable(coro, -3);
+    lua_setmetatable(coro, -2);
+    lua_pushstring(coro, "/rom/programs/lua.lua");
+    int status = lua_resume(coro, 2);
+    int narg;
+    while (status == LUA_YIELD) {
+        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
+        else narg = getNextEvent(coro, "");
+        status = lua_resume(coro, narg);
+    }
+    lua_pop(L, 1);
+    computer->last_event = std::chrono::high_resolution_clock::now();
+}
+
+extern "C" {
+    int db_debug(lua_State *L) {
+        Computer * comp = get_comp(L);
+        if (!comp->isDebugger && comp->debugger != NULL) debuggerBreak(L, comp, (debugger*)comp->debugger, "debug.debug() called");
+        else {
+            lua_Debug ar;
+            lua_getstack(L, 1, &ar);
+            noDebuggerBreak(L, comp, &ar);
+        }
+        return 0;
+    }
+}
+
+extern const char KEY_HOOK;
+
 void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
     lua_getinfo(L, "nSlf", ar);
@@ -363,39 +414,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         if (computer->debugger == NULL && ::config.debug_enable) {
             for (std::pair<int, std::pair<std::string, int> > b : computer->breakpoints) {
                 if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
-                    lua_State *coro = lua_newthread(L);
-                    lua_getglobal(coro, "os");
-                    lua_getfield(coro, -1, "run");
-                    lua_newtable(coro);
-                    lua_pushstring(coro, "locals");
-                    lua_newtable(coro);
-                    const char * name;
-                    for (int i = 1; (name = lua_getlocal(L, ar, i)) != NULL; i++) {
-                        if (std::string(name) == "(*temporary)") {
-                            lua_pop(L, 1);
-                            continue;
-                        }
-                        lua_pushstring(coro, name);
-                        lua_xmove(L, coro, 1);
-                        lua_settable(coro, -3);
-                    }
-                    lua_settable(coro, -3);
-                    lua_newtable(coro);
-                    lua_pushstring(coro, "__index");
-                    lua_getfenv(L, -2);
-                    lua_xmove(L, coro, 1);
-                    lua_settable(coro, -3);
-                    lua_setmetatable(coro, -2);
-                    lua_pushstring(coro, "/rom/programs/lua.lua");
-                    int status = lua_resume(coro, 2);
-                    int narg;
-                    while (status == LUA_YIELD) {
-                        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
-                        else narg = getNextEvent(coro, "");
-                        status = lua_resume(coro, narg);
-                    }
-                    lua_pop(L, 1);
-                    computer->last_event = std::chrono::high_resolution_clock::now();
+                    noDebuggerBreak(L, computer, ar);
                 }
             }
         } else if (!computer->isDebugger && computer->debugger != NULL) {
@@ -451,6 +470,29 @@ void termHook(lua_State *L, lua_Debug *ar) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
             if (debuggerBreak(L, computer, dbg, "Yield")) return;
+    }
+    if (ar->event != LUA_HOOKCOUNT) {
+        lua_pushlightuserdata(L, (void*)&KEY_HOOK);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        if (lua_istable(L, -1)) {
+            lua_pushlightuserdata(L, L);
+            lua_gettable(L, -2);
+            if (lua_istable(L, -1)) {
+                lua_getfield(L, -1, "mask");
+                if (lua_tointeger(L, -1) & (1 << ar->event)) {
+                    lua_pop(L, 1);
+                    lua_getfield(L, -1, "func");
+                    if (lua_isfunction(L, -1)) {
+                        static const char *const hooknames[] = {"call", "return", "line", "count", "tail return", "error", "resume", "yield"};
+                        lua_pushstring(L, hooknames[ar->event]);
+                        if (ar->event == LUA_HOOKLINE) lua_pushinteger(L, ar->currentline);
+                        else lua_pushnil(L);
+                        lua_call(L, 2, 0);
+                    } else lua_pop(L, 1);
+                } else lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+        } else lua_pop(L, 1);
     }
 }
 
