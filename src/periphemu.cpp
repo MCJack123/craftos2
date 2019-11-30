@@ -85,9 +85,8 @@ int periphemu_create(lua_State* L) {
 			return 1;
 		}
 	} catch (std::exception &e) {
-		computer->peripherals_mutex.unlock();
 		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
-		lua_error(L);
+		return lua_error(L);
 	}
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);

@@ -396,7 +396,7 @@ extern "C" {
     }
 }
 
-extern const char KEY_HOOK;
+extern "C" {extern const char KEY_HOOK;}
 
 void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
@@ -412,7 +412,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         }
     } else if (ar->event == LUA_HOOKLINE) {
         if (computer->debugger == NULL && ::config.debug_enable) {
-            for (std::pair<int, std::pair<std::string, int> > b : computer->breakpoints) {
+            for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
                 if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
                     noDebuggerBreak(L, computer, ar);
                 }
@@ -423,7 +423,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
                     if (dbg->stepCount >= 0) {dbg->stepCount = 0; debuggerBreak(L, computer, dbg, "Pause");}
                     else dbg->stepCount--;
-                } else for (std::pair<int, std::pair<std::string, int> > b : computer->breakpoints)
+                } else for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints)
                         if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) 
                             if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
             }
