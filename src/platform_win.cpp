@@ -239,4 +239,17 @@ void migrateData() {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
 }
 
+std::unordered_map<std::string, HINSTANCE> dylibs;
+
+void * loadSymbol(std::string path, std::string symbol) {
+    HINSTANCE handle;
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibrary(path.c_str());
+    handle = dylibs[path];
+    return GetProcAddress(handle, symbol.c_str());
+}
+
+void unloadLibraries() {
+    for (auto lib : dylibs) FreeLibrary(lib.second);
+}
+
 #endif

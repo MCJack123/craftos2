@@ -255,3 +255,16 @@ void migrateData() {
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
         [[NSFileManager defaultManager] moveItemAtPath:[NSString stringWithCString:oldpath.c_str() encoding:NSASCIIStringEncoding] toPath:[NSString stringWithCString:getBasePath().c_str() encoding:NSASCIIStringEncoding] error:nil];
 }
+
+std::unordered_map<std::string, void*> dylibs;
+
+void * loadSymbol(std::string path, std::string symbol) {
+    void * handle;
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
+    handle = dylibs[path];
+    return dlsym(handle, symbol.c_str());
+}
+
+void unloadLibraries() {
+    for (auto lib : dylibs) dlclose(lib.second);
+}

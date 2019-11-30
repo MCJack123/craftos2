@@ -187,9 +187,6 @@ void Computer::run(std::string bios_name) {
         if (!::config.vanilla) {
             lua_newtable(L);
             lua_setfield(L, LUA_REGISTRYINDEX, "plugin_info");
-            lua_getglobal(L, "package");
-            lua_pushstring(L, "loadlib");
-            lua_gettable(L, -2);
             struct dirent *dir;
             std::string plugin_path = getPlugInPath();
             DIR * d = opendir(plugin_path.c_str());
@@ -199,15 +196,11 @@ void Computer::run(std::string bios_name) {
                     if (stat((plugin_path + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
                     if (std::string(dir->d_name) == ".DS_Store" || std::string(dir->d_name) == "desktop.ini") continue;
                     std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
-                    lua_pushvalue(L, -1);
-                    lua_pushfstring(L, "%s/%s", plugin_path.c_str(), dir->d_name);
-                    lua_pushfstring(L, "plugin_info", api_name.c_str());
-                    if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
-                    if (lua_isnil(L, -2)) {
+                    lua_CFunction info = (lua_CFunction)loadSymbol(plugin_path + "/" + dir->d_name, "plugin_info");
+                    if (info == NULL) {
                         printf("The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str()); 
-                        lua_pop(L, 2);
                     } else {
-                        if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
+                        lua_pushcfunction(L, info);
                         lua_call(L, 0, 1);
                         if (!lua_istable(L, -1)) printf("The plugin \"%s\" returned invalid info. Use at your own risk.", api_name.c_str());
                         else {
@@ -240,12 +233,9 @@ void Computer::run(std::string bios_name) {
                         }
                         lua_pop(L, 1);
                     }
-                    lua_pushvalue(L, -1);
-                    lua_pushfstring(L, "%s/%s", plugin_path.c_str(), dir->d_name);
-                    lua_pushfstring(L, "luaopen_%s", api_name.c_str());
-                    if (lua_pcall(L, 2, 2, 0) != 0) { lua_pop(L, 1); continue; }
-                    if (lua_isnil(L, -2)) {printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); lua_pop(L, 2); continue;}
-                    if (lua_isnoneornil(L, -1)) lua_pop(L, 1);
+                    lua_CFunction luaopen = (lua_CFunction)loadSymbol(plugin_path + "/" + dir->d_name, "luaopen_" + api_name);
+                    if (luaopen == NULL) {printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); continue;}
+                    lua_pushcfunction(L, luaopen);
                     lua_pushstring(L, getROMPath().c_str());
                     lua_pushstring(L, getBasePath().c_str());
                     lua_call(L, 2, 1);

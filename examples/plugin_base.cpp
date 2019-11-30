@@ -1,3 +1,10 @@
+/*
+ * plugin_base.cpp
+ * CraftOS-PC 2
+ * 
+ * This file can be used as a template for new plugins.
+ */
+
 extern "C" {
 #include <lua.h>
 #include <lauxlib.h>

@@ -1,3 +1,14 @@
+/*
+ * ccemux.cpp
+ * CraftOS-PC 2
+ * 
+ * This file creates a new CCEmuX API for backwards-compatibility with CCEmuX
+ * programs when run in CraftOS-PC.
+ * 
+ * This code is licensed under the MIT License.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
