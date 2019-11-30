@@ -47,6 +47,7 @@ std::string fixpath(Computer *comp, const char * path, bool addExt, std::string 
         else if (s != "." && s != "") pathc.push_back(s);
     }
     if (script_file != "" && addExt && pathc.size() == 1 && pathc.front() == "startup.lua") return script_file;
+    if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua") return getROMPath() + "/bios.lua";
     std::stringstream ss;
     if (addExt) {
         std::pair<size_t, std::string> max_path = std::make_pair(0, std::string(getBasePath()) + PATH_SEP + "computer" + PATH_SEP + std::to_string(comp->id));

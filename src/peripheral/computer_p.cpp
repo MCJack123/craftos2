@@ -81,4 +81,4 @@ const char * computer_keys[5] = {
     "isOn"
 };
 
-library_t computer::methods = {"computer", 5, computer_keys, NULL, NULL, NULL};
+library_t computer::methods = {"computer", 5, computer_keys, NULL, nullptr, nullptr};

@@ -41,12 +41,9 @@ int modem::transmit(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (lua_isnone(L, 3)) bad_argument(L, "value", 3);
-    if (lua_gettop(L) > 3) lua_pop(L, lua_gettop(L) - 3);
-    lua_State *param = lua_newthread(L);
-    lua_xmove(L, param, 2);
-    lua_xmove(param, L, 1);
+    lua_settop(L, 3);
     uint16_t port = lua_tointeger(L, 1);
-    for (modem* m : network) if (m != this && m->openPorts.find(port) != m->openPorts.end()) m->receive(port, lua_tointeger(L, 2), param);
+    for (modem* m : network) if (m != this && m->openPorts.find(port) != m->openPorts.end()) m->receive(port, lua_tointeger(L, 2), L);
     return 0;
 }
 
@@ -55,34 +52,75 @@ int modem::isWireless(lua_State *L) {
     return 1;
 }
 
-struct modem_message_data {
-    const char * side;
-    uint16_t port;
-    uint16_t replyPort;
-    lua_State *param;
-};
-
 const char * modem_message(lua_State *L, void* data) {
-    struct modem_message_data * message = (struct modem_message_data*)data;
-    lua_pushstring(L, message->side);
-    lua_pushinteger(L, message->port);
-    lua_pushinteger(L, message->replyPort);
-    lua_xmove(message->param, L, 1);
-    delete message;
+    lua_State *message = (lua_State*)data;
+    lua_xmove(message, L, 4);
+    modem * m = (modem*)lua_touserdata(message, 1);
+    lua_remove(m->eventQueue, 1);
     return "modem_message";
 };
 
+static void xcopy1(lua_State *L, lua_State *T, int n) {
+    switch (lua_type(L, n)) {
+    case LUA_TBOOLEAN:
+        lua_pushboolean(T, lua_toboolean(L, n));
+        break;
+    case LUA_TNUMBER:
+        lua_pushnumber(T, lua_tonumber(L, n));
+        break;
+    case LUA_TSTRING:
+        lua_pushlstring(T, lua_tostring(L, n), lua_strlen(L, n));
+        break;
+    case LUA_TLIGHTUSERDATA:
+        lua_pushlightuserdata(T, (void *)lua_touserdata(L, n));
+        break;
+    case LUA_TFUNCTION:
+        if (lua_iscfunction(L, n)) lua_pushcfunction(T, lua_tocfunction(L, n));
+        else lua_pushnil(T);
+        break;
+    default:
+        lua_pushnil(T);
+        break;
+    }
+}
+
+/* table is in the stack at index 't' */
+static void xcopy(lua_State *L, lua_State *T, int t) {
+    int w;
+    lua_newtable(T);
+    w = lua_gettop(T);
+    lua_pushnil(L); /* first key */
+    while (lua_next(L, t) != 0) {
+        xcopy1(L, T, -2);
+        if (lua_type(L, -1) == LUA_TTABLE)
+            xcopy(L, T, lua_gettop(L));
+        else
+            xcopy1(L, T, -1);
+        lua_settable(T, w);
+        lua_pop(L, 1);
+    }
+}
+
 void modem::receive(uint16_t port, uint16_t replyPort, lua_State *param) {
-    struct modem_message_data * message = new struct modem_message_data;
-    message->side = side.c_str();
-    message->port = port;
-    message->replyPort = replyPort;
-    message->param = param;
+    lua_checkstack(eventQueue, 5);
+    lua_State *message = lua_newthread(eventQueue);
+    lua_pushlightuserdata(message, this);
+    lua_pushstring(message, side.c_str());
+    lua_pushinteger(message, lua_tointeger(param, 1));
+    lua_pushinteger(message, lua_tointeger(param, 2));
+    if (lua_type(param, 3) == LUA_TNUMBER) lua_pushnumber(message, lua_tonumber(param, 3));
+    else if (lua_type(param, 3) == LUA_TSTRING) lua_pushlstring(message, lua_tostring(param, 3), lua_strlen(param, 3));
+    else if (lua_type(param, 3) == LUA_TBOOLEAN) lua_pushboolean(message, lua_toboolean(param, 3));
+    else if (lua_type(param, 3) == LUA_TLIGHTUSERDATA) lua_pushlightuserdata(message, lua_touserdata(param, 3));
+    else if (lua_type(param, 3) == LUA_TFUNCTION && lua_iscfunction(param, 3)) lua_pushcfunction(message, lua_tocfunction(param, 3));
+    else if (lua_type(param, 3) == LUA_TTABLE) xcopy(param, message, 3);
+    else lua_pushnil(message);
     termQueueProvider(comp, modem_message, message);
 }
 
 modem::modem(lua_State *L, const char * side) {
     comp = get_comp(L);
+    eventQueue = lua_newthread(comp->L);
     this->side = side;
     network.push_back(this);
 }
@@ -111,4 +149,4 @@ const char * modem_keys[6] = {
     "isWireless"
 };
 
-library_t modem::methods = {"modem", 6, modem_keys, NULL, NULL, NULL};
+library_t modem::methods = {"modem", 6, modem_keys, NULL, nullptr, nullptr};

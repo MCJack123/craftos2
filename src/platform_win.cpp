@@ -20,20 +20,15 @@
 #include <unordered_map>
 #include <processenv.h>
 #include <shlwapi.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "http.hpp"
 
-const char * base_path = "%USERPROFILE%\\.craftos";
+const char * base_path = "%appdata%\\CraftOS-PC";
 const char * rom_path = "%ProgramFiles%\\CraftOS-PC";
 std::string base_path_expanded;
 std::string rom_path_expanded;
 char expand_tmp[32767];
-
-std::wstring s2ws(const std::string& str) {
-	int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
-	std::wstring wstrTo(size_needed, 0);
-	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
-	return wstrTo;
-}
 
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
@@ -200,6 +195,61 @@ void updateNow(std::string tagname) {
         CloseHandle(process.hThread);
         exit(0);
     });
+}
+
+std::vector<std::string> failedCopy;
+
+int recursiveCopy(std::string path, std::string toPath) {
+	DWORD attr = GetFileAttributesA(path.c_str());
+    if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
+	if (attr & FILE_ATTRIBUTE_DIRECTORY) {
+        if (CreateDirectoryExA(toPath.substr(0, toPath.find_last_of('\\', toPath.size() - 2)).c_str(), toPath.c_str(), NULL) == 0) return GetLastError();
+        WIN32_FIND_DATA find;
+        std::string s = path;
+        if (path[path.size() - 1] != '\\') s += "\\";
+        s += "*";
+        HANDLE h = FindFirstFileA(s.c_str(), &find);
+        if (h != INVALID_HANDLE_VALUE) {
+            do {
+                if (!(find.cFileName[0] == '.' && (strlen(find.cFileName) == 1 || (find.cFileName[1] == '.' && strlen(find.cFileName) == 2)))) {
+                    std::string newpath = path;
+                    if (path[path.size() - 1] != '\\') newpath += "\\";
+                    newpath += find.cFileName;
+                    int res = recursiveCopy(newpath, toPath + "\\" + std::string(find.cFileName));
+                    if (res) {
+                        //FindClose(h);
+                        //return res;
+                        failedCopy.push_back(toPath + "\\" + std::string(find.cFileName));
+                    }
+                }
+            } while (FindNextFileA(h, &find));
+            FindClose(h);
+        }
+        return RemoveDirectoryA(path.c_str()) ? 0 : GetLastError();
+	} else return MoveFileA(path.c_str(), toPath.c_str()) ? 0 : GetLastError();
+}
+
+void migrateData() {
+    DWORD size = ExpandEnvironmentStringsA("%USERPROFILE%\\.craftos", expand_tmp, 32767);
+    std::string oldpath = expand_tmp;
+    struct stat st;
+    if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0)
+        recursiveCopy(oldpath, getBasePath());
+    if (!failedCopy.empty())
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
+}
+
+std::unordered_map<std::string, HINSTANCE> dylibs;
+
+void * loadSymbol(std::string path, std::string symbol) {
+    HINSTANCE handle;
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibrary(path.c_str());
+    handle = dylibs[path];
+    return GetProcAddress(handle, symbol.c_str());
+}
+
+void unloadLibraries() {
+    for (auto lib : dylibs) FreeLibrary(lib.second);
 }
 
 #endif

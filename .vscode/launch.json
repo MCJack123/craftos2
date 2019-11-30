@@ -6,20 +6,11 @@
     "configurations": [
         {
             "name": "(lldb) Launch",
-            "type": "cppdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/craftos",
             "args": [],
-            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "HOME",
-                    "value": "${env:HOME}"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "lldb",
             "preLaunchTask": "Build"
         },
         {

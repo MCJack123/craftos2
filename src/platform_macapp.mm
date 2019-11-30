@@ -23,6 +23,7 @@ extern "C" {
 #include <pthread.h>
 #include <glob.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -40,17 +41,16 @@ extern "C" {
 #include "os.hpp"
 
 extern bool exiting;
-const char * base_path = "$HOME/.craftos";
-std::string base_path_expanded;
 std::string rom_path_expanded;
 
 std::string getBasePath() {
-    if (!base_path_expanded.empty()) return base_path_expanded;
-    wordexp_t p;
-    wordexp(base_path, &p, 0);
-    base_path_expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
-    return base_path_expanded;
+    return std::string([[[NSFileManager defaultManager] 
+                         URLForDirectory:NSApplicationSupportDirectory 
+                         inDomain:NSUserDomainMask 
+                         appropriateForURL:[NSURL fileURLWithPath:@"/"] 
+                         create:NO 
+                         error:nil
+                        ] fileSystemRepresentation]) + "/CraftOS-PC";
 }
 
 std::string getROMPath() {
@@ -79,7 +79,7 @@ int createDirectory(std::string path) {
         if (errno == ENOENT && path != "/") {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
             mkdir(path.c_str(), 0777);
-        } else return 1;
+        } else if (errno != EEXIST) return 1;
     }
     return 0;
 }
@@ -94,7 +94,6 @@ int removeDirectory(std::string path) {
                 struct dirent *p;
                 r = 0;
                 while (!r && (p=readdir(d))) {
-                    int r2 = -1;
                     /* Skip the names "." and ".." as we don't want to recurse on them. */
                     if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
                     r = removeDirectory(path + "/" + std::string(p->d_name));
@@ -245,4 +244,28 @@ void updateNow(std::string tag_name) {
             }];
         }
     });
+}
+
+void migrateData() {
+    wordexp_t p;
+    struct stat st;
+    wordexp("$HOME/.craftos", &p, 0);
+    std::string oldpath = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    wordfree(&p);
+    if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
+        [[NSFileManager defaultManager] moveItemAtPath:[NSString stringWithCString:oldpath.c_str() encoding:NSASCIIStringEncoding] toPath:[NSString stringWithCString:getBasePath().c_str() encoding:NSASCIIStringEncoding] error:nil];
+}
+
+std::unordered_map<std::string, void*> dylibs;
+
+void * loadSymbol(std::string path, std::string symbol) {
+    void * handle;
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
+    handle = dylibs[path];
+    return dlsym(handle, symbol.c_str());
+}
+
+void unloadLibraries() {
+    for (auto lib : dylibs) dlclose(lib.second);
 }

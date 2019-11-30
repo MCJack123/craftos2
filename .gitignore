@@ -18,3 +18,5 @@ Makefile
 config.log
 config.status
 CraftOS-PC.dmg
+.DS_Store
+example_peripheral.dylib

@@ -24,6 +24,7 @@ extern "C" {
 #include <pthread.h>
 #include <glob.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -36,7 +37,7 @@ std::string rom_path_expanded;
 #else
 const char * rom_path = "/usr/local/share/craftos";
 #endif
-const char * base_path = "$HOME/.craftos";
+const char * base_path = "$HOME/Library/Application\\ Support/CraftOS-PC";
 std::string base_path_expanded;
 
 std::string getBasePath() {
@@ -73,7 +74,7 @@ int createDirectory(std::string path) {
         if (errno == ENOENT && path != "/") {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
             mkdir(path.c_str(), 0777);
-        } else return 1;
+        } else if (errno != EEXIST) return 1;
     }
     return 0;
 }
@@ -134,6 +135,53 @@ void pushHostString(lua_State *L) {
 
 void updateNow(std::string tag_name) {
     printf("Updating is not available on Mac terminal builds.\n");
+}
+
+int recursiveCopy(std::string fromDir, std::string toDir) {
+    struct stat statbuf;
+    if (!stat(fromDir.c_str(), &statbuf)) {
+        if (S_ISDIR(statbuf.st_mode)) {
+            createDirectory(toDir);
+            DIR *d = opendir(fromDir.c_str());
+            int r = -1;
+            if (d) {
+                struct dirent *p;
+                r = 0;
+                while (!r && (p=readdir(d))) {
+                    /* Skip the names "." and ".." as we don't want to recurse on them. */
+                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+                    r = recursiveCopy(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
+                }
+                closedir(d);
+            }
+            if (!r) r = rmdir(fromDir.c_str());
+            return r;
+        } else return rename(fromDir.c_str(), toDir.c_str());
+    } else return -1;
+}
+
+void migrateData() {
+    wordexp_t p;
+    struct stat st;
+    wordexp("$HOME/.craftos", &p, 0);
+    std::string oldpath = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    wordfree(&p);
+    if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
+        recursiveCopy(oldpath, getBasePath());
+}
+
+std::unordered_map<std::string, void*> dylibs;
+
+void * loadSymbol(std::string path, std::string symbol) {
+    void * handle;
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
+    handle = dylibs[path];
+    return dlsym(handle, symbol.c_str());
+}
+
+void unloadLibraries() {
+    for (auto lib : dylibs) dlclose(lib.second);
 }
 
 #endif // __INTELLISENSE__

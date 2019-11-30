@@ -25,6 +25,9 @@ extern std::string getBasePath();
 extern std::string getROMPath();
 extern std::string getPlugInPath();
 extern void updateNow(std::string tag_name);
+extern void migrateData();
+extern void * loadSymbol(std::string path, std::string symbol);
+extern void unloadLibraries();
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

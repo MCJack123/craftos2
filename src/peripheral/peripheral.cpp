@@ -12,6 +12,8 @@
 #include <unordered_map>
 #include <string>
 
+peripheral::~peripheral(){}
+
 int peripheral_isPresent(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * computer = get_comp(L);
@@ -89,4 +91,4 @@ lua_CFunction peripheral_values[4] = {
     peripheral_call
 };
 
-library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values, NULL, NULL};
+library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values, nullptr, nullptr};

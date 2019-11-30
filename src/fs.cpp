@@ -447,4 +447,4 @@ lua_CFunction fs_values[16] = {
     fs_getDir
 };
 
-library_t fs_lib = {"fs", 16, fs_keys, fs_values, NULL, NULL};
+library_t fs_lib = {"fs", 16, fs_keys, fs_values, nullptr, nullptr};

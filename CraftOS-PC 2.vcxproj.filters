@@ -122,6 +122,9 @@
     <ClInclude Include="src\peripheral\drive.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\peripheral\debugger.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\peripheral\monitor.cpp">
@@ -190,13 +193,13 @@
     <ClCompile Include="src\peripheral\computer_p.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\liolib.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\peripheral\drive.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\font.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\debugger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

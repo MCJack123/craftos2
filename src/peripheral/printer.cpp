@@ -271,4 +271,4 @@ const char * printer_keys[9] = {
     "getPaperLevel"
 };
 
-library_t printer::methods = {"printer", 9, printer_keys, NULL, NULL, NULL};
+library_t printer::methods = {"printer", 9, printer_keys, NULL, nullptr, nullptr};

@@ -17,5 +17,6 @@ extern const char * termGetEvent(lua_State *L);
 extern int termHasEvent(Computer * computer);
 extern void termRenderLoop();
 extern void termHook(lua_State *L, lua_Debug *ar);
+extern int termPanic(lua_State *L);
 extern void termQueueProvider(Computer *comp, event_provider p, void* data);
 #endif

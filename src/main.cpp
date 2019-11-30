@@ -29,7 +29,7 @@ extern void config_save(bool deinit);
 extern void mainLoop();
 extern void awaitTasks();
 extern void http_server_stop();
-extern void* queueTask(std::function<void*(void*)> func, void* arg);
+extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 bool headless = false;
@@ -113,6 +113,7 @@ int main(int argc, char*argv[]) {
         std::cerr << "Error: Cannot combine headless & CLI options\n";
         return 1;
     }
+    migrateData();
     config_init();
 #ifndef NO_CLI
     if (cli) cliInit();
@@ -120,11 +121,11 @@ int main(int argc, char*argv[]) {
 #endif
         termInit();
     driveInit();
-    if (!headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
+    if (!CRAFTOSPC_INDEV && !headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
-    startComputer(0);
+    startComputer(config.initialComputer);
     mainLoop();
-    for (std::thread *t : computerThreads) { t->join(); delete t; }
+    for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     driveQuit();
     http_server_stop();
     config_save(true);

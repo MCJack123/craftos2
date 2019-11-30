@@ -14,7 +14,11 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
+    - name: Build Lua
+      run: |
+        git submodule update --init --recursive
+        make -C craftos2-lua linux
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure

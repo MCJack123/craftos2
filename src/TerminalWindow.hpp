@@ -41,10 +41,12 @@ public:
 
 class TerminalWindow {
     friend void mainLoop();
+    friend int termPanic(lua_State *L);
 public:
     unsigned id;
     int width;
     int height;
+    bool changed = true;
     static const int fontWidth = 6;
     static const int fontHeight = 9;
     static std::list<TerminalWindow*> renderTargets;
@@ -70,7 +72,7 @@ public:
     int dpiScale = 1;
     int charWidth = fontWidth * 2/fontScale * charScale;
     int charHeight = fontHeight * 2/fontScale * charScale;
-    std::vector<std::vector<char> > screen;
+    std::vector<std::vector<unsigned char> > screen;
     std::vector<std::vector<unsigned char> > colors;
     std::vector<std::vector<unsigned char> > pixels;
     volatile int mode = 0;
@@ -89,7 +91,7 @@ public:
     virtual ~TerminalWindow();
     void setPalette(Color * p);
     void setCharScale(int scale);
-    bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
+    bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
     virtual void render();
     bool resize(int w, int h);
     void getMouse(int *x, int *y);
@@ -105,6 +107,6 @@ private:
     SDL_Surface *surf = NULL;
     SDL_Surface *bmp;
 
-    static SDL_Rect getCharacterRect(char c);
+    static SDL_Rect getCharacterRect(unsigned char c);
 };
 #endif
