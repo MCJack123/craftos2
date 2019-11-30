@@ -119,7 +119,10 @@ int periphemu_remove(lua_State* L) {
 
 int periphemu_names(lua_State *L) {
     lua_newtable(L);
-    int i = 1;
+	lua_pushinteger(L, 1);
+	lua_pushstring(L, "debugger");
+	lua_settable(L, -3);
+    int i = 2;
     for (auto entry : initializers) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, entry.first.c_str());
