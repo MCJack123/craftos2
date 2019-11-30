@@ -23,6 +23,7 @@ extern "C" {
 #include <pthread.h>
 #include <glob.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <string>
 #include <vector>
 #include <sstream>

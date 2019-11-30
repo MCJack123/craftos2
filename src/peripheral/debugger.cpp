@@ -61,8 +61,8 @@ int debugger_lib_waitForBreak(lua_State *L) {
         dbg->didBreak = true;
         dbg->confirmBreak = false;
         while (!dbg->confirmBreak) {
-        if (freedComputers.find(comp) == freedComputers.end())
-            termQueueProvider(comp, debugger_break, NULL);
+            if (freedComputers.find(comp) == freedComputers.end())
+                termQueueProvider(comp, debugger_break, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
     }, comp);

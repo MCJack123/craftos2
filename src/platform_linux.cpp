@@ -25,6 +25,7 @@ extern "C" {
 #include <glob.h>
 #include <dirent.h>
 #include <pthread.h>
+#include <dlfcn.h>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -66,7 +67,7 @@ std::string getROMPath() {
     wordexp_t p;
     wordexp(rom_path, &p, 0);
     rom_path_expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) rom_path_expanded += p.we_wordv[i];
+    for (unsigned i = 1; i < p.we_wordc; i++) rom_path_expanded += p.we_wordv[i];
     wordfree(&p);
     return rom_path_expanded;
 }
@@ -179,7 +180,7 @@ void migrateData() {
     struct stat st;
     wordexp("$HOME/.craftos", &p, 0);
     std::string oldpath = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    for (unsigned i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
     wordfree(&p);
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
         recursiveCopy(oldpath, getBasePath());
