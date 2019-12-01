@@ -10,7 +10,7 @@ CraftOS-PC.app
 /autom4te.cache
 /CraftOS-PC
 /CraftOS-PC.xcodeproj
-ccemux.dylib
+/ccemux.*
 .vscode/c_cpp_properties.json
 codesign
 CraftOS-PC 2.code-workspace
