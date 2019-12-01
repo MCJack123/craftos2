@@ -10,7 +10,7 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
   * Ubuntu 18.04, 19.04, 19.10
   * Arch Linux with AUR helper
 * Administrator privileges
-* 7 MB free space
+* 20 MB free space
 
 ## Installing
 ### Windows
@@ -57,9 +57,6 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
 * SDL 2.0.8+ (may work on older versions on non-Linux)
-* SDL_mixer 2.0+
-  * For MP3 support, libmpg123 is required
-  * For FLAC support, libFLAC is required
 * OpenSSL 1.0.x
 * Windows: dirent.h
 * POCO NetSSL + JSON libraries + dependencies
@@ -78,6 +75,10 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Can be disabled with `--without-hpdf`, `--with-html` or `--with-txt`
 * ncurses
   * Can be disabled with `--without-ncurses`, will disable CLI support
+* SDL_mixer 2.0+
+  * Can be disabled with `--without-sdl_mixer`, will disable audio disc support
+  * For MP3 support, libmpg123 is required
+  * For FLAC support, libFLAC is required
 * The path to the ROM package can be changed with `--prefix=<path>`, which will store the ROM at `<path>/share/craftos`
 
 You can get all of these dependencies with:

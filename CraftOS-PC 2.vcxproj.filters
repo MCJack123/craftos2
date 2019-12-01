@@ -31,13 +31,13 @@
     <None Include="LICENSE">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="README.md">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="Info.plist">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="Makefile.in">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="README.md">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
