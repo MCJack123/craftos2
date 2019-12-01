@@ -11,10 +11,12 @@
 #ifndef PERIPHERAL_DRIVE_HPP
 #define PERIPHERAL_DRIVE_HPP
 #include <unordered_set>
+#ifndef NO_MIXER
 #ifdef _WIN32
 #include <SDL_mixer.h>
 #else
 #include <SDL2/SDL_mixer.h>
+#endif
 #endif
 #include "peripheral.hpp"
 #include "../mounter.hpp"
@@ -31,7 +33,11 @@ private:
     disk_type diskType = DISK_TYPE_NONE;
     std::string mount_path;
     std::string path;
+#ifndef NO_MIXER
     Mix_Music* music = NULL;
+#else
+    void* music = NULL;
+#endif
     int id = 0;
     static std::unordered_set<int> usedMounts;
     int isDiskPresent(lua_State *L);

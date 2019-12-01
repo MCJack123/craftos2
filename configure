@@ -653,6 +653,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -677,6 +678,7 @@ ac_user_opts='
 enable_option_checking
 with_png
 with_ncurses
+with_sdl_mixer
 with_hpdf
 with_html
 with_txt
@@ -731,6 +733,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -983,6 +986,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1120,7 +1132,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1273,6 +1285,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1305,6 +1318,8 @@ Optional Packages:
   --without-png           do not support PNG screenshots
   --with-ncurses          support CLI mode
   --without-ncurses       do not support CLI mode
+  --with-sdl_mixer        support audio disks
+  --without-sdl_mixer     do not support audio disks
   --with-hpdf             make printer output PDF files
   --with-html             make printer output HTML files
   --with-txt              make printer output text files
@@ -2138,6 +2153,18 @@ fi
 # Check whether --with-ncurses was given.
 if test "${with_ncurses+set}" = set; then :
   withval=$with_ncurses;
+fi
+
+
+# Check whether --with-sdl_mixer was given.
+if test "${with_sdl_mixer+set}" = set; then :
+  withval=$with_sdl_mixer;
+fi
+
+
+# Check whether --with-sdl_mixer was given.
+if test "${with_sdl_mixer+set}" = set; then :
+  withval=$with_sdl_mixer;
 fi
 
 
@@ -3852,79 +3879,6 @@ else
 fi
 
 
-for ac_header in SDL2/SDL_mixer.h
-do :
-  ac_fn_cxx_check_header_mongrel "$LINENO" "SDL2/SDL_mixer.h" "ac_cv_header_SDL2_SDL_mixer_h" "$ac_includes_default"
-if test "x$ac_cv_header_SDL2_SDL_mixer_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_SDL2_SDL_MIXER_H 1
-_ACEOF
-
-else
-  as_fn_error $? "Could not find SDL_mixer header." "$LINENO" 5
-fi
-
-done
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing Mix_Init" >&5
-$as_echo_n "checking for library containing Mix_Init... " >&6; }
-if ${ac_cv_search_Mix_Init+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char Mix_Init ();
-int
-main ()
-{
-return Mix_Init ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' SDL2_mixer; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_search_Mix_Init=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_Mix_Init+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_Mix_Init+:} false; then :
-
-else
-  ac_cv_search_Mix_Init=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_Mix_Init" >&5
-$as_echo "$ac_cv_search_Mix_Init" >&6; }
-ac_res=$ac_cv_search_Mix_Init
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-else
-  as_fn_error $? "Could not find SDL2_mixer library." "$LINENO" 5
-fi
-
-
 for ac_header in openssl/opensslv.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "openssl/opensslv.h" "ac_cv_header_openssl_opensslv_h" "$ac_includes_default"
@@ -5487,6 +5441,93 @@ else
   NO_CLI=1
 fi
 
+if test "x$with_sdl_mixer" != "xno"; then :
+
+	for ac_header in SDL2/SDL_mixer.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "SDL2/SDL_mixer.h" "ac_cv_header_SDL2_SDL_mixer_h" "$ac_includes_default"
+if test "x$ac_cv_header_SDL2_SDL_mixer_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SDL2_SDL_MIXER_H 1
+_ACEOF
+
+else
+  if test "x$with_sdl_mixer" = "xyes"; then :
+  as_fn_error $? "Could not find SDL2_mixer header." "$LINENO" 5
+else
+  NO_MIXER=1
+fi
+fi
+
+done
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing Mix_Init" >&5
+$as_echo_n "checking for library containing Mix_Init... " >&6; }
+if ${ac_cv_search_Mix_Init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char Mix_Init ();
+int
+main ()
+{
+return Mix_Init ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' SDL2_mixer; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_search_Mix_Init=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_Mix_Init+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_Mix_Init+:} false; then :
+
+else
+  ac_cv_search_Mix_Init=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_Mix_Init" >&5
+$as_echo "$ac_cv_search_Mix_Init" >&6; }
+ac_res=$ac_cv_search_Mix_Init
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else
+  if test "x$with_sdl_mixer" = "xyes"; then :
+  as_fn_error $? "Could not find SDL2_mixer library." "$LINENO" 5
+else
+  NO_MIXER=1
+fi
+fi
+
+
+else
+  NO_MIXER=1
+fi
+
 if test "x$PRINT_TYPE" = "x" || test "x$PRINT_TYPE" = "x0"; then :
 
     for ac_header in hpdf.h
@@ -5574,6 +5615,7 @@ fi
 
 if test "x$NO_PNG" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_PNG"; fi
 if test "x$NO_CLI" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_CLI"; fi
+if test "x$NO_MIXER" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_MIXER"; fi
 if test "x$PRINT_TYPE" != "x"; then CPPFLAGS="$CPPFLAGS -DPRINT_TYPE=$PRINT_TYPE"; fi
 
 ac_config_files="$ac_config_files Makefile"
