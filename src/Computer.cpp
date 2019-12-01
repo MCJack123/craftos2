@@ -137,6 +137,19 @@ library_t * getLibrary(std::string name) {
     else return NULL;
 }
 
+static void pluginError(lua_State *L, const char * name, const char * err) {
+    lua_getglobal(L, "_CCPC_PLUGIN_ERRORS");
+    if (lua_isnil(L, -1)) {
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setglobal(L, "_CCPC_PLUGIN_ERRORS");
+    }
+    lua_pushstring(L, name);
+    lua_pushstring(L, err);
+    lua_settable(L, -3);
+    lua_pop(L, 1);
+}
+
 // Main computer loop
 void Computer::run(std::string bios_name) {
     running = 1;
@@ -199,18 +212,24 @@ void Computer::run(std::string bios_name) {
                     lua_CFunction info = (lua_CFunction)loadSymbol(plugin_path + "/" + dir->d_name, "plugin_info");
                     if (info == NULL) {
                         printf("The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str()); 
+                        pluginError(L, api_name.c_str(), "Missing plugin info");
                     } else {
                         lua_pushcfunction(L, info);
                         lua_call(L, 0, 1);
-                        if (!lua_istable(L, -1)) printf("The plugin \"%s\" returned invalid info. Use at your own risk.", api_name.c_str());
-                        else {
+                        if (!lua_istable(L, -1)) {
+                            printf("The plugin \"%s\" returned invalid info. Use at your own risk.", api_name.c_str());
+                            pluginError(L, api_name.c_str(), "Invalid plugin info");
+                        } else {
                             lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
                             lua_pushvalue(L, -2);
                             lua_setfield(L, -2, api_name.c_str());
                             lua_pop(L, 1);
-
+                            
                             lua_getfield(L, -1, "version");
-                            if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) printf("The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
+                            if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) {
+                                printf("The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
+                                pluginError(L, api_name.c_str(), "Old plugin API");
+                            }
                             lua_pop(L, 1);
 
                             lua_getfield(L, -1, "register_getLibrary");
@@ -234,7 +253,11 @@ void Computer::run(std::string bios_name) {
                         lua_pop(L, 1);
                     }
                     lua_CFunction luaopen = (lua_CFunction)loadSymbol(plugin_path + "/" + dir->d_name, "luaopen_" + api_name);
-                    if (luaopen == NULL) {printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); continue;}
+                    if (luaopen == NULL) {
+                        printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); 
+                        pluginError(L, api_name.c_str(), "Missing API opener");
+                        continue;
+                    }
                     lua_pushcfunction(L, luaopen);
                     lua_pushstring(L, getROMPath().c_str());
                     lua_pushstring(L, getBasePath().c_str());

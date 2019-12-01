@@ -20,3 +20,4 @@ config.status
 CraftOS-PC.dmg
 .DS_Store
 example_peripheral.dylib
+/src/lua51.lib
