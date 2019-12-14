@@ -249,6 +249,12 @@ void Computer::run(std::string bios_name) {
                                 lua_pushlightuserdata(L, (void*)&addMount);
                                 lua_call(L, 1, 0);
                             } else lua_pop(L, 1);
+
+                            lua_getfield(L, -1, "register_termQueueProvider");
+                            if (lua_isfunction(L, -1)) {
+                                lua_pushlightuserdata(L, (void*)&termQueueProvider);
+                                lua_call(L, 1, 0);
+                            } else lua_pop(L, 1);
                         }
                         lua_pop(L, 1);
                     }
