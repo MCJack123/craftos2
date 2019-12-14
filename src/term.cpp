@@ -577,6 +577,7 @@ const char * termGetEvent(lua_State *L) {
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->screenshot();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->toggleRecording();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F11 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->toggleFullscreen();
+            else if (e.key.keysym.scancode == SDL_SCANCODE_F12 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->screenshot("clipboard");
             else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate == 1) {
                     computer->waitingForTerminate = 2;

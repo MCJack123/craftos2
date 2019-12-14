@@ -120,34 +120,6 @@ unsigned long long getFreeSpace(std::string path) {
 	return st.f_bavail * st.f_bsize;
 }
 
-#if defined(__i386__) || defined(__i386) || defined(i386)
-#define ARCHITECTURE "i386"
-#elif defined(__amd64__) || defined(__amd64)
-#define ARCHITECTURE "amd64"
-#elif defined(__x86_64__) || defined(__x86_64)
-#define ARCHITECTURE "x86_64"
-#elif defined(__ia64__) || defined(__ia64) || defined(_IA64)
-#define ARCHITECTURE "ia64"
-#elif defined(__arm__)
-#define ARCHITECTURE "armv7"
-#elif defined(__aarch64__) || defined(__aarch64)
-#define ARCHITECTURE "aarch64"
-#elif defined(__arm64__) || defined(__arm64)
-#define ARCHITECTURE "arm64"
-#elif defined(__powerpc__) || defined(__powerpc) || defined(__ppc__)
-#define ARCHITECTURE "powerpc"
-#elif defined(__powerpc64__) || defined(__ppc64)
-#define ARCHITECTURE "ppc64"
-#else
-#define ARCHITECTURE "unknown"
-#endif
-
-void pushHostString(lua_State *L) {
-    struct utsname host;
-    uname(&host);
-    lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
-}
-
 void updateNow(std::string tag_name) {
     
 }
@@ -197,6 +169,10 @@ void * loadSymbol(std::string path, std::string symbol) {
 
 void unloadLibraries() {
     for (auto lib : dylibs) dlclose(lib.second);
+}
+
+void copyImage(unsigned width, unsigned height, unsigned pitch, char * data) {
+    fprintf(stderr, "Warning: Linux does not support taking screenshots to the clipboard.\n");
 }
 
 #endif // __INTELLISENSE__

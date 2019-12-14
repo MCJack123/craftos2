@@ -33,6 +33,7 @@ extern "C" {
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <SDL2/SDL.h>
+#include <png++/png.hpp>
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #include "platform.hpp"
@@ -110,32 +111,6 @@ unsigned long long getFreeSpace(std::string path) {
 	struct statvfs st;
 	if (statvfs(path.c_str(), &st) != 0) return 0;
 	return st.f_bavail * st.f_bsize;
-}
-
-#if defined(__i386__) || defined(__i386) || defined(i386)
-#define ARCHITECTURE "i386"
-#elif defined(__amd64__) || defined(__amd64)
-#define ARCHITECTURE "amd64"
-#elif defined(__x86_64__) || defined(__x86_64)
-#define ARCHITECTURE "x86_64"
-#elif defined(__arm__) || defined(__arm)
-#define ARCHITECTURE "armv7"
-#elif defined(__arm64__) || defined(__arm64)
-#define ARCHITECTURE "arm64"
-#elif defined(__aarch64__) || defined(__aarch64)
-#define ARCHITECTURE "aarch64"
-#elif defined(__powerpc__) || defined(__powerpc) || defined(__ppc__)
-#define ARCHITECTURE "powerpc"
-#elif defined(__powerpc64__) || defined(__ppc64)
-#define ARCHITECTURE "ppc64"
-#else
-#define ARCHITECTURE "unknown"
-#endif
-
-void pushHostString(lua_State *L) {
-    struct utsname host;
-    uname(&host);
-    lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
 }
 
 CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {
@@ -268,4 +243,18 @@ void * loadSymbol(std::string path, std::string symbol) {
 
 void unloadLibraries() {
     for (auto lib : dylibs) dlclose(lib.second);
+}
+
+void copyImage(unsigned width, unsigned height, unsigned pitch, char * data) {
+    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(width, height);
+    memcpy((void*)&pixbuf.get_bytes()[0], data, height * pitch);
+    png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(width, height);
+    img.set_pixbuf(pixbuf);
+    std::stringstream ss;
+    img.write_stream(ss);
+    NSData * nsdata = [NSData dataWithBytes:ss.str().c_str() length:width*height*3];
+    NSImage * nsimg = [[NSImage alloc] initWithData:nsdata];
+    NSArray * arr = [NSArray arrayWithObject:nsimg];
+    [[NSPasteboard generalPasteboard] clearContents];
+    [[NSPasteboard generalPasteboard] writeObjects:arr];
 }

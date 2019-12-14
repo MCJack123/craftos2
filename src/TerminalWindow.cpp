@@ -12,6 +12,7 @@
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
+#include <sstream>
 #include <assert.h>
 #include "favicon.h"
 #include "config.hpp"
@@ -282,11 +283,15 @@ void TerminalWindow::render() {
         if (gotResizeEvent) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
-        png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
-        memcpy((void*)&pixbuf.get_bytes()[0], temp->pixels, temp->h * temp->pitch);
-        png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
-        img.set_pixbuf(pixbuf);
-        img.write(screenshotPath);
+        if (screenshotPath == "clipboard") {
+            copyImage(temp->w, temp->h, temp->pitch, (char*)temp->pixels);
+        } else {
+            png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
+            memcpy((void*)&pixbuf.get_bytes()[0], temp->pixels, temp->h * temp->pitch);
+            png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
+            img.set_pixbuf(pixbuf);
+            img.write(screenshotPath);
+        }
         SDL_FreeSurface(temp);
 #else
         SDL_Surface *conv = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB888, 0);

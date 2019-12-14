@@ -117,65 +117,6 @@ int removeDirectory(std::string path) {
 	} else return DeleteFileA(path.c_str()) ? 0 : GetLastError();
 }
 
-std::unordered_map<double, const char *> windows_version_map = {
-    {10.0, "Windows 10"},
-    {6.3, "Windows 8.1"},
-    {6.2, "Windows 8"},
-    {6.1, "Windows 7"},
-    {6.0, "Windows Vista"},
-    {5.1, "Windows XP"},
-    {5.0, "Windows 2000"},
-    {4.0, "Windows NT 4"},
-    {3.51, "Windows NT 3.51"},
-    {3.5, "Windows NT 3.5"},
-    {3.1, "Windows NT 3.1"}
-};
-#ifdef _MSC_VER
-
-#if defined(_M_IX86__)
-#define ARCHITECTURE "i386"
-#elif defined(_M_AMD64)
-#define ARCHITECTURE "amd64"
-#elif defined(_M_X64)
-#define ARCHITECTURE "x86_64"
-#elif defined(_M_ARM)
-#define ARCHITECTURE "armv7"
-#elif defined(_M_ARM64)
-#define ARCHITECTURE "arm64"
-#else
-#define ARCHITECTURE "unknown"
-#endif
-
-#else
-
-#if defined(__i386__) || defined(__i386) || defined(i386)
-#define ARCHITECTURE "i386"
-#elif defined(__amd64__) || defined(__amd64)
-#define ARCHITECTURE "amd64"
-#elif defined(__x86_64__) || defined(__x86_64)
-#define ARCHITECTURE "x86_64"
-#elif defined(__arm__) || defined(__arm)
-#define ARCHITECTURE "armv7"
-#elif defined(__arm64__) || defined(__arm64)
-#define ARCHITECTURE "arm64"
-#elif defined(__aarch64__) || defined(__aarch64)
-#define ARCHITECTURE "aarch64"
-#else
-#define ARCHITECTURE "unknown"
-#endif
-
-#endif
-
-void pushHostString(lua_State *L) {
-    OSVERSIONINFOA info;
-    ZeroMemory(&info, sizeof(OSVERSIONINFOA));
-    info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOA);
-    GetVersionEx(&info);
-    double version = info.dwMajorVersion
-        + (info.dwMinorVersion / 10.0);
-    lua_pushfstring(L, "%s %s %d.%d", windows_version_map[version], ARCHITECTURE, info.dwMajorVersion, info.dwMinorVersion);
-}
-
 void updateNow(std::string tagname) {
     HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [](std::istream& in) {
         char str[261];
@@ -250,6 +191,14 @@ void * loadSymbol(std::string path, std::string symbol) {
 
 void unloadLibraries() {
     for (auto lib : dylibs) FreeLibrary(lib.second);
+}
+
+void copyImage(unsigned width, unsigned height, unsigned pitch, char * data) {
+    HBITMAP hMem = CreateBitmap(width, height, 3, 8, data);
+    OpenClipboard(0);
+    EmptyClipboard();
+    SetClipboardData(CF_BITMAP, hMem);
+    CloseClipboard();
 }
 
 #endif
