@@ -27,7 +27,7 @@ extern void updateNow(std::string tag_name);
 extern void migrateData();
 extern void * loadSymbol(std::string path, std::string symbol);
 extern void unloadLibraries();
-extern void copyImage(unsigned width, unsigned height, unsigned pitch, char * data);
+extern void copyImage(SDL_Surface* surf);
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

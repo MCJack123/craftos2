@@ -284,7 +284,7 @@ void TerminalWindow::render() {
 #ifdef PNGPP_PNG_HPP_INCLUDED
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
         if (screenshotPath == "clipboard") {
-            copyImage(temp->w, temp->h, temp->pitch, (char*)temp->pixels);
+            copyImage(temp);
         } else {
             png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
             memcpy((void*)&pixbuf.get_bytes()[0], temp->pixels, temp->h * temp->pitch);

@@ -193,12 +193,16 @@ void unloadLibraries() {
     for (auto lib : dylibs) FreeLibrary(lib.second);
 }
 
-void copyImage(unsigned width, unsigned height, unsigned pitch, char * data) {
-    HBITMAP hMem = CreateBitmap(width, height, 3, 8, data);
+void copyImage(SDL_Surface* surf) {
+    char * bmp = new char[surf->w*surf->h*surf->format->BytesPerPixel + 128];
+    SDL_RWops * rw = SDL_RWFromMem(bmp, surf->w*surf->h*surf->format->BytesPerPixel + 128);
+    SDL_SaveBMP_RW(surf, rw, true);
+    HBITMAP hMem = CreateBitmap(width, height, 1, 24, bmp);
     OpenClipboard(0);
     EmptyClipboard();
     SetClipboardData(CF_BITMAP, hMem);
     CloseClipboard();
+    delete[] bmp;
 }
 
 #endif

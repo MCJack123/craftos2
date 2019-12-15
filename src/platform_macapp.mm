@@ -245,10 +245,10 @@ void unloadLibraries() {
     for (auto lib : dylibs) dlclose(lib.second);
 }
 
-void copyImage(unsigned width, unsigned height, unsigned pitch, char * data) {
-    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(width, height);
-    memcpy((void*)&pixbuf.get_bytes()[0], data, height * pitch);
-    png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(width, height);
+void copyImage(SDL_Surface* surf) {
+    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
+    memcpy((void*)&pixbuf.get_bytes()[0], surf->pixels, surf->h * surf->pitch);
+    png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);
     img.set_pixbuf(pixbuf);
     std::stringstream ss;
     img.write_stream(ss);
