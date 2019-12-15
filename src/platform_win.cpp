@@ -196,11 +196,13 @@ void unloadLibraries() {
 void copyImage(SDL_Surface* surf) {
     char * bmp = new char[surf->w*surf->h*surf->format->BytesPerPixel + 128];
     SDL_RWops * rw = SDL_RWFromMem(bmp, surf->w*surf->h*surf->format->BytesPerPixel + 128);
-    SDL_SaveBMP_RW(surf, rw, true);
-    HBITMAP hMem = CreateBitmap(width, height, 1, 24, bmp);
+    SDL_SaveBMP_RW(surf, rw, false);
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVABLE, rw->seek(rw, 0, RW_SEEK_CUR) - sizeof(BITMAPFILEHEADER));
+    memcpy(GlobalLock(hMem), bmp + sizeof(BITMAPFILEHEADER), rw->seek(rw, 0, RW_SEEK_CUR) - sizeof(BITMAPFILEHEADER));
+    GlobalUnlock(hMem);
     OpenClipboard(0);
     EmptyClipboard();
-    SetClipboardData(CF_BITMAP, hMem);
+    SetClipboardData(CF_DIB, hMem);
     CloseClipboard();
     delete[] bmp;
 }

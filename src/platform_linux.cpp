@@ -171,7 +171,7 @@ void unloadLibraries() {
     for (auto lib : dylibs) dlclose(lib.second);
 }
 
-void copyImage(unsigned width, unsigned height, unsigned pitch, char * data) {
+void copyImage(SDL_Surface* surf) {
     fprintf(stderr, "Warning: Linux does not support taking screenshots to the clipboard.\n");
 }
 
