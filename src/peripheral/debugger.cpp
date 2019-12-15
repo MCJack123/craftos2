@@ -186,13 +186,14 @@ int debugger_lib_run(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_Debug ar;
+    memset(&ar, 0, sizeof(lua_Debug));
     lua_settop(L, 1);
     int top = lua_gettop(dbg->thread); // ...
     luaL_loadstring(dbg->thread, lua_tostring(L, 1)); // ..., func
     luaL_loadstring(dbg->thread, "return setmetatable({_echo = function(...) return ... end, getfenv = getfenv, locals = ..., _ENV = getfenv(2)}, {__index = getfenv(2)})"); // ..., func, getenv
     lua_newtable(dbg->thread); // ..., func, getenv, table
     lua_getstack(dbg->thread, 1, &ar); // ..., func, getenv, table
-    if (std::string(ar.what) == "Lua" || std::string(ar.what) == "main") {
+    if (ar.what != NULL && (std::string(ar.what) == "Lua" || std::string(ar.what) == "main")) {
         const char * name;
         for (int i = 1; (name = lua_getlocal(dbg->thread, &ar, i)) != NULL; i++) { // ..., func, getenv, table, local
             if (std::string(name) == "(*temporary)") {
