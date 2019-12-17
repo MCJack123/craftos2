@@ -83,7 +83,7 @@ mac-plugin:
 	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
 
 linux-plugin:
-	$(CXX) -std=c++11 -shared -fpic -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
+	$(CXX) -std=c++11 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
 
 clean: $(ODIR)
 	rm -f craftos
