@@ -13,10 +13,10 @@
 #define liolib_c
 #define LUA_LIB
 
-#include <lua.h>
+#include "lua.h"
 
-#include <lauxlib.h>
-#include <lualib.h>
+#include "lauxlib.h"
+#include "lualib.h"
 
 extern FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode);
 #define fopen(f, m) mounter_fopen(L, f, m)
@@ -106,17 +106,6 @@ static int io_noclose (lua_State *L) {
 
 
 /*
-** function to close 'popen' files
-*/
-static int io_pclose (lua_State *L) {
-  FILE **p = tofilep(L);
-  int ok = 0; //lua_pclose(L, *p);
-  *p = NULL;
-  return pushresult(L, ok, NULL);
-}
-
-
-/*
 ** function to close regular files
 */
 static int io_fclose (lua_State *L) {
@@ -128,10 +117,9 @@ static int io_fclose (lua_State *L) {
 
 
 static int aux_close (lua_State *L) {
-  /*lua_getfenv(L, 1);
+  lua_getfenv(L, 1);
   lua_getfield(L, -1, "__close");
-  return (lua_tocfunction(L, -1))(L);*/
-  return io_fclose(L);
+  return (lua_tocfunction(L, -1))(L);
 }
 
 
@@ -171,29 +159,10 @@ static int io_open (lua_State *L) {
 }
 
 
-/*
-** this function has a separated environment, which defines the
-** correct __close for 'popen' files
-*/
-static int io_popen (lua_State *L) {
-  const char *filename = luaL_checkstring(L, 1);
-  const char *mode = luaL_optstring(L, 2, "r");
-  FILE **pf = newfile(L);
-  // *pf = lua_popen(L, filename, mode);
-  return (*pf == NULL) ? pushresult(L, 0, filename) : 1;
-}
-
-
-static int io_tmpfile (lua_State *L) {
-  FILE **pf = newfile(L);
-  *pf = tmpfile();
-  return (*pf == NULL) ? pushresult(L, 0, NULL) : 1;
-}
-
-
 static FILE *getiofile (lua_State *L, int findex) {
   FILE *f;
   lua_rawgeti(L, LUA_ENVIRONINDEX, findex);
+  if (!lua_isuserdata(L, -1)) return NULL;
   f = *(FILE **)lua_touserdata(L, -1);
   if (f == NULL)
     luaL_error(L, "standard %s file is closed", fnames[findex - 1]);
@@ -339,6 +308,18 @@ static int g_read (lua_State *L, FILE *f, int first) {
   int nargs = lua_gettop(L) - 1;
   int success;
   int n;
+  if (lua_icontext(L) == 5) {
+    lua_pop(L, 1);
+    return 1;
+  }
+  if (f == NULL) {
+    lua_rawgeti(L, LUA_ENVIRONINDEX, IO_INPUT);
+    lua_getfield(L, -1, "read");
+    lua_insert(L, -nargs-3);
+    lua_pop(L, 2);
+    lua_icall(L, nargs, 1, 5);
+    return 1;
+  }
   clearerr(f);
   if (nargs == 0) {  /* no arguments? */
     success = read_line(L, f);
@@ -417,6 +398,14 @@ static int io_readline (lua_State *L) {
 static int g_write (lua_State *L, FILE *f, int arg) {
   int nargs = lua_gettop(L) - 1;
   int status = 1;
+  if (lua_icontext(L) == 5 || f == NULL) {
+    lua_rawgeti(L, LUA_ENVIRONINDEX, IO_OUTPUT);
+    lua_getfield(L, -1, "write");
+    lua_insert(L, -nargs-3);
+    lua_pop(L, 2);
+    lua_icall(L, nargs, 1, 5);
+    return 1;
+  }
   for (; nargs--; arg++) {
     if (lua_type(L, arg) == LUA_TNUMBER) {
       /* optimization: could be done exactly as for strings */
@@ -488,9 +477,7 @@ static const luaL_Reg iolib[] = {
   {"lines", io_lines},
   {"open", io_open},
   {"output", io_output},
-  {"popen", io_popen},
   {"read", io_read},
-  {"tmpfile", io_tmpfile},
   {"type", io_type},
   {"write", io_write},
   {NULL, NULL}
@@ -519,42 +506,146 @@ static void createmeta (lua_State *L) {
 }
 
 
-static void createstdfile (lua_State *L, FILE *f, int k, const char *fname) {
-  *newfile(L) = f;
-  if (k > 0) {
-    lua_pushvalue(L, -1);
-    lua_rawseti(L, LUA_ENVIRONINDEX, k);
-  }
-  lua_pushvalue(L, -2);  /* copy environment */
-  lua_setfenv(L, -2);  /* set it */
-  lua_setfield(L, -3, fname);
-}
-
-
 static void newfenv (lua_State *L, lua_CFunction cls) {
   lua_createtable(L, 0, 1);
   lua_pushcfunction(L, cls);
   lua_setfield(L, -2, "__close");
 }
 
+int stdin_read_count = 0, stdout_read_count = 0, stderr_read_count = 0;
+
+static int stdfile_seek(lua_State *L) {
+  const char * whence;
+  int val, newval;
+  int * read_count;
+  if (lua_istable(L, 1)) lua_remove(L, 1);
+  read_count = (int*)lua_touserdata(L, lua_upvalueindex(1));
+  if (!lua_isnoneornil(L, 1)) {
+    whence = luaL_checkstring(L, 1);
+    if (strcmp(whence, "cur") && strcmp(whence, "set") && strcmp(whence, "end")) 
+      luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
+    if (!lua_isnoneornil(L, 2)) {
+      val = luaL_checkint(L, 2);
+      if (strcmp(whence, "cur") == 0) newval = *read_count + val;
+      else newval = val;
+      if (newval < 0) {
+        lua_pushnil(L);
+        lua_pushstring(L, "Invalid argument");
+        lua_pushinteger(L, 22);
+        return 3;
+      }
+      *read_count = newval;
+    } else if (strcmp(whence, "set") == 0 || strcmp(whence, "end") == 0) *read_count = 0;
+  }
+  lua_pushinteger(L, *read_count);
+  return 1;
+}
+
+static int stdin_read(lua_State *L) {
+  if (lua_icontext(L) == 1) goto resume;
+  if (lua_istable(L, 1)) lua_remove(L, 1);
+  luaL_optstring(L, 1, "*l");
+  if (lua_isstring(L, 1) && strcmp(lua_tostring(L, 1), "*l")) luaL_error(L, "bad argument #1 to 'read' (invalid format)");
+  lua_getglobal(L, "read");
+  lua_icall(L, 0, 1, 1);
+resume:
+  stdin_read_count += lua_isstring(L, -1) ? lua_strlen(L, -1) : 0;
+  return 1;
+}
+
+static int stdin_lines(lua_State *L) {lua_pushcfunction(L, stdin_read); return 1;}
+
+static int aux_badfd(lua_State *L) {
+  lua_pushnil(L);
+  lua_pushstring(L, "Bad file descriptor");
+  lua_pushinteger(L, 9);
+  return 3;
+}
+
+static int stdout_write(lua_State *L) {
+  if (lua_istable(L, 1)) lua_remove(L, 1);
+  lua_getglobal(L, "print");
+  lua_insert(L, 1);
+  lua_call(L, lua_gettop(L)-1, 0);
+  return 0;
+}
+
+static int stderr_write(lua_State *L) {
+  if (lua_istable(L, 1)) lua_remove(L, 1);
+  lua_getglobal(L, "printError");
+  lua_pushvalue(L, -2);
+  lua_call(L, 1, 0);
+  return 0;
+}
+
+static int aux_true(lua_State *L) {lua_pushboolean(L, 1); return 1;}
 
 LUALIB_API int luaopen_io (lua_State *L) {
   createmeta(L);
   /* create (private) environment (with fields IO_INPUT, IO_OUTPUT, __close) */
-  //newfenv(L, io_fclose);
-  //lua_replace(L, LUA_ENVIRONINDEX);
+  newfenv(L, io_fclose);
+  lua_replace(L, LUA_ENVIRONINDEX);
   /* open library */
   luaL_register(L, LUA_IOLIBNAME, iolib);
   /* create (and set) default files */
-  //newfenv(L, io_noclose);  /* close function for default files */
-  //createstdfile(L, stdin, IO_INPUT, "stdin");
-  //createstdfile(L, stdout, IO_OUTPUT, "stdout");
-  //createstdfile(L, stderr, 0, "stderr");
-  //lua_pop(L, 1);  /* pop environment for default files */
-  //lua_getfield(L, -1, "popen");
-  //newfenv(L, io_pclose);  /* create environment for 'popen' */
-  //lua_setfenv(L, -2);  /* set fenv for 'popen' */
-  //lua_pop(L, 1);  /* pop 'popen' */
+  // ComputerCraft stdin
+  lua_newtable(L);
+  lua_pushcfunction(L, io_noclose);
+  lua_setfield(L, -2, "close");
+  lua_pushcfunction(L, aux_true);
+  lua_setfield(L, -2, "flush");
+  lua_pushcfunction(L, stdin_lines);
+  lua_setfield(L, -2, "lines");
+  lua_pushcfunction(L, stdin_read);
+  lua_setfield(L, -2, "read");
+  lua_pushlightuserdata(L, &stdin_read_count);
+  lua_pushcclosure(L, stdfile_seek, 1);
+  lua_setfield(L, -2, "seek");
+  lua_pushcfunction(L, aux_true);
+  lua_setfield(L, -2, "setvbuf");
+  lua_pushcfunction(L, aux_badfd);
+  lua_setfield(L, -2, "write");
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -3, "stdin");
+  lua_rawseti(L, LUA_ENVIRONINDEX, IO_INPUT);
+  // ComputerCraft stdout
+  lua_newtable(L);
+  lua_pushcfunction(L, io_noclose);
+  lua_setfield(L, -2, "close");
+  lua_pushcfunction(L, aux_true);
+  lua_setfield(L, -2, "flush");
+  lua_pushcfunction(L, aux_badfd);
+  lua_setfield(L, -2, "lines");
+  lua_pushcfunction(L, aux_badfd);
+  lua_setfield(L, -2, "read");
+  lua_pushlightuserdata(L, &stdout_read_count);
+  lua_pushcclosure(L, stdfile_seek, 1);
+  lua_setfield(L, -2, "seek");
+  lua_pushcfunction(L, aux_true);
+  lua_setfield(L, -2, "setvbuf");
+  lua_pushcfunction(L, stdout_write);
+  lua_setfield(L, -2, "write");
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -3, "stdout");
+  lua_rawseti(L, LUA_ENVIRONINDEX, IO_OUTPUT);
+  // ComputerCraft stderr
+  lua_newtable(L);
+  lua_pushcfunction(L, io_noclose);
+  lua_setfield(L, -2, "close");
+  lua_pushcfunction(L, aux_true);
+  lua_setfield(L, -2, "flush");
+  lua_pushcfunction(L, aux_badfd);
+  lua_setfield(L, -2, "lines");
+  lua_pushcfunction(L, aux_badfd);
+  lua_setfield(L, -2, "read");
+  lua_pushlightuserdata(L, &stderr_read_count);
+  lua_pushcclosure(L, stdfile_seek, 1);
+  lua_setfield(L, -2, "seek");
+  lua_pushcfunction(L, aux_true);
+  lua_setfield(L, -2, "setvbuf");
+  lua_pushcfunction(L, stderr_write);
+  lua_setfield(L, -2, "write");
+  lua_setfield(L, -2, "stderr");
   return 1;
 }
 
