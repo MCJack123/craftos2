@@ -113,7 +113,9 @@ void config_init() {
         0,
         0,
         "",
-        false
+        false,
+        false,
+        0
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -140,6 +142,8 @@ void config_init() {
     if (root.isMember("customCharScale")) config.customCharScale = root["customCharScale"].asInt();
     if (root.isMember("skipUpdate")) config.skipUpdate = root["skipUpdate"].asString();
     if (root.isMember("configReadOnly")) config.configReadOnly = root["configReadOnly"].asBool();
+    if (root.isMember("vanilla")) config.vanilla = root["vanilla"].asBool();
+    if (root.isMember("initialComputer")) config.initialComputer = root["initialComputer"].asInt();
 }
 
 void config_save(bool deinit) {
@@ -164,6 +168,8 @@ void config_save(bool deinit) {
     root["customCharScale"] = config.customCharScale;
     root["skipUpdate"] = config.skipUpdate;
     root["configReadOnly"] = config.configReadOnly;
+    root["vanilla"] = config.vanilla;
+    root["initialComputer"] = config.initialComputer;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -213,6 +219,10 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.romReadOnly);
     else if (strcmp(name, "configReadOnly") == 0)
         lua_pushboolean(L, config.configReadOnly);
+    else if (strcmp(name, "vanilla") == 0)
+        lua_pushboolean(L, config.vanilla);
+    else if (strcmp(name, "initialComputer") == 0)
+        lua_pushinteger(L, config.initialComputer);
     else lua_pushnil(L);
     return 1;
 }
@@ -270,6 +280,10 @@ int config_set(lua_State *L) {
         config.romReadOnly = lua_toboolean(L, 2);
     else if (strcmp(name, "configReadOnly") == 0)
         config.configReadOnly = lua_toboolean(L, 2);
+    else if (strcmp(name, "vanilla") == 0)
+        config.vanilla = lua_toboolean(L, 2);
+    else if (strcmp(name, "initialComputer") == 0)
+        config.initialComputer = lua_tointeger(L, 2);
     config_save(false);
     return 0;
 }
@@ -292,6 +306,8 @@ const char * configuration_keys[] = {
     "checkUpdates",
     "romReadOnly",
     "configReadOnly",
+    "vanilla",
+    "initialComputer",
     NULL,
 };
 
@@ -311,13 +327,14 @@ int config_getType(lua_State *L) {
     if (name == "http_enable" || name == "debug_enable" ||
         name == "disable_lua51_features" || name == "logErrors" || 
         name == "showFPS" || name == "ignoreHotkeys" || name == "isColor" ||
-        name == "checkUpdates" || name == "romReadOnly" || name == "configReadOnly")
+        name == "checkUpdates" || name == "romReadOnly" || 
+        name == "configReadOnly" || name == "vanilla")
         lua_pushstring(L, "boolean");
     else if (name == "default_computer_settings")
         lua_pushstring(L, "string");
     else if (name == "computerSpaceLimit" || name == "maximumFilesOpen" || 
              name == "maxNotesPerTick" || name == "clockSpeed" || 
-             name == "abortTimeout" || name == "mount_mode")
+             name == "abortTimeout" || name == "mount_mode" || name == "initialComputer")
         lua_pushstring(L, "number");
     else lua_pushnil(L);
     return 1;

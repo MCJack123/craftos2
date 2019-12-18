@@ -1,0 +1,3 @@
+[submodule "craftos2-lua"]
+	path = craftos2-lua
+	url = https://github.com/MCJack123/craftos2-lua

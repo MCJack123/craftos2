@@ -9,10 +9,10 @@ Computers can also be attached and detached from the shell when using the CraftO
 ## Command line interface
 On supported systems, CraftOS-PC can be run from the terminal with the `--cli` flag. You can use Shift+Arrow Keys to change the currently open window. In this mode, some features are not supported, including:
 * Holding keys: CLI mode cannot detect key releases, and thus sends both a `key` and `key_up` event at the same time. Because of this, it cannot detect if you are holding any keys down.
-* Using modifier keys: CLI mode cannot detect pressing modifier keys, so programs using Control, Alt, or Shift (**including edit**) will not work.
+* Using modifier keys: CLI mode cannot detect pressing modifier keys, so CraftOS-PC works around that by using the Home key as Control and the End key as Alt. To send Home/End to CraftOS, hold down Shift while pressing the key.
 
 ## Using custom fonts
-The font used for CraftOS-PC can be changed in `.craftos/config/global.json`, with the `customFontPath` option. To set the font, set `customFontPath` to the absolute path to a BMP file containing the font glyphs. Each glyph must be exactly 6*s* x 9*s* px with 2*s* pixels between each glyph, where *s* is a number representing the scale of the font. `customFontScale` must also be set to a number representing the size of the font (1 = HD font (12x18), 2 = normal font (6x9), 3 = 1/2 size font (4x6)).
+The font used for CraftOS-PC can be changed in `<save dir>/config/global.json`, with the `customFontPath` option. To set the font, set `customFontPath` to the absolute path to a BMP file containing the font glyphs. Each glyph must be exactly 6*s* x 9*s* px with 2*s* pixels between each glyph, where *s* is a number representing the scale of the font. `customFontScale` must also be set to a number representing the size of the font (1 = HD font (12x18), 2 = normal font (6x9), 3 = 1/2 size font (4x6)).
 
 For example, if the CCEmuX `hdfont.bmp` is placed at `/usr/share/craftos/hdfont.bmp`, we can add this to `global.json`:
 ```json
@@ -31,6 +31,7 @@ Creates and removes peripherals from the registry.
 * *boolean* remove(*string* side): Removes a peripheral.
   * side: The side to remove
   * Returns: `true` on success, `false` on failure (already removed)
+* *table* names(): Returns a list of available peripherals.
 
 ## `drive` peripheral
 Floppy drive emulator that supports loading mounts (see mounter API), floppy disks (by ID), and audio files.
@@ -38,7 +39,7 @@ See [disk API](computercraft.info/wiki/Disk_(API)) for other functions.
 ### Methods
 * *nil* insertDisk(*string/number* path): Replaces the loaded disk with the specified resource.
   * path: Either a disk ID or path to load
-	* If number: Mounts the floppy disk (~/.craftos/computer/disk/`id`) to /disk[n]
+	* If number: Mounts the floppy disk (`<save dir>/computer/disk/<id>`) to /disk[n]
 	* If path to directory: Mounts the real path specified to /disk[n]
 	* If path to file: Loads the file as an audio disc (use `disk.playAudio` or the "dj" command)
   
@@ -95,7 +96,7 @@ Graphics mode extension in the `term` API.
     * In mode 2, this should be an index from 0-255
   * Returns: The RGB values for the color, each from 0.0 to 1.0
 * *nil* screenshot([*string* path]): Takes a screenshot.
-  * path: The real path to save to (defaults to `~/.craftos/screenshots/<date>_<time>.<bmp|png>`)
+  * path: The real path to save to (defaults to `<save dir>/screenshots/<date>_<time>.<bmp|png>`)
 
 ## `http`
 HTTP server extension in the `http` API.
@@ -129,17 +130,24 @@ Upon loading a new computer, the `plugins` folder inside the install directory i
 For each plugin found, CraftOS-PC loads and calls the plugin's `luaopen` function. This function should have the same signature as a `lua_CFunction`:
 ```
 int luaopen_plugin(lua_State *L);
-``
+```
 The function will recieve the ROM path and the base path, and should return one value: the API that will be exported to the global table.  
+Plugins must also have an exported function named `version`, which tells CraftOS-PC what version of the API it's using.
+As of v2.2, the version is currently `2`. You can use the template `version` function in the example below.
+If this version number changes, make sure to update the version in your plugin and recompile to ensure full compatibility.
+
 If your plugin needs access to the CraftOS-PC `Computer` object, copy the `get_comp(L)` function in `lib.cpp`.
 This function takes in a `lua_State` and returns a pointer to the `Computer` object associated with it.
 You can then access the properties of the computer.
 The `Computer` object also has a userdata property that allows temporary per-computer storage if necessary.  
+
+When compiling a plugin, make sure to link in the custom `craftos2-lua` library instead of the original Lua library.
   
 Here's an example of a C plugin (from https://github.com/mostvotedplaya/Lua-C-Module):
 ```c
 #include <lua.h>
 #include <lauxlib.h>
+#define PLUGIN_VERSION 2
 
 int addition(lua_State *L) {
     if (!lua_isnumber(L, 1)) {
@@ -183,6 +191,11 @@ int luaopen_example(lua_State *L) {
     luaL_register(L, "example", M);
     return 1;
 }
+
+#ifdef _WIN32
+_declspec(dllexport) 
+#endif
+int version(lua_State *L) {lua_pushinteger(L, PLUGIN_VERSION); return 1;}
 ```
 Compile as a shared library and copy to:
 * Windows: `C:\Program Files\CraftOS-PC\plugins\example.dll`

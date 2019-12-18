@@ -9,6 +9,8 @@
  */
 
 #ifndef NO_CLI
+#ifndef CLITERMINALWINDOW_HPP
+#define CLITERMINALWINDOW_HPP
 #include "TerminalWindow.hpp"
 #include <string>
 #include <ncurses.h>
@@ -44,4 +46,5 @@ public:
 
 extern void cliInit();
 extern void cliClose();
+#endif
 #endif

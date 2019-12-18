@@ -1,3 +1,14 @@
+/*
+ * ccemux.cpp
+ * CraftOS-PC 2
+ * 
+ * This file creates a new CCEmuX API for backwards-compatibility with CCEmuX
+ * programs when run in CraftOS-PC.
+ * 
+ * This code is licensed under the MIT License.
+ * Copyright (c) 2019 JackMacWindows.
+ */
+
 extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
@@ -12,6 +23,11 @@ extern "C" {
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #endif
+#define libFunc(lib, name) getLibraryFunction(getLibrary(lib), name)
+
+#define PLUGIN_VERSION 2
+
+library_t * (*getLibrary)(std::string);
 
 void bad_argument(lua_State *L, const char * type, int pos) {
     lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
@@ -26,11 +42,13 @@ Computer * get_comp(lua_State *L) {
     return (Computer*)retval;
 }
 
+lua_CFunction getLibraryFunction(library_t * lib, const char * name) {
+    for (int i = 0; i < lib->count; i++) if (std::string(lib->keys[i]) == std::string(name)) return lib->values[i];
+    return NULL;
+}
+
 int ccemux_getVersion(lua_State *L) {
-    lua_getglobal(L, "os");
-    lua_pushstring(L, "about");
-    lua_gettable(L, -2);
-    lua_call(L, 0, 1);
+    libFunc("os", "about")(L);
     lua_getglobal(L, "string");
     lua_pushstring(L, "match");
     lua_gettable(L, -2);
@@ -44,20 +62,16 @@ int ccemux_openEmu(lua_State *L) {
     int id = 1;
     if (lua_isnumber(L, 1)) id = lua_tointeger(L, 1);
     else {
-        lua_getglobal(L, "peripheral");
+        library_t * plib = getLibrary("peripheral");
         for (; id < 256; id++) { // don't search forever
-            lua_pushstring(L, "isPresent");
-            lua_gettable(L, -2);
+            lua_pushcfunction(L, getLibraryFunction(plib, "isPresent"));
             lua_pushfstring(L, "computer_%d", id);
             lua_call(L, 1, 1);
-            if (!lua_toboolean(L, -1)) break;
+            if (!lua_toboolean(L, -1)) {lua_pop(L, 1); break;}
             lua_pop(L, 1);
         }
-        lua_pop(L, 2);
     }
-    lua_getglobal(L, "periphemu");
-    lua_pushstring(L, "create");
-    lua_gettable(L, -2);
+    lua_pushcfunction(L, libFunc("periphemu", "create"));
     lua_pushinteger(L, id);
     lua_pushstring(L, "computer");
     if (lua_pcall(L, 2, 1, 0) != 0) lua_error(L);
@@ -67,11 +81,7 @@ int ccemux_openEmu(lua_State *L) {
 }
 
 int ccemux_closeEmu(lua_State *L) {
-    lua_getglobal(L, "os");
-    lua_pushstring(L, "shutdown");
-    lua_gettable(L, -2);
-    lua_call(L, 0, 0);
-    return 0;
+    return libFunc("os", "shutdown")(L);
 }
 
 int ccemux_openDataDir(lua_State *L) {
@@ -131,22 +141,19 @@ int ccemux_setClipboard(lua_State *L) {
 
 int ccemux_attach(lua_State *L) {
     int args = lua_gettop(L);
-    lua_getglobal(L, "periphemu");
-    lua_pushstring(L, "create");
-    lua_gettable(L, -2);
-    for (int i = 1; i < args+1; i++) lua_pushvalue(L, i);
-    if (lua_pcall(L, args, 1, 0) != 0) lua_error(L);
-    return 1;
+    if (lua_isstring(L, 2) && std::string(lua_tostring(L, 2)) == "disk_drive") {
+        lua_pushstring(L, "drive");
+        lua_replace(L, 2);
+    }
+    if (lua_isstring(L, 2) && std::string(lua_tostring(L, 2)) == "wireless_modem") {
+        lua_pushstring(L, "modem");
+        lua_replace(L, 2);
+    }
+    return libFunc("periphemu", "create")(L);
 }
 
 int ccemux_detach(lua_State *L) {
-    int args = lua_gettop(L);
-    lua_getglobal(L, "periphemu");
-    lua_pushstring(L, "remove");
-    lua_gettable(L, -2);
-    for (int i = 1; i < args+1; i++) lua_pushvalue(L, i);
-    if (lua_pcall(L, args, 1, 0) != 0) lua_error(L);
-    return 1;
+    return libFunc("periphemu", "remove")(L);
 }
 
 extern "C" {
@@ -177,6 +184,20 @@ int luaopen_ccemux(lua_State *L) {
         } else lua_pushcfunction(L, M[i].func);
         lua_settable(L, -3);
     }
+    return 1;
+}
+
+int register_getLibrary(lua_State *L) {getLibrary = (library_t*(*)(std::string))lua_touserdata(L, 1); return 0;}
+
+#ifdef _WIN32
+_declspec(dllexport)
+#endif
+int plugin_info(lua_State *L) {
+    lua_newtable(L);
+    lua_pushinteger(L, PLUGIN_VERSION);
+    lua_setfield(L, -2, "version");
+    lua_pushcfunction(L, register_getLibrary);
+    lua_setfield(L, -2, "register_getLibrary");
     return 1;
 }
 }

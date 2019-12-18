@@ -51,7 +51,7 @@ int monitor::scroll(lua_State *L) {
         term->colors[i-lines] = term->colors[i];
     }
     for (int i = term->height; i < term->height + lines; i++) {
-        term->screen[i-lines] = std::vector<char>(term->width, ' ');
+        term->screen[i-lines] = std::vector<unsigned char>(term->width, ' ');
         term->colors[i-lines] = std::vector<unsigned char>(term->width, colors);
     }
     return 0;
@@ -96,14 +96,14 @@ int monitor::clear(lua_State *L) {
     if (term->mode != 0) {
         term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->charHeight, std::vector<unsigned char>(term->width * term->charWidth, 15));
     } else {
-        term->screen = std::vector<std::vector<char> >(term->height, std::vector<char>(term->width, ' '));
+        term->screen = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, ' '));
         term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
     }
     return 0;
 }
 
 int monitor::clearLine(lua_State *L) {
-    term->screen[term->blinkY] = std::vector<char>(term->width, ' ');
+    term->screen[term->blinkY] = std::vector<unsigned char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
     return 0;
 }
@@ -290,4 +290,4 @@ const char * monitor_keys[30] = {
     "getTextScale"
 };
 
-library_t monitor::methods = {"monitor", 30, monitor_keys, NULL, NULL, NULL};
+library_t monitor::methods = {"monitor", 30, monitor_keys, NULL, nullptr, nullptr};

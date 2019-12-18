@@ -51,7 +51,10 @@ int drive::hasAudio(lua_State *L) {
 }
 
 int drive::getAudioTitle(lua_State *L) {
-    if (diskType != DISK_TYPE_AUDIO) return 0;
+    if (diskType != DISK_TYPE_AUDIO) {
+        lua_pushnil(L);
+        return 1;
+    }
     int lastdot = path.find_last_of('.');
     int start = path.find('\\') != std::string::npos ? path.find_last_of('\\') + 1 : path.find_last_of('/') + 1;
     lua_pushstring(L, path.substr(start, lastdot > start ? lastdot - start : INT64_MAX).c_str());
@@ -59,19 +62,23 @@ int drive::getAudioTitle(lua_State *L) {
 }
 
 int drive::playAudio(lua_State *L) {
+#ifndef NO_MIXER
     if (diskType != DISK_TYPE_AUDIO) return 0;
     if (music != NULL) stopAudio(L);
     music = Mix_LoadMUS(path.c_str());
     if (music == NULL) printf("Could not load audio: %s\n", Mix_GetError());
     if (Mix_PlayMusic(music, 1) == -1) printf("Could not play audio: %s\n", Mix_GetError());
+#endif
     return 0;
 }
 
 int drive::stopAudio(lua_State *L) {
+#ifndef NO_MIXER
     if (diskType != DISK_TYPE_AUDIO || music == NULL) return 0;
     if (Mix_PlayingMusic()) Mix_HaltMusic();
     Mix_FreeMusic(music);
     music = NULL;
+#endif
     return 0;
 }
 
@@ -143,22 +150,34 @@ int drive::insertDisk(lua_State *L, bool init) {
             usedMounts.insert(i);
             mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
             addMount(get_comp(L), path.c_str(), mount_path.c_str(), false);
-        } else {
+        }
+#ifndef NO_MIXER
+        else {
             diskType = DISK_TYPE_AUDIO;
             mount_path.clear();
         }
+#else
+        else {
+            lua_pushstring(L, "Playing audio is not available in this build");
+            lua_error(L);
+        }
+#endif
     } else bad_argument(L, "string or number", arg);
     return 0;
 }
 
 void driveInit() {
+#ifndef NO_MIXER
     Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
     Mix_OpenAudio(44100, AUDIO_S16, 2, 2048);
+#endif
 }
 
 void driveQuit() {
+#ifndef NO_MIXER
     Mix_CloseAudio();
     Mix_Quit();
+#endif
 }
 
 drive::drive(lua_State *L, const char * side) {
@@ -166,7 +185,7 @@ drive::drive(lua_State *L, const char * side) {
 }
 
 drive::~drive() { 
-    //?
+    stopAudio(NULL);
 }
 
 int drive::call(lua_State *L, const char * method) {
@@ -202,4 +221,4 @@ const char * drive_keys[12] = {
 };
 
 std::unordered_set<int> drive::usedMounts;
-library_t drive::methods = {"drive", 12, drive_keys, NULL, NULL, NULL};
+library_t drive::methods = {"drive", 12, drive_keys, NULL, nullptr, nullptr};

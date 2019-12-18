@@ -24,9 +24,12 @@ extern "C" {
 #include <pthread.h>
 #include <glob.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <string>
 #include <vector>
 #include <sstream>
+#include <png++/png.hpp>
+#include <ApplicationServices/ApplicationServices.h>
 #include "mounter.hpp"
 #include "platform.hpp"
 
@@ -36,7 +39,7 @@ std::string rom_path_expanded;
 #else
 const char * rom_path = "/usr/local/share/craftos";
 #endif
-const char * base_path = "$HOME/.craftos";
+const char * base_path = "$HOME/Library/Application\\ Support/CraftOS-PC";
 std::string base_path_expanded;
 
 std::string getBasePath() {
@@ -73,7 +76,7 @@ int createDirectory(std::string path) {
         if (errno == ENOENT && path != "/") {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
             mkdir(path.c_str(), 0777);
-        } else return 1;
+        } else if (errno != EEXIST) return 1;
     }
     return 0;
 }
@@ -106,34 +109,71 @@ unsigned long long getFreeSpace(std::string path) {
 	return st.f_bavail * st.f_bsize;
 }
 
-#if defined(__i386__) || defined(__i386) || defined(i386)
-#define ARCHITECTURE "i386"
-#elif defined(__amd64__) || defined(__amd64)
-#define ARCHITECTURE "amd64"
-#elif defined(__x86_64__) || defined(__x86_64)
-#define ARCHITECTURE "x86_64"
-#elif defined(__arm__) || defined(__arm)
-#define ARCHITECTURE "armv7"
-#elif defined(__arm64__) || defined(__arm64)
-#define ARCHITECTURE "arm64"
-#elif defined(__aarch64__) || defined(__aarch64)
-#define ARCHITECTURE "aarch64"
-#elif defined(__powerpc__) || defined(__powerpc) || defined(__ppc__)
-#define ARCHITECTURE "powerpc"
-#elif defined(__powerpc64__) || defined(__ppc64)
-#define ARCHITECTURE "ppc64"
-#else
-#define ARCHITECTURE "unknown"
-#endif
-
-void pushHostString(lua_State *L) {
-    struct utsname host;
-    uname(&host);
-    lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
+void updateNow(std::string tag_name) {
+    fprintf(stderr, "Updating is not available on Mac terminal builds.\n");
 }
 
-void updateNow(std::string tag_name) {
-    printf("Updating is not available on Mac terminal builds.\n");
+int recursiveCopy(std::string fromDir, std::string toDir) {
+    struct stat statbuf;
+    if (!stat(fromDir.c_str(), &statbuf)) {
+        if (S_ISDIR(statbuf.st_mode)) {
+            createDirectory(toDir);
+            DIR *d = opendir(fromDir.c_str());
+            int r = -1;
+            if (d) {
+                struct dirent *p;
+                r = 0;
+                while (!r && (p=readdir(d))) {
+                    /* Skip the names "." and ".." as we don't want to recurse on them. */
+                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+                    r = recursiveCopy(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
+                }
+                closedir(d);
+            }
+            if (!r) r = rmdir(fromDir.c_str());
+            return r;
+        } else return rename(fromDir.c_str(), toDir.c_str());
+    } else return -1;
+}
+
+void migrateData() {
+    wordexp_t p;
+    struct stat st;
+    wordexp("$HOME/.craftos", &p, 0);
+    std::string oldpath = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    wordfree(&p);
+    if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
+        recursiveCopy(oldpath, getBasePath());
+}
+
+std::unordered_map<std::string, void*> dylibs;
+
+void * loadSymbol(std::string path, std::string symbol) {
+    void * handle;
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
+    handle = dylibs[path];
+    return dlsym(handle, symbol.c_str());
+}
+
+void unloadLibraries() {
+    for (auto lib : dylibs) dlclose(lib.second);
+}
+
+void copyImage(SDL_Surface* surf) {
+    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
+    memcpy((void*)&pixbuf.get_bytes()[0], surf->pixels, surf->h * surf->pitch);
+    png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);
+    img.set_pixbuf(pixbuf);
+    std::stringstream ss;
+    img.write_stream(ss);
+    PasteboardRef clipboard;
+    PasteboardCreate(kPasteboardClipboard, &clipboard);
+    PasteboardClear(clipboard);
+    CFDataRef imgdata = CFDataCreate(kCFAllocatorDefault, (const uint8_t*)ss.str().c_str(), ss.str().size());
+    PasteboardPutItemFlavor(clipboard, NULL, kUTTypePNG, imgdata, 0);
+    CFRelease(imgdata);
+    CFRelease(clipboard);
 }
 
 #endif // __INTELLISENSE__

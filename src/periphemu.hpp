@@ -11,5 +11,6 @@
 #ifndef PERIPHEMU_HPP
 #define PERIPHEMU_HPP
 #include "lib.hpp"
+extern void registerPeripheral(std::string name, peripheral_init initializer);
 extern library_t periphemu_lib;
 #endif

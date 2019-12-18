@@ -11,6 +11,7 @@
 #include "periphemu.hpp"
 #include "peripheral/peripheral.hpp"
 #include "peripheral/computer.hpp"
+#include "peripheral/debugger.hpp"
 #include "peripheral/drive.hpp"
 #include "peripheral/modem.hpp"
 #include "peripheral/monitor.hpp"
@@ -23,6 +24,7 @@
 #include <algorithm>
 
 monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
+	std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
     for (auto p : comp->peripherals) {
         if (strcmp(p.second->getMethods().name, "monitor") == 0) {
             monitor * m = (monitor*)p.second;
@@ -33,6 +35,18 @@ monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& side
         }
     }
     return NULL;
+}
+
+std::unordered_map<std::string, peripheral_init> initializers = {
+	{"monitor", &monitor::init},
+	{"printer", &printer::init},
+	{"computer", &computer::init},
+	{"modem", &modem::init},
+	{"drive", &drive::init},
+};
+
+void registerPeripheral(std::string name, peripheral_init initializer) {
+	initializers[name] = initializer;
 }
 
 const char * peripheral_attach(lua_State *L, void* arg) {
@@ -56,31 +70,24 @@ int periphemu_create(lua_State* L) {
 	std::string type = lua_tostring(L, 2);
 	std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
 	if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
-    computer->peripherals_mutex.lock();
+    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
 	if (computer->peripherals.find(side) != computer->peripherals.end()) {
 		lua_pushboolean(L, false);
-        computer->peripherals_mutex.unlock();
 		return 1;
 	}
 	//lua_pop(L, 2);
 	try {
-		if (type == std::string("monitor")) computer->peripherals[side] = new monitor(L, side.c_str());
-		else if (type == std::string("printer")) computer->peripherals[side] = new printer(L, side.c_str());
-		else if (type == std::string("computer")) computer->peripherals[side] = new class computer(L, side.c_str());
-		else if (type == std::string("modem")) computer->peripherals[side] = new modem(L, side.c_str());
-        else if (type == std::string("drive")) computer->peripherals[side] = new drive(L, side.c_str());
+		if (type == std::string("debugger") && computer->debugger == NULL) computer->peripherals[side] = new debugger(L, side.c_str());
+		else if (initializers.find(type) != initializers.end()) computer->peripherals[side] = initializers[type](L, side.c_str());
         else {
 			printf("not found: %s\n", type.c_str());
 			lua_pushboolean(L, false);
-            computer->peripherals_mutex.unlock();
 			return 1;
 		}
 	} catch (std::exception &e) {
-		computer->peripherals_mutex.unlock();
 		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
-		lua_error(L);
+		return lua_error(L);
 	}
-    computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
     termQueueProvider(computer, peripheral_attach, sidearg);
@@ -100,7 +107,7 @@ int periphemu_remove(lua_State* L) {
     if (std::string(computer->peripherals[side]->getMethods().name) == "drive") {
         computer->peripherals[side]->call(L, "ejectDisk");
     }
-	queueTask([ ](void* p)->void*{delete (peripheral*)p; return NULL;}, computer->peripherals[side]);
+	queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, computer->peripherals[side]);
 	computer->peripherals.erase(side);
     computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);
@@ -109,14 +116,30 @@ int periphemu_remove(lua_State* L) {
 	return 1;
 }
 
-const char* periphemu_keys[2] = {
+int periphemu_names(lua_State *L) {
+    lua_newtable(L);
+	lua_pushinteger(L, 1);
+	lua_pushstring(L, "debugger");
+	lua_settable(L, -3);
+    int i = 2;
+    for (auto entry : initializers) {
+        lua_pushinteger(L, i++);
+        lua_pushstring(L, entry.first.c_str());
+        lua_settable(L, -3);
+    }
+    return 1;
+}
+
+const char* periphemu_keys[3] = {
 	"create",
-	"remove"
+	"remove",
+    "names",
 };
 
-lua_CFunction periphemu_values[2] = {
+lua_CFunction periphemu_values[3] = {
 	periphemu_create,
-	periphemu_remove
+	periphemu_remove,
+    periphemu_names,
 };
 
-library_t periphemu_lib = { "periphemu", 2, periphemu_keys, periphemu_values, NULL, NULL };
+library_t periphemu_lib = { "periphemu", 3, periphemu_keys, periphemu_values, nullptr, nullptr };

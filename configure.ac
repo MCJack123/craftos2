@@ -1,5 +1,5 @@
 # Initialize
-AC_INIT([CraftOS-PC Accelerated], [2.1])
+AC_INIT([CraftOS-PC Accelerated], [2.2])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AC_CONFIG_MACRO_DIRS([m4])
 
@@ -8,6 +8,8 @@ AC_ARG_WITH(png, [AS_HELP_STRING([--with-png], [support PNG screenshots])])
 AC_ARG_WITH(png, [AS_HELP_STRING([--without-png], [do not support PNG screenshots])])
 AC_ARG_WITH(ncurses, [AS_HELP_STRING([--with-ncurses], [support CLI mode])])
 AC_ARG_WITH(ncurses, [AS_HELP_STRING([--without-ncurses], [do not support CLI mode])])
+AC_ARG_WITH(sdl_mixer, [AS_HELP_STRING([--with-sdl_mixer], [support audio disks])])
+AC_ARG_WITH(sdl_mixer, [AS_HELP_STRING([--without-sdl_mixer], [do not support audio disks])])
 AC_ARG_WITH(hpdf, [AS_HELP_STRING([--with-hpdf], [make printer output PDF files])])
 AC_ARG_WITH(html, [AS_HELP_STRING([--with-html], [make printer output HTML files])])
 AC_ARG_WITH(txt, [AS_HELP_STRING([--with-txt], [make printer output text files])])
@@ -43,9 +45,6 @@ AC_SEARCH_LIBS(luaL_register, [luajit-5.1 luajit], [], [AC_MSG_ERROR([Could not 
 AC_CHECK_HEADERS(SDL2/SDL.h, [], [AC_MSG_ERROR([Could not find SDL2 header.])])
 AC_SEARCH_LIBS(SDL_Init, SDL2, [], [AC_MSG_ERROR([Could not find SDL2 library.])])
 
-AC_CHECK_HEADERS(SDL2/SDL_mixer.h, [], [AC_MSG_ERROR([Could not find SDL_mixer header.])])
-AC_SEARCH_LIBS(Mix_Init, SDL2_mixer, [], [AC_MSG_ERROR([Could not find SDL2_mixer library.])])
-
 AC_CHECK_HEADERS(openssl/opensslv.h, [], [AC_MSG_ERROR([Could not find OpenSSL headers.])])
 AC_SEARCH_LIBS(SSL_new, ssl, [], [AC_MSG_ERROR([Could not find OpenSSL library.])])
 AC_SEARCH_LIBS(RSA_new, crypto, [], [AC_MSG_ERROR([Could not find OpenSSL crypto library.])])
@@ -80,6 +79,11 @@ AS_IF([test "x$with_ncurses" != "xno"], [
     AC_SEARCH_LIBS(initscr, ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
 ], [NO_CLI=1])
 
+AS_IF([test "x$with_sdl_mixer" != "xno"], [
+	AC_CHECK_HEADERS(SDL2/SDL_mixer.h, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_ERROR([Could not find SDL2_mixer header.])], [NO_MIXER=1])])
+	AC_SEARCH_LIBS(Mix_Init, SDL2_mixer, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_ERROR([Could not find SDL2_mixer library.])], [NO_MIXER=1])])
+], [NO_MIXER=1])
+
 AS_IF([test "x$PRINT_TYPE" = "x" || test "x$PRINT_TYPE" = "x0"], [
     AC_CHECK_HEADERS(hpdf.h, [], [AS_IF([test "x$PRINT_TYPE" = "x0"], [AC_MSG_ERROR([Could not find hpdf header.])], [PRINT_TYPE=1])])
     AC_SEARCH_LIBS(HPDF_New, hpdf, [], [AS_IF([test "x$PRINT_TYPE" = "x0"], [AC_MSG_ERROR([Could not find hpdf library.])], [PRINT_TYPE=1])])
@@ -87,6 +91,7 @@ AS_IF([test "x$PRINT_TYPE" = "x" || test "x$PRINT_TYPE" = "x0"], [
 
 if test "x$NO_PNG" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_PNG"; fi
 if test "x$NO_CLI" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_CLI"; fi
+if test "x$NO_MIXER" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_MIXER"; fi
 if test "x$PRINT_TYPE" != "x"; then CPPFLAGS="$CPPFLAGS -DPRINT_TYPE=$PRINT_TYPE"; fi
 
 AC_CONFIG_FILES([Makefile])

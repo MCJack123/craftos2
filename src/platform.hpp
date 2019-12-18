@@ -20,11 +20,14 @@ extern void setThreadName(std::thread &t, std::string name);
 extern int createDirectory(std::string path);
 extern unsigned long long getFreeSpace(std::string path);
 extern int removeDirectory(std::string path);
-extern void pushHostString(lua_State *L);
 extern std::string getBasePath();
 extern std::string getROMPath();
 extern std::string getPlugInPath();
 extern void updateNow(std::string tag_name);
+extern void migrateData();
+extern void * loadSymbol(std::string path, std::string symbol);
+extern void unloadLibraries();
+extern void copyImage(SDL_Surface* surf);
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

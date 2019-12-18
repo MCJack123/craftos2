@@ -23,6 +23,7 @@ extern "C" {
 #include <pthread.h>
 #include <glob.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -32,6 +33,7 @@ extern "C" {
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <SDL2/SDL.h>
+#include <png++/png.hpp>
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #include "platform.hpp"
@@ -40,17 +42,16 @@ extern "C" {
 #include "os.hpp"
 
 extern bool exiting;
-const char * base_path = "$HOME/.craftos";
-std::string base_path_expanded;
 std::string rom_path_expanded;
 
 std::string getBasePath() {
-    if (!base_path_expanded.empty()) return base_path_expanded;
-    wordexp_t p;
-    wordexp(base_path, &p, 0);
-    base_path_expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
-    return base_path_expanded;
+    return std::string([[[NSFileManager defaultManager] 
+                         URLForDirectory:NSApplicationSupportDirectory 
+                         inDomain:NSUserDomainMask 
+                         appropriateForURL:[NSURL fileURLWithPath:@"/"] 
+                         create:NO 
+                         error:nil
+                        ] fileSystemRepresentation]) + "/CraftOS-PC";
 }
 
 std::string getROMPath() {
@@ -79,7 +80,7 @@ int createDirectory(std::string path) {
         if (errno == ENOENT && path != "/") {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
             mkdir(path.c_str(), 0777);
-        } else return 1;
+        } else if (errno != EEXIST) return 1;
     }
     return 0;
 }
@@ -94,7 +95,6 @@ int removeDirectory(std::string path) {
                 struct dirent *p;
                 r = 0;
                 while (!r && (p=readdir(d))) {
-                    int r2 = -1;
                     /* Skip the names "." and ".." as we don't want to recurse on them. */
                     if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
                     r = removeDirectory(path + "/" + std::string(p->d_name));
@@ -111,32 +111,6 @@ unsigned long long getFreeSpace(std::string path) {
 	struct statvfs st;
 	if (statvfs(path.c_str(), &st) != 0) return 0;
 	return st.f_bavail * st.f_bsize;
-}
-
-#if defined(__i386__) || defined(__i386) || defined(i386)
-#define ARCHITECTURE "i386"
-#elif defined(__amd64__) || defined(__amd64)
-#define ARCHITECTURE "amd64"
-#elif defined(__x86_64__) || defined(__x86_64)
-#define ARCHITECTURE "x86_64"
-#elif defined(__arm__) || defined(__arm)
-#define ARCHITECTURE "armv7"
-#elif defined(__arm64__) || defined(__arm64)
-#define ARCHITECTURE "arm64"
-#elif defined(__aarch64__) || defined(__aarch64)
-#define ARCHITECTURE "aarch64"
-#elif defined(__powerpc__) || defined(__powerpc) || defined(__ppc__)
-#define ARCHITECTURE "powerpc"
-#elif defined(__powerpc64__) || defined(__ppc64)
-#define ARCHITECTURE "ppc64"
-#else
-#define ARCHITECTURE "unknown"
-#endif
-
-void pushHostString(lua_State *L) {
-    struct utsname host;
-    uname(&host);
-    lua_pushfstring(L, "%s %s %s", host.sysname, ARCHITECTURE, host.release);
 }
 
 CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {
@@ -245,4 +219,42 @@ void updateNow(std::string tag_name) {
             }];
         }
     });
+}
+
+void migrateData() {
+    wordexp_t p;
+    struct stat st;
+    wordexp("$HOME/.craftos", &p, 0);
+    std::string oldpath = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    wordfree(&p);
+    if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
+        [[NSFileManager defaultManager] moveItemAtPath:[NSString stringWithCString:oldpath.c_str() encoding:NSASCIIStringEncoding] toPath:[NSString stringWithCString:getBasePath().c_str() encoding:NSASCIIStringEncoding] error:nil];
+}
+
+std::unordered_map<std::string, void*> dylibs;
+
+void * loadSymbol(std::string path, std::string symbol) {
+    void * handle;
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
+    handle = dylibs[path];
+    return dlsym(handle, symbol.c_str());
+}
+
+void unloadLibraries() {
+    for (auto lib : dylibs) dlclose(lib.second);
+}
+
+void copyImage(SDL_Surface* surf) {
+    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
+    memcpy((void*)&pixbuf.get_bytes()[0], surf->pixels, surf->h * surf->pitch);
+    png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);
+    img.set_pixbuf(pixbuf);
+    std::stringstream ss;
+    img.write_stream(ss);
+    NSData * nsdata = [NSData dataWithBytes:ss.str().c_str() length:surf->w*surf->h*3];
+    NSImage * nsimg = [[NSImage alloc] initWithData:nsdata];
+    NSArray * arr = [NSArray arrayWithObject:nsimg];
+    [[NSPasteboard generalPasteboard] clearContents];
+    [[NSPasteboard generalPasteboard] writeObjects:arr];
 }

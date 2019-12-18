@@ -33,7 +33,7 @@ void gotEvent(Computer *comp);
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
 int nextTaskID = 0;
-std::queue< std::tuple<int, std::function<void*(void*)>, void*> > taskQueue;
+std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
 std::unordered_map<int, void*> taskQueueReturns;
 bool exiting = false;
 extern bool cli, headless;
@@ -41,15 +41,18 @@ extern Uint32 task_event_type;
 extern Uint32 render_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
 extern std::unordered_map<int, unsigned char> keymap;
+std::thread::id mainThreadID;
 
-void* queueTask(std::function<void*(void*)> func, void* arg) {
+void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
+    if (std::this_thread::get_id() == mainThreadID) return func(arg);
     int myID = nextTaskID++;
-    taskQueue.push(std::make_tuple(myID, func, arg));
+    taskQueue.push(std::make_tuple(myID, func, arg, async));
     if (!headless && !cli && !exiting) {
         SDL_Event ev;
         ev.type = task_event_type;
         SDL_PushEvent(&ev);
     }
+    if (async) return NULL;
     while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
@@ -82,6 +85,7 @@ void mainLoop() {
         keypad(tmpwin, TRUE);
     }
 #endif
+    mainThreadID = std::this_thread::get_id();
     while (computers.size() > 0) {
         if (!headless && !cli && SDL_WaitEvent(&e)) { 
             if (e.type == task_event_type) {
@@ -93,12 +97,11 @@ void mainLoop() {
                 }
             } else if (e.type == render_event_type) {
                 for (TerminalWindow* term : TerminalWindow::renderTargets) {
-                    term->locked.lock();
+                    std::lock_guard<std::mutex> lock(term->locked);
                     SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
                     SDL_UpdateWindowSurface(term->win);
                     SDL_FreeSurface(term->surf);
                     term->surf = NULL;
-                    term->locked.unlock();
                 }
             } else {
                 for (Computer * c : computers) {
@@ -114,6 +117,7 @@ void mainLoop() {
                         c->event_lock.notify_all();
                     }
                 }
+                if (e.type == SDL_QUIT) break;
             }
 #ifndef NO_CLI
         } else if (cli) {
@@ -192,7 +196,7 @@ void mainLoop() {
             while (taskQueue.size() > 0) {
                 auto v = taskQueue.front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
-                taskQueueReturns[std::get<0>(v)] = retval;
+                if (!std::get<3>(v)) taskQueueReturns[std::get<0>(v)] = retval;
                 taskQueue.pop();
             }
         }
@@ -334,6 +338,13 @@ Uint32 notifyEvent(Uint32 interval, void* param) {
 int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
+    if (lua_tonumber(L, 1) <= 0.0) {
+        int* id = new int;
+        *id = computer->timers.size() * 1000;
+        termQueueProvider(computer, [](lua_State *L, void* id)->const char*{lua_pushinteger(L, *(int*)id); delete (int*)id; return "timer";}, id);
+        lua_pushinteger(L, *id);
+        return 1;
+    }
     computer->timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, computer->timers.size() - 1);
     SDL_AddTimer(lua_tonumber(L, 1) * 1000, notifyEvent, computer);
@@ -516,4 +527,4 @@ lua_CFunction os_values[19] = {
     os_exit
 };
 
-library_t os_lib = {"os", 19, os_keys, os_values, NULL, NULL};
+library_t os_lib = {"os", 19, os_keys, os_values, nullptr, nullptr};

@@ -44,6 +44,9 @@ private:
 public:
     TerminalWindow * term;
     static library_t methods;
+    static peripheral * init(lua_State *L, const char * side) {return new monitor(L, side);}
+    static void deinit(peripheral * p) {delete (monitor*)p;}
+    destructor getDestructor() {return deinit;}
     library_t getMethods() {return methods;}
     monitor(lua_State *L, const char * side);
     ~monitor();

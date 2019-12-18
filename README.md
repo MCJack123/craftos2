@@ -12,7 +12,7 @@ CraftOS-PC *Accelerated* uses LuaJIT instead of the standard PUC Lua, which offe
   * Ubuntu 18.04, 19.04, 19.10
   * Arch Linux with AUR helper
 * Administrator privileges
-* 7 MB free space
+* 20 MB free space
 
 ## Installing
 ### Windows
@@ -45,6 +45,12 @@ $ craftos
 ### Arch Linux
 Install the `craftos-pc-accelerated` package using your chosen AUR helper (e.g. `yay -S craftos-pc-accelerated`).
 
+## v2.2: Where are my files?
+CraftOS-PC v2.2 moves the save directory to be more appropriate for each platform. Your files are not gone; they're automatically moved over before launching if the old folder is still present. You can find the computer data files at these locations:
+* Windows: `%appdata%\CraftOS-PC` (`C:\Users\<user>\AppData\Roaming\CraftOS-PC`)
+* Mac: `~/Library/Application Support/CraftOS-PC`
+* Linux: `$XDG_DATA_HOME/craftos-pc` or `~/.local/share/craftos-pc`
+
 ## Building
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
@@ -54,9 +60,6 @@ Install the `craftos-pc-accelerated` package using your chosen AUR helper (e.g. 
   * Windows: Visual Studio 2019
 * LuaJIT 2.0
 * SDL 2.0.8+ (may work on older versions on non-Linux)
-* SDL_mixer 2.0+
-  * For MP3 support, libmpg123 is required
-  * For FLAC support, libFLAC is required
 * OpenSSL 1.0.x
 * Windows: dirent.h
 * POCO NetSSL + JSON libraries + dependencies
@@ -75,13 +78,17 @@ Install the `craftos-pc-accelerated` package using your chosen AUR helper (e.g. 
   * Can be disabled with `--without-hpdf`, `--with-html` or `--with-txt`
 * ncurses
   * Can be disabled with `--without-ncurses`, will disable CLI support
+* SDL_mixer 2.0+
+  * Can be disabled with `--without-sdl_mixer`, will disable audio disc support
+  * For MP3 support, libmpg123 is required
+  * For FLAC support, libFLAC is required
 * The path to the ROM package can be changed with `--prefix=<path>`, which will store the ROM at `<path>/share/craftos`
 
 You can get all of these dependencies with:
   * Windows: The VS solution includes all packages required except POCO and png (build yourself)
-  * Mac (Homebrew): `brew install lua@5.1 sdl2 sdl2-mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
-  * Ubuntu: `sudo apt install git build-essential liblua5.1-0-dev libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
-  * Arch Linux: `sudo pacman -S lua51 sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
+  * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
+  * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
+  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
 
 ### Instructions
 #### Windows
@@ -98,22 +105,26 @@ You can get all of these dependencies with:
 #### Mac
 1. Open a new Terminal window
 2. `cd` to the cloned repository
-3. `./configure`
-4. `make macapp`
-5. Open the repository in a new Finder window
-6. Right click on CraftOS-PC.app => Show Package Contents
-7. Open Contents -> Resources
-8. Copy the ROM package inside
-9. Run CraftOS-PC.app
+3. `git submodule update --init --recursive`
+4. `make -C craftos2-lua macosx`
+5. `./configure`
+6. `make macapp`
+7. Open the repository in a new Finder window
+8. Right click on CraftOS-PC.app => Show Package Contents
+9. Open Contents -> Resources
+10. Copy the ROM package inside
+11. Run CraftOS-PC.app
 
 #### Linux
 1. Open a new terminal
 2. `cd` to the cloned repository
-3. `./configure`
-4. `make`
-5. `sudo mkdir /usr/share/craftos`
-6. Copy the ComputerCraft ROM into `/usr/share/craftos/`
-7. `./craftos`
+3. `git submodule update --init --recursive`
+4. `make -C craftos2-lua linux`
+5. `./configure`
+6. `make`
+7. `sudo mkdir /usr/local/share/craftos`
+8. Copy the ComputerCraft ROM into `/usr/local/share/craftos/`
+9. `./craftos`
 
 ## FAQ
 ### Why is the ComputerCraft ROM/BIOS not included with the source?

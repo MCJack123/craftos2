@@ -137,6 +137,9 @@ const char * http_check(lua_State *L, void* data) {
 }
 
 void downloadThread(void* arg) {
+#ifdef __APPLE__
+    pthread_setname_np("HTTP Download Thread");
+#endif
     http_param_t* param = (http_param_t*)arg;
     Poco::URI uri(param->url);
     HTTPClientSession * session;
@@ -221,6 +224,9 @@ void HTTPDownload(std::string url, std::function<void(std::istream&)> callback) 
 }
 
 void* checkThread(void* arg) {
+#ifdef __APPLE__
+    pthread_setname_np("HTTP Check Thread");
+#endif
     http_param_t * param = (http_param_t*)arg;
     const char * status = NULL;
     if (strstr(param->url, "://") == NULL) status = "URL malformed";
@@ -648,6 +654,9 @@ public:
 };
 
 void websocket_client_thread(Computer *comp, char * str, bool binary) {
+#ifdef __APPLE__
+    pthread_setname_np("WebSocket Client Thread");
+#endif
     Poco::URI uri(str);
     HTTPClientSession cs(uri.getHost(), uri.getPort());
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
@@ -735,4 +744,4 @@ lua_CFunction http_values[5] = {
     http_websocket
 };
 
-library_t http_lib = {"http", 5, http_keys, http_values, NULL, NULL};
+library_t http_lib = {"http", 5, http_keys, http_values, nullptr, nullptr};

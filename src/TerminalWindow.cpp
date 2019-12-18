@@ -12,6 +12,7 @@
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
+#include <sstream>
 #include <assert.h>
 #include "favicon.h"
 #include "config.hpp"
@@ -19,12 +20,15 @@
 #include "os.hpp"
 #define rgb(color) ((color.r << 16) | (color.g << 8) | color.b)
 
-extern "C" struct {
-    unsigned int 	 width;
-    unsigned int 	 height;
-    unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
-    unsigned char	 pixel_data[128 * 175 * 3 + 1];
-} font_image;
+extern "C" {
+    struct font_image {
+        unsigned int 	 width;
+        unsigned int 	 height;
+        unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
+        unsigned char	 pixel_data[128 * 175 * 2 + 1];
+    };
+    extern struct font_image font_image;
+}
 
 Color defaultPalette[16] = {
     {0xf0, 0xf0, 0xf0},
@@ -71,7 +75,7 @@ std::mutex TerminalWindow::renderTargetsLock;
 
 TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
-    screen = std::vector<std::vector<char> >(h, std::vector<char>(w, ' '));
+    screen = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, ' '));
     colors = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, 0xF0));
     pixels = std::vector<std::vector<unsigned char> >(h*fontHeight, std::vector<unsigned char>(w*fontWidth, 0x0F));
 }
@@ -98,8 +102,10 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
         charHeight = fontHeight * 2/fontScale * charScale;
     }
     win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == nullptr || win == NULL || win == (SDL_Window*)0) 
+    if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
+        overridden = true;
         throw window_exception("Failed to create window");
+    }
     id = SDL_GetWindowID(win);
 #ifndef __APPLE__
     char * icon_pixels = new char[favicon_width * favicon_height * 4];
@@ -119,17 +125,23 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
         SDL_DestroyWindow(win);
+        overridden = true;
         throw window_exception("Failed to load font");
     }
     bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
+    if (bmp == nullptr || bmp == NULL || bmp == (SDL_Surface*)0) {
+        SDL_DestroyWindow(win);
+        overridden = true;
+        throw window_exception("Failed to convert font");
+    }
     SDL_FreeSurface(old_bmp);
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
     renderTargets.push_back(this);
 }
 
 TerminalWindow::~TerminalWindow() {
-    std::lock_guard<std::mutex> locked_g(locked);
     TerminalWindow::renderTargetsLock.lock();
+    std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
@@ -159,7 +171,7 @@ bool operator!=(Color lhs, Color rhs) {
     return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b;
 }
 
-bool TerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool TerminalWindow::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
         x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
@@ -206,7 +218,7 @@ void TerminalWindow::render() {
     if (gotResizeEvent) {
         gotResizeEvent = false;
         this->screen.resize(newHeight);
-        if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<char>(newWidth, ' '));
+        if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<unsigned char>(newWidth, ' '));
         for (unsigned i = 0; i < screen.size(); i++) {
             screen[i].resize(newWidth);
             if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
@@ -225,7 +237,10 @@ void TerminalWindow::render() {
         }
         this->width = newWidth;
         this->height = newHeight;
+        changed = true;
     }
+    if (!changed && !shouldScreenshot && !shouldRecord) return;
+    changed = false;
     int ww = 0, wh = 0;
     SDL_GetWindowSize(win, &ww, &wh);
     if (surf != NULL) SDL_FreeSurface(surf);
@@ -268,11 +283,15 @@ void TerminalWindow::render() {
         if (gotResizeEvent) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
-        png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
-        memcpy((void*)&pixbuf.get_bytes()[0], temp->pixels, temp->h * temp->pitch);
-        png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
-        img.set_pixbuf(pixbuf);
-        img.write(screenshotPath);
+        if (screenshotPath == "clipboard") {
+            copyImage(temp);
+        } else {
+            png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
+            memcpy((void*)&pixbuf.get_bytes()[0], temp->pixels, temp->h * temp->pitch);
+            png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
+            img.set_pixbuf(pixbuf);
+            img.write(screenshotPath);
+        }
         SDL_FreeSurface(temp);
 #else
         SDL_Surface *conv = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB888, 0);
@@ -336,7 +355,7 @@ void TerminalWindow::getMouse(int *x, int *y) {
     //convert_to_renderer_coordinates(ren, x, y);
 }
 
-SDL_Rect TerminalWindow::getCharacterRect(char c) {
+SDL_Rect TerminalWindow::getCharacterRect(unsigned char c) {
     SDL_Rect retval;
     retval.w = fontWidth * 2/fontScale;
     retval.h = fontHeight * 2/fontScale;
