@@ -28,6 +28,7 @@ extern "C" {
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPMessage.h>
 #include <Poco/Net/WebSocket.h>
+#include <Poco/Net/NetException.h>
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/HTTPRequestHandler.h>
 #include <Poco/Net/HTTPRequestHandlerFactory.h>
@@ -470,14 +471,14 @@ int http_removeListener(lua_State *L) {
 
 struct websocket_failure_data {
     char * url;
-    const char * reason;
+    std::string reason;
 };
 
 const char * websocket_failure(lua_State *L, void* userp) {
     struct websocket_failure_data * data = (struct websocket_failure_data*)userp;
     if (data->url == NULL) lua_pushnil(L);
     else { lua_pushstring(L, data->url); delete[] data->url; }
-    lua_pushstring(L, data->reason);
+    lua_pushstring(L, data->reason.c_str());
     delete data;
     return "websocket_failure";
 }
@@ -658,17 +659,17 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
     pthread_setname_np("WebSocket Client Thread");
 #endif
     Poco::URI uri(str);
-    HTTPClientSession cs(uri.getHost(), uri.getPort());
+    HTTPSClientSession cs(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     request.set("origin", "http://www.websocket.org");
     HTTPResponse response;
     WebSocket* ws;
     try {
         ws = new WebSocket(cs, request, response);
-    } catch (std::exception &e) {
+    } catch (Poco::Net::NetException &e) {
         struct websocket_failure_data * data = new struct websocket_failure_data;
         data->url = str;
-        data->reason = e.what();
+        data->reason = e.displayText();
         termQueueProvider(comp, websocket_failure, data);
         return;
     }
@@ -717,7 +718,12 @@ int http_websocket(lua_State *L) {
         th.detach();
     } else {
         websocket_server::Factory * f = new websocket_server::Factory(get_comp(L), lua_isboolean(L, 2) && lua_toboolean(L, 2));
-        f->srv = new HTTPServer(f, 80);
+        try {f->srv = new HTTPServer(f, 80);}
+        catch (Poco::Exception& e) {
+            fprintf(stderr, "Could not open server: %s\n", e.displayText().c_str());
+            lua_pushboolean(L, false);
+            return 1;
+        }
         f->srv->start();
     }
     lua_pushboolean(L, true);
