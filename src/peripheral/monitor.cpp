@@ -93,11 +93,11 @@ int monitor::getSize(lua_State *L) {
 }
 
 int monitor::clear(lua_State *L) {
-    if (term->mode != 0) {
-        term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->charHeight, std::vector<unsigned char>(term->width * term->charWidth, 15));
+    if (term->mode > 0) {
+        term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
     } else {
-        term->screen = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, ' '));
-        term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, colors));
+        term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
+        term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
     }
     return 0;
 }

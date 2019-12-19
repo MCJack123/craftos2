@@ -692,9 +692,12 @@ int term_write(lua_State *L) {
         headlessCursorX += lua_strlen(L, 1);
         return 0;
     }
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     Computer * computer = get_comp(L);
+    printf("get_comp: %llu\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
+    printf("lock: %llu\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
     size_t str_sz = 0;
     const char * str = lua_tolstring(L, 1, &str_sz);
     #ifdef TESTING
@@ -704,6 +707,7 @@ int term_write(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
+    printf("total: %llu\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
     term->changed = true;
     return 0;
 }
@@ -803,10 +807,10 @@ int term_clear(lua_State *L) {
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
     if (term->mode > 0) {
-        term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->charHeight, std::vector<unsigned char>(term->width * term->charWidth, 15));
+        term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
     } else {
-        term->screen = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, ' '));
-        term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
+        term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
+        term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
     }
     term->changed = true;
     return 0;
@@ -1018,16 +1022,16 @@ int term_drawPixels(lua_State *L) {
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
     unsigned int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
-    for (unsigned int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->pixels.size(); y++) {
+    for (unsigned int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->height * TerminalWindow::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 
         if (lua_isstring(L, -1)) {
             size_t str_sz;
             const char * str = lua_tolstring(L, -1, &str_sz);
-            if (init_x + str_sz - 1 < term->pixels[init_y+y-1].size())
+            if (init_x + str_sz - 1 < term->width * TerminalWindow::fontWidth)
                 memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
-            for (unsigned int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->pixels[init_y+y-1].size(); x++) {
+            for (unsigned int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->width * TerminalWindow::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
                 term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);

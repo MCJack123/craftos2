@@ -163,9 +163,9 @@ void Computer::run(std::string bios_name) {
             std::lock_guard<std::mutex> lock(term->locked);
             term->blinkX = 0;
             term->blinkY = 0;
-            term->screen = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, ' '));
-            term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
-            term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->fontHeight, std::vector<unsigned char>(term->width * term->fontWidth, 0x0F));
+            term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
+            term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
+            term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
             memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
         }
         colors = 0xF0;

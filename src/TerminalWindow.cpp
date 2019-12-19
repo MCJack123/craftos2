@@ -73,11 +73,8 @@ int TerminalWindow::fontScale = 2;
 std::list<TerminalWindow*> TerminalWindow::renderTargets;
 std::mutex TerminalWindow::renderTargetsLock;
 
-TerminalWindow::TerminalWindow(int w, int h): width(w), height(h) {
+TerminalWindow::TerminalWindow(int w, int h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
-    screen = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, ' '));
-    colors = std::vector<std::vector<unsigned char> >(h, std::vector<unsigned char>(w, 0xF0));
-    pixels = std::vector<std::vector<unsigned char> >(h*fontHeight, std::vector<unsigned char>(w*fontWidth, 0x0F));
 }
 
 TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
@@ -101,7 +98,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
         charWidth = fontWidth * 2/fontScale * charScale;
         charHeight = fontHeight * 2/fontScale * charScale;
     }
-    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale), height*charHeight+(4 * charScale), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
+    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale * (2 / fontScale)), height*charHeight+(4 * charScale * (2 / fontScale)), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
         overridden = true;
         throw window_exception("Failed to create window");
@@ -217,24 +214,9 @@ void TerminalWindow::render() {
     std::lock_guard<std::mutex> locked_g(locked);
     if (gotResizeEvent) {
         gotResizeEvent = false;
-        this->screen.resize(newHeight);
-        if (newHeight > height) std::fill(screen.begin() + height, screen.end(), std::vector<unsigned char>(newWidth, ' '));
-        for (unsigned i = 0; i < screen.size(); i++) {
-            screen[i].resize(newWidth);
-            if (newWidth > width) std::fill(screen[i].begin() + width, screen[i].end(), ' ');
-        }
-        this->colors.resize(newHeight);
-        if (newHeight > height) std::fill(colors.begin() + height, colors.end(), std::vector<unsigned char>(newWidth, 0xF0));
-        for (unsigned i = 0; i < colors.size(); i++) {
-            colors[i].resize(newWidth);
-            if (newWidth > width) std::fill(colors[i].begin() + width, colors[i].end(), 0xF0);
-        }
-        this->pixels.resize(newHeight * fontHeight);
-        if (newHeight > height) std::fill(pixels.begin() + (height * fontHeight), pixels.end(), std::vector<unsigned char>(newWidth * fontWidth, 0x0F));
-        for (unsigned i = 0; i < pixels.size(); i++) {
-            pixels[i].resize(newWidth * fontWidth);
-            if (newWidth > width) std::fill(pixels[i].begin() + (width * fontWidth), pixels[i].end(), 0x0F);
-        }
+        this->screen.resize(newWidth, newHeight, ' ');
+        this->colors.resize(newWidth, newHeight, 0xF0);
+        this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
         this->width = newWidth;
         this->height = newHeight;
         changed = true;
