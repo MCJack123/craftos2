@@ -122,6 +122,11 @@ extern "C" {
         } else lua_pushboolean(L, false);
         return 1;
     }
+
+    void setcompmask(lua_State *L, int mask) {
+        Computer * comp = get_comp(L);
+        comp->hookMask = mask;
+    }
 }
 
 library_t * getLibrary(std::string name) {
@@ -180,7 +185,8 @@ void Computer::run(std::string bios_name) {
         paramQueue = lua_newthread(L);
 
         // Push reference to this to the registry
-        lua_pushstring(L, "computer");
+        //lua_pushlightuserdata(L, &computer_key);
+        lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, this);
         lua_settable(L, LUA_REGISTRYINDEX);
         lua_newtable(L);
@@ -188,7 +194,7 @@ void Computer::run(std::string bios_name) {
 
         // Load libraries
         luaL_openlibs(coro);
-        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 100);
+        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 100000);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);

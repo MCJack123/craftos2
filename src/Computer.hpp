@@ -75,6 +75,7 @@ public:
     std::map< int, std::pair<std::string, lua_Integer> > breakpoints;
     void * debugger = NULL;
     bool isDebugger = false;
+    int hookMask = 0;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
