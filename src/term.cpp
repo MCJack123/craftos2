@@ -692,12 +692,9 @@ int term_write(lua_State *L) {
         headlessCursorX += lua_strlen(L, 1);
         return 0;
     }
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     Computer * computer = get_comp(L);
-    printf("get_comp: %llu\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    printf("lock: %llu\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
     size_t str_sz = 0;
     const char * str = lua_tolstring(L, 1, &str_sz);
     #ifdef TESTING
@@ -707,7 +704,6 @@ int term_write(lua_State *L) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }
-    printf("total: %llu\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count());
     term->changed = true;
     return 0;
 }
