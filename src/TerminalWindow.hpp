@@ -44,11 +44,10 @@ class vector2d {
     int height;
     std::vector<T> vec;
 public:
-    template<typename T>
     class row {
         std::vector<T> * vec;
         int ypos;
-        template<typename T>
+        int size;
         class val {
             std::vector<T> * vec;
             int pos;
@@ -56,19 +55,16 @@ public:
             val(std::vector<T> *v, int p): vec(v), pos(p) {}
             operator T() {return (*vec)[pos];}
             T operator=(T val) {return (*vec)[pos] = val;}
+            T* operator&() {return &(*vec)[pos];}
         };
     public:
-        row(std::vector<T> *v, int y): vec(v), ypos(y) {}
-        val<T> operator[](int idx) { return val<T>(vec, ypos + idx); }
-        void operator=(std::vector<T> v) {std::copy(vec->begin() + ypos, vec->begin() + ypos + v.size(), v.begin());}
+        row(std::vector<T> *v, int y, int s): vec(v), ypos(y), size(s) {}
+        val operator[](int idx) { return val(vec, ypos + idx); }
+        void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + v.size(), vec->begin() + ypos);}
+        void operator=(row v) {std::copy(v.vec->begin() + v.ypos, v.vec->begin() + v.ypos + v.size, vec->begin() + ypos);}
     };
-
     vector2d(int w, int h, T v): vec(w*h, v), width(w), height(h) {}
-
-    row<T> operator[](int idx) {
-        return row<T>(&vec, idx * width);
-    }
-
+    row operator[](int idx) {return row(&vec, idx * width, width);}
     void resize(int w, int h, T v) {
         if (w == width) vec.resize(width * h);
         else {

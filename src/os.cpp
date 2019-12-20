@@ -98,10 +98,12 @@ void mainLoop() {
             } else if (e.type == render_event_type) {
                 for (TerminalWindow* term : TerminalWindow::renderTargets) {
                     std::lock_guard<std::mutex> lock(term->locked);
-                    SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
-                    SDL_UpdateWindowSurface(term->win);
-                    SDL_FreeSurface(term->surf);
-                    term->surf = NULL;
+                    if (term->surf != NULL) {
+                        SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
+                        SDL_UpdateWindowSurface(term->win);
+                        SDL_FreeSurface(term->surf);
+                        term->surf = NULL;
+                    }
                 }
             } else {
                 for (Computer * c : computers) {
