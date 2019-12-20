@@ -353,8 +353,12 @@ std::string replace_str(std::string data, std::string toSearch, std::string repl
     return data;
 }
 
+std::string regex_escape[] = {"\\", ".", "[", "]", "{", "}", "^", "$", "(", ")", "+", "?", "|"};
+
 std::list<std::string> matchWildcard(lua_State *L, std::list<std::string> options, std::list<std::string>::iterator pathc, std::list<std::string>::iterator end) {
     if (pathc == end) return {};
+    std::string pathc_regex = *pathc;
+    for (std::string r : regex_escape) pathc_regex = replace_str(pathc_regex, r, "\\" + r);
     std::list<std::string> nextOptions;
     for (std::list<std::string>::iterator it = options.begin(); it != options.end(); it++) {
         struct dirent *dir;
@@ -368,7 +372,7 @@ std::list<std::string> matchWildcard(lua_State *L, std::list<std::string> option
                 for (unsigned j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++)
                     if (strcmp(dir->d_name, ignored_files[j]) == 0) { i--; found = 1; }
                 if (found) continue;
-                if (std::regex_match(std::string(dir->d_name), std::regex(replace_str(*pathc, "*", ".*")))) nextOptions.push_back(*it + (*it == "" ? "" : "/") + std::string(dir->d_name));
+                if (std::regex_match(std::string(dir->d_name), std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(*it + (*it == "" ? "" : "/") + std::string(dir->d_name));
             }
             closedir(d);
             lua_newtable(L);
