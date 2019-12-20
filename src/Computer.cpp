@@ -194,6 +194,10 @@ void Computer::run(std::string bios_name) {
 
         // Load libraries
         luaL_openlibs(coro);
+        lua_getglobal(L, "os");
+        lua_getfield(L, -1, "date");
+        lua_setglobal(L, "os_date");
+        lua_pop(L, 1);
         lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 100000);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
@@ -201,6 +205,12 @@ void Computer::run(std::string bios_name) {
         if (isDebugger) load_library(this, coro, *((library_t*)debugger));
         lua_getglobal(coro, "redstone");
         lua_setglobal(coro, "rs");
+        lua_getglobal(L, "os");
+        lua_getglobal(L, "os_date");
+        lua_setfield(L, -2, "date");
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        lua_setglobal(L, "os_date");
 
         // Load any plugins available
         if (!::config.vanilla) {

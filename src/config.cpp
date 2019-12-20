@@ -185,7 +185,7 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.http_enable);
     else if (strcmp(name, "debug_enable") == 0)
         lua_pushboolean(L, config.debug_enable);
-    else if (strcmp(name, "mount_enable") == 0)
+    else if (strcmp(name, "mount_mode") == 0)
         lua_pushinteger(L, config.mount_mode);
     else if (strcmp(name, "disable_lua51_features") == 0)
         lua_pushboolean(L, config.disable_lua51_features);

@@ -16,6 +16,10 @@
 #include <assert.h>
 
 int fs_handle_close(lua_State *L) {
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     fclose((FILE*)lua_touserdata(L, lua_upvalueindex(1)));
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));
@@ -33,7 +37,10 @@ char checkChar(char c) {
 }
 
 int fs_handle_readAll(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp)) return 0;
     long pos = ftell(fp);
@@ -54,7 +61,10 @@ int fs_handle_readAll(lua_State *L) {
 }
 
 int fs_handle_readLine(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp) || ferror(fp)) {
         lua_pushnil(L);
@@ -74,7 +84,10 @@ int fs_handle_readLine(lua_State *L) {
 }
 
 int fs_handle_readChar(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp)) return 0;
     char retval[2];
@@ -89,7 +102,10 @@ int fs_handle_readChar(lua_State *L) {
 }
 
 int fs_handle_readByte(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp)) return 0;
     if (lua_isnumber(L, 1)) {
@@ -107,7 +123,10 @@ int fs_handle_readByte(lua_State *L) {
 }
 
 int fs_handle_writeString(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     const char * str = lua_tostring(L, 1);
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
@@ -116,7 +135,10 @@ int fs_handle_writeString(lua_State *L) {
 }
 
 int fs_handle_writeLine(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     const char * str = lua_tostring(L, 1);
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
@@ -126,7 +148,10 @@ int fs_handle_writeLine(lua_State *L) {
 }
 
 int fs_handle_writeByte(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     if (lua_isnumber(L, 1)) {
         const char b = lua_tointeger(L, 1) & 0xFF;
         FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
@@ -139,13 +164,19 @@ int fs_handle_writeByte(lua_State *L) {
 }
 
 int fs_handle_flush(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     fflush((FILE*)lua_touserdata(L, lua_upvalueindex(1)));
     return 0;
 }
 
 int fs_handle_seek(lua_State *L) {
-    if (!lua_isuserdata(L, lua_upvalueindex(1))) return 0;
+    if (!lua_isuserdata(L, lua_upvalueindex(1))) {
+        lua_pushstring(L, "attempt to use a closed file");
+        lua_error(L);
+    }
     if (!lua_isstring(L, 1) && !lua_isnoneornil(L, 1)) bad_argument(L, "string or nil", 1);
     if (!lua_isnumber(L, 2) && !lua_isnoneornil(L, 2)) bad_argument(L, "number or nil", 2);
     const char * whence = lua_isstring(L, 1) ? lua_tostring(L, 1) : "cur";

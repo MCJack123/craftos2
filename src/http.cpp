@@ -65,7 +65,7 @@ typedef struct http_handle {
 
 typedef struct {
     char * url;
-    const char * status;
+    std::string status;
 } http_check_t;
 
 const char * http_success(lua_State *L, void* data) {
@@ -129,9 +129,9 @@ const char * http_failure(lua_State *L, void* data) {
 const char * http_check(lua_State *L, void* data) {
     http_check_t * res = (http_check_t*)data;
     lua_pushstring(L, res->url);
-    lua_pushboolean(L, res->status == NULL);
-    if (res->status == NULL) lua_pushnil(L);
-    else lua_pushstring(L, res->status);
+    lua_pushboolean(L, res->status.empty());
+    if (res->status.empty()) lua_pushnil(L);
+    else lua_pushstring(L, res->status.c_str());
     delete[] res->url;
     delete res;
     return "http_check";
@@ -229,10 +229,11 @@ void* checkThread(void* arg) {
     pthread_setname_np("HTTP Check Thread");
 #endif
     http_param_t * param = (http_param_t*)arg;
-    const char * status = NULL;
-    if (strstr(param->url, "://") == NULL) status = "URL malformed";
-    else if (strstr(param->url, "http") == NULL) status = "URL not http";
-    else if (strstr(param->url, "192.168.") != NULL || strstr(param->url, "10.0.") != NULL) status = "Domain not permitted";
+    std::string status;
+    if (strstr(param->url, ":") == NULL) status = "Must specify http or https";
+    else if (strstr(param->url, "://") == NULL) status = "URL malformed";
+    else if (strncmp(param->url, "http", strstr(param->url, "://") - param->url) != 0 && strncmp(param->url, "https", strstr(param->url, "://") - param->url) != 0) status = "Invalid protocol '" + std::string(param->url).substr(0, strstr(param->url, "://") - param->url) + "'";
+    else if (strstr(param->url, "192.168.") != NULL || strstr(param->url, "10.0.") != NULL || strstr(param->url, "127.") != NULL || strstr(param->url, "localhost") != NULL) status = "Domain not permitted";
     http_check_t * res = new http_check_t;
     res->url = param->url;
     res->status = status;
