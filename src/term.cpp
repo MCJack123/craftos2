@@ -894,7 +894,6 @@ int term_blit(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    std::lock_guard<std::mutex> locked_g(term->locked);
     size_t str_sz, fg_sz, bg_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
     const char * fg = lua_tolstring(L, 2, &fg_sz);
@@ -903,6 +902,7 @@ int term_blit(lua_State *L) {
         lua_pushstring(L, "Arguments must be the same length");
         lua_error(L);
     }
+    std::lock_guard<std::mutex> locked_g(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
         if (computer->config.isColor || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
             computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
