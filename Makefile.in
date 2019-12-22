@@ -4,7 +4,7 @@ CFLAGS=@CFLAGS@
 CPPFLAGS=@CPPFLAGS@
 CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
-LIBS=craftos2-luajit/src/libluajit.so @LIBS@
+LIBS=craftos2-luajit/src/libluajit.a @LIBS@
 ifndef OS
 ifeq ($(shell uname), Darwin)
 CFLAGS+= -fno-stack-check
