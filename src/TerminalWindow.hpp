@@ -38,6 +38,49 @@ public:
     window_exception(std::string error): err(error) {}
     window_exception(): err("Unknown error") {}
 };
+template<typename T>
+class vector2d {
+    int width;
+    int height;
+    std::vector<T> vec;
+public:
+    class row {
+        std::vector<T> * vec;
+        int ypos;
+        int size;
+        class val {
+            std::vector<T> * vec;
+            int pos;
+        public:
+            val(std::vector<T> *v, int p): vec(v), pos(p) {}
+            operator T() {return (*vec)[pos];}
+            T operator=(T val) {return (*vec)[pos] = val;}
+            T* operator&() {return &(*vec)[pos];}
+        };
+    public:
+        row(std::vector<T> *v, int y, int s): vec(v), ypos(y), size(s) {}
+        val operator[](int idx) { return val(vec, ypos + idx); }
+        void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + v.size(), vec->begin() + ypos);}
+        void operator=(row v) {std::copy(v.vec->begin() + v.ypos, v.vec->begin() + v.ypos + v.size, vec->begin() + ypos);}
+    };
+    vector2d(int w, int h, T v): vec(w*h, v), width(w), height(h) {}
+    row operator[](int idx) {return row(&vec, idx * width, width);}
+    void resize(int w, int h, T v) {
+        if (w == width) vec.resize(width * h);
+        else {
+            std::vector<T> newvec(w * h);
+            for (int y = 0; y < height && y < w; y++) {
+                std::copy(vec.begin() + (y * width), vec.begin() + ((y + 1) * width), newvec.begin() + (y * w));
+                if (w > width) std::fill(newvec.begin() + (y * w) + width, newvec.begin() + ((y + 1) * w), v);
+            }
+            vec = newvec;
+        }
+        if (h > height) std::fill(vec.begin() + (w * height), vec.end(), v);
+        width = w;
+        height = h;
+    }
+};
+
 
 class TerminalWindow {
     friend void mainLoop();
@@ -72,9 +115,9 @@ public:
     int dpiScale = 1;
     int charWidth = fontWidth * 2/fontScale * charScale;
     int charHeight = fontHeight * 2/fontScale * charScale;
-    std::vector<std::vector<unsigned char> > screen;
-    std::vector<std::vector<unsigned char> > colors;
-    std::vector<std::vector<unsigned char> > pixels;
+    vector2d<unsigned char> screen;
+    vector2d<unsigned char> colors;
+    vector2d<unsigned char> pixels;
     volatile int mode = 0;
     Color palette[256];
     Color background = {0x1f, 0x1f, 0x1f};

@@ -34,14 +34,6 @@ void bad_argument(lua_State *L, const char * type, int pos) {
     lua_error(L);
 }
 
-Computer * get_comp(lua_State *L) {
-    lua_pushstring(L, "computer");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void * retval = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    return (Computer*)retval;
-}
-
 lua_CFunction getLibraryFunction(library_t * lib, const char * name) {
     for (int i = 0; i < lib->count; i++) if (std::string(lib->keys[i]) == std::string(name)) return lib->values[i];
     return NULL;

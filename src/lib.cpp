@@ -19,6 +19,8 @@ extern "C" {
 }
 #include "Computer.hpp"
 
+char computer_key = 'C';
+
 void load_library(Computer *comp, lua_State *L, library_t lib) {
     lua_newtable(L); // create table
     for (int i = 0; i < lib.count; i++) {
@@ -35,13 +37,4 @@ void bad_argument(lua_State *L, const char * type, int pos) {
     lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
     lua_concat(L, 2);
     lua_error(L);
-}
-
-Computer * get_comp(lua_State *L) {
-    lua_pushstring(L, "computer");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void * retval = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    assert(retval != NULL);
-    return (Computer*)retval;
 }

@@ -423,6 +423,7 @@ debugger::debugger(lua_State *L, const char * side) {
 debugger::~debugger() {
     deleteThis = true;
     breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
+    didBreak = false;
     if (freedComputers.find(monitor) == freedComputers.end()) {
         monitor->running = 0;
         monitor->event_lock.notify_all();

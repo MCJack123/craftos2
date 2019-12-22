@@ -26,6 +26,7 @@ extern "C" {
 #include <assert.h>
 #include <sstream>
 #include <iterator>
+#include <regex>
 #ifdef WIN32
 #include <io.h>
 #define access(p, m) _access(p, m)
@@ -41,7 +42,7 @@ extern "C" {
 extern void injectMounts(lua_State *L, const char * comp_path, int idx);
 
 void err(lua_State *L, int idx, const char * err) {
-    lua_pushfstring(L, "%s: %s", lua_tostring(L, idx), err);
+    lua_pushfstring(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false).c_str(), err);
     lua_error(L);
 }
 
@@ -169,8 +170,11 @@ int fs_getFreeSpace(lua_State *L) {
 
 int fs_makeDir(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) luaL_error(L, "/%s: Access denied", fixpath(get_comp(L), lua_tostring(L, 1), false).c_str());
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0) luaL_error(L, "/%s: File exists", fixpath(get_comp(L), lua_tostring(L, 1), false).c_str());
     if (createDirectory(path) != 0 && errno != EEXIST) err(L,1, strerror(errno));
     return 0;
 }
@@ -178,6 +182,8 @@ int fs_makeDir(lua_State *L) {
 int fs_move(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
+    if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) luaL_error(L, "Access denied");
+    if (fixpath_ro(get_comp(L), lua_tostring(L, 2))) luaL_error(L, "Access denied");
     std::string fromPath = fixpath(get_comp(L), lua_tostring(L, 1));
     std::string toPath = fixpath(get_comp(L), lua_tostring(L, 2));
 	if (fromPath.empty()) err(L, 1, "Invalid path");
@@ -191,6 +197,7 @@ int fs_copy(lua_State *L) {
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     std::string fromPath = fixpath(get_comp(L), lua_tostring(L, 1));
     std::string toPath = fixpath(get_comp(L), lua_tostring(L, 2));
+    if (fixpath_ro(get_comp(L), lua_tostring(L, 2))) luaL_error(L, "/%s: Access denied", fixpath(get_comp(L), lua_tostring(L, 2), false).c_str());
 	if (fromPath.empty()) err(L, 1, "Invalid path");
 	if (toPath.empty()) err(L, 2, "Invalid path");
 	FILE * fromfp = fopen(fromPath.c_str(), "r");
@@ -215,6 +222,7 @@ int fs_copy(lua_State *L) {
 
 int fs_delete(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) luaL_error(L, "/%s: Access denied", fixpath(get_comp(L), lua_tostring(L, 1), false).c_str());
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
 	int res = removeDirectory(path);
@@ -236,20 +244,33 @@ int fs_open(lua_State *L) {
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     Computer * computer = get_comp(L);
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1));
-	if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	if (path.empty()) luaL_error(L, "/%s: Invalid path", fixpath(computer, lua_tostring(L, 1), false).c_str());
     const char * mode = lua_tostring(L, 2);
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { 
+		lua_pushnil(L);
+        if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", fixpath(computer, lua_tostring(L, 1), false).c_str());
+        else lua_pushfstring(L, "/%s: Cannot write to directory", fixpath(computer, lua_tostring(L, 1), false).c_str());
+		return 2; 
+    }
     if (computer->files_open >= config.maximumFilesOpen) err(L, 1, "Too many files open");
 	//printf("fs.open(\"%s\", \"%s\")\n", path, mode);
-    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) 
+    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0 || strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
 #ifdef WIN32
         createDirectory(path.substr(0, path.find_last_of('\\')));
 #else
         createDirectory(path.substr(0, path.find_last_of('/')));
 #endif
+        if (fixpath_ro(computer, lua_tostring(L, 1))) {
+            lua_pushnil(L);
+            lua_pushfstring(L, "/%s: Access denied", fixpath(computer, lua_tostring(L, 1), false).c_str());
+            return 2; 
+        }
+    }
 	FILE * fp = fopen(path.c_str(), mode);
 	if (fp == NULL) { 
 		lua_pushnil(L);
-		lua_pushfstring(L, "%s: File does not exist", lua_tostring(L, 1));
+		lua_pushfstring(L, "/%s: No such file", fixpath(computer, lua_tostring(L, 1), false).c_str());
 		return 2; 
 	}
     lua_newtable(L);
@@ -323,8 +344,21 @@ int fs_open(lua_State *L) {
 
 extern std::vector<std::string> split(std::string strToSplit, char delimeter);
 
+std::string replace_str(std::string data, std::string toSearch, std::string replaceStr) {
+	size_t pos = data.find(toSearch);
+	while (pos != std::string::npos) {
+		data.replace(pos, toSearch.size(), replaceStr);
+		pos = data.find(toSearch, pos + replaceStr.size());
+	}
+    return data;
+}
+
+std::string regex_escape[] = {"\\", ".", "[", "]", "{", "}", "^", "$", "(", ")", "+", "?", "|"};
+
 std::list<std::string> matchWildcard(lua_State *L, std::list<std::string> options, std::list<std::string>::iterator pathc, std::list<std::string>::iterator end) {
     if (pathc == end) return {};
+    std::string pathc_regex = *pathc;
+    for (std::string r : regex_escape) pathc_regex = replace_str(pathc_regex, r, "\\" + r);
     std::list<std::string> nextOptions;
     for (std::list<std::string>::iterator it = options.begin(); it != options.end(); it++) {
         struct dirent *dir;
@@ -338,7 +372,7 @@ std::list<std::string> matchWildcard(lua_State *L, std::list<std::string> option
                 for (unsigned j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++)
                     if (strcmp(dir->d_name, ignored_files[j]) == 0) { i--; found = 1; }
                 if (found) continue;
-                if (*pathc == "*" || std::string(dir->d_name) == *pathc) nextOptions.push_back(*it + (*it == "" ? "" : "/") + std::string(dir->d_name));
+                if (std::regex_match(std::string(dir->d_name), std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(*it + (*it == "" ? "" : "/") + std::string(dir->d_name));
             }
             closedir(d);
             lua_newtable(L);

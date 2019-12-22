@@ -121,6 +121,11 @@ extern "C" {
         } else lua_pushboolean(L, false);
         return 1;
     }
+
+    void setcompmask(lua_State *L, int mask) {
+        Computer * comp = get_comp(L);
+        comp->hookMask = mask;
+    }
 }
 
 library_t * getLibrary(std::string name) {
@@ -161,9 +166,9 @@ void Computer::run(std::string bios_name) {
             std::lock_guard<std::mutex> lock(term->locked);
             term->blinkX = 0;
             term->blinkY = 0;
-            term->screen = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, ' '));
-            term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, 0xF0));
-            term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->fontHeight, std::vector<unsigned char>(term->width * term->fontWidth, 0x0F));
+            term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
+            term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
+            term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
             memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
         }
         colors = 0xF0;
@@ -178,7 +183,8 @@ void Computer::run(std::string bios_name) {
         paramQueue = lua_newthread(L);
 
         // Push reference to this to the registry
-        lua_pushstring(L, "computer");
+        //lua_pushlightuserdata(L, &computer_key);
+        lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, this);
         lua_settable(L, LUA_REGISTRYINDEX);
         lua_newtable(L);
@@ -186,13 +192,23 @@ void Computer::run(std::string bios_name) {
 
         // Load libraries
         luaL_openlibs(coro);
-        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 100);
+        lua_getglobal(L, "os");
+        lua_getfield(L, -1, "date");
+        lua_setglobal(L, "os_date");
+        lua_pop(L, 1);
+        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 100000);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);
         if (isDebugger) load_library(this, coro, *((library_t*)debugger));
         lua_getglobal(coro, "redstone");
         lua_setglobal(coro, "rs");
+        lua_getglobal(L, "os");
+        lua_getglobal(L, "os_date");
+        lua_setfield(L, -2, "date");
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        lua_setglobal(L, "os_date");
 
         // Load any plugins available
         if (!::config.vanilla) {

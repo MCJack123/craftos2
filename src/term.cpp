@@ -339,7 +339,7 @@ bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, const char
     }
     assert(dbg->didBreak);
     std::unique_lock<std::mutex> lock(dbg->breakMutex);
-    dbg->breakNotify.wait(lock);
+    while (dbg->didBreak) dbg->breakNotify.wait_for(lock, std::chrono::milliseconds(500));
     bool retval = !dbg->running;
     dbg->thread = NULL;
     computer->last_event = std::chrono::high_resolution_clock::now();
@@ -400,7 +400,6 @@ extern "C" {extern const char KEY_HOOK;}
 
 void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
-    lua_getinfo(L, "nSlf", ar);
     if (ar->event == LUA_HOOKCOUNT) {
         if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
             computer->last_event = std::chrono::high_resolution_clock::now();
@@ -411,7 +410,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
             lua_error(L);
         }
     } else if (ar->event == LUA_HOOKLINE) {
-        if (computer->debugger == NULL && ::config.debug_enable) {
+        if (::config.debug_enable && computer->debugger == NULL && computer->breakpoints.size() > 0) {
+            lua_getinfo(L, "Sl", ar);
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
                 if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
                     noDebuggerBreak(L, computer, ar);
@@ -423,25 +423,33 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
                     if (dbg->stepCount >= 0) {dbg->stepCount = 0; debuggerBreak(L, computer, dbg, "Pause");}
                     else dbg->stepCount--;
-                } else for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints)
+                } else if (computer->breakpoints.size() > 0) {
+                    lua_getinfo(L, "Sl", ar);
+                    for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints)
                         if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) 
                             if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
+                }
             }
         }
     } else if (!computer->isDebugger && computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL && debuggerBreak(L, computer, dbg, "Pause")) return;
-        if (dbg->isProfiling && ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) != dbg->profile[ar->source].end()) {
-            dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
-            dbg->profile[ar->source][ar->name].running = false;
+        if (dbg->isProfiling) {
+            lua_getinfo(L, "nS", ar);
+            if (ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) != dbg->profile[ar->source].end()) {
+                dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
+                dbg->profile[ar->source][ar->name].running = false;
+            }
         }
     } else if (!computer->isDebugger && computer->debugger != NULL && ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
         debugger * dbg = (debugger*)computer->debugger;
         if (dbg->thread == NULL) {
-            if ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require") && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
-                (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
+            lua_getinfo(L, "nS", ar);
+            if (ar->name != NULL && ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require") && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
+                (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN)))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
         }
         if (dbg->isProfiling) {
+            lua_getinfo(L, "nS", ar);
             if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
             if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
             else {
@@ -471,7 +479,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
             if (debuggerBreak(L, computer, dbg, "Yield")) return;
     }
-    if (ar->event != LUA_HOOKCOUNT) {
+    if (ar->event != LUA_HOOKCOUNT && (computer->hookMask & (1 << ar->event))) {
         lua_pushlightuserdata(L, (void*)&KEY_HOOK);
         lua_gettable(L, LUA_REGISTRYINDEX);
         if (lua_istable(L, -1)) {
@@ -485,7 +493,10 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     if (lua_isfunction(L, -1)) {
                         static const char *const hooknames[] = {"call", "return", "line", "count", "tail return", "error", "resume", "yield"};
                         lua_pushstring(L, hooknames[ar->event]);
-                        if (ar->event == LUA_HOOKLINE) lua_pushinteger(L, ar->currentline);
+                        if (ar->event == LUA_HOOKLINE) {
+                            lua_getinfo(L, "l", ar);
+                            lua_pushinteger(L, ar->currentline);
+                        }
                         else lua_pushnil(L);
                         lua_call(L, 2, 0);
                     } else lua_pop(L, 1);
@@ -803,10 +814,10 @@ int term_clear(lua_State *L) {
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
     if (term->mode > 0) {
-        term->pixels = std::vector<std::vector<unsigned char> >(term->height * term->charHeight, std::vector<unsigned char>(term->width * term->charWidth, 15));
+        term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
     } else {
-        term->screen = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, ' '));
-        term->colors = std::vector<std::vector<unsigned char> >(term->height, std::vector<unsigned char>(term->width, computer->colors));
+        term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
+        term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
     }
     term->changed = true;
     return 0;
@@ -883,7 +894,6 @@ int term_blit(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    std::lock_guard<std::mutex> locked_g(term->locked);
     size_t str_sz, fg_sz, bg_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
     const char * fg = lua_tolstring(L, 2, &fg_sz);
@@ -892,6 +902,7 @@ int term_blit(lua_State *L) {
         lua_pushstring(L, "Arguments must be the same length");
         lua_error(L);
     }
+    std::lock_guard<std::mutex> locked_g(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
         if (computer->config.isColor || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
             computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
@@ -1018,16 +1029,16 @@ int term_drawPixels(lua_State *L) {
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
     unsigned int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
-    for (unsigned int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->pixels.size(); y++) {
+    for (unsigned int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->height * TerminalWindow::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 
         if (lua_isstring(L, -1)) {
             size_t str_sz;
             const char * str = lua_tolstring(L, -1, &str_sz);
-            if (init_x + str_sz - 1 < term->pixels[init_y+y-1].size())
+            if (init_x + str_sz - 1 < term->width * TerminalWindow::fontWidth)
                 memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
-            for (unsigned int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->pixels[init_y+y-1].size(); x++) {
+            for (unsigned int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->width * TerminalWindow::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
                 term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);

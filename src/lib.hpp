@@ -17,7 +17,7 @@ extern "C" {
 #include <lualib.h>
 }
 
-#define CRAFTOSPC_VERSION "v2.2-luajit"
+#define CRAFTOSPC_VERSION "v2.2.1-luajit"
 #define CRAFTOSPC_INDEV   false
 
 class Computer;
@@ -33,7 +33,15 @@ typedef struct library {
 
 #include "Computer.hpp"
 
+extern char computer_key;
 extern void load_library(Computer *comp, lua_State *L, library_t lib);
 extern void bad_argument(lua_State *L, const char * type, int pos);
-extern Computer * get_comp(lua_State *L);
+inline Computer * get_comp(lua_State *L) {
+    //lua_pushlightuserdata(L, &computer_key);
+    lua_pushinteger(L, 1);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void * retval = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    return (Computer*)retval;
+}
 #endif
