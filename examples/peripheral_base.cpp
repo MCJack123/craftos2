@@ -19,14 +19,6 @@ void bad_argument(lua_State *L, const char * type, int pos) {
     lua_error(L);
 }
 
-Computer * get_comp(lua_State *L) {
-    lua_pushstring(L, "computer");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void * retval = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    return (Computer*)retval;
-}
-
 peripheral::~peripheral(){}
 
 // Replace myperipheral with the name of your peripheral
