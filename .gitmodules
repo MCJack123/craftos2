@@ -1,0 +1,3 @@
+[submodule "craftos2-luajit"]
+	path = craftos2-luajit
+	url = https://github.com/MCJack123/craftos2-luajit

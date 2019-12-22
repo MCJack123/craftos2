@@ -28,8 +28,8 @@ fi
 # Check language
 AC_LANG([C++])
 CXXFLAGS="$CXXFLAGS -std=c++11"
-CPPFLAGS="$CPPFLAGS -I/usr/include/luajit-2.0 -I/usr/include/luajit-2.1 -I/usr/local/include/luajit-2.0 -I/usr/local/opt/openssl/include"
-LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
+CPPFLAGS="$CPPFLAGS -Icraftos2-luajit/include -I/usr/local/opt/openssl/include"
+LDFLAGS="$LDFLAGS -Lcraftos2-luajit/src -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
 AX_CHECK_COMPILE_FLAG([-std=c++11], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++11.])])
@@ -38,9 +38,6 @@ AX_CHECK_COMPILE_FLAG([-std=c++11], [], [AC_MSG_ERROR([C++ compiler does not sup
 
 AC_SEARCH_LIBS(pthread_create, pthread, [], [AC_MSG_ERROR([Could not find pthread library.])])
 AC_SEARCH_LIBS(dlopen, dl, [], [AC_MSG_ERROR([Could not find dl library.])])
-
-AC_CHECK_HEADERS(lua.h lualib.h lauxlib.h luajit.h, [], [AC_MSG_ERROR([Could not find Lua 5.1 headers.])])
-AC_SEARCH_LIBS(luaL_register, [luajit-5.1 luajit], [], [AC_MSG_ERROR([Could not find Lua 5.1.])])
 
 AC_CHECK_HEADERS(SDL2/SDL.h, [], [AC_MSG_ERROR([Could not find SDL2 header.])])
 AC_SEARCH_LIBS(SDL_Init, SDL2, [], [AC_MSG_ERROR([Could not find SDL2 library.])])

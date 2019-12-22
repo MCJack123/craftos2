@@ -9,7 +9,7 @@ ifeq ($(shell uname), Darwin)
 LDFLAGS+= -pagezero_size 10000 -image_base 100000000
 endif
 endif
-LIBS=@LIBS@
+LIBS=craftos2-luajit/src/libluajit.a @LIBS@
 PREFIX?=@prefix@
 prefix=$(PREFIX)
 DESTDIR?=@exec_prefix@
@@ -21,12 +21,16 @@ ODIR=obj
 _OBJ=CLITerminalWindow.o Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o liolib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
+craftos2-luajit/src/libluajit.a:
+	git submodule update --init --recursive
+	make -C craftos2-luajit
+
 all: $(ODIR) craftos
 
-craftos: $(OBJ) $(ODIR)/platform.o
+craftos: $(OBJ) $(ODIR)/platform.o craftos2-luajit/src/libluajit.a
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-macapp: $(OBJ) $(ODIR)/platform_macapp.o
+macapp: $(OBJ) $(ODIR)/platform_macapp.o craftos2-luajit/src/libluajit.a
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
 	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework AppKit -mmacosx-version-min=10.9.5
@@ -78,11 +82,11 @@ $(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR
 $(ODIR)/peripheral_computer.o: $(SDIR)/peripheral/computer_p.cpp $(SDIR)/peripheral/computer.hpp $(SDIR)/peripheral/peripheral.hpp
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
-mac-plugin:
-	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
+mac-plugin: craftos2-luajit/src/libluajit.a
+	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-luajit/src/libluajit.a -lSDL2 -Icraftos2-luajit/include
 
-linux-plugin:
-	$(CXX) -std=c++11 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
+linux-plugin: craftos2-luajit/src/libluajit.a
+	$(CXX) -std=c++11 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-luajit/src/libluajit.a -lSDL2 -Icraftos2-luajit/include
 
 clean: $(ODIR)
 	rm -f craftos

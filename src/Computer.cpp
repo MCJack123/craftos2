@@ -178,6 +178,10 @@ void Computer::run(std::string bios_name) {
         * all the time.
         */
         L = luaL_newstate();
+        if (L == NULL) {
+            queueTask([](void*term)->void*{((TerminalWindow*)term)->showMessage(SDL_MESSAGEBOX_ERROR, "Failed to launch", "An error occurred while creating the Lua state. The computer must now shut down."); return NULL;}, term);
+            return;
+        }
 
         coro = lua_newthread(L);
         paramQueue = lua_newthread(L);
