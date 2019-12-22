@@ -4,12 +4,14 @@ CFLAGS=@CFLAGS@
 CPPFLAGS=@CPPFLAGS@
 CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
+LIBS=@LIBS@
 ifndef OS
 ifeq ($(shell uname), Darwin)
+CFLAGS+= -fno-stack-check
 LDFLAGS+= -pagezero_size 10000 -image_base 100000000
+LIBS+= -framework ApplicationServices
 endif
 endif
-LIBS=craftos2-luajit/src/libluajit.a @LIBS@
 PREFIX?=@prefix@
 prefix=$(PREFIX)
 DESTDIR?=@exec_prefix@
@@ -21,16 +23,16 @@ ODIR=obj
 _OBJ=CLITerminalWindow.o Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o liolib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-craftos2-luajit/src/libluajit.a:
+all: $(ODIR) craftos
+
+craftos2-luajit/src/libluajit.so:
 	git submodule update --init --recursive
 	make -C craftos2-luajit
 
-all: $(ODIR) craftos
-
-craftos: $(OBJ) $(ODIR)/platform.o craftos2-luajit/src/libluajit.a
+craftos: $(OBJ) $(ODIR)/platform.o craftos2-luajit/src/libluajit.so
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-macapp: $(OBJ) $(ODIR)/platform_macapp.o craftos2-luajit/src/libluajit.a
+macapp: $(OBJ) $(ODIR)/platform_macapp.o craftos2-luajit/src/libluajit.so
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
 	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework AppKit -mmacosx-version-min=10.9.5

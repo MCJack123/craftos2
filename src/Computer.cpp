@@ -357,7 +357,7 @@ void Computer::run(std::string bios_name) {
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
         lua_pushboolean(L, ::config.disable_lua51_features);
         lua_setglobal(L, "_CC_DISABLE_LUA51_FEATURES");
-        lua_pushstring(L, "ComputerCraft 1.85.2 (CraftOS-PC " CRAFTOSPC_VERSION ")");
+        lua_pushstring(L, "ComputerCraft 1.85.2 (CraftOS-PC Accelerated " CRAFTOSPC_VERSION ")");
         lua_setglobal(L, "_HOST");
         if (headless) {
             lua_pushboolean(L, true);
