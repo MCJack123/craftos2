@@ -123,6 +123,11 @@ HTTP server extension in the `http` API.
   * *table*: The response table
 * server_stop: Send this inside an `http.listen()` callback to stop the server
 
+## `os`
+* *string* os.about(): Returns a string with the version as well as a license notice.
+* *nil* os.setHaltOnLongRunMode(*boolean* mode) **CraftOS-PC Accelerated only**: Sets whether the computer should throw an error if it runs for too long without yielding. This is necessary on CraftOS-PC Accelerated since the method used to do this can drastically slow the computer down on LuaJIT.
+  * mode: `true` to enable error, `false` to disable error
+
 ## Plugin API
 CraftOS-PC 2 features a new plugin API that allows easy addition of new C APIs into the environment. 
 A plugin consists of a shared library (`.dll`, `.dylib`, `.so`) that contains a function named `luaopen_<name>`, where `<name>` is the filename of the plugin.

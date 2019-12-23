@@ -485,7 +485,13 @@ int os_exit(lua_State *L) {
     return 0;
 }
 
-const char * os_keys[19] = {
+int os_setHaltOnLongRunMode(lua_State *L) {
+    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
+    lua_sethook(L, termHook, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1);
+    return 0;
+}
+
+const char * os_keys[20] = {
     "getComputerID",
     "computerID",
     "getComputerLabel",
@@ -504,10 +510,11 @@ const char * os_keys[19] = {
     "reboot",
     "system",
     "about",
-    "exit"
+    "exit",
+    "setHaltOnLongRunMode"
 };
 
-lua_CFunction os_values[19] = {
+lua_CFunction os_values[20] = {
     os_getComputerID,
     os_getComputerID,
     os_getComputerLabel,
@@ -526,7 +533,8 @@ lua_CFunction os_values[19] = {
     os_reboot,
     os_system,
     os_about,
-    os_exit
+    os_exit,
+    os_setHaltOnLongRunMode
 };
 
-library_t os_lib = {"os", 19, os_keys, os_values, nullptr, nullptr};
+library_t os_lib = {"os", 20, os_keys, os_values, nullptr, nullptr};

@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/craftos",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Build"
+            "preLaunchTask": "Build",
         },
         {
             "name": "(gdb) Launch",
