@@ -239,7 +239,7 @@ testStart("coroutine")
 testEnd()
 
 testStart("fs")
-	test("list", {{"apis", "autorun", "help", "modules", "programs", "startup.lua"}}, "/rom")
+	test("list", {{"apis", "autorun", "help", "modules", "motd.txt", "programs", "startup.lua"}}, "/rom")
 	test("exists", true, "/rom/programs/shell.lua")
 	test("exists", true, "/rom/programs")
 	test("isDir", true, "/rom/programs")
