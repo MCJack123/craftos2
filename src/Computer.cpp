@@ -29,7 +29,7 @@ extern "C" {
 #include <lauxlib.h>
 }
 
-#define PLUGIN_VERSION 2
+#define PLUGIN_VERSION 3
 
 extern bool headless;
 extern bool cli;
