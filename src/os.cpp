@@ -301,8 +301,8 @@ int os_getComputerLabel(lua_State *L) {
 }
 
 int os_setComputerLabel(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    get_comp(L)->config.label = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
+    if (!lua_isnoneornil(L, 1) && !lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    get_comp(L)->config.label = lua_isstring(L, 1) ? std::string(lua_tostring(L, 1), lua_strlen(L, 1)) : "";
     return 0;
 }
 
