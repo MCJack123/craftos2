@@ -5,12 +5,15 @@ VisualStudioVersion = 16.0.28803.202
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CraftOS-PC 2", "CraftOS-PC 2.vcxproj", "{966C1071-8EB9-4BBA-85A4-9F9BFE05F3B1}"
 	ProjectSection(ProjectDependencies) = postProject
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1} = {FD713503-EED8-49ED-BDD5-CF343782ABB1}
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF} = {2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ccemux", "..\ccemux\ccemux.vcxproj", "{420CF327-F84D-4DA5-8A78-34C8B5CFCC7A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF} = {2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}
+	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "craftos2-lua", "craftos2-lua\craftos2-lua.vcxproj", "{FD713503-EED8-49ED-BDD5-CF343782ABB1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "craftos2-luajit", "craftos2-luajit\craftos2-luajit.vcxproj", "{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -36,14 +39,14 @@ Global
 		{420CF327-F84D-4DA5-8A78-34C8B5CFCC7A}.Release|x64.Build.0 = Release|x64
 		{420CF327-F84D-4DA5-8A78-34C8B5CFCC7A}.Release|x86.ActiveCfg = Release|Win32
 		{420CF327-F84D-4DA5-8A78-34C8B5CFCC7A}.Release|x86.Build.0 = Release|Win32
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Debug|x64.ActiveCfg = Debug|x64
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Debug|x64.Build.0 = Debug|x64
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Debug|x86.ActiveCfg = Debug|Win32
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Debug|x86.Build.0 = Debug|Win32
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Release|x64.ActiveCfg = Release|x64
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Release|x64.Build.0 = Release|x64
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Release|x86.ActiveCfg = Release|Win32
-		{FD713503-EED8-49ED-BDD5-CF343782ABB1}.Release|x86.Build.0 = Release|Win32
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Debug|x64.ActiveCfg = Debug|x64
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Debug|x64.Build.0 = Debug|x64
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Debug|x86.ActiveCfg = Debug|Win32
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Debug|x86.Build.0 = Debug|Win32
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Release|x64.ActiveCfg = Release|x64
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Release|x64.Build.0 = Release|x64
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Release|x86.ActiveCfg = Release|Win32
+		{2CA94E9B-CCDF-46A3-A101-A2CFA05633FF}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
