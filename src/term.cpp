@@ -590,10 +590,25 @@ const char * termGetEvent(lua_State *L) {
             else if (e.key.keysym.scancode == SDL_SCANCODE_F11 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->toggleFullscreen();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F12 && e.key.keysym.mod == 0 && !config.ignoreHotkeys) term->screenshot("clipboard");
             else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
-                if (computer->waitingForTerminate == 1) {
-                    computer->waitingForTerminate = 2;
+                if (computer->waitingForTerminate & 1) {
+                    computer->waitingForTerminate |= 2;
+                    computer->waitingForTerminate &= ~1;
                     return "terminate";
-                } else if (computer->waitingForTerminate == 0) computer->waitingForTerminate = 1;
+                } else if ((computer->waitingForTerminate & 3) == 0) computer->waitingForTerminate |= 1;
+            } else if (e.key.keysym.scancode == SDL_SCANCODE_S && (e.key.keysym.mod & KMOD_CTRL)) {
+                if (computer->waitingForTerminate & 4) {
+                    computer->waitingForTerminate |= 8;
+                    computer->waitingForTerminate &= ~4;
+                    computer->running = 0;
+                    return "terminate";
+                } else if ((computer->waitingForTerminate & 12) == 0) computer->waitingForTerminate |= 4;
+            } else if (e.key.keysym.scancode == SDL_SCANCODE_R && (e.key.keysym.mod & KMOD_CTRL)) {
+                if (computer->waitingForTerminate & 16) {
+                    computer->waitingForTerminate |= 32;
+                    computer->waitingForTerminate &= ~16;
+                    computer->running = 2;
+                    return "terminate";
+                } else if ((computer->waitingForTerminate & 48) == 0) computer->waitingForTerminate |= 16;
             } else if (e.key.keysym.scancode == SDL_SCANCODE_V && 
 #ifdef __APPLE__
               (e.key.keysym.mod & KMOD_GUI) &&
