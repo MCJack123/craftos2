@@ -50,27 +50,28 @@ void update_thread() {
         Poco::JSON::Array::Ptr root = parser.asVar().extract<Poco::JSON::Array::Ptr>();
         for (auto it = root->begin(); it != root->end(); it++) {
             Poco::JSON::Object::Ptr obj = it->extract<Poco::JSON::Object::Ptr>();
-            if (obj->getValue<std::string>("target_commitish") == "luajit" && obj->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) {
+            if (obj->getValue<std::string>("target_commitish") == "luajit") {
+                if (obj->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) {
 #if defined(__APPLE__) || defined(WIN32)
-                SDL_MessageBoxData msg;
-                SDL_MessageBoxButtonData buttons[] = {
-                    {0, 0, "Skip This Version"},
-                    {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Ask Me Later"},
-                    {0, 2, "Update On Quit"},
-                    {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"}
-                };
-                msg.flags = SDL_MESSAGEBOX_INFORMATION;
-                msg.window = NULL;
-                msg.title = "Update available!";
-                std::string message = (std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
-                msg.message = message.c_str();
-                msg.numbuttons = 4;
-                msg.buttons = buttons;
-                msg.colorScheme = NULL;
-                int* choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
-                int choice = *choicep;
-                delete choicep;
-                switch (choice) {
+                    SDL_MessageBoxData msg;
+                    SDL_MessageBoxButtonData buttons[] = {
+                        {0, 0, "Skip This Version"},
+                        {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Ask Me Later"},
+                        {0, 2, "Update On Quit"},
+                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"}
+                    };
+                    msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                    msg.window = NULL;
+                    msg.title = "Update available!";
+                    std::string message = (std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
+                    msg.message = message.c_str();
+                    msg.numbuttons = 4;
+                    msg.buttons = buttons;
+                    msg.colorScheme = NULL;
+                    int* choicep = (int*)queueTask([](void* arg)->void* {int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num; }, &msg);
+                    int choice = *choicep;
+                    delete choicep;
+                    switch (choice) {
                     case 0:
                         config.skipUpdate = CRAFTOSPC_VERSION;
                         return;
@@ -80,16 +81,18 @@ void update_thread() {
                         updateAtQuit = obj->getValue<std::string>("tag_name");
                         return;
                     case 3:
-                        queueTask([obj](void*)->void*{updateNow(obj->getValue<std::string>("tag_name")); return NULL;}, NULL);
+                        queueTask([obj](void*)->void* {updateNow(obj->getValue<std::string>("tag_name")); return NULL; }, NULL);
                         return;
                     default:
                         // this should never happen
                         exit(choice);
-                }
+                    }
 #else
-                queueTask([](void* arg)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Update available!", (const char*)arg, NULL); return NULL; }, (void*)(std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Go to " + obj->getValue<std::string>("html_url") + " to download the new version.").c_str());
-                return;
+                    queueTask([](void* arg)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Update available!", (const char*)arg, NULL); return NULL; }, (void*)(std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + ", you have " CRAFTOSPC_VERSION "). Go to " + obj->getValue<std::string>("html_url") + " to download the new version.").c_str());
+                    return;
 #endif
+                }
+                return;
             }
         }
     } catch (std::exception &e) {
