@@ -31,6 +31,11 @@ typedef struct color {
 
 extern Color defaultPalette[16];
 
+template<typename T>
+inline T min(T a, T b) { return a < b ? a : b; }
+template<typename T>
+inline T max(T a, T b) { return a > b ? a : b; }
+
 class window_exception: public std::exception {
     std::string err;
 public:
@@ -69,8 +74,8 @@ public:
         if (w == width) vec.resize(width * h);
         else {
             std::vector<T> newvec(w * h);
-            for (int y = 0; y < height && y < w; y++) {
-                std::copy(vec.begin() + (y * width), vec.begin() + ((y + 1) * width), newvec.begin() + (y * w));
+            for (int y = 0; y < height && y < h; y++) {
+                std::copy(vec.begin() + (y * width), vec.begin() + (y * width) + min(w, width), newvec.begin() + (y * w));
                 if (w > width) std::fill(newvec.begin() + (y * w) + width, newvec.begin() + ((y + 1) * w), v);
             }
             vec = newvec;

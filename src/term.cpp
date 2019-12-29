@@ -558,11 +558,6 @@ int termHasEvent(Computer * computer) {
     return computer->event_provider_queue.size() + computer->lastResizeEvent + computer->termEventQueue.size();
 }
 
-template<typename T>
-inline T min(T a, T b) {return a < b ? a : b;}
-template<typename T>
-inline T max(T a, T b) {return a > b ? a : b;}
-
 const char * termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
     computer->event_provider_queue_mutex.lock();

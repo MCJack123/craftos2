@@ -25,9 +25,7 @@ extern "C" {
 #endif
 #define libFunc(lib, name) getLibraryFunction(getLibrary(lib), name)
 
-#ifndef PLUGIN_VERSION
 #define PLUGIN_VERSION 2
-#endif
 
 library_t * (*getLibrary)(std::string);
 
