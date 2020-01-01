@@ -5,7 +5,7 @@
  * This file defines the class for the monitor peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2020 JackMacWindows.
  */
 #ifndef PERIPHERAL_MONITOR_HPP
 #define PERIPHERAL_MONITOR_HPP

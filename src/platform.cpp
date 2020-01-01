@@ -5,7 +5,7 @@
  * This file controls which platform implementation will be compiled.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2020 JackMacWindows.
  */
 
 #include "platform.hpp"

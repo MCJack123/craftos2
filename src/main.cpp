@@ -5,7 +5,7 @@
  * This file controls the Lua VM, loads the CraftOS BIOS, and sends events back.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2020 JackMacWindows.
  */
 
 #include "Computer.hpp"

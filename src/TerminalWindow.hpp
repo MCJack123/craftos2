@@ -5,7 +5,7 @@
  * This file defines the TerminalWindow class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2020 JackMacWindows.
  */
 
 class TerminalWindow;
