@@ -282,7 +282,7 @@ void TerminalWindow::render() {
 #endif
     }
     if (shouldRecord) {
-        if (recordedFrames >= 150) stopRecording();
+        if (recordedFrames >= config.maxRecordingTime * config.recordingFPS) stopRecording();
         else if (--frameWait < 1) {
             recorderMutex.lock();
             uint32_t uw = static_cast<uint32_t>(surf->w), uh = static_cast<uint32_t>(surf->h);
@@ -303,8 +303,9 @@ void TerminalWindow::render() {
             SDL_FreeSurface(temp);
             recording.push_back(rle);
             recordedFrames++;
-            frameWait = config.clockSpeed / 10;
-            recorderMutex.unlock();if (gotResizeEvent) return;
+            frameWait = config.clockSpeed / config.recordingFPS;
+            recorderMutex.unlock();
+            if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
         if (circle == NULL) { printf("Error: %s\n", SDL_GetError()); assert(false); }
@@ -411,7 +412,7 @@ void TerminalWindow::stopRecording() {
     recorderMutex.lock();
     if (recording.size() < 1) { recorderMutex.unlock(); return; }
     GifWriter g;
-    GifBegin(&g, recordingPath.c_str(), ((uint32_t*)(&recording[0][0]))[0], ((uint32_t*)(&recording[0][0]))[1], 10);
+    GifBegin(&g, recordingPath.c_str(), ((uint32_t*)(&recording[0][0]))[0], ((uint32_t*)(&recording[0][0]))[1], 100 / config.recordingFPS);
     for (std::string s : recording) {
         uint32_t w = ((uint32_t*)&s[0])[0], h = ((uint32_t*)&s[0])[1];
         uint32_t* ipixels = new uint32_t[w * h];
@@ -420,7 +421,7 @@ void TerminalWindow::stopRecording() {
             uint32_t c = ((uint32_t*)&s[0])[i];
             lp = memset_int(lp, c & 0xFFFFFF, ((c & 0xFF000000) >> 24) + 1);
         }
-        GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 10);
+        GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 100 / config.recordingFPS);
         delete[] ipixels;
     }
     GifEnd(&g);

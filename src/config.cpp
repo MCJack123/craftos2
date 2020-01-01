@@ -115,7 +115,9 @@ void config_init() {
         "",
         false,
         false,
-        0
+        0,
+        15,
+        10
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -144,6 +146,8 @@ void config_init() {
     if (root.isMember("configReadOnly")) config.configReadOnly = root["configReadOnly"].asBool();
     if (root.isMember("vanilla")) config.vanilla = root["vanilla"].asBool();
     if (root.isMember("initialComputer")) config.initialComputer = root["initialComputer"].asInt();
+    if (root.isMember("maxRecordingTime")) config.maxRecordingTime = root["maxRecordingTime"].asInt();
+    if (root.isMember("recordingFPS")) config.recordingFPS = root["recordingFPS"].asInt();
 }
 
 void config_save(bool deinit) {
@@ -170,6 +174,8 @@ void config_save(bool deinit) {
     root["configReadOnly"] = config.configReadOnly;
     root["vanilla"] = config.vanilla;
     root["initialComputer"] = config.initialComputer;
+    root["maxRecordingTime"] = config.maxRecordingTime;
+    root["recordingFPS"] = config.recordingFPS;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -223,6 +229,10 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.vanilla);
     else if (strcmp(name, "initialComputer") == 0)
         lua_pushinteger(L, config.initialComputer);
+    else if (strcmp(name, "maxRecordingTime") == 0)
+        lua_pushinteger(L, config.maxRecordingTime);
+    else if (strcmp(name, "recordingFPS") == 0)
+        lua_pushinteger(L, config.recordingFPS);
     else lua_pushnil(L);
     return 1;
 }
@@ -284,6 +294,10 @@ int config_set(lua_State *L) {
         config.vanilla = lua_toboolean(L, 2);
     else if (strcmp(name, "initialComputer") == 0)
         config.initialComputer = lua_tointeger(L, 2);
+    else if (strcmp(name, "maxRecordingTime") == 0)
+        config.maxRecordingTime = lua_tointeger(L, 2);
+    else if (strcmp(name, "recordingFPS") == 0)
+        config.recordingFPS = lua_tointeger(L, 2);
     config_save(false);
     return 0;
 }
@@ -308,6 +322,8 @@ const char * configuration_keys[] = {
     "configReadOnly",
     "vanilla",
     "initialComputer",
+    "maxRecordingTime",
+    "recordingFPS",
     NULL,
 };
 
@@ -334,7 +350,8 @@ int config_getType(lua_State *L) {
         lua_pushstring(L, "string");
     else if (name == "computerSpaceLimit" || name == "maximumFilesOpen" || 
              name == "maxNotesPerTick" || name == "clockSpeed" || 
-             name == "abortTimeout" || name == "mount_mode" || name == "initialComputer")
+             name == "abortTimeout" || name == "mount_mode" || 
+             name == "initialComputer" || name == "maxRecordingTime" || name == "recordingFPS")
         lua_pushstring(L, "number");
     else lua_pushnil(L);
     return 1;

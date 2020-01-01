@@ -40,6 +40,8 @@ struct configuration {
     bool configReadOnly;
     bool vanilla;
     int initialComputer;
+    int maxRecordingTime;
+    int recordingFPS; // should be an even divisor of clockSpeed
 };
 struct computer_configuration {
     std::string label;
