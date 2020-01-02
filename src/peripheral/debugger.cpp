@@ -394,15 +394,15 @@ int debugger::setBreakpoint(lua_State *L) {
 }
 
 const char * debugger_print(lua_State *L, void* arg) {
-    lua_pushstring(L, (char*)arg);
-    delete[] (char*)arg;
+    std::string * str = (std::string*)arg;
+    lua_pushlstring(L, str->c_str(), str->size());
+    delete str;
     return "debugger_print";
 }
 
 int debugger::print(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * str = new char[lua_strlen(L, 1)];
-    memcpy(str, lua_tostring(L, 1), lua_strlen(L, 1));
+    std::string * str = new std::string(lua_tostring(L, 1), lua_strlen(L, 1));
     termQueueProvider(monitor, debugger_print, str);
     return 0;
 }
