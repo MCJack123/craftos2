@@ -174,7 +174,7 @@ int fs_makeDir(lua_State *L) {
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     struct stat st;
-    if (stat(path.c_str(), &st) == 0) luaL_error(L, "/%s: File exists", fixpath(get_comp(L), lua_tostring(L, 1), false).c_str());
+    if (stat(path.c_str(), &st) == 0 && !S_ISDIR(st.st_mode)) luaL_error(L, "/%s: File exists", fixpath(get_comp(L), lua_tostring(L, 1), false).c_str());
     if (createDirectory(path) != 0 && errno != EEXIST) err(L,1, strerror(errno));
     return 0;
 }
