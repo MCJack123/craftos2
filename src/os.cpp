@@ -475,7 +475,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n\
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n\
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n\
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n\
-SOFTWARE.");
+SOFTWARE.\n\n\
+Special thanks:\n\
+* dan200 for creating the ComputerCraft mod and making it open source\n\
+* SquidDev for picking up ComputerCraft after Dan left and creating CC: Tweaked\n\
+* EveryOS for sending me a patched version of Lua that finally fixed issue #1\n\
+* Everyone on the Minecraft Computer Mods Discord server for the support while developing CraftOS-PC 2");
     return 1;
 }
 
