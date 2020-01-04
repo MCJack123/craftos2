@@ -299,24 +299,29 @@ int log2i(int num) {
     return retval;
 }
 
+inline const char * checkstr(const char * str) {return str == NULL ? "(null)" : str;}
+
 extern library_t * libraries[9];
 int termPanic(lua_State *L) {
-    lua_getglobal(L, "debug");
-    lua_getfield(L, -1, "traceback");
-    //lua_call(L, 0, 1);
-    //printf("%s\n", lua_tostring(L, -1));
-    lua_pop(L, 1);
-    lua_Debug ar;
-    lua_getstack(L, 1, &ar);
-    lua_getinfo(L, "nSl", &ar);
     Computer * comp = get_comp(L);
     comp->running = 0;
-    #ifndef NO_CLI
-    if (cli)
-        fprintf(stderr, "An unexpected error occurred in a Lua function: %s:%s:%d: %s\n", ar.short_src, ar.name == NULL ? "(null)" : ar.name, ar.currentline, lua_tostring(L, 1));
-    else
-    #endif
-        queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(ar.short_src) + ":" + std::string(ar.name == NULL ? "(null)" : ar.name) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), comp->term->win); return NULL;}, L);
+    lua_Debug ar;
+    if (lua_getstack(L, 0, &ar)) {
+        lua_getinfo(L, "nSl", &ar);
+        #ifndef NO_CLI
+        if (cli)
+            fprintf(stderr, "An unexpected error occurred in a Lua function: %s:%s:%d: %s\n", checkstr(ar.short_src), checkstr(ar.name), ar.currentline, checkstr(lua_tostring(L, 1)));
+        else
+        #endif
+            queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(checkstr(ar.short_src)) + ":" + std::string(checkstr(ar.name)) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), comp->term->win); return NULL;}, L);
+    } else {
+        #ifndef NO_CLI
+        if (cli)
+            fprintf(stderr, "An unexpected error occurred in a Lua function: (unknown): %s\n", checkstr(lua_tostring(L, 1)));
+        else
+        #endif
+            queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: (unknown): " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), comp->term->win); return NULL;}, L);
+    }
     comp->event_lock.notify_all();
     for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
         if (libraries[i]->deinit != NULL) libraries[i]->deinit(comp);
