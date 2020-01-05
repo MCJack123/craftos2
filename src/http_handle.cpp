@@ -49,7 +49,8 @@ int http_handle_close(lua_State *L) {
     return 0;
 }
 
-extern char checkChar(char c);
+//extern char checkChar(char c);
+#define checkChar(c) c
 
 int http_handle_readAll(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));

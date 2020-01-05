@@ -14,6 +14,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+extern "C" {
+#include <lauxlib.h>
+}
+#include <codecvt>
+#include <string>
+#include <locale>
 
 int fs_handle_close(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1))) {
@@ -27,6 +33,8 @@ int fs_handle_close(lua_State *L) {
     return 0;
 }
 
+#define checkChar(c) c
+/*
 char checkChar(char c) {
 	if ((c >= 32 && c < 127) || c == '\n' || c == '\t' || c == '\r') return c;
 	else if (c == EOF) return '\0';
@@ -35,6 +43,7 @@ char checkChar(char c) {
 		return '?';
 	}
 }
+*/
 
 int fs_handle_readAll(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1))) {
@@ -49,14 +58,19 @@ int fs_handle_readAll(lua_State *L) {
     char * retval = new char[size + 1];
     memset(retval, 0, size + 1);
     fseek(fp, pos, SEEK_SET);
-    int i;
+    /*int i;
     for (i = 0; !feof(fp) && i < size; i++) {
         char c = fgetc(fp);
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = checkChar(c);
-    }
-    lua_pushstring(L, retval);
+    }*/
+    fread(retval, size, 1, fp);
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring wstr = converter.from_bytes(retval, retval + size);
     delete[] retval;
+    std::string out;
+    for (wchar_t c : wstr) if (c < 256) out += (char)c;
+    lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
 
@@ -78,8 +92,12 @@ int fs_handle_readLine(lua_State *L) {
 	}
     int len = strlen(retval) - (retval[strlen(retval)-1] == '\n');
     if (retval[len-1] == '\r') retval[--len] = '\0';
-    lua_pushlstring(L, retval, len);
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring wstr = converter.from_bytes(retval, retval + len);
     delete[] retval;
+    std::string out;
+    for (wchar_t c : wstr) if (c < 256) out += (char)c;
+    lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
 
@@ -90,8 +108,31 @@ int fs_handle_readChar(lua_State *L) {
     }
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp)) return 0;
+    uint32_t codepoint;
+    char c = fgetc(fp);
+    if (c < 0) {
+        if (c & 64) {
+            char c2 = fgetc(fp);
+            if (c2 >= 0 || c2 & 64) luaL_error(L, "malformed UTF-8 sequence");
+            if (c & 32) {
+                char c3 = fgetc(fp);
+                if (c3 >= 0 || c3 & 64) luaL_error(L, "malformed UTF-8 sequence");
+                if (c & 16) {
+                    if (c & 8) luaL_error(L, "malformed UTF-8 sequence");
+                    char c4 = fgetc(fp);
+                    if (c4 >= 0 || c4 & 64) luaL_error(L, "malformed UTF-8 sequence");
+                    codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                } else {
+                    codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                }
+            } else {
+                codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
+            }
+        } else luaL_error(L, "malformed UTF-8 sequence");
+    } else codepoint = c;
+    if (codepoint > 255) return fs_handle_readChar(L);
     char retval[2];
-    retval[0] = checkChar(fgetc(fp));
+    retval[0] = (char)codepoint;
     if (retval[0] == '\r') {
         int nextc = fgetc(fp);
         if (nextc == '\n') retval[0] = nextc;
