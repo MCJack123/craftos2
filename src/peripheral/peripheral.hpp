@@ -6,7 +6,7 @@
  * peripherals to inherit.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2020 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 class peripheral;

@@ -5,7 +5,7 @@
  * This file defines the methods for the computer peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2020 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #include "computer.hpp"

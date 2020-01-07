@@ -5,7 +5,7 @@
  * This file implements the methods for file handles.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2020 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #include "fs_handle.hpp"
@@ -58,15 +58,14 @@ int fs_handle_readAll(lua_State *L) {
     char * retval = new char[size + 1];
     memset(retval, 0, size + 1);
     fseek(fp, pos, SEEK_SET);
-    /*int i;
+    int i;
     for (i = 0; !feof(fp) && i < size; i++) {
         char c = fgetc(fp);
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
-        else retval[i] = checkChar(c);
-    }*/
-    fread(retval, size, 1, fp);
+        else retval[i] = c;
+    }
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr = converter.from_bytes(retval, retval + size);
+    std::wstring wstr = converter.from_bytes(retval, retval + i);
     delete[] retval;
     std::string out;
     for (wchar_t c : wstr) if (c < 256) out += (char)c;

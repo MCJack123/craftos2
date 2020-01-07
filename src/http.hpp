@@ -5,7 +5,7 @@
  * This file defines the methods for the http API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2020 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #ifndef HTTP_HPP

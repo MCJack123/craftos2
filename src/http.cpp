@@ -5,7 +5,7 @@
  * This file implements the methods for the http API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2020 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #include "http.hpp"
@@ -504,7 +504,8 @@ int websocket_send(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     struct ws_handle * ws = (struct ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     if (ws->closed) return 0;
-    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), WebSocket::FRAME_FLAG_FIN | (ws->binary ? WebSocket::FRAME_OP_BINARY : WebSocket::FRAME_OP_TEXT)) < 1) ws->closed = true;
+    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), WebSocket::FRAME_FLAG_FIN | (ws->binary ? WebSocket::FRAME_OP_BINARY : WebSocket::FRAME_OP_TEXT)) < 1) 
+        ws->closed = true;
     return 0;
 }
 
@@ -527,10 +528,10 @@ int websocket_free(lua_State *L) {
 const char websocket_receive[] = "local _url, _isOpen = ...\n"
 "return function()\n"
 "   while true do\n"
-"       if not _isOpen() then return nil end\n"
+"       if not _isOpen() then error('attempt to use a closed file', 2) end\n"
 "       local ev, url, param = os.pullEvent()\n"
 "       if ev == 'websocket_message' and url == _url then return param\n"
-"       elseif ev == 'websocket_closed' and url == _url then return nil end\n"
+"       elseif ev == 'websocket_closed' and url == _url and not _isOpen() then return nil end\n"
 "   end\n"
 "end";
 
@@ -577,13 +578,14 @@ const char * websocket_success(lua_State *L, void* userp) {
 struct ws_message {
     const char * url;
     char* data;
+    size_t size;
 };
 
 const char * websocket_message(lua_State *L, void* userp) {
     struct ws_message * message = (struct ws_message*)userp;
     if (message->url == NULL) lua_pushnil(L);
     else lua_pushstring(L, message->url);
-    lua_pushstring(L, message->data);
+    lua_pushlstring(L, message->data, message->size);
     delete[] message->data;
     delete message;
     return "websocket_message";
@@ -636,6 +638,7 @@ public:
                 message->url = NULL;
                 message->data = new char[buf.sizeBytes()];
                 memcpy(message->data, buf.begin(), buf.sizeBytes());
+                message->size = buf.sizeBytes();
                 termQueueProvider(comp, websocket_message, message);
             }
         }
@@ -684,7 +687,8 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         Poco::Buffer<char> buf(0);
         int flags = 0;
         try {
-            if (ws->receiveFrame(buf, flags) == 0) {
+            int res = ws->receiveFrame(buf, flags);
+            if (res == 0) {
                 wsh->closed = true;
                 termQueueProvider(comp, websocket_closed, str);
                 break;
@@ -700,9 +704,9 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         } else {
             struct ws_message * message = new struct ws_message;
             message->url = str;
-            message->data = new char[buf.sizeBytes()+1];
+            message->data = new char[buf.sizeBytes()];
             memcpy(message->data, buf.begin(), buf.sizeBytes());
-            message->data[buf.sizeBytes()] = 0;
+            message->size = buf.sizeBytes();
             termQueueProvider(comp, websocket_message, message);
         }
         std::this_thread::yield();

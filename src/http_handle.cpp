@@ -5,7 +5,7 @@
  * This file implements the methods for HTTP handles.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2020 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #include "http_handle.hpp"
