@@ -65,7 +65,7 @@ int fs_handle_readAll(lua_State *L) {
         else retval[i] = c;
     }
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr = converter.from_bytes(retval, retval + i - 1);
+    std::wstring wstr = converter.from_bytes(retval, retval + i - (i == size ? 0 : 1));
     delete[] retval;
     std::string out;
     for (wchar_t c : wstr) if (c < 256) out += (char)c;
