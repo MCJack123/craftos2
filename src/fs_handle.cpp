@@ -65,7 +65,7 @@ int fs_handle_readAll(lua_State *L) {
         else retval[i] = c;
     }
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr = converter.from_bytes(retval, retval + i);
+    std::wstring wstr = converter.from_bytes(retval, retval + i - 1);
     delete[] retval;
     std::string out;
     for (wchar_t c : wstr) if (c < 256) out += (char)c;
@@ -151,8 +151,8 @@ int fs_handle_readByte(lua_State *L) {
     if (lua_isnumber(L, 1)) {
         size_t s = lua_tointeger(L, 1);
         char* retval = new char[s];
-        size_t read = fread(retval, s, 1, fp);
-        lua_pushlstring(L, retval, read);
+        fread(retval, s, 1, fp);
+        lua_pushlstring(L, retval, s);
         delete[] retval;
     } else {
         int retval = fgetc(fp);
