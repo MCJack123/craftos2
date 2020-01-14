@@ -233,7 +233,11 @@ int config_get(lua_State *L) {
         lua_pushinteger(L, config.maxRecordingTime);
     else if (strcmp(name, "recordingFPS") == 0)
         lua_pushinteger(L, config.recordingFPS);
-    else lua_pushnil(L);
+    else if (strcmp(name, "useHDFont") == 0) {
+        if (config.customFontPath == "") lua_pushboolean(L, false);
+        else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
+        else lua_pushnil(L);
+    } else lua_pushnil(L);
     return 1;
 }
 
@@ -298,6 +302,8 @@ int config_set(lua_State *L) {
         config.maxRecordingTime = lua_tointeger(L, 2);
     else if (strcmp(name, "recordingFPS") == 0)
         config.recordingFPS = lua_tointeger(L, 2);
+    else if (strcmp(name, "useHDFont") == 0)
+        config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     config_save(false);
     return 0;
 }
@@ -324,6 +330,7 @@ const char * configuration_keys[] = {
     "initialComputer",
     "maxRecordingTime",
     "recordingFPS",
+    "useHDFont",
     NULL,
 };
 
@@ -344,7 +351,7 @@ int config_getType(lua_State *L) {
         name == "disable_lua51_features" || name == "logErrors" || 
         name == "showFPS" || name == "ignoreHotkeys" || name == "isColor" ||
         name == "checkUpdates" || name == "romReadOnly" || 
-        name == "configReadOnly" || name == "vanilla")
+        name == "configReadOnly" || name == "vanilla" || name == "useHDFont")
         lua_pushstring(L, "boolean");
     else if (name == "default_computer_settings")
         lua_pushstring(L, "string");
