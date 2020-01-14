@@ -189,13 +189,23 @@ void updateNow(std::string tag_name) {
                         if (exiting) exit(0);
                         return;
                     }
-                    NSURL * path = [NSURL fileURLWithPath:@".install" relativeToURL:[NSURL fileURLWithPath:res[@"system-entities"][0][@"mount-point"] isDirectory:true]];
+                    NSString * pathstr = NULL;
+                    for (int i = 0; i < ((NSArray*)res[@"system-entities"]).count; i++)
+                        if ([((NSDictionary*)res[@"system-entities"][i]) valueForKey:@"mount-point"] != nil)
+                            pathstr = res[@"system-entities"][i][@"mount-point"];
+                    if (pathstr == NULL) {
+                        NSLog(@"Could not find mount point: %@\n", [err2 localizedDescription]);
+                        [win close];
+                        if (exiting) exit(0);
+                        return;
+                    }
+                    NSURL * path = [NSURL fileURLWithPath:@".install" relativeToURL:[NSURL fileURLWithPath:pathstr isDirectory:true]];
                     if (![[NSFileManager defaultManager] isExecutableFileAtPath:[path path]]) {
                         [res retain];
                         [path retain];
-                        queueTask([win, path, res](void*)->void*{
+                        queueTask([win, path, res, pathstr](void*)->void*{
                             NSLog(@"Could not find %@\n", [path path]); 
-                            system((std::string("/usr/bin/hdiutil detach ") + [res[@"system-entities"][0][@"mount-point"] cStringUsingEncoding:NSASCIIStringEncoding]).c_str());
+                            system((std::string("/usr/bin/hdiutil detach ") + [pathstr cStringUsingEncoding:NSASCIIStringEncoding]).c_str());
                             [res release];
                             [path release];
                             NSAlert * alert = [[NSAlert alloc] init];
@@ -211,7 +221,9 @@ void updateNow(std::string tag_name) {
                     }
                     int pid = fork();
                     if (pid < 0) printf("Could not fork: %d\n", pid);
-                    else if (pid == 0) {system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str()); exit(0);}
+                    else if (pid == 0) {
+                        system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str()); exit(0);
+                    }
                     [win close];
                     exit(0);
                 } else NSLog(@"Error: %@\n", [error localizedDescription]);
