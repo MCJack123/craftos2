@@ -3,7 +3,7 @@
   <assemblyIdentity
       type="win32"
       name="CraftOS-PC"
-      version="2.2.3.0"
+      version="2.2.3.1"
       processorArchitecture="amd64"
     />
   <description> my exe </description>

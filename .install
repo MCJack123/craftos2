@@ -21,4 +21,4 @@ fi;
 echo Restarting...
 sleep 1
 open $DSTAPP
-nohup sh -c "sleep 1; hdiutil detach $(dirname $0)" &
+nohup sh -c "sleep 3; hdiutil detach $(dirname $0)" &

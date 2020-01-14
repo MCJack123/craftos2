@@ -90,7 +90,11 @@ void mainLoop() {
     while (computers.size() > 0) {
 #endif
         if (!headless && !cli) { 
+#ifdef __EMSCRIPTEN__
             if (SDL_PollEvent(&e)) {
+#else
+            if (SDL_WaitEvent(&e)) {
+#endif
                 if (e.type == task_event_type) {
                     while (taskQueue.size() > 0) {
                         auto v = taskQueue.front();
