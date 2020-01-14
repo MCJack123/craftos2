@@ -131,8 +131,10 @@ int main(int argc, char*argv[]) {
 #endif
         termInit();
     driveInit();
+#ifndef __EMSCRIPTEN__
     if (!CRAFTOSPC_INDEV && !headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
+#endif
     startComputer(config.initialComputer);
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 60, 1);
