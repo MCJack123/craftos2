@@ -18,6 +18,13 @@
 #include "config.hpp"
 #include "gif.hpp"
 #include "os.hpp"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
+#define EMSCRIPTEN_ENABLED 1
+#else
+#define EMSCRIPTEN_ENABLED 0
+#endif
 #define rgb(color) ((color.r << 16) | (color.g << 8) | color.b)
 
 extern "C" {
@@ -79,9 +86,13 @@ TerminalWindow::TerminalWindow(int w, int h): width(w), height(h), screen(w, h, 
 
 TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     //locked.unlock();
+#ifdef __EMSCRIPTEN__
+    dpiScale = emscripten_get_device_pixel_ratio();
+#else
     float dpi, defaultDpi;
     MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
+#endif
     if (config.customFontPath == "hdfont") {
         fontScale = 1;
         charScale = 1;
@@ -98,7 +109,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
         charWidth = fontWidth * 2/fontScale * charScale;
         charHeight = fontHeight * 2/fontScale * charScale;
     }
-    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale * (2 / fontScale)), height*charHeight+(4 * charScale * (2 / fontScale)), SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
+    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale * (2 / fontScale)), height*charHeight+(4 * charScale * (2 / fontScale)), SDL_WINDOW_SHOWN | (EMSCRIPTEN_ENABLED ? 0 : SDL_WINDOW_ALLOW_HIGHDPI) | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
         overridden = true;
         throw window_exception("Failed to create window");

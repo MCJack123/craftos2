@@ -17,6 +17,9 @@
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/JSON/Parser.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 
 extern void termInit();
 extern void termClose();
@@ -94,6 +97,13 @@ void update_thread() {
 }
 
 int main(int argc, char*argv[]) {
+#ifdef __EMSCRIPTEN__
+    EM_ASM(
+        FS.mkdir("/user-data");
+        FS.mount(IDBFS, {}, "/user-data");
+        FS.syncfs(true, function(err) {if (err) console.log("Error while loading filesystem: ", err);});
+    );
+#endif
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "--headless") headless = true;
         else if (std::string(argv[i]) == "--cli") cli = true;
@@ -124,7 +134,12 @@ int main(int argc, char*argv[]) {
     if (!CRAFTOSPC_INDEV && !headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
     startComputer(config.initialComputer);
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(mainLoop, 60, 1);
+    return 0;
+#else
     mainLoop();
+#endif
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     driveQuit();
     http_server_stop();

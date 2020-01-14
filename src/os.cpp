@@ -86,40 +86,49 @@ void mainLoop() {
     }
 #endif
     mainThreadID = std::this_thread::get_id();
+#ifndef __EMSCRIPTEN__
     while (computers.size() > 0) {
-        if (!headless && !cli && SDL_WaitEvent(&e)) { 
-            if (e.type == task_event_type) {
-                while (taskQueue.size() > 0) {
-                    auto v = taskQueue.front();
-                    void* retval = std::get<1>(v)(std::get<2>(v));
-                    taskQueueReturns[std::get<0>(v)] = retval;
-                    taskQueue.pop();
-                }
-            } else if (e.type == render_event_type) {
-                for (TerminalWindow* term : TerminalWindow::renderTargets) {
-                    std::lock_guard<std::mutex> lock(term->locked);
-                    if (term->surf != NULL) {
-                        SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
-                        SDL_UpdateWindowSurface(term->win);
-                        SDL_FreeSurface(term->surf);
-                        term->surf = NULL;
+#endif
+        if (!headless && !cli) { 
+            if (SDL_PollEvent(&e)) {
+                if (e.type == task_event_type) {
+                    while (taskQueue.size() > 0) {
+                        auto v = taskQueue.front();
+                        void* retval = std::get<1>(v)(std::get<2>(v));
+                        taskQueueReturns[std::get<0>(v)] = retval;
+                        taskQueue.pop();
                     }
-                }
-            } else {
-                for (Computer * c : computers) {
-                    if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->id || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||
-                        ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->id || findMonitorFromWindowID(c, e.drop.windowID, tmps) != NULL)) ||
-                        ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->id || findMonitorFromWindowID(c, e.button.windowID, tmps) != NULL)) ||
-                        (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->id || findMonitorFromWindowID(c, e.motion.windowID, tmps) != NULL)) ||
-                        (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->id || findMonitorFromWindowID(c, e.wheel.windowID, tmps) != NULL)) ||
-                        (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->id || findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL)) ||
-                        (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->id || findMonitorFromWindowID(c, e.window.windowID, tmps) != NULL)) ||
-                        e.type == SDL_QUIT) {
-                        c->termEventQueue.push(e);
-                        c->event_lock.notify_all();
+                } else if (e.type == render_event_type) {
+                    for (TerminalWindow* term : TerminalWindow::renderTargets) {
+                        std::lock_guard<std::mutex> lock(term->locked);
+                        if (term->surf != NULL) {
+                            SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
+                            SDL_UpdateWindowSurface(term->win);
+                            SDL_FreeSurface(term->surf);
+                            term->surf = NULL;
+                        }
                     }
+                } else {
+                    for (Computer * c : computers) {
+                        if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->id || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||
+                            ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->id || findMonitorFromWindowID(c, e.drop.windowID, tmps) != NULL)) ||
+                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->id || findMonitorFromWindowID(c, e.button.windowID, tmps) != NULL)) ||
+                            (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->id || findMonitorFromWindowID(c, e.motion.windowID, tmps) != NULL)) ||
+                            (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->id || findMonitorFromWindowID(c, e.wheel.windowID, tmps) != NULL)) ||
+                            (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->id || findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL)) ||
+                            (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->id || findMonitorFromWindowID(c, e.window.windowID, tmps) != NULL)) ||
+                            e.type == SDL_QUIT) {
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                        }
+                    }
+                    if (e.type == SDL_QUIT) 
+                    #ifdef __EMSCRIPTEN__
+                        return;
+                    #else
+                        break;
+                    #endif
                 }
-                if (e.type == SDL_QUIT) break;
             }
 #ifndef NO_CLI
         } else if (cli) {
@@ -203,11 +212,15 @@ void mainLoop() {
             }
         }
         std::this_thread::yield();
+#ifdef __EMSCRIPTEN__
+    if (computers.size() == 0) exiting = true;
+#else
     }
 #ifndef NO_CLI
     if (cli) delwin(tmpwin);
 #endif
     exiting = true;
+#endif
 }
 
 int getNextEvent(lua_State *L, std::string filter) {

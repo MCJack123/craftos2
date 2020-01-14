@@ -68,7 +68,7 @@ public:
         void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + v.size(), vec->begin() + ypos);}
         void operator=(row v) {std::copy(v.vec->begin() + v.ypos, v.vec->begin() + v.ypos + v.size, vec->begin() + ypos);}
     };
-    vector2d(int w, int h, T v): vec(w*h, v), width(w), height(h) {}
+    vector2d(int w, int h, T v): width(w), height(h), vec(w*h, v) {}
     row operator[](int idx) {return row(&vec, idx * width, width);}
     void resize(int w, int h, T v) {
         if (w == width) vec.resize(width * h);

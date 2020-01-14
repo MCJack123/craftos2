@@ -18,7 +18,7 @@ extern "C" {
 }
 
 #define CRAFTOSPC_VERSION "v2.2.2"
-#define CRAFTOSPC_INDEV   false
+#define CRAFTOSPC_INDEV   true
 
 class Computer;
 typedef struct library {

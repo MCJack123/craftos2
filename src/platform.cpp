@@ -18,7 +18,11 @@
 #ifdef __linux__
 #include "platform_linux.cpp"
 #else
+#ifdef __EMSCRIPTEN__
+#include "platform_emscripten.cpp"
+#else
 #error Unknown platform
+#endif
 #endif
 #endif
 #endif

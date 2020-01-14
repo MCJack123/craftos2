@@ -20,6 +20,21 @@ extern "C" {
 #include <codecvt>
 #include <string>
 #include <locale>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include "os.hpp"
+#endif
+
+#ifdef __EMSCRIPTEN__
+EM_JS(void, syncfs, (), {
+    if (window.fsIsSyncing) return;
+    window.fsIsSyncing = true;
+    FS.syncfs(false, function(err) {
+        window.fsIsSyncing = false;
+        if (err != null) console.log('Error while syncing filesystem: ', err);
+    });
+})
+#endif
 
 int fs_handle_close(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1))) {
@@ -30,6 +45,9 @@ int fs_handle_close(lua_State *L) {
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));
     get_comp(L)->files_open--;
+    #ifdef __EMSCRIPTEN__
+    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+    #endif
     return 0;
 }
 
@@ -107,7 +125,7 @@ int fs_handle_readChar(lua_State *L) {
     }
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     if (feof(fp)) return 0;
-    uint32_t codepoint;
+    uint32_t codepoint = 0;
     char c = fgetc(fp);
     if (c < 0) {
         if (c & 64) {
@@ -209,6 +227,9 @@ int fs_handle_flush(lua_State *L) {
         lua_error(L);
     }
     fflush((FILE*)lua_touserdata(L, lua_upvalueindex(1)));
+    #ifdef __EMSCRIPTEN__
+    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+    #endif
     return 0;
 }
 
