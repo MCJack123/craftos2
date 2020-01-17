@@ -78,9 +78,10 @@ int fs_handle_readAll(lua_State *L) {
     fseek(fp, pos, SEEK_SET);
     int i;
     for (i = 0; !feof(fp) && i < size; i++) {
-        char c = fgetc(fp);
+        int c = fgetc(fp);
+		if (c == EOF && feof(fp)) c = '\n';
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
-        else retval[i] = c;
+        else retval[i] = (char)c;
     }
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::wstring wstr = converter.from_bytes(retval, retval + i - (i == size ? 0 : 1));
