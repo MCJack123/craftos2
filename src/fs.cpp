@@ -55,6 +55,7 @@ const char * ignored_files[4] = {
 
 int fs_list(lua_State *L) {
     struct dirent *dir;
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     DIR * d = opendir(path.c_str());
