@@ -27,6 +27,9 @@ extern "C" {
 #include "config.hpp"
 #include "CLITerminalWindow.hpp"
 #include "peripheral/monitor.hpp"
+#ifndef NO_CLI
+#include <signal.h>
+#endif
 
 void gettingEvent(Computer *comp);
 void gotEvent(Computer *comp);
