@@ -21,14 +21,33 @@ extern void termRenderLoop();
 extern std::thread * renderThread;
 std::set<unsigned> currentIDs;
 std::set<unsigned>::iterator CLITerminalWindow::selectedWindow = currentIDs.begin();
+bool CLITerminalWindow::stopRender = false;
+bool CLITerminalWindow::forceRender = false;
 
 void CLITerminalWindow::renderNavbar(std::string title) {
     move(LINES-1, 0);
-    attron(COLOR_PAIR(0x70));
+    if (stopRender) return;
+    attron(COLOR_PAIR(0x78));
+    if (stopRender) return;
     clrtoeol();
+    if (stopRender) return;
     printw("%d: %s", *selectedWindow+1, title.c_str());
-    for (int i = getcurx(stdscr); i < COLS; i++) mvaddch(LINES-1, i, ' ' | COLOR_PAIR(0x70));
+    if (stopRender) return;
+    for (int i = getcurx(stdscr); i < COLS-4; i++) addch(' ');
+    if (stopRender) return;
+    attroff(COLOR_PAIR(0x78));
+    if (stopRender) return;
+    attron(COLOR_PAIR(0x70));
+    if (stopRender) return;
+    addstr("<>");
+    if (stopRender) return;
     attroff(COLOR_PAIR(0x70));
+    if (stopRender) return;
+    attron(COLOR_PAIR(0xE0));
+    if (stopRender) return;
+    addch('X');
+    if (stopRender) return;
+    attroff(COLOR_PAIR(0xE0));
 }
 
 CLITerminalWindow::CLITerminalWindow(std::string title): TerminalWindow(COLS, LINES-1), title(title) {
@@ -52,10 +71,23 @@ bool CLITerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool 
 }
 
 void CLITerminalWindow::render() {
-    if (*selectedWindow == id) {
+    if (forceRender) changed = true;
+    if (gotResizeEvent) {
+        gotResizeEvent = false;
+        this->screen.resize(newWidth, newHeight, ' ');
+        this->colors.resize(newWidth, newHeight, 0xF0);
+        this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+        this->width = newWidth;
+        this->height = newHeight;
+        changed = true;
+    }
+    if (*selectedWindow == id && changed) {
+        changed = false;
         std::lock_guard<std::mutex> locked_g(locked);
         move(0, 0);
+        if (stopRender) {stopRender = false; return;}
         clear();
+        if (stopRender) {stopRender = false; return;}
         if (can_change_color()) {
             unsigned short checksum = 0;
             for (int i = 0; i < 48; i++) 
@@ -69,11 +101,15 @@ void CLITerminalWindow::render() {
             for (int x = 0; (unsigned)x < width; x++) {
                 move(y, x);
                 addch(screen[y][x] | COLOR_PAIR(colors[y][x]));
+                if (stopRender) {stopRender = false; return;}
             }
         }
         renderNavbar(title);
+        if (stopRender) {stopRender = false; return;}
         move(blinkY, blinkX);
+        if (stopRender) {stopRender = false; return;}
         curs_set(canBlink);
+        if (stopRender) {stopRender = false; return;}
         refresh();
     }
 }
@@ -89,11 +125,13 @@ void CLITerminalWindow::showMessage(Uint32 flags, const char * title, const char
 
 void CLITerminalWindow::nextWindow() {
     if (++selectedWindow == currentIDs.end()) selectedWindow = currentIDs.begin();
+    forceRender = true;
 }
 
 void CLITerminalWindow::previousWindow() {
     if (selectedWindow == currentIDs.begin()) selectedWindow = currentIDs.end();
     selectedWindow--;
+    forceRender = true;
 }
 
 void cliInit() {
@@ -104,6 +142,7 @@ void cliInit() {
     cbreak();
     nodelay(stdscr, TRUE);
     mousemask(BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_RELEASED | BUTTON2_PRESSED | BUTTON2_CLICKED | BUTTON2_RELEASED | BUTTON3_PRESSED | BUTTON3_CLICKED | BUTTON3_RELEASED | REPORT_MOUSE_POSITION, NULL);
+    mouseinterval(0);
     start_color();
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
     renderThread = new std::thread(termRenderLoop);

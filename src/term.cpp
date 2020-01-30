@@ -520,6 +520,9 @@ void termRenderLoop() {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         bool pushEvent = false;
         TerminalWindow::renderTargetsLock.lock();
+        #ifndef NO_CLI
+        bool willForceRender = CLITerminalWindow::forceRender;
+        #endif
         for (TerminalWindow* term : TerminalWindow::renderTargets) {
             if (!term->canBlink) term->blink = false;
             else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
@@ -544,6 +547,9 @@ void termRenderLoop() {
             std::chrono::milliseconds ms(time);
             std::this_thread::sleep_for(ms);
         }
+        #ifndef NO_CLI
+        if (willForceRender) CLITerminalWindow::forceRender = false;
+        #endif
     }
 }
 

@@ -34,6 +34,7 @@ extern "C" {
 
 extern bool headless;
 extern bool cli;
+extern std::string script_args;
 std::vector<Computer*> computers;
 std::unordered_set<Computer*> freedComputers; 
 
@@ -355,11 +356,15 @@ void Computer::run(std::string bios_name) {
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
         lua_pushboolean(L, ::config.disable_lua51_features);
         lua_setglobal(L, "_CC_DISABLE_LUA51_FEATURES");
-        lua_pushstring(L, "ComputerCraft 1.86.0 (CraftOS-PC " CRAFTOSPC_VERSION ")");
+        lua_pushstring(L, "ComputerCraft 1.86.2 (CraftOS-PC " CRAFTOSPC_VERSION ")");
         lua_setglobal(L, "_HOST");
         if (headless) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_HEADLESS");
+        }
+        if (!script_args.empty()) {
+            lua_pushstring(L, script_args.c_str());
+            lua_setglobal(L, "_CCPC_STARTUP_ARGS");
         }
 
         /* Load the file containing the script we are going to run */

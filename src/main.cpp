@@ -38,6 +38,7 @@ extern bool exiting;
 bool headless = false;
 bool cli = false;
 std::string script_file = "";
+std::string script_args;
 std::string updateAtQuit;
 
 void update_thread() {
@@ -108,8 +109,10 @@ int main(int argc, char*argv[]) {
         if (std::string(argv[i]) == "--headless") headless = true;
         else if (std::string(argv[i]) == "--cli") cli = true;
         else if (std::string(argv[i]) == "--script") script_file = argv[++i];
+        else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
+        else if (std::string(argv[i]) == "--args") script_args = argv[++i];
         else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
-            std::cerr << "Usage: " << argv[0] << " [--cli] [--headless] [--script <file>]\n";
+            std::cerr << "Usage: " << argv[0] << " [--cli] [--headless] [--script <file>] [--args <args>]\n";
             return 0;
         }
     }

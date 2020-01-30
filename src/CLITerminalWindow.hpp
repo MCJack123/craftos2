@@ -27,6 +27,8 @@ public:
     static void renderNavbar(std::string title);
     static void nextWindow();
     static void previousWindow();
+    static bool stopRender;
+    static bool forceRender;
 
     CLITerminalWindow(std::string title);
     ~CLITerminalWindow() override;

@@ -72,6 +72,18 @@ void awaitTasks() {
     }
 }
 
+#ifndef NO_CLI
+extern std::set<unsigned> currentIDs;
+bool resizeRefresh = false;
+
+void handle_winch(int sig) {
+    resizeRefresh = true;
+    endwin();
+    refresh();
+    clear();
+}
+#endif
+
 void mainLoop() {
     SDL_Event e;
     std::string tmps;
@@ -83,6 +95,7 @@ void mainLoop() {
         tmpwin = newwin(0, 0, 1, 1);
         nodelay(tmpwin, TRUE);
         keypad(tmpwin, TRUE);
+        signal(SIGWINCH, handle_winch);
     }
 #endif
     mainThreadID = std::this_thread::get_id();
@@ -152,7 +165,27 @@ void mainLoop() {
                 lastch.clear();
                 nodelay(tmpwin, TRUE);
                 keypad(tmpwin, TRUE);
-                while (ch == ERR && taskQueue.size() == 0) ch = wgetch(tmpwin);
+                while (ch == ERR && taskQueue.size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
+            }
+            if (resizeRefresh) {
+                resizeRefresh = false;
+                CLITerminalWindow::stopRender = true;
+                delwin(tmpwin);
+                endwin();
+                refresh();
+                tmpwin = newwin(0, 0, 1, 1);
+                nodelay(tmpwin, TRUE);
+                keypad(tmpwin, TRUE);
+                e.type = SDL_WINDOWEVENT;
+                e.window.event = SDL_WINDOWEVENT_RESIZED;
+                for (Computer * c : computers) {
+                    e.window.data1 = COLS * c->term->charWidth + 4*(2/TerminalWindow::fontScale)*c->term->charScale;
+                    e.window.data2 = (LINES-1) * c->term->charHeight + 4*(2/TerminalWindow::fontScale)*c->term->charScale;
+                    e.window.windowID = c->term->id;
+                    c->term->changed = true;
+                    c->termEventQueue.push(e);
+                    c->event_lock.notify_all();
+                }
             }
             while (taskQueue.size() > 0) {
                 auto v = taskQueue.front();
@@ -163,7 +196,24 @@ void mainLoop() {
             if (ch == KEY_SLEFT) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
             else if (ch == KEY_SRIGHT) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
             else if (ch == KEY_MOUSE) {
-                getmouse(&me);
+                if (getmouse(&me) != OK) continue;
+                if (me.y == LINES - 1) {
+                    if (me.bstate & BUTTON1_PRESSED) {
+                        if (me.x == COLS - 2) {
+                            e.type = SDL_WINDOWEVENT;
+                            e.window.event = SDL_WINDOWEVENT_CLOSE;
+                            for (Computer * c : computers) {
+                                if (*CLITerminalWindow::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminalWindow::selectedWindow, tmps) != NULL) {
+                                    e.button.windowID = *CLITerminalWindow::selectedWindow;
+                                    c->termEventQueue.push(e);
+                                    c->event_lock.notify_all();
+                                }
+                            }
+                        } else if (me.x == COLS - 3) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
+                        else if (me.x == COLS - 4) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
+                    }
+                    continue;
+                }
                 if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
                 else if (me.bstate & NCURSES_BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
                 else continue;
@@ -180,7 +230,25 @@ void mainLoop() {
                         c->event_lock.notify_all();
                     }
                 }
-            } else if (ch != ERR) {
+            } else if (ch == KEY_RESIZE && false) {
+                CLITerminalWindow::stopRender = true;
+                delwin(tmpwin);
+                clear();
+                refresh();
+                tmpwin = newwin(0, 0, 1, 1);
+                e.type = SDL_WINDOWEVENT;
+                e.window.event = SDL_WINDOWEVENT_RESIZED;
+                for (unsigned i : currentIDs) {
+                    e.window.windowID = i;
+                    for (Computer * c : computers) {
+                        if (i == c->term->id/*|| findMonitorFromWindowID(c, i, tmps) != NULL*/) {
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                            break;
+                        }
+                    }
+                }
+            } else if (ch != ERR && ch != KEY_RESIZE) {
                 if ((ch >= 32 && ch < 127)) {
                     e.type = SDL_TEXTINPUT;
                     e.text.text[0] = ch;
