@@ -98,8 +98,8 @@ void CLITerminalWindow::render() {
                     init_color(15-i, palette[i].r * (1000/255), palette[i].g * (1000/255), palette[i].b * (1000/255));
             lastPaletteChecksum = checksum;
         }
-        for (int y = 0; (unsigned)y < height; y++) {
-            for (int x = 0; (unsigned)x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
                 move(y, x);
                 addch((screen[y][x] ? screen[y][x] : ' ') | COLOR_PAIR(colors[y][x]));
                 if (stopRender) {stopRender = false; return;}

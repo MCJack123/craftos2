@@ -246,8 +246,8 @@ int monitor::drawPixels(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_istable(L, 3)) bad_argument(L, "table", 3);
     std::lock_guard<std::mutex> lock(term->locked);
-    unsigned int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
-    for (unsigned int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->height * TerminalWindow::fontHeight; y++) {
+    int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
+    for (int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->height * TerminalWindow::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 
         if (lua_isstring(L, -1)) {
@@ -256,7 +256,7 @@ int monitor::drawPixels(lua_State *L) {
             if (init_x + str_sz - 1 < term->width * TerminalWindow::fontWidth)
                 memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
-            for (unsigned int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->width * TerminalWindow::fontWidth; x++) {
+            for (int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->width * TerminalWindow::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
                 term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);
