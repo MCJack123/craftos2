@@ -19,6 +19,8 @@
 
 class CLITerminalWindow: public TerminalWindow {
     friend void mainLoop();
+    friend void pressControl(int sig);
+    friend void pressAlt(int sig);
     std::string title;
     unsigned last_pair;
     unsigned short lastPaletteChecksum = 0;

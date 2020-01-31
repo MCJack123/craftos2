@@ -19,6 +19,7 @@
 
 extern void termRenderLoop();
 extern std::thread * renderThread;
+extern std::unordered_map<int, unsigned char> keymap_cli;
 std::set<unsigned> currentIDs;
 std::set<unsigned>::iterator CLITerminalWindow::selectedWindow = currentIDs.begin();
 bool CLITerminalWindow::stopRender = false;
@@ -33,7 +34,7 @@ void CLITerminalWindow::renderNavbar(std::string title) {
     if (stopRender) return;
     printw("%d: %s", *selectedWindow+1, title.c_str());
     if (stopRender) return;
-    for (int i = getcurx(stdscr); i < COLS-4; i++) addch(' ');
+    for (int i = getcurx(stdscr); i < COLS-3; i++) addch(' ');
     if (stopRender) return;
     attroff(COLOR_PAIR(0x78));
     if (stopRender) return;
@@ -100,7 +101,7 @@ void CLITerminalWindow::render() {
         for (int y = 0; (unsigned)y < height; y++) {
             for (int x = 0; (unsigned)x < width; x++) {
                 move(y, x);
-                addch(screen[y][x] | COLOR_PAIR(colors[y][x]));
+                addch((screen[y][x] ? screen[y][x] : ' ') | COLOR_PAIR(colors[y][x]));
                 if (stopRender) {stopRender = false; return;}
             }
         }
@@ -146,6 +147,19 @@ void cliInit() {
     start_color();
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
     renderThread = new std::thread(termRenderLoop);
+    if (config.cliControlKeyMode == 0) {
+        keymap_cli[KEY_SHOME] = 199;
+        keymap_cli[KEY_SEND] = 207;
+        keymap_cli[KEY_HOME] = 29;
+        keymap_cli[KEY_END] = 56;
+    } else {
+        keymap_cli[KEY_HOME] = 199;
+        keymap_cli[KEY_END] = 207;
+        if (config.cliControlKeyMode == 1) {
+            keymap_cli[KEY_SHOME] = 29;
+            keymap_cli[KEY_SEND] = 56;
+        }
+    }
 }
 
 void cliClose() {

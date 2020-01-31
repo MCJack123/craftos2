@@ -117,7 +117,8 @@ void config_init() {
         false,
         0,
         15,
-        10
+        10,
+        0
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -148,6 +149,7 @@ void config_init() {
     if (root.isMember("initialComputer")) config.initialComputer = root["initialComputer"].asInt();
     if (root.isMember("maxRecordingTime")) config.maxRecordingTime = root["maxRecordingTime"].asInt();
     if (root.isMember("recordingFPS")) config.recordingFPS = root["recordingFPS"].asInt();
+    if (root.isMember("cliControlKeyMode")) config.cliControlKeyMode = root["cliControlKeyMode"].asInt();
 }
 
 void config_save(bool deinit) {
@@ -176,6 +178,7 @@ void config_save(bool deinit) {
     root["initialComputer"] = config.initialComputer;
     root["maxRecordingTime"] = config.maxRecordingTime;
     root["recordingFPS"] = config.recordingFPS;
+    root["cliControlKeyMode"] = config.cliControlKeyMode;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();

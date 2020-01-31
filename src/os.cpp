@@ -85,6 +85,38 @@ void handle_winch(int sig) {
     refresh();
     clear();
 }
+
+void pressControl(int sig) {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.keysym.scancode = (SDL_Scancode)29;
+    for (Computer * c : computers) {
+        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+            e.key.windowID = c->term->id;
+            c->termEventQueue.push(e);
+            e.type = SDL_KEYUP;
+            e.key.keysym.scancode = (SDL_Scancode)29;
+            c->termEventQueue.push(e);
+            c->event_lock.notify_all();
+        }
+    }
+}
+
+void pressAlt(int sig) {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.keysym.scancode = (SDL_Scancode)56;
+    for (Computer * c : computers) {
+        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+            e.key.windowID = c->term->id;
+            c->termEventQueue.push(e);
+            e.type = SDL_KEYUP;
+            e.key.keysym.scancode = (SDL_Scancode)56;
+            c->termEventQueue.push(e);
+            c->event_lock.notify_all();
+        }
+    }
+}
 #endif
 
 void mainLoop() {
@@ -93,12 +125,16 @@ void mainLoop() {
 #ifndef NO_CLI
     MEVENT me;
     WINDOW * tmpwin;
-    std::list<int> lastch;
+    std::set<int> lastch;
     if (cli) { 
         tmpwin = newwin(0, 0, 1, 1);
         nodelay(tmpwin, TRUE);
         keypad(tmpwin, TRUE);
         signal(SIGWINCH, handle_winch);
+        if (config.cliControlKeyMode == 3) {
+            signal(SIGINT, pressControl);
+            signal(SIGQUIT, pressAlt);
+        }
     }
 #endif
     mainThreadID = std::this_thread::get_id();
@@ -155,13 +191,15 @@ void mainLoop() {
             int ch = wgetch(tmpwin);
             if (ch == ERR) {
                 for (int cc : lastch) {
-                    e.type = SDL_KEYUP;
-                    e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
-                    for (Computer * c : computers) {
-                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-                            e.key.windowID = c->term->id;
-                            c->termEventQueue.push(e);
-                            c->event_lock.notify_all();
+                    if (cc != 27) {
+                        e.type = SDL_KEYUP;
+                        e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
+                        for (Computer * c : computers) {
+                            if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                                e.key.windowID = c->term->id;
+                                c->termEventQueue.push(e);
+                                c->event_lock.notify_all();
+                            }
                         }
                     }
                 }
@@ -202,7 +240,7 @@ void mainLoop() {
                 if (getmouse(&me) != OK) continue;
                 if (me.y == LINES - 1) {
                     if (me.bstate & BUTTON1_PRESSED) {
-                        if (me.x == COLS - 2) {
+                        if (me.x == COLS - 1) {
                             e.type = SDL_WINDOWEVENT;
                             e.window.event = SDL_WINDOWEVENT_CLOSE;
                             for (Computer * c : computers) {
@@ -212,8 +250,8 @@ void mainLoop() {
                                     c->event_lock.notify_all();
                                 }
                             }
-                        } else if (me.x == COLS - 3) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
-                        else if (me.x == COLS - 4) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
+                        } else if (me.x == COLS - 2) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
+                        else if (me.x == COLS - 3) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
                     }
                     continue;
                 }
@@ -233,25 +271,9 @@ void mainLoop() {
                         c->event_lock.notify_all();
                     }
                 }
-            } else if (ch == KEY_RESIZE && false) {
-                CLITerminalWindow::stopRender = true;
-                delwin(tmpwin);
-                clear();
-                refresh();
-                tmpwin = newwin(0, 0, 1, 1);
-                e.type = SDL_WINDOWEVENT;
-                e.window.event = SDL_WINDOWEVENT_RESIZED;
-                for (unsigned i : currentIDs) {
-                    e.window.windowID = i;
-                    for (Computer * c : computers) {
-                        if (i == c->term->id/*|| findMonitorFromWindowID(c, i, tmps) != NULL*/) {
-                            c->termEventQueue.push(e);
-                            c->event_lock.notify_all();
-                            break;
-                        }
-                    }
-                }
             } else if (ch != ERR && ch != KEY_RESIZE) {
+                if (config.cliControlKeyMode == 2 && ch == 'c' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1025;
+                else if (config.cliControlKeyMode == 2 && ch == 'a' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1026;
                 if ((ch >= 32 && ch < 127)) {
                     e.type = SDL_TEXTINPUT;
                     e.text.text[0] = ch;
@@ -267,14 +289,16 @@ void mainLoop() {
                 e.type = SDL_KEYDOWN;
                 e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
                 if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
-                for (Computer * c : computers) {
-                    if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-                        e.key.windowID = c->term->id;
-                        c->termEventQueue.push(e);
-                        c->event_lock.notify_all();
+                if (ch != 27) {
+                    for (Computer * c : computers) {
+                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                            e.key.windowID = c->term->id;
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                        }
                     }
                 }
-                lastch.push_back(ch);
+                lastch.insert(ch);
             }
 #endif
         } else {

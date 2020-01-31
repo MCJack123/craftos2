@@ -220,10 +220,8 @@ std::unordered_map<int, unsigned char> keymap_cli = {
     {KEY_LEFT, 203},
     {KEY_RIGHT, 205},
     {KEY_DOWN, 208},
-    {KEY_SHOME, 199},
-    {KEY_SEND, 207},
-    {KEY_HOME, 29},
-    {KEY_END, 56}
+    {1025, 29},
+    {1026, 56}
 };
 #endif
 
