@@ -135,16 +135,27 @@ void CLITerminalWindow::previousWindow() {
     forceRender = true;
 }
 
+short original_colors[16][3];
+
 void cliInit() {
     SDL_Init(SDL_INIT_AUDIO);
     initscr();
     keypad(stdscr, TRUE);
     noecho();
     cbreak();
-    nodelay(stdscr, TRUE);
+    halfdelay(1);
     mousemask(BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_RELEASED | BUTTON2_PRESSED | BUTTON2_CLICKED | BUTTON2_RELEASED | BUTTON3_PRESSED | BUTTON3_CLICKED | BUTTON3_RELEASED | REPORT_MOUSE_POSITION, NULL);
     mouseinterval(0);
     start_color();
+    if (can_change_color()) {
+        for (int i = 0; i < 16 && i < COLORS; i++) {
+            short r = 0, g = 0, b = 0;
+            color_content(i, &r, &g, &b);
+            original_colors[i][0] = r;
+            original_colors[i][1] = g;
+            original_colors[i][2] = b;
+        }
+    }
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
     renderThread = new std::thread(termRenderLoop);
     if (config.cliControlKeyMode == 0) {
@@ -165,6 +176,7 @@ void cliInit() {
 void cliClose() {
     renderThread->join();
     delete renderThread;
+    if (can_change_color()) for (int i = 0; i < 16 && i < COLORS; i++) init_color(i, original_colors[i][0], original_colors[i][1], original_colors[i][2]);
     echo();
     nocbreak();
     nodelay(stdscr, FALSE);
