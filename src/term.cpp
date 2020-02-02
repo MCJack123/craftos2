@@ -523,7 +523,7 @@ void termRenderLoop() {
         #endif
         for (TerminalWindow* term : TerminalWindow::renderTargets) {
             if (!term->canBlink) term->blink = false;
-            else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
+            else if (!cli && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
                 term->blink = !term->blink;
                 term->last_blink = std::chrono::high_resolution_clock::now();
                 term->changed = true;
