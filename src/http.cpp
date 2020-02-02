@@ -8,6 +8,10 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#ifdef __EMSCRIPTEN__
+#include "http_emscripten.cpp"
+#else
+
 #include "http.hpp"
 #include "http_handle.hpp"
 #include "term.hpp"
@@ -756,3 +760,5 @@ lua_CFunction http_values[5] = {
 };
 
 library_t http_lib = {"http", 5, http_keys, http_values, nullptr, nullptr};
+
+#endif // __EMSCRIPTEN__

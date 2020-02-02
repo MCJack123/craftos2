@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#ifndef __EMSCRIPTEN__
 #include "http_handle.hpp"
 #include "lib.hpp"
 #include <stdio.h>
@@ -237,3 +238,5 @@ int res_setResponseHeader(lua_State *L) {
     res->res->set(lua_tostring(L, 1), lua_tostring(L, 2));
     return 0;
 }
+
+#endif // __EMSCRIPTEN__

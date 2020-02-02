@@ -6,8 +6,10 @@ CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=craftos2-lua/src/liblua.a @LIBS@
 ifndef OS
+ifeq (@OUT_TARGET@, craftos)
 ifeq ($(shell uname), Darwin)
 LIBS+= -framework ApplicationServices
+endif
 endif
 endif
 PREFIX?=@prefix@
@@ -21,7 +23,7 @@ ODIR=obj
 _OBJ=CLITerminalWindow.o Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-all: $(ODIR) craftos
+all: $(ODIR) @OUT_TARGET@
 
 craftos2-lua:
 	git submodule update --init --recursive
@@ -29,7 +31,7 @@ craftos2-lua:
 craftos2-lua/src/liblua.a: craftos2-lua
 	$(error Please build Lua for your platform inside the craftos2-lua directory)
 
-craftos: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
+@OUT_TARGET@: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 macapp: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform_macapp.o

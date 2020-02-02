@@ -26,3 +26,4 @@ craftos.*js
 CraftOS-PC.html
 *.dSYM
 /src/lua51.lib
+a.out*
