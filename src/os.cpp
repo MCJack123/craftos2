@@ -324,7 +324,7 @@ void mainLoop() {
 
 int getNextEvent(lua_State *L, std::string filter) {
     Computer * computer = get_comp(L);
-    if (computer->paramQueue == NULL) computer->paramQueue = lua_newthread(L);
+    //if (computer->paramQueue == NULL) computer->paramQueue = lua_newthread(L);
     std::string ev;
     gettingEvent(computer);
     if (!lua_checkstack(computer->paramQueue, 1)) {
@@ -333,7 +333,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     }
     lua_State *param = lua_newthread(computer->paramQueue);
     do {
-        while (termHasEvent(computer)) {
+        while (termHasEvent(computer) && computer->eventQueue.size() < 25) {
             if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
             const char * name = termGetEvent(param);
             if (name != NULL) {
@@ -374,7 +374,7 @@ int getNextEvent(lua_State *L, std::string filter) {
                     }
                 }
             }
-            while (termHasEvent(computer)) {
+            while (termHasEvent(computer) && computer->eventQueue.size() < 25) {
                 if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
                 const char * name = termGetEvent(param);
                 if (name != NULL) {
@@ -390,10 +390,15 @@ int getNextEvent(lua_State *L, std::string filter) {
     } while (!filter.empty() && ev != filter);
     lua_pop(computer->paramQueue, 1);
     param = lua_tothread(computer->paramQueue, 1);
-    if (param == NULL) return 0;
+    if (param == NULL) {
+        printf("Queue item is not a thread for event \"%s\"!\n", ev.c_str()); 
+        lua_remove(computer->paramQueue, 1);
+        return 0;
+    }
     int count = lua_gettop(param);
     if (!lua_checkstack(L, count + 1)) {
         printf("Could not allocate enough space in the stack for %d elements, skipping event \"%s\"\n", count, ev.c_str());
+        lua_remove(computer->paramQueue, 1);
         return 0;
     }
     lua_pushstring(L, ev.c_str());
