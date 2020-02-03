@@ -30,6 +30,11 @@ extern "C" {
 #ifndef NO_CLI
 #include <signal.h>
 #endif
+#ifdef __EMSCRIPTEN__
+#define checkWindowID(c, wid) (c->term == *TerminalWindow::renderTarget || findMonitorFromWindowID(c, (*TerminalWindow::renderTarget)->id, tmps) != NULL)
+#else
+#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
+#endif
 
 void gettingEvent(Computer *comp);
 void gotEvent(Computer *comp);
@@ -155,6 +160,16 @@ void mainLoop() {
                         taskQueue.pop();
                     }
                 } else if (e.type == render_event_type) {
+#ifdef __EMSCRIPTEN__
+                    TerminalWindow* term = *TerminalWindow::renderTarget;
+                    std::lock_guard<std::mutex> lock(term->locked);
+                    if (term->surf != NULL) {
+                        SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(TerminalWindow::win), NULL);
+                        SDL_UpdateWindowSurface(TerminalWindow::win);
+                        SDL_FreeSurface(term->surf);
+                        term->surf = NULL;
+                    }
+#else
                     for (TerminalWindow* term : TerminalWindow::renderTargets) {
                         std::lock_guard<std::mutex> lock(term->locked);
                         if (term->surf != NULL) {
@@ -164,15 +179,16 @@ void mainLoop() {
                             term->surf = NULL;
                         }
                     }
+#endif
                 } else {
                     for (Computer * c : computers) {
-                        if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (e.key.windowID == c->term->id || findMonitorFromWindowID(c, e.key.windowID, tmps) != NULL)) ||
-                            ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && (e.drop.windowID == c->term->id || findMonitorFromWindowID(c, e.drop.windowID, tmps) != NULL)) ||
-                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && (e.button.windowID == c->term->id || findMonitorFromWindowID(c, e.button.windowID, tmps) != NULL)) ||
-                            (e.type == SDL_MOUSEMOTION && (e.motion.windowID == c->term->id || findMonitorFromWindowID(c, e.motion.windowID, tmps) != NULL)) ||
-                            (e.type == SDL_MOUSEWHEEL && (e.wheel.windowID == c->term->id || findMonitorFromWindowID(c, e.wheel.windowID, tmps) != NULL)) ||
-                            (e.type == SDL_TEXTINPUT && (e.text.windowID == c->term->id || findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL)) ||
-                            (e.type == SDL_WINDOWEVENT && (e.window.windowID == c->term->id || findMonitorFromWindowID(c, e.window.windowID, tmps) != NULL)) ||
+                        if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
+                            ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
+                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
+                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+                            (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
+                            (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
+                            (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
                             e.type == SDL_QUIT) {
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();

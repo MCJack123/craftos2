@@ -79,13 +79,40 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 int TerminalWindow::fontScale = 2;
 std::list<TerminalWindow*> TerminalWindow::renderTargets;
 std::mutex TerminalWindow::renderTargetsLock;
+#ifdef __EMSCRIPTEN__
+std::list<TerminalWindow*>::iterator TerminalWindow::renderTarget = TerminalWindow::renderTargets.end();
+SDL_Window *TerminalWindow::win = NULL;
+int nextWindowID = 1;
+
+extern "C" {
+    void EMSCRIPTEN_KEEPALIVE nextRenderTarget() {
+        if (++TerminalWindow::renderTarget == TerminalWindow::renderTargets.end()) TerminalWindow::renderTarget = TerminalWindow::renderTargets.begin();
+        (*TerminalWindow::renderTarget)->changed = true;
+    }
+
+    void EMSCRIPTEN_KEEPALIVE previousRenderTarget() {
+        if (TerminalWindow::renderTarget == TerminalWindow::renderTargets.begin()) TerminalWindow::renderTarget = TerminalWindow::renderTargets.end();
+        TerminalWindow::renderTarget--;
+        (*TerminalWindow::renderTarget)->changed = true;
+    }
+
+    bool EMSCRIPTEN_KEEPALIVE selectRenderTarget(int id) {
+        for (TerminalWindow::renderTarget = TerminalWindow::renderTargets.begin(); renderTarget != TerminalWindow::renderTargets.end(); TerminalWindow::renderTarget++) if ((*TerminalWindow::renderTarget)->id == id) break;
+        return TerminalWindow::renderTarget != TerminalWindow::renderTargets.end();
+    }
+
+    const char * EMSCRIPTEN_KEEP_ALIVE getRenderTargetName() {
+        return (*TerminalWindow::renderTarget)->title.c_str();
+    }
+}
+#endif
 
 TerminalWindow::TerminalWindow(int w, int h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
     memcpy(palette, defaultPalette, sizeof(defaultPalette));
 }
 
 TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
-    //locked.unlock();
+    this->title = title;
 #ifdef __EMSCRIPTEN__
     dpiScale = emscripten_get_device_pixel_ratio();
 #else
@@ -109,13 +136,20 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
         charWidth = fontWidth * 2/fontScale * charScale;
         charHeight = fontHeight * 2/fontScale * charScale;
     }
+#ifdef __EMSCRIPTEN__
+    if (win == NULL)
+#endif
     win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale * (2 / fontScale)), height*charHeight+(4 * charScale * (2 / fontScale)), SDL_WINDOW_SHOWN | (EMSCRIPTEN_ENABLED ? 0 : SDL_WINDOW_ALLOW_HIGHDPI) | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
         overridden = true;
         throw window_exception("Failed to create window");
     }
+#ifndef __EMSCRIPTEN__
     id = SDL_GetWindowID(win);
-#ifndef __APPLE__
+#else
+    id = nextWindowID++;
+#endif
+#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
     char * icon_pixels = new char[favicon_width * favicon_height * 4];
     memset(icon_pixels, 0xFF, favicon_width * favicon_height * 4);
     const char * icon_data = header_data;
@@ -132,19 +166,26 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP((getROMPath() + "/hdfont.bmp").c_str());
     else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
+#ifndef __EMSCRIPTEN__
         SDL_DestroyWindow(win);
+#endif
         overridden = true;
         throw window_exception("Failed to load font");
     }
     bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
     if (bmp == nullptr || bmp == NULL || bmp == (SDL_Surface*)0) {
+#ifndef __EMSCRIPTEN__
         SDL_DestroyWindow(win);
+#endif
         overridden = true;
         throw window_exception("Failed to convert font");
     }
     SDL_FreeSurface(old_bmp);
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
     renderTargets.push_back(this);
+#ifdef __EMSCRIPTEN__
+    if (renderTargets.size() == 1) renderTarget = renderTargets.begin();
+#endif
 }
 
 TerminalWindow::~TerminalWindow() {
@@ -159,7 +200,9 @@ TerminalWindow::~TerminalWindow() {
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
         SDL_FreeSurface(bmp);
+#ifndef __EMSCRIPTEN__
         SDL_DestroyWindow(win);
+#endif
     }
 }
 

@@ -57,7 +57,7 @@ int drive::getAudioTitle(lua_State *L) {
     }
     int lastdot = path.find_last_of('.');
     int start = path.find('\\') != std::string::npos ? path.find_last_of('\\') + 1 : path.find_last_of('/') + 1;
-    lua_pushstring(L, path.substr(start, lastdot > start ? lastdot - start : INT64_MAX).c_str());
+    lua_pushstring(L, path.substr(start, lastdot > start ? lastdot - start : UINT32_MAX).c_str());
     return 1;
 }
 

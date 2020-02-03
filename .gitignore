@@ -21,9 +21,11 @@ CraftOS-PC.dmg
 .DS_Store
 example_peripheral.dylib
 craftos.html*
-craftos.was*
+craftos.wa*
 craftos.*js
 CraftOS-PC.html
 *.dSYM
 /src/lua51.lib
 a.out*
+*.mem
+index.html
