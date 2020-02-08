@@ -50,6 +50,7 @@ typedef struct {
     Computer *comp;
     char * url;
     char * postData;
+	size_t postDataSize;
     std::unordered_map<std::string, std::string> headers;
     std::string method;
     char * old_url;
@@ -162,7 +163,7 @@ void downloadThread(void* arg) {
     for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
     try {
         std::ostream& reqs = session->sendRequest(request);
-        if (param->postData != NULL) reqs << param->postData;
+        if (param->postData != NULL) reqs.write(param->postData, param->postDataSize);
         if (reqs.bad() || reqs.fail()) {
             if (param->postData != NULL) delete[] param->postData;
             if (param->url != param->old_url) delete[] param->old_url;
@@ -261,6 +262,7 @@ int http_request(lua_State *L) {
     param->isBinary = false;
     if (lua_isstring(L, 2)) {
         param->postData = new char[lua_strlen(L, 2) + 1];
+		param->postDataSize = lua_strlen(L, 2);
         memcpy(param->postData, lua_tostring(L, 2), lua_strlen(L, 2));
     }
     if (lua_istable(L, 3)) {

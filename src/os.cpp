@@ -358,6 +358,7 @@ int getNextEvent(lua_State *L, std::string filter) {
                 param = lua_newthread(computer->paramQueue);
             }
         }
+		if (computer->running != 1) return 0;
         while (computer->eventQueue.size() == 0) {
             if (computer->alarms.size() == 0) {
                 std::mutex m;
@@ -464,13 +465,35 @@ int os_clock(lua_State *L) {
     return 1;
 }
 
+struct timer_data_t {
+	Computer * comp;
+	SDL_TimerID timer;
+};
+
+template<typename T>
+class PointerProtector {
+	T* ptr;
+public:
+	PointerProtector(T* p) : ptr(p) {}
+	~PointerProtector() { delete ptr; }
+};
+
 Uint32 notifyEvent(Uint32 interval, void* param) {
     if (exiting) return interval;
-    ((Computer*)param)->event_lock.notify_all();
-    return interval;
+	struct timer_data_t * data = (struct timer_data_t*)param;
+	PointerProtector<struct timer_data_t> protect(data);
+	{
+		std::lock_guard<std::mutex> lock(freedTimersMutex);
+		if (freedTimers.find(data->timer) != freedTimers.end()) { 
+			freedTimers.erase(data->timer);
+			return 0; 
+		}
+	}
+	data->comp->timerIDs.erase(data->timer);
+    data->comp->event_lock.notify_all();
+    return 0;
 }
 
-// TODO: Fix this!
 int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
@@ -483,11 +506,10 @@ int os_startTimer(lua_State *L) {
     }
     computer->timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, computer->timers.size() - 1);
-#ifdef __EMSCRIPTEN__
-    SDL_AddTimer(lua_tonumber(L, 1) * 1000 + 5, notifyEvent, computer);
-#else
-    SDL_AddTimer(lua_tonumber(L, 1) * 1000, notifyEvent, computer);
-#endif
+	struct timer_data_t * data = new struct timer_data_t;
+	data->comp = computer;
+    data->timer = SDL_AddTimer(lua_tonumber(L, 1) * 1000 + 3, notifyEvent, data);
+	computer->timerIDs.insert(data->timer);
     return 1;
 }
 

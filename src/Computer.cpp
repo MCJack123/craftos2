@@ -37,6 +37,8 @@ extern bool cli;
 extern std::string script_args;
 std::vector<Computer*> computers;
 std::unordered_set<Computer*> freedComputers; 
+std::unordered_set<SDL_TimerID> freedTimers;
+std::mutex freedTimersMutex;
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
@@ -97,6 +99,11 @@ Computer::~Computer() {
         (*c)->peripherals_mutex.unlock();
         if (c == referencers.end()) break;
     }
+	// Mark all currently running timers as invalid
+	{
+		std::lock_guard<std::mutex> lock(freedTimersMutex);
+		for (SDL_TimerID t : timerIDs) freedTimers.insert(t);
+	}
 }
 
 extern int fs_getName(lua_State *L);

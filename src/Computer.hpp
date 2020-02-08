@@ -21,6 +21,7 @@ extern "C" {
 #include <queue>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <atomic>
 #include <condition_variable>
 #include <csetjmp>
@@ -76,6 +77,7 @@ public:
     void * debugger = NULL;
     bool isDebugger = false;
     int hookMask = 0;
+	std::unordered_set<SDL_TimerID> timerIDs;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
@@ -85,6 +87,8 @@ public:
 };
 
 extern std::vector<Computer*> computers;
+extern std::unordered_set<SDL_TimerID> freedTimers;
+extern std::mutex freedTimersMutex;
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 
