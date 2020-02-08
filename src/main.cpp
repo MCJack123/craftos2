@@ -100,9 +100,9 @@ void update_thread() {
 int main(int argc, char*argv[]) {
 #ifdef __EMSCRIPTEN__
     EM_ASM(
-        FS.mkdir("/user-data");
-        FS.mount(IDBFS, {}, "/user-data");
-        FS.syncfs(true, function(err) {if (err) console.log("Error while loading filesystem: ", err);});
+        FS.mkdir('/user-data');
+        FS.mount(IDBFS, {}, '/user-data');
+        FS.syncfs(true, function(err) {if (err) console.log('Error while loading filesystem: ', err);});
     );
 #endif
     for (int i = 1; i < argc; i++) {

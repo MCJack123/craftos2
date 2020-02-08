@@ -97,14 +97,18 @@ extern "C" {
     }
 
     bool EMSCRIPTEN_KEEPALIVE selectRenderTarget(int id) {
-        for (TerminalWindow::renderTarget = TerminalWindow::renderTargets.begin(); renderTarget != TerminalWindow::renderTargets.end(); TerminalWindow::renderTarget++) if ((*TerminalWindow::renderTarget)->id == id) break;
+        for (TerminalWindow::renderTarget = TerminalWindow::renderTargets.begin(); TerminalWindow::renderTarget != TerminalWindow::renderTargets.end(); TerminalWindow::renderTarget++) if ((*TerminalWindow::renderTarget)->id == id) break;
+        (*TerminalWindow::renderTarget)->changed = true;
         return TerminalWindow::renderTarget != TerminalWindow::renderTargets.end();
     }
 
-    const char * EMSCRIPTEN_KEEP_ALIVE getRenderTargetName() {
+    const char * EMSCRIPTEN_KEEPALIVE getRenderTargetName() {
         return (*TerminalWindow::renderTarget)->title.c_str();
     }
 }
+
+void onWindowCreate(int id, const char * title) {EM_ASM({Module.windowEventListener.onWindowCreate($0, $1);}, id, title);}
+void onWindowDestroy(int id) {EM_ASM({Module.windowEventListener.onWindowDestroy($0);}, id);}
 #endif
 
 TerminalWindow::TerminalWindow(int w, int h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
@@ -148,6 +152,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
     id = SDL_GetWindowID(win);
 #else
     id = nextWindowID++;
+    onWindowCreate(id, title.c_str());
 #endif
 #if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
     char * icon_pixels = new char[favicon_width * favicon_height * 4];
@@ -189,6 +194,9 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
 }
 
 TerminalWindow::~TerminalWindow() {
+#ifdef __EMSCRIPTEN__
+    onWindowDestroy(id);
+#endif
     TerminalWindow::renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {

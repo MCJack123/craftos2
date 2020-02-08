@@ -470,6 +470,7 @@ Uint32 notifyEvent(Uint32 interval, void* param) {
     return interval;
 }
 
+// TODO: Fix this!
 int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
@@ -482,7 +483,11 @@ int os_startTimer(lua_State *L) {
     }
     computer->timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
     lua_pushinteger(L, computer->timers.size() - 1);
+#ifdef __EMSCRIPTEN__
+    SDL_AddTimer(lua_tonumber(L, 1) * 1000 + 5, notifyEvent, computer);
+#else
     SDL_AddTimer(lua_tonumber(L, 1) * 1000, notifyEvent, computer);
+#endif
     return 1;
 }
 
