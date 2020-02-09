@@ -131,7 +131,7 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
         charHeight = fontHeight * 2/fontScale * charScale;
     } else if (!config.customFontPath.empty()) {
         fontScale = config.customFontScale;
-        charScale = 2 / fontScale;
+        charScale = fontScale;
         charWidth = fontWidth * 2/fontScale * charScale;
         charHeight = fontHeight * 2/fontScale * charScale;
     }
