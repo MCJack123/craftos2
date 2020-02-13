@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <codecvt>
+#include <locale>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPServerResponse.h>
