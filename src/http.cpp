@@ -689,7 +689,6 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         return;
     }
     if (uri.getPathAndQuery() == "") uri.setPath("/");
-    printf("%s\n", uri.getPathAndQuery().c_str());
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     request.set("origin", "http://www.websocket.org");
     HTTPResponse response;
