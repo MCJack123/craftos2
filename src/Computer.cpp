@@ -78,6 +78,8 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     if (debug) config.isColor = true;
 }
 
+extern void stopWebsocket(void*);
+
 // Destructor
 Computer::~Computer() {
     // Destroy terminal
@@ -104,6 +106,12 @@ Computer::~Computer() {
 		std::lock_guard<std::mutex> lock(freedTimersMutex);
 		for (SDL_TimerID t : timerIDs) freedTimers.insert(t);
 	}
+    // Stop all open websockets
+    while (openWebsockets.size() > 0) {
+        int oldSize = openWebsockets.size();
+        void* it = *openWebsockets.begin();
+        while (openWebsockets.size() == oldSize && openWebsockets.begin() != openWebsockets.end() && *openWebsockets.begin() != it) std::this_thread::yield();
+    }
 }
 
 extern int fs_getName(lua_State *L);

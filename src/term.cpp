@@ -728,16 +728,17 @@ int term_write(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
+    if (term->blinkX >= term->width) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
     size_t str_sz = 0;
     const char * str = lua_tolstring(L, 1, &str_sz);
     #ifdef TESTING
     printf("%s\n", str);
     #endif
-    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {if (term->blinkX >= 0) {
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
-    }
+    }}
     term->changed = true;
     return 0;
 }
@@ -779,8 +780,8 @@ int term_setCursorPos(lua_State *L) {
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    term->blinkX = max(0, min((int)lua_tointeger(L, 1) - 1, term->width - 1));
-    term->blinkY = max(0, min((int)lua_tointeger(L, 2) - 1, term->height - 1));
+    term->blinkX = lua_tointeger(L, 1) - 1;
+    term->blinkY = lua_tointeger(L, 2) - 1;
     term->changed = true;
     return 0;
 }
@@ -840,7 +841,7 @@ int term_clear(lua_State *L) {
         term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
     } else {
         term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
-        term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
+        term->colors = vector2d<unsigned char>(term->width, term->height, computer->colors);
     }
     term->changed = true;
     return 0;
@@ -917,6 +918,7 @@ int term_blit(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
+    if (term->blinkX >= term->width) return 0;
     size_t str_sz, fg_sz, bg_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
     const char * fg = lua_tolstring(L, 2, &fg_sz);
@@ -926,14 +928,14 @@ int term_blit(lua_State *L) {
         lua_error(L);
     }
     std::lock_guard<std::mutex> locked_g(term->locked);
-    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {if (term->blinkX >= 0) {
         if (computer->config.isColor || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
             computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
         if (computer->config.isColor || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) 
             computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
-    }
+    }}
     term->changed = true;
     return 0;
 }

@@ -64,8 +64,11 @@ public:
         };
     public:
         row(std::vector<T> *v, int y, int s): vec(v), ypos(y), size(s) {}
-        val operator[](int idx) { return val(vec, ypos + idx); }
-        void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + v.size(), vec->begin() + ypos);}
+        val operator[](int idx) { 
+            if (idx >= size) throw std::out_of_range("Vector2D index out of range");
+            return val(vec, ypos + idx);
+        }
+        void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + max((int)v.size(), size), vec->begin() + ypos);}
         void operator=(row v) {std::copy(v.vec->begin() + v.ypos, v.vec->begin() + v.ypos + v.size, vec->begin() + ypos);}
     };
     vector2d(int w, int h, T v): width(w), height(h), vec(w*h, v) {}

@@ -78,6 +78,7 @@ public:
     bool isDebugger = false;
     int hookMask = 0;
 	std::unordered_set<SDL_TimerID> timerIDs;
+    std::vector<void*> openWebsockets;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);

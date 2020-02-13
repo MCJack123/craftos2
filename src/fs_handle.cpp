@@ -94,7 +94,7 @@ int fs_handle_readAll(lua_State *L) {
 	}
     delete[] retval;
     std::string out;
-    for (wchar_t c : wstr) if (c < 256) out += (char)c;
+    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
@@ -128,7 +128,7 @@ int fs_handle_readLine(lua_State *L) {
 	}
     delete[] retval;
     std::string out;
-    for (wchar_t c : wstr) if (c < 256) out += (char)c;
+    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
@@ -145,14 +145,14 @@ int fs_handle_readChar(lua_State *L) {
     if (c < 0) {
         if (c & 64) {
             char c2 = fgetc(fp);
-            if (c2 >= 0 || c2 & 64) luaL_error(L, "malformed UTF-8 sequence");
+            if (c2 >= 0 || c2 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
             if (c & 32) {
                 char c3 = fgetc(fp);
-                if (c3 >= 0 || c3 & 64) luaL_error(L, "malformed UTF-8 sequence");
+                if (c3 >= 0 || c3 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
                 if (c & 16) {
-                    if (c & 8) luaL_error(L, "malformed UTF-8 sequence");
+                    if (c & 8) {codepoint = 2^31; goto fs_handle_readCharDone;}
                     char c4 = fgetc(fp);
-                    if (c4 >= 0 || c4 & 64) luaL_error(L, "malformed UTF-8 sequence");
+                    if (c4 >= 0 || c4 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
                     codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
                 } else {
                     codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
@@ -160,9 +160,13 @@ int fs_handle_readChar(lua_State *L) {
             } else {
                 codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
             }
-        } else luaL_error(L, "malformed UTF-8 sequence");
+        } else {codepoint = 2^31; goto fs_handle_readCharDone;}
     } else codepoint = c;
-    if (codepoint > 255) return fs_handle_readChar(L);
+fs_handle_readCharDone:
+    if (codepoint > 255) {
+        lua_pushstring(L, "?");
+        return 1;
+    }
     char retval[2];
     retval[0] = (char)codepoint;
     if (retval[0] == '\r') {

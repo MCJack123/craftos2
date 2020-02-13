@@ -59,7 +59,7 @@ static int bit_brshift(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     unsigned int a = lua_tointeger(L, 1);
-    unsigned int b = lua_tointeger(L, 2);
+    unsigned int b = lua_tointeger(L, 2) % 32;
     lua_pushinteger(L, a >> b | ((((a & 0x80000000) << b) - 1) << (32 - b)));
     return 1;
 }

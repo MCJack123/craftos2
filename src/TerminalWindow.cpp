@@ -306,12 +306,8 @@ void TerminalWindow::render() {
     } else {
         for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) 
             if (gotResizeEvent || !drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4])) return;
-		if (blinkX >= width) blinkX = width - 1;
-		if (blinkY >= height) blinkY = height - 1;
-		if (blinkX < 0) blinkX = 0;
-		if (blinkY < 0) blinkY = 0;
         if (gotResizeEvent) return;
-        if (blink) if (!drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true)) return;
+        if (blink && blinkX >= 0 && blinkY >= 0 && blinkX < width && blinkY < height) if (!drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true)) return;
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -320,7 +316,7 @@ void TerminalWindow::render() {
         currentFPS = 0;
     }
     if (/*showFPS*/ false) {
-        // later
+        // later?
     }
     if (shouldScreenshot) {
         shouldScreenshot = false;

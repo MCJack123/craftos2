@@ -171,8 +171,8 @@ void downloadThread(void* arg) {
             delete param;
             return;
         }
-    } catch (std::exception &e) {
-        printf("Error while downloading %s: %s\n", param->url, e.what());
+    } catch (NetException &e) {
+        printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
@@ -182,8 +182,8 @@ void downloadThread(void* arg) {
     http_handle_t * handle;
     try {
         handle = new http_handle_t(session->receiveResponse(*response));
-    } catch (std::exception &e) {
-        printf("Error while downloading %s: %s\n", param->url, e.what());
+    } catch (NetException &e) {
+        printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
@@ -456,7 +456,14 @@ int http_addListener(lua_State *L) {
         delete listeners[port];
         listeners.erase(port);
     }
-    HTTPServer * srv = new HTTPServer((HTTPRequestHandlerFactory*)new HTTPListener::Factory(get_comp(L), port), port, new HTTPServerParams);
+    HTTPServer * srv;
+    try {
+        srv = new HTTPServer((HTTPRequestHandlerFactory*)new HTTPListener::Factory(get_comp(L), port), port, new HTTPServerParams);
+    } catch (NetException &e) {
+        luaL_error(L, "Could not open server: %s\n", e.message().c_str());
+    } catch (std::exception &e) {
+        luaL_error(L, "Could not open server: %s\n", e.what());
+    }
     srv->start();
     listeners[port] = srv;
     return 0;
@@ -607,10 +614,10 @@ public:
         WebSocket * ws = NULL;
         try {
             ws = new WebSocket(request, response);
-        } catch (std::exception &e) {
+        } catch (NetException &e) {
             struct websocket_failure_data * data = new struct websocket_failure_data;
             data->url = NULL;
-            data->reason = e.what();
+            data->reason = e.message();
             termQueueProvider(comp, websocket_failure, data);
             if (ws != NULL) delete ws;
             if (srv != NULL) { srv->stop(); delete srv; }
@@ -631,7 +638,7 @@ public:
                     termQueueProvider(comp, websocket_closed, NULL);
                     break;
                 }
-            } catch (std::exception &e) {
+            } catch (NetException &e) {
                 wsh->closed = true;
                 termQueueProvider(comp, websocket_closed, NULL);
                 break;
@@ -664,6 +671,8 @@ public:
     };
 };
 
+void stopWebsocket(void* wsh) {((struct ws_handle*)wsh)->closed = true; ((struct ws_handle*)wsh)->ws->shutdownSend();}
+
 void websocket_client_thread(Computer *comp, char * str, bool binary) {
 #ifdef __APPLE__
     pthread_setname_np("WebSocket Client Thread");
@@ -688,6 +697,7 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
     wsh->url = str;
     wsh->ws = ws;
     wsh->binary = binary;
+    comp->openWebsockets.push_back(wsh);
     termQueueProvider(comp, websocket_success, wsh);
     while (!wsh->closed) {
         Poco::Buffer<char> buf(0);
@@ -696,17 +706,21 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
             int res = ws->receiveFrame(buf, flags);
             if (res == 0) {
                 wsh->closed = true;
+                wsh->url = NULL;
                 termQueueProvider(comp, websocket_closed, str);
                 break;
             }
-        } catch (std::exception &e) {
+        } catch (NetException &e) {
             wsh->closed = true;
+            wsh->url = NULL;
             termQueueProvider(comp, websocket_closed, str);
             break;
         }
         if (flags & WebSocket::FRAME_OP_CLOSE) {
             wsh->closed = true;
+            wsh->url = NULL;
             termQueueProvider(comp, websocket_closed, str);
+            break;
         } else {
             struct ws_message * message = new struct ws_message;
             message->url = str;
@@ -717,7 +731,15 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         }
         std::this_thread::yield();
     }
+    if (wsh->url != NULL) delete[] wsh->url;
     ws->shutdown();
+    for (auto it = comp->openWebsockets.begin(); it != comp->openWebsockets.end(); it++) {
+        if (*it == wsh) {
+            comp->openWebsockets.erase(it);
+            break;
+        }
+    }
+    delete wsh;
 }
 
 int http_websocket(lua_State *L) {
