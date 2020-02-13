@@ -678,13 +678,24 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
     pthread_setname_np("WebSocket Client Thread");
 #endif
     Poco::URI uri(str);
-    HTTPSClientSession cs(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    HTTPClientSession * cs;
+    if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
+    else if (uri.getScheme() == "wss") cs = new HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    else {
+        struct websocket_failure_data * data = new struct websocket_failure_data;
+        data->url = str;
+        data->reason = std::string("Unknown protocol" + uri.getScheme());
+        termQueueProvider(comp, websocket_failure, data);
+        return;
+    }
+    if (uri.getPathAndQuery() == "") uri.setPath("/");
+    printf("%s\n", uri.getPathAndQuery().c_str());
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     request.set("origin", "http://www.websocket.org");
     HTTPResponse response;
     WebSocket* ws;
     try {
-        ws = new WebSocket(cs, request, response);
+        ws = new WebSocket(*cs, request, response);
     } catch (Poco::Net::NetException &e) {
         struct websocket_failure_data * data = new struct websocket_failure_data;
         data->url = str;
@@ -740,6 +751,7 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         }
     }
     delete wsh;
+    delete cs;
 }
 
 int http_websocket(lua_State *L) {
