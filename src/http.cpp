@@ -509,6 +509,7 @@ struct ws_handle {
     bool closed;
     const char * url;
     bool binary;
+    bool externalClosed;
     WebSocket * ws;
 };
 
@@ -671,7 +672,17 @@ public:
     };
 };
 
-void stopWebsocket(void* wsh) {((struct ws_handle*)wsh)->closed = true; ((struct ws_handle*)wsh)->ws->shutdownSend();}
+extern bool cli, headless;
+
+void stopWebsocket(void* wsh) {
+    ((struct ws_handle*)wsh)->closed = true; 
+    ((struct ws_handle*)wsh)->externalClosed = true;
+    ((struct ws_handle*)wsh)->ws->shutdown();
+    for (int i = 0; ((struct ws_handle*)wsh)->url != NULL; i++) {
+        if (i % 4 == 0) printf("Waiting for WebSocket...\n");
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+}
 
 void websocket_client_thread(Computer *comp, char * str, bool binary) {
 #ifdef __APPLE__
@@ -702,8 +713,10 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         termQueueProvider(comp, websocket_failure, data);
         return;
     }
+    ws->setReceiveTimeout(Poco::Timespan(2, 0));
     struct ws_handle * wsh = new struct ws_handle;
     wsh->closed = false;
+    wsh->externalClosed = false;
     wsh->url = str;
     wsh->ws = ws;
     wsh->binary = binary;
@@ -720,6 +733,12 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
                 termQueueProvider(comp, websocket_closed, str);
                 break;
             }
+        } catch (Poco::TimeoutException &e) {
+            if (wsh->closed) {
+                termQueueProvider(comp, websocket_closed, str);
+                break;
+            }
+            continue;
         } catch (NetException &e) {
             wsh->closed = true;
             wsh->url = NULL;
@@ -742,7 +761,7 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         std::this_thread::yield();
     }
     if (wsh->url != NULL) delete[] wsh->url;
-    ws->shutdown();
+    if (!wsh->externalClosed) ws->shutdown();
     for (auto it = comp->openWebsockets.begin(); it != comp->openWebsockets.end(); it++) {
         if (*it == wsh) {
             comp->openWebsockets.erase(it);

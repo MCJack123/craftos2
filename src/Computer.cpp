@@ -111,7 +111,8 @@ Computer::~Computer() {
     while (openWebsockets.size() > 0) {
         int oldSize = openWebsockets.size();
         void* it = *openWebsockets.begin();
-        while (openWebsockets.size() == oldSize && openWebsockets.begin() != openWebsockets.end() && *openWebsockets.begin() != it) std::this_thread::yield();
+        stopWebsocket(it);
+        //while (openWebsockets.size() == oldSize && openWebsockets.begin() != openWebsockets.end() && *openWebsockets.begin() != it) std::this_thread::yield();
     }
 }
 
