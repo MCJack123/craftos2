@@ -654,7 +654,7 @@ const char * termGetEvent(lua_State *L) {
             tmp[1] = 0;
             lua_pushstring(L, tmp);
             return "char";
-        } else if (e.type == SDL_MOUSEBUTTONDOWN && computer->config.isColor) {
+        } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config.isColor || computer->isDebugger)) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
             if (cli) {
@@ -665,7 +665,7 @@ const char * termGetEvent(lua_State *L) {
                 lua_pushinteger(L, convertY(term, e.button.y));
             }
             return "mouse_click";
-        } else if (e.type == SDL_MOUSEBUTTONUP && computer->config.isColor) {
+        } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config.isColor || computer->isDebugger)) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
             if (cli) {
@@ -676,7 +676,7 @@ const char * termGetEvent(lua_State *L) {
                 lua_pushinteger(L, convertY(term, e.button.y));
             }
             return "mouse_up";
-        } else if (e.type == SDL_MOUSEWHEEL && computer->config.isColor) {
+        } else if (e.type == SDL_MOUSEWHEEL && (computer->config.isColor || computer->isDebugger)) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 0, y = 0;
             term->getMouse(&x, &y);
@@ -684,7 +684,7 @@ const char * termGetEvent(lua_State *L) {
             lua_pushinteger(L, convertX(term, x));
             lua_pushinteger(L, convertY(term, y));
             return "mouse_scroll";
-        } else if (e.type == SDL_MOUSEMOTION && e.motion.state && computer->config.isColor) {
+        } else if (e.type == SDL_MOUSEMOTION && e.motion.state && (computer->config.isColor || computer->isDebugger)) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert2(e.motion.state));
             lua_pushinteger(L, convertX(term, e.motion.x));
@@ -867,7 +867,7 @@ int term_setTextColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
     unsigned int c = log2i(lua_tointeger(L, 1));
-    if (computer->config.isColor || ((c & 7) - 1) >= 6)
+    if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
         computer->colors = (computer->colors & 0xf0) | c;
     return 0;
 }
@@ -876,7 +876,7 @@ int term_setBackgroundColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
     unsigned int c = log2i(lua_tointeger(L, 1));
-    if (computer->config.isColor || ((c & 7) - 1) >= 6)
+    if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
         computer->colors = (computer->colors & 0x0f) | (c << 4);
     return 0;
 }
@@ -886,7 +886,7 @@ int term_isColor(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    lua_pushboolean(L, get_comp(L)->config.isColor);
+    lua_pushboolean(L, (get_comp(L)->config.isColor || get_comp(L)->isDebugger));
     return 1;
 }
 
@@ -929,9 +929,9 @@ int term_blit(lua_State *L) {
     }
     std::lock_guard<std::mutex> locked_g(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {if (term->blinkX >= 0) {
-        if (computer->config.isColor || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
+        if ((computer->config.isColor || computer->isDebugger) || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
             computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
-        if (computer->config.isColor || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) 
+        if ((computer->config.isColor || computer->isDebugger) || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) 
             computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
@@ -973,7 +973,7 @@ int term_setPaletteColor(lua_State *L) {
         if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
     }
     Computer * computer = get_comp(L);
-    if (headless || !computer->config.isColor) return 0;
+    if (headless || !(computer->config.isColor || computer->isDebugger)) return 0;
     TerminalWindow * term = computer->term;
     int color;
     if (term->mode == 2) color = lua_tointeger(L, 1);
@@ -995,19 +995,21 @@ int term_setPaletteColor(lua_State *L) {
 
 int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "boolean or number", 1);
-    if (headless || cli || !get_comp(L)->config.isColor) return 0;
-    get_comp(L)->term->mode = lua_isboolean(L, 1) ? lua_toboolean(L, 1) : lua_tointeger(L, 1);
-    get_comp(L)->term->changed = true;
+    Computer * computer = get_comp(L);
+    if (headless || cli || !(computer->config.isColor || computer->isDebugger)) return 0;
+    computer->term->mode = lua_isboolean(L, 1) ? lua_toboolean(L, 1) : lua_tointeger(L, 1);
+    computer->term->changed = true;
     return 0;
 }
 
 int term_getGraphicsMode(lua_State *L) {
-    if (headless || cli || !get_comp(L)->config.isColor) {
+    Computer * computer = get_comp(L);
+    if (headless || cli || !(computer->config.isColor || computer->isDebugger)) {
         lua_pushboolean(L, false);
         return 1;
     }
-    if (get_comp(L)->term->mode == 0) lua_pushboolean(L, false);
-    else lua_pushinteger(L, get_comp(L)->term->mode);
+    if (computer->term->mode == 0) lua_pushboolean(L, false);
+    else lua_pushinteger(L, computer->term->mode);
     return 1;
 }
 

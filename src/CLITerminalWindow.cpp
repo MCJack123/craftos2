@@ -49,6 +49,9 @@ void CLITerminalWindow::renderNavbar(std::string title) {
     addch('X');
     if (stopRender) return;
     attroff(COLOR_PAIR(0xE0));
+    if (stopRender) return;
+    printf("\033]0;%s\007", title.c_str());
+    fflush(stdout);
 }
 
 CLITerminalWindow::CLITerminalWindow(std::string title): TerminalWindow(COLS, LINES-1), title(title) {
@@ -133,6 +136,11 @@ void CLITerminalWindow::previousWindow() {
     if (selectedWindow == currentIDs.begin()) selectedWindow = currentIDs.end();
     selectedWindow--;
     forceRender = true;
+}
+
+void CLITerminalWindow::setLabel(std::string label) {
+    title = label;
+    if (*selectedWindow == id) renderNavbar(label);
 }
 
 short original_colors[16][3];

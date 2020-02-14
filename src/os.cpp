@@ -434,9 +434,17 @@ int os_getComputerLabel(lua_State *L) {
     return 1;
 }
 
+std::string asciify(std::string str) {
+    std::string retval;
+    for (char c : str) {if (c < 32 || c > 127) retval += '?'; else retval += c;}
+    return retval;
+}
+
 int os_setComputerLabel(lua_State *L) {
     if (!lua_isnoneornil(L, 1) && !lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    get_comp(L)->config.label = lua_isstring(L, 1) ? std::string(lua_tostring(L, 1), lua_strlen(L, 1)) : "";
+    Computer * comp = get_comp(L);
+    comp->config.label = lua_isstring(L, 1) ? std::string(lua_tostring(L, 1), lua_strlen(L, 1)) : "";
+    comp->term->setLabel(comp->config.label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config.label));
     return 0;
 }
 

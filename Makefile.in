@@ -32,11 +32,13 @@ craftos2-lua/src/liblua.a: craftos2-lua
 	$(error Please build Lua for your platform inside the craftos2-lua directory)
 
 @OUT_TARGET@: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
+	echo " [LD]    $@"
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 macapp: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
+	echo " [LD]    CraftOS-PC.app/Contents/MacOS/craftos"
 	clang++ $(LDFLAGS) -o CraftOS-PC.app/Contents/MacOS/craftos $^ $(LIBS) -F/Library/Frameworks -framework Foundation -framework AppKit -mmacosx-version-min=10.9.5
 	install_name_tool -add_rpath @executable_path/../Frameworks CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libharu/lib/libhpdf-2.3.0.dylib "@rpath/libhpdf-2.3.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
@@ -63,33 +65,43 @@ $(ODIR):
 	mkdir $@
 
 $(ODIR)/main.o: $(SDIR)/main.cpp $(SDIR)/Computer.hpp $(SDIR)/lib.hpp
+	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/platform_macapp.o: $(SDIR)/platform_macapp.mm $(SDIR)/platform.hpp
+	echo " [OBJC]  $@"
 	clang++ -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.hpp $(SDIR)/platform_linux.cpp $(SDIR)/platform_darwin.cpp
+	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/peripheral.hpp $(SDIR)/lib.hpp
+	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/%.o: $(SDIR)/%.c
+	echo " [CC]    $@"
 	$(CC) -o $@ -c $(CPPFLAGS) $(CFLAGS) $<
 
 $(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(SDIR)/lib.hpp
+	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR)/peripheral/peripheral.hpp
+	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/peripheral_computer.o: $(SDIR)/peripheral/computer_p.cpp $(SDIR)/peripheral/computer.hpp $(SDIR)/peripheral/peripheral.hpp
+	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 mac-plugin:
+	echo " [LD]    ccemux.bundle"
 	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
 
 linux-plugin:
+	echo " [LD]    ccemux.so"
 	$(CXX) -std=c++11 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
 
 clean: $(ODIR)
@@ -99,7 +111,10 @@ clean: $(ODIR)
 rebuild: clean craftos
 
 install: craftos
+	echo " [CP]    $(DESTDIR)/craftos"
 	cp craftos $(DESTDIR)/craftos
 
 test: craftos
 	./craftos --headless --script $(shell pwd)/CraftOSTest.lua
+
+.SILENT:

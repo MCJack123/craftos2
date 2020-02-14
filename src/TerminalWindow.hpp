@@ -156,6 +156,7 @@ public:
     void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
     void showMessage(Uint32 flags, const char * title, const char * message);
     void toggleFullscreen();
+    virtual void setLabel(std::string label);
 
 private:
 #ifdef __EMSCRIPTEN__

@@ -32,6 +32,7 @@ extern "C" {
 
 #define PLUGIN_VERSION 2
 
+extern std::string asciify(std::string);
 extern bool headless;
 extern bool cli;
 extern std::string script_args;
@@ -67,15 +68,15 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #else
     createDirectory((std::string(getBasePath()) + "/computer/" + std::to_string(id)).c_str());
 #endif
-    // Create the terminal
-    if (headless) term = NULL;
-#ifndef NO_CLI
-    else if (cli) term = new CLITerminalWindow("CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id));
-#endif
-    else term = new TerminalWindow("CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id));
     // Load config
     config = getComputerConfig(id);
-    if (debug) config.isColor = true;
+    // Create the terminal
+    std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
+    if (headless) term = NULL;
+#ifndef NO_CLI
+    else if (cli) term = new CLITerminalWindow(term_title);
+#endif
+    else term = new TerminalWindow(term_title);
 }
 
 extern void stopWebsocket(void*);

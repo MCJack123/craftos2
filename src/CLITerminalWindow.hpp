@@ -46,6 +46,7 @@ public:
     void toggleRecording() {}
     void showMessage(Uint32 flags, const char * title, const char * message);
     void toggleFullscreen() {}
+    void setLabel(std::string label) override;
 };
 
 extern void cliInit();
