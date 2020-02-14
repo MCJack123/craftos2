@@ -69,7 +69,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     createDirectory((std::string(getBasePath()) + "/computer/" + std::to_string(id)).c_str());
 #endif
     // Load config
-    config = getComputerConfig(id);
+    try {config = getComputerConfig(id);} catch (std::exception &e) {throw std::runtime_error(e.what());}
     // Create the terminal
     std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
     if (headless) term = NULL;
@@ -109,10 +109,8 @@ Computer::~Computer() {
 	}
     // Stop all open websockets
     while (openWebsockets.size() > 0) {
-        int oldSize = openWebsockets.size();
         void* it = *openWebsockets.begin();
         stopWebsocket(it);
-        //while (openWebsockets.size() == oldSize && openWebsockets.begin() != openWebsockets.end() && *openWebsockets.begin() != it) std::this_thread::yield();
     }
 }
 
@@ -464,7 +462,12 @@ std::list<std::thread*> computerThreads;
 
 // Spin up a new computer
 Computer * startComputer(int id) {
-    Computer * comp = new Computer(id);
+    Computer * comp;
+    try {comp = new Computer(id);} catch (std::exception &e) {
+        if (!cli && !headless) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what())).c_str(), NULL);
+        else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
+        return NULL;
+    }
     computers.push_back(comp);
     std::thread * th = new std::thread(computerThread, comp);
     setThreadName(*th, std::string("Computer " + std::to_string(id) + " Thread").c_str());

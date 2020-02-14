@@ -48,6 +48,7 @@ computer::computer(lua_State *L, const char * side) {
     comp = NULL;
     for (Computer * c : computers) if (c->id == id) comp = c;
     if (comp == NULL) comp = (Computer*)queueTask([ ](void* arg)->void*{return startComputer(*(int*)arg);}, &id);
+    if (comp == NULL) throw std::runtime_error("Failed to open computer");
     thiscomp = get_comp(L);
     comp->referencers.push_back(thiscomp);
 }

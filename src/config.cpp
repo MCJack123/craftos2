@@ -70,8 +70,10 @@ struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true};
     std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     if (!in.is_open()) return cfg; 
+    if (in.peek() == std::ifstream::traits_type::eof()) {in.close(); return cfg;} // treat an empty file as if it didn't exist in the first place
     Value root;
-    Object::Ptr p = root.parse(in);
+    Object::Ptr p;
+    try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {throw std::runtime_error(e.message());}
     in.close();
     cfg.isColor = root["isColor"].asBool();
     if (root.isMember("label")) {
