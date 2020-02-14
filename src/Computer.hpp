@@ -49,7 +49,6 @@ public:
     bool mounter_initializing = false;
     std::queue<std::string> eventQueue;
     lua_State * paramQueue;
-    std::vector<std::chrono::steady_clock::time_point> timers;
     std::vector<double> alarms;
     std::unordered_map<std::string, peripheral*> peripherals;
     std::mutex peripherals_mutex;

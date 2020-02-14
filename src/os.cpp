@@ -366,19 +366,7 @@ int getNextEvent(lua_State *L, std::string filter) {
                 computer->event_lock.wait(l);
             }
             if (computer->running != 1) return 0;
-            if (computer->timers.size() > 0 && computer->timers.back().time_since_epoch().count() == 0) computer->timers.pop_back();
             if (computer->alarms.size() > 0 && computer->alarms.back() == -1) computer->alarms.pop_back();
-            if (computer->timers.size() > 0) {
-                std::chrono::steady_clock::time_point t = std::chrono::steady_clock::now();
-                for (unsigned i = 0; i < computer->timers.size(); i++) {
-                    if (t >= computer->timers[i] && computer->timers[i].time_since_epoch().count() > 0) {
-                        lua_pushinteger(param, i);
-                        computer->eventQueue.push("timer");
-                        computer->timers[i] = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(0));
-                        param = lua_newthread(computer->paramQueue);
-                    }
-                }
-            }
             if (computer->alarms.size() > 0) {
                 time_t t = time(NULL);
                 struct tm tm = *localtime(&t);
@@ -486,18 +474,26 @@ public:
 	~PointerProtector() { delete ptr; }
 };
 
+const char * timer_event(lua_State *L, void* param) {
+    struct timer_data_t * data = (struct timer_data_t*)param;
+    lua_pushinteger(L, data->timer);
+    delete data;
+    return "timer";
+}
+
 Uint32 notifyEvent(Uint32 interval, void* param) {
-    if (exiting) return interval;
+    if (exiting) return 0;
 	struct timer_data_t * data = (struct timer_data_t*)param;
-	PointerProtector<struct timer_data_t> protect(data);
 	{
 		std::lock_guard<std::mutex> lock(freedTimersMutex);
 		if (freedTimers.find(data->timer) != freedTimers.end()) { 
 			freedTimers.erase(data->timer);
-			return 0; 
+            delete data;
+			return 0;
 		}
 	}
-	data->comp->timerIDs.erase(data->timer);
+	if (data->comp->timerIDs.find(data->timer) != data->comp->timerIDs.end()) data->comp->timerIDs.erase(data->timer);
+    termQueueProvider(data->comp, timer_event, data);
     data->comp->event_lock.notify_all();
     return 0;
 }
@@ -507,26 +503,26 @@ int os_startTimer(lua_State *L) {
     Computer * computer = get_comp(L);
     if (lua_tonumber(L, 1) <= 0.0) {
         int* id = new int;
-        *id = computer->timers.size() * 1000;
-        termQueueProvider(computer, [](lua_State *L, void* id)->const char*{lua_pushinteger(L, *(int*)id); delete (int*)id; return "timer";}, id);
+        *id = 1;
+        termQueueProvider(computer, [](lua_State *L, void*)->const char*{lua_pushinteger(L, 1); return "timer";}, NULL);
         lua_pushinteger(L, *id);
         return 1;
     }
-    computer->timers.push_back(std::chrono::steady_clock::now() + std::chrono::milliseconds((long)(lua_tonumber(L, 1) * 1000)));
-    lua_pushinteger(L, computer->timers.size() - 1);
 	struct timer_data_t * data = new struct timer_data_t;
 	data->comp = computer;
-    data->timer = SDL_AddTimer(lua_tonumber(L, 1) * 1000 + 3, notifyEvent, data);
+    queueTask([L](void*a)->void*{
+        struct timer_data_t * data = (struct timer_data_t*)a;
+        data->timer = SDL_AddTimer(lua_tonumber(L, 1) * 1000 + 3, notifyEvent, data);
+        return NULL;
+    }, data);
+    lua_pushinteger(L, data->timer);
 	computer->timerIDs.insert(data->timer);
     return 1;
 }
 
 int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    Computer * computer = get_comp(L);
-    unsigned id = lua_tointeger(L, 1);
-    if (id == computer->timers.size() - 1) computer->timers.pop_back();
-    else computer->timers[id] = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(0));
+    queueTask([L](void*)->void*{SDL_RemoveTimer(lua_tointeger(L, 1)); return NULL;}, NULL);
     return 0;
 }
 
