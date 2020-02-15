@@ -199,6 +199,7 @@ int debugger_lib_run(lua_State *L) {
 		if (ar.what != NULL && (std::string(ar.what) == "Lua" || std::string(ar.what) == "main")) {
 			lua_pushcfunction(dbg->thread, debugger_lib_getLocals);
 			lua_call(dbg->thread, 0, 1);
+            assert(!lua_isnil(L, -1));
 		} else lua_pushnil(dbg->thread);
 	} else lua_pushnil(dbg->thread);
     lua_call(dbg->thread, 1, 1); // ..., func, env
@@ -318,7 +319,7 @@ int debugger_lib_getLocals(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
 	lua_State *thread = (dbg == NULL) ? L : dbg->thread;
     lua_Debug ar;
-    lua_getstack(thread, 1, &ar);
+    lua_getstack(thread, 2, &ar);
     lua_newtable(L);
     const char * name;
     for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
