@@ -728,7 +728,7 @@ int term_write(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    if (term->blinkX >= term->width) return 0;
+    if (term->blinkX >= term->width || term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
     size_t str_sz = 0;
     const char * str = lua_tolstring(L, 1, &str_sz);
@@ -918,7 +918,7 @@ int term_blit(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     TerminalWindow * term = computer->term;
-    if (term->blinkX >= term->width) return 0;
+    if (term->blinkX >= term->width || term->blinkY >= term->height) return 0;
     size_t str_sz, fg_sz, bg_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
     const char * fg = lua_tolstring(L, 2, &fg_sz);
