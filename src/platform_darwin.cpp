@@ -42,6 +42,11 @@ const char * rom_path = "/usr/local/share/craftos";
 const char * base_path = "$HOME/Library/Application\\ Support/CraftOS-PC";
 std::string base_path_expanded;
 
+void setBasePath(const char * path) {
+    base_path = path;
+    base_path_expanded = path;
+}
+
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     wordexp_t p;

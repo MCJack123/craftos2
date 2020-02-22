@@ -30,6 +30,11 @@ std::string base_path_expanded;
 std::string rom_path_expanded;
 char expand_tmp[32767];
 
+void setBasePath(const char * path) {
+    base_path = path;
+    base_path_expanded = path;
+}
+
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     DWORD size = ExpandEnvironmentStringsA(base_path, expand_tmp, 32767);

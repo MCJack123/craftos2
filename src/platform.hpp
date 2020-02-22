@@ -20,6 +20,7 @@ extern void setThreadName(std::thread &t, std::string name);
 extern int createDirectory(std::string path);
 extern unsigned long long getFreeSpace(std::string path);
 extern int removeDirectory(std::string path);
+extern void setBasePath(const char * path);
 extern std::string getBasePath();
 extern std::string getROMPath();
 extern std::string getPlugInPath();

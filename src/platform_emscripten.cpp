@@ -42,6 +42,8 @@ int removeDirectory(std::string path) {
     } else return -1;
 }
 
+void setBasePath(const char * path) {}
+
 std::string getBasePath() {
     return "/user-data";
 }

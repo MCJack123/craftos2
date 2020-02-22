@@ -45,6 +45,11 @@ const char * base_path = "$XDG_DATA_HOME/craftos-pc";
 #endif
 std::string base_path_expanded;
 
+void setBasePath(const char * path) {
+    base_path = path;
+    base_path_expanded = path;
+}
+
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     wordexp_t p;

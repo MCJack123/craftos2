@@ -43,8 +43,14 @@ extern "C" {
 
 extern bool exiting;
 std::string rom_path_expanded;
+const char * customBasePath = NULL;
+
+void setBasePath(const char * path) {
+    customBasePath = path;
+}
 
 std::string getBasePath() {
+    if (customBasePath != NULL) return customBasePath;
     return std::string([[[NSFileManager defaultManager] 
                          URLForDirectory:NSApplicationSupportDirectory 
                          inDomain:NSUserDomainMask 
