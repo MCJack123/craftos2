@@ -294,7 +294,7 @@ void TerminalWindow::render() {
         return;
     }
     SDL_Rect rect;
-    if (gotResizeEvent || SDL_FillRect(surf, NULL, rgb(defaultPalette[15])) != 0) return;
+    if (gotResizeEvent || SDL_FillRect(surf, NULL, mode == 0 ? rgb(palette[15]) : rgb(defaultPalette[15])) != 0) return;
     if (mode != 0) {
         for (int y = 0; y < height * charHeight; y+=(2/fontScale)*charScale) {
             for (int x = 0; x < width * charWidth; x+=(2/fontScale)*charScale) {
