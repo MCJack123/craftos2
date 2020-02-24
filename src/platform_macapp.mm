@@ -119,7 +119,10 @@ int removeDirectory(std::string path) {
 
 unsigned long long getFreeSpace(std::string path) {
 	struct statvfs st;
-	if (statvfs(path.c_str(), &st) != 0) return 0;
+	if (statvfs(path.c_str(), &st) != 0) {
+        if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
+        else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
+    }
 	return st.f_bavail * st.f_bsize;
 }
 
