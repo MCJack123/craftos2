@@ -49,6 +49,10 @@ void setBasePath(const char * path) {
     customBasePath = path;
 }
 
+void setROMPath(const char * path) {
+	rom_path_expanded = path;
+}
+
 std::string getBasePath() {
     if (customBasePath != NULL) return customBasePath;
     return std::string([[[NSFileManager defaultManager] 

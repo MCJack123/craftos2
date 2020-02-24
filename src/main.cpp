@@ -108,15 +108,16 @@ int main(int argc, char*argv[]) {
     int id = 0;
     bool manualID = false;
     for (int i = 1; i < argc; i++) {
-        if (std::string(argv[i]) == "--headless") headless = true;
-        else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") cli = true;
-        else if (std::string(argv[i]) == "--script") script_file = argv[++i];
-        else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
-        else if (std::string(argv[i]) == "--args") script_args = argv[++i];
-        else if (std::string(argv[i]) == "--directory" || std::string(argv[i]) == "-d") setBasePath(argv[++i]);
+		if (std::string(argv[i]) == "--headless") headless = true;
+		else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") cli = true;
+		else if (std::string(argv[i]) == "--script") script_file = argv[++i];
+		else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
+		else if (std::string(argv[i]) == "--args") script_args = argv[++i];
+		else if (std::string(argv[i]) == "--directory" || std::string(argv[i]) == "-d") setBasePath(argv[++i]);
+		else if (std::string(argv[i]) == "--rom") setROMPath(argv[++i]);
         else if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--id") {manualID = true; id = std::stoi(argv[++i]);}
         else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
-            std::cerr << "Usage: " << argv[0] << " [-c|--cli] [--headless] [-d|--directory <path>] [-i|--id <id>] [--script <file>] [--args <args>]\n";
+            std::cerr << "Usage: " << argv[0] << " [-c|--cli] [--headless] [-d|--directory <path>] [--rom <path>] [-i|--id <id>] [--script <file>] [--args <args>]\n";
             return 0;
         }
     }

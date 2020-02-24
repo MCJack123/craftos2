@@ -47,6 +47,11 @@ void setBasePath(const char * path) {
     base_path_expanded = path;
 }
 
+void setROMPath(const char * path) {
+	rom_path = path;
+	rom_path_expanded = path;
+}
+
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     wordexp_t p;
