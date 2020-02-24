@@ -37,7 +37,7 @@ extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 bool headless = false;
 bool cli = false;
-std::string script_file = "";
+std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
 
@@ -105,6 +105,8 @@ int main(int argc, char*argv[]) {
         FS.syncfs(true, function(err) {if (err) console.log('Error while loading filesystem: ', err);});
     );
 #endif
+    int id = 0;
+    bool manualID = false;
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "--headless") headless = true;
         else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") cli = true;
@@ -112,8 +114,9 @@ int main(int argc, char*argv[]) {
         else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
         else if (std::string(argv[i]) == "--args") script_args = argv[++i];
         else if (std::string(argv[i]) == "--directory" || std::string(argv[i]) == "-d") setBasePath(argv[++i]);
+        else if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--id") {manualID = true; id = std::stoi(argv[++i]);}
         else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
-            std::cerr << "Usage: " << argv[0] << " [-c|--cli] [--headless] [-d|--directory <path>] [--script <file>] [--args <args>]\n";
+            std::cerr << "Usage: " << argv[0] << " [-c|--cli] [--headless] [-d|--directory <path>] [-i|--id <id>] [--script <file>] [--args <args>]\n";
             return 0;
         }
     }
@@ -139,7 +142,7 @@ int main(int argc, char*argv[]) {
     if (!CRAFTOSPC_INDEV && !headless && !cli && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
-    startComputer(config.initialComputer);
+    startComputer(manualID ? id : config.initialComputer);
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 60, 1);
     return 0;

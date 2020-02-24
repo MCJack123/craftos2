@@ -36,6 +36,7 @@ extern std::string asciify(std::string);
 extern bool headless;
 extern bool cli;
 extern std::string script_args;
+extern std::string script_file;
 std::vector<Computer*> computers;
 std::unordered_set<Computer*> freedComputers; 
 std::unordered_set<SDL_TimerID> freedTimers;
@@ -377,8 +378,21 @@ void Computer::run(std::string bios_name) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_HEADLESS");
         }
+        if (!script_file.empty()) {
+            FILE* in = fopen(script_file.c_str(), "r");
+            std::string script;
+            char tmp[4096];
+            while (!feof(in)) {
+                size_t read = fread(tmp, 1, 4096, in);
+                if (read == 0) break;
+                script += std::string(tmp, read);
+            }
+            fclose(in);
+            lua_pushlstring(L, script.c_str(), script.size());
+            lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
+        }
         if (!script_args.empty()) {
-            lua_pushstring(L, script_args.c_str());
+            lua_pushlstring(L, script_args.c_str(), script_args.length());
             lua_setglobal(L, "_CCPC_STARTUP_ARGS");
         }
 

@@ -46,7 +46,6 @@ std::string fixpath(Computer *comp, const char * path, bool addExt, std::string 
         if (s == "..") { if (pathc.size() < 1) return std::string(); else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
-    if (script_file != "" && addExt && pathc.size() == 1 && pathc.front() == "startup.lua") return script_file;
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua") return getROMPath() + "/bios.lua";
     std::stringstream ss;
     if (addExt) {
