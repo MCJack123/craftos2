@@ -628,16 +628,14 @@ const char * termGetEvent(lua_State *L) {
                 lua_pushstring(L, text);
                 SDL_free(text);
                 return "paste";
-            } else {
-                computer->waitingForTerminate = 0;
+            } else computer->waitingForTerminate = 0;
 #ifndef NO_CLI
-                if (cli) lua_pushinteger(L, e.key.keysym.scancode); 
-                else 
+            if (cli) lua_pushinteger(L, e.key.keysym.scancode); 
+            else 
 #endif
-                lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
-                lua_pushboolean(L, false);
-                return "key";
-            }
+            lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
+            lua_pushboolean(L, false);
+            return "key";
         } else if (e.type == SDL_KEYUP && (cli || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
