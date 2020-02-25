@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <queue>
 #include <tuple>
+#include <locale>
+#include <codecvt>
 #include <cassert>
 
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
@@ -571,6 +573,17 @@ int termHasEvent(Computer * computer) {
     return computer->event_provider_queue.size() + computer->lastResizeEvent + computer->termEventQueue.size();
 }
 
+std::string utf8_to_string(const char *utf8str, const std::locale& loc)
+{
+    // UTF-8 to wstring
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
+    std::wstring wstr = wconv.from_bytes(utf8str);
+    // wstring to string
+    std::vector<char> buf(wstr.size());
+    std::use_facet<std::ctype<wchar_t>>(loc).narrow(wstr.data(), wstr.data() + wstr.size(), '\0', buf.data());
+    return std::string(buf.data(), buf.size());
+}
+
 const char * termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
     computer->event_provider_queue_mutex.lock();
@@ -625,7 +638,8 @@ const char * termGetEvent(lua_State *L) {
 #endif
               SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
-                lua_pushstring(L, text);
+                std::string str = utf8_to_string(text, std::locale("C"));
+                lua_pushstring(L, str.c_str());
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
@@ -647,11 +661,11 @@ const char * termGetEvent(lua_State *L) {
                 return "key_up";
             }
         } else if (e.type == SDL_TEXTINPUT) {
-            char tmp[2];
-            tmp[0] = e.text.text[0];
-            tmp[1] = 0;
-            lua_pushstring(L, tmp);
-            return "char";
+            std::string str = utf8_to_string(e.text.text, std::locale("C"));
+            if (str[0] != '\0') {
+                lua_pushlstring(L, str.c_str(), 1);
+                return "char";
+            }
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config.isColor || computer->isDebugger)) {
             TerminalWindow * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
