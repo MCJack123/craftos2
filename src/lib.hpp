@@ -17,8 +17,8 @@ extern "C" {
 #include <lualib.h>
 }
 
-#define CRAFTOSPC_VERSION "v2.2.5"
-#define CRAFTOSPC_INDEV   false
+#define CRAFTOSPC_VERSION "v2.2.6"
+#define CRAFTOSPC_INDEV   true
 
 class Computer;
 typedef struct library {
@@ -36,6 +36,13 @@ typedef struct library {
 extern char computer_key;
 extern void load_library(Computer *comp, lua_State *L, library_t lib);
 extern void bad_argument(lua_State *L, const char * type, int pos);
+
+#ifdef CRAFTOSPC_INTERNAL
+extern void* getCompCache_glob;
+extern Computer * getCompCache_comp;
+extern Computer * _get_comp(lua_State *L);
+#define get_comp(L) (*(void**)(((ptrdiff_t)L) + sizeof(int) + sizeof(void*)*3 + 4) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
+#else
 inline Computer * get_comp(lua_State *L) {
     //lua_pushlightuserdata(L, &computer_key);
     lua_pushinteger(L, 1);
@@ -44,4 +51,5 @@ inline Computer * get_comp(lua_State *L) {
     lua_pop(L, 1);
     return (Computer*)retval;
 }
+#endif
 #endif

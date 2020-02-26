@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "fs.hpp"
 #include "fs_handle.hpp"
 #include "platform.hpp"

@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "lib.hpp"
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,6 +21,17 @@ extern "C" {
 #include "Computer.hpp"
 
 char computer_key = 'C';
+void* getCompCache_glob = NULL;
+Computer * getCompCache_comp = NULL;
+
+Computer * _get_comp(lua_State *L) {
+    lua_rawgeti(L, LUA_REGISTRYINDEX, 1);
+    void * retval = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    getCompCache_glob = *(void**)(((ptrdiff_t)L) + sizeof(int) + sizeof(void*)*3 + 4);
+    getCompCache_comp = (Computer*)retval;
+    return (Computer*)retval;
+}
 
 void load_library(Computer *comp, lua_State *L, library_t lib) {
     lua_newtable(L); // create table

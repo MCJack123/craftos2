@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "TerminalWindow.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>

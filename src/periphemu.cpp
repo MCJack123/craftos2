@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "periphemu.hpp"
 #include "peripheral/peripheral.hpp"
 #include "peripheral/computer.hpp"
@@ -104,9 +105,10 @@ int periphemu_remove(lua_State* L) {
         computer->peripherals_mutex.unlock();
 		return 1;
 	}
-    if (std::string(computer->peripherals[side]->getMethods().name) == "drive") {
+    if (std::string(computer->peripherals[side]->getMethods().name) == "drive")
         computer->peripherals[side]->call(L, "ejectDisk");
-    }
+    else if (std::string(computer->peripherals[side]->getMethods().name) == "debugger")
+		computer->peripherals[side]->call(L, "deinit");
 	queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, computer->peripherals[side]);
 	computer->peripherals.erase(side);
     computer->peripherals_mutex.unlock();

@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "debugger.hpp"
 #include "../os.hpp"
 #include "../CLITerminalWindow.hpp"
@@ -43,7 +44,8 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
         dbg->computer->peripherals_mutex.lock();
         dbg->computer->peripherals.erase(side);
         dbg->computer->peripherals_mutex.unlock();
-        queueTask([comp](void*arg)->void*{delete (debugger*)arg; delete comp; return NULL;}, dbg, true);
+        dbg->computer->shouldDeinitDebugger = true;
+        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL, true);
     }
 }
 
@@ -150,6 +152,7 @@ int debugger_lib_setBreakpoint(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     int id = dbg->computer->breakpoints.size() > 0 ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
     dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    dbg->computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
 }
@@ -159,6 +162,9 @@ int debugger_lib_unsetBreakpoint(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (dbg->computer->breakpoints.find(lua_tointeger(L, 1)) != dbg->computer->breakpoints.end()) {
         dbg->computer->breakpoints.erase(lua_tointeger(L, 1));
+        if (dbg->computer->breakpoints.size() == 0) {
+            dbg->computer->hasBreakpoints = false;
+        }
         lua_pushboolean(L, true);
     } else lua_pushboolean(L, false);
     return 1;
@@ -430,6 +436,7 @@ int debugger::setBreakpoint(lua_State *L) {
     Computer * computer = get_comp(L);
     int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
     computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
 }
@@ -459,6 +466,8 @@ debugger::debugger(lua_State *L, const char * side) {
     computerThreads.push_back(compThread);
     if (computer->debugger != NULL) throw std::bad_exception();
     computer->debugger = this;
+    lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
 }
 
 debugger::~debugger() {
@@ -487,7 +496,16 @@ int debugger::call(lua_State *L, const char * method) {
     if (m == "stop" || m == "break") return _break(L);
     else if (m == "setBreakpoint") return setBreakpoint(L);
     else if (m == "print") return print(L);
+    else if (m == "deinit") return _deinit(L);
     else return 0;
+}
+
+int debugger::_deinit(lua_State *L) {
+    if (!computer->hasBreakpoints) {
+        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    }
+    return 0;
 }
 
 const char * debugger_keys[] = {

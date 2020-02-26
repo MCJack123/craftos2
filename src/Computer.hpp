@@ -78,6 +78,9 @@ public:
     int hookMask = 0;
 	std::unordered_set<SDL_TimerID> timerIDs;
     std::vector<void*> openWebsockets;
+    SDL_TimerID eventTimeout = 0;
+    bool hasBreakpoints = false;
+    bool shouldDeinitDebugger = false;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);

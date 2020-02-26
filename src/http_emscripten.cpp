@@ -9,6 +9,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #ifdef __EMSCRIPTEN__
 
 #include "http.hpp"

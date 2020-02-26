@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 extern "C" {
 #include <lauxlib.h>
 }
@@ -44,6 +45,7 @@ int nextTaskID = 0;
 std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
 std::unordered_map<int, void*> taskQueueReturns;
 bool exiting = false;
+bool forceCheckTimeout = false;
 extern bool cli, headless;
 extern Uint32 task_event_type;
 extern Uint32 render_event_type;
@@ -338,8 +340,15 @@ void mainLoop() {
 #endif
 }
 
+Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
+    //Computer * comp = (Computer*)param;
+    forceCheckTimeout = true;
+    return 1000;
+}
+
 int getNextEvent(lua_State *L, std::string filter) {
     Computer * computer = get_comp(L);
+    if (computer->eventTimeout != 0) {SDL_RemoveTimer(computer->eventTimeout); computer->eventTimeout = 0;}
     //if (computer->paramQueue == NULL) computer->paramQueue = lua_newthread(L);
     std::string ev;
     gettingEvent(computer);
@@ -411,6 +420,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     lua_remove(computer->paramQueue, 1);
     //lua_close(param);
     gotEvent(computer);
+    computer->eventTimeout = SDL_AddTimer(config.abortTimeout, eventTimeoutEvent, computer);
     return count + 1;
 }
 

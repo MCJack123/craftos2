@@ -68,7 +68,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Net
   * NetSSL
 
-### Optional
+#### Optional
 * libpng 1.6 & png++ 0.2.7+
   * Can be disabled with `--without-png`, will save as BMP instead
 * [libharu/libhpdf](https://github.com/libharu/libharu)
@@ -86,6 +86,9 @@ You can get all of these dependencies with:
   * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
   * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
   * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
+
+### Windows Nightly Builds
+Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-pc.cc/nightly/). These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. New builds are posted at midnight EST, unless there were no changes since the last build. The download page lists the three latest builds, but older builds are available by direct link. Note that these files are just the raw executable; if there were changes to the ROM you must pull them in manually.
 
 ### Instructions
 #### Windows

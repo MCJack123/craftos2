@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #ifndef NO_CLI
 #include "CLITerminalWindow.hpp"
 #include <errno.h>

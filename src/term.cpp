@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "term.hpp"
 #include "os.hpp"
 #include "config.hpp"
@@ -402,11 +403,21 @@ extern "C" {
 }
 
 extern "C" {extern const char KEY_HOOK;}
+extern bool forceCheckTimeout;
 
 void termHook(lua_State *L, lua_Debug *ar) {
+    if (ar->event == LUA_HOOKCOUNT && !forceCheckTimeout) return;
     Computer * computer = get_comp(L);
+    if (computer->shouldDeinitDebugger && computer->debugger != NULL && !computer->isDebugger) {
+        computer->shouldDeinitDebugger = false;
+        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
+        computer->debugger = NULL;
+    }
     if (ar->event == LUA_HOOKCOUNT) {
         if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
+            forceCheckTimeout = false;
             computer->last_event = std::chrono::high_resolution_clock::now();
             luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
@@ -414,8 +425,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
             printf("%s\n", lua_tostring(L, -1));
             lua_error(L);
         }
-    } else if (ar->event == LUA_HOOKLINE) {
-        if (::config.debug_enable && computer->debugger == NULL && computer->breakpoints.size() > 0) {
+    } else if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
+        if (computer->debugger == NULL && computer->hasBreakpoints) {
             lua_getinfo(L, "Sl", ar);
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
                 if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
@@ -423,7 +434,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
 					break;
                 }
             }
-        } else if (!computer->isDebugger && computer->debugger != NULL) {
+        } else if (computer->debugger != NULL && !computer->isDebugger) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->thread == NULL) {
                 if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
@@ -440,38 +451,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 }
             }
         }
-    } else if (!computer->isDebugger && computer->debugger != NULL && (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET)) {
-        debugger * dbg = (debugger*)computer->debugger;
-        if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL && debuggerBreak(L, computer, dbg, "Pause")) return;
-        if (dbg->isProfiling) {
-            lua_getinfo(L, "nS", ar);
-            if (ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) != dbg->profile[ar->source].end()) {
-                dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
-                dbg->profile[ar->source][ar->name].running = false;
-            }
-        }
-    } else if (!computer->isDebugger && computer->debugger != NULL && ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
-        debugger * dbg = (debugger*)computer->debugger;
-        if (dbg->thread == NULL) {
-            lua_getinfo(L, "nS", ar);
-            if (ar->name != NULL && ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require") && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
-                (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN)))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
-        }
-        if (dbg->isProfiling) {
-            lua_getinfo(L, "nS", ar);
-            if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
-            if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
-            else {
-                if (dbg->profile[ar->source][ar->name].running) {
-                    //printf("Function %s:%s skipped return for %d ms\n", ar->source, ar->name, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start).count());
-                    dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
-                    dbg->profile[ar->source][ar->name].running = false;
-                }
-                dbg->profile[ar->source][ar->name].running = true;
-                dbg->profile[ar->source][ar->name].count++;
-                dbg->profile[ar->source][ar->name].start = std::chrono::high_resolution_clock::now();
-            }
-        }
     } else if (ar->event == LUA_HOOKERROR) {
         if (config.logErrors) printf("Got error: %s\n", lua_tostring(L, -2));
         if (!computer->isDebugger && computer->debugger != NULL) {
@@ -479,14 +458,48 @@ void termHook(lua_State *L, lua_Debug *ar) {
             if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_ERROR)) 
                 if (debuggerBreak(L, computer, dbg, lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2))) return;
         }
-    } else if (ar->event == LUA_HOOKRESUME && !computer->isDebugger && computer->debugger != NULL) {
-        debugger * dbg = (debugger*)computer->debugger;
-        if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RESUME)) 
-            if (debuggerBreak(L, computer, dbg, "Resume")) return;
-    } else if (ar->event == LUA_HOOKYIELD && !computer->isDebugger && computer->debugger != NULL) {
-        debugger * dbg = (debugger*)computer->debugger;
-        if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
-            if (debuggerBreak(L, computer, dbg, "Yield")) return;
+    } else if (computer->debugger != NULL && !computer->isDebugger) {
+        if (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET) {
+            debugger * dbg = (debugger*)computer->debugger;
+            if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL && debuggerBreak(L, computer, dbg, "Pause")) return;
+            if (dbg->isProfiling) {
+                lua_getinfo(L, "nS", ar);
+                if (ar->source != NULL && ar->name != NULL && dbg->profile.find(ar->source) != dbg->profile.end() && dbg->profile[ar->source].find(ar->name) != dbg->profile[ar->source].end()) {
+                    dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
+                    dbg->profile[ar->source][ar->name].running = false;
+                }
+            }
+        } else if (ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
+            debugger * dbg = (debugger*)computer->debugger;
+            if (dbg->thread == NULL) {
+                lua_getinfo(L, "nS", ar);
+                if (ar->name != NULL && ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require") && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
+                    (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN)))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
+            }
+            if (dbg->isProfiling) {
+                lua_getinfo(L, "nS", ar);
+                if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
+                if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
+                else {
+                    if (dbg->profile[ar->source][ar->name].running) {
+                        //printf("Function %s:%s skipped return for %d ms\n", ar->source, ar->name, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start).count());
+                        dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
+                        dbg->profile[ar->source][ar->name].running = false;
+                    }
+                    dbg->profile[ar->source][ar->name].running = true;
+                    dbg->profile[ar->source][ar->name].count++;
+                    dbg->profile[ar->source][ar->name].start = std::chrono::high_resolution_clock::now();
+                }
+            }
+        } else if (ar->event == LUA_HOOKRESUME) {
+            debugger * dbg = (debugger*)computer->debugger;
+            if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RESUME)) 
+                if (debuggerBreak(L, computer, dbg, "Resume")) return;
+        } else if (ar->event == LUA_HOOKYIELD) {
+            debugger * dbg = (debugger*)computer->debugger;
+            if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
+                if (debuggerBreak(L, computer, dbg, "Yield")) return;
+        }
     }
     if (ar->event != LUA_HOOKCOUNT && (computer->hookMask & (1 << ar->event))) {
         lua_pushlightuserdata(L, (void*)&KEY_HOOK);

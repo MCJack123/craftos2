@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "Computer.hpp"
 #include "platform.hpp"
 #include "term.hpp"
@@ -126,6 +127,9 @@ extern "C" {
         Computer * computer = get_comp(L);
         int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
         computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+        computer->hasBreakpoints = true;
+        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_pushinteger(L, id);
         return 1;
     }
@@ -135,6 +139,11 @@ extern "C" {
         Computer * computer = get_comp(L);
         if (computer->breakpoints.find(lua_tointeger(L, 1)) != computer->breakpoints.end()) {
             computer->breakpoints.erase(lua_tointeger(L, 1));
+            if (computer->breakpoints.size() == 0) {
+                computer->hasBreakpoints = false;
+                lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+                lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+            }
             lua_pushboolean(L, true);
         } else lua_pushboolean(L, false);
         return 1;
@@ -216,7 +225,8 @@ void Computer::run(std::string bios_name) {
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
-        lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 100000);
+        if (::config.debug_enable) lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        else lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);
@@ -373,7 +383,11 @@ void Computer::run(std::string bios_name) {
         lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
         lua_pushboolean(L, ::config.disable_lua51_features);
         lua_setglobal(L, "_CC_DISABLE_LUA51_FEATURES");
+#if CRAFTOSPC_INDEV == true && defined(CRAFTOSPC_COMMIT)
+        lua_pushstring(L, "ComputerCraft 1.86.2 (CraftOS-PC " CRAFTOSPC_COMMIT ")");
+#else
         lua_pushstring(L, "ComputerCraft 1.86.2 (CraftOS-PC " CRAFTOSPC_VERSION ")");
+#endif
         lua_setglobal(L, "_HOST");
         if (headless) {
             lua_pushboolean(L, true);
