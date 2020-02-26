@@ -1068,6 +1068,7 @@ int term_drawPixels(lua_State *L) {
     TerminalWindow * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
     int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
+    if (init_x < 0 || init_y < 0) {lua_pushstring(L, "Invalid initial position"); lua_error(L);}
     for (int y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < term->height * TerminalWindow::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 

@@ -189,6 +189,7 @@ void Computer::run(std::string bios_name) {
             term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
             term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
             memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
+            term->mode = 0;
         }
         colors = 0xF0;
 
