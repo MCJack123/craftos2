@@ -418,7 +418,42 @@ void termHook(lua_State *L, lua_Debug *ar) {
     if (ar->event == LUA_HOOKCOUNT) {
         if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
             forceCheckTimeout = false;
-            computer->last_event = std::chrono::high_resolution_clock::now();
+            if (++computer->timeoutCheckCount >= 5) {
+                if (queueTask([computer](void*)->void*{
+#ifndef NO_CLI
+                    if (!cli && !headless) {
+#else
+                    if (!headless) {
+#endif
+                        SDL_MessageBoxData msg;
+                        SDL_MessageBoxButtonData buttons[] = {
+                            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
+                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
+                        };
+                        msg.flags = SDL_MESSAGEBOX_WARNING;
+                        msg.window = computer->term->win;
+                        msg.title = "Computer not responding";
+                        msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
+                        msg.numbuttons = 2;
+                        msg.buttons = buttons;
+                        msg.colorScheme = NULL;
+                        if (queueTask([ ](void* arg)->void*{int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num;}, &msg) != NULL) {
+                            computer->event_lock.notify_all();
+                            for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
+                                if (libraries[i]->deinit != NULL) libraries[i]->deinit(computer);
+                            lua_close(computer->L);   /* Cya, Lua */
+                            computer->L = NULL;
+                            computer->running = 2;
+                            return (void*)1;
+                        } else {
+                            computer->timeoutCheckCount = -15;
+                            return NULL;
+                        }
+                    }
+                    return NULL;
+                }, NULL) != NULL) longjmp(computer->on_panic, 0);
+            }
+            //computer->last_event = std::chrono::high_resolution_clock::now();
             luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
             lua_concat(L, 2);

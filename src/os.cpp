@@ -348,7 +348,7 @@ Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
 
 int getNextEvent(lua_State *L, std::string filter) {
     Computer * computer = get_comp(L);
-    if (computer->eventTimeout != 0) {SDL_RemoveTimer(computer->eventTimeout); computer->eventTimeout = 0;}
+    if (computer->eventTimeout != 0) {SDL_RemoveTimer(computer->eventTimeout); computer->eventTimeout = 0; computer->timeoutCheckCount = 0;}
     std::string ev;
     gettingEvent(computer);
     if (!lua_checkstack(computer->paramQueue, 1)) {

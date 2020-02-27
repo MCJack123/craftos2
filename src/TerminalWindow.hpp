@@ -161,12 +161,12 @@ public:
     void toggleFullscreen();
     virtual void setLabel(std::string label);
 
-private:
 #ifdef __EMSCRIPTEN__
     static SDL_Window *win;
 #else
     SDL_Window *win;
 #endif
+private:
     SDL_Surface *surf = NULL;
     SDL_Surface *bmp;
 

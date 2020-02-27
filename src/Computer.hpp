@@ -81,6 +81,7 @@ public:
     SDL_TimerID eventTimeout = 0;
     bool hasBreakpoints = false;
     bool shouldDeinitDebugger = false;
+    int timeoutCheckCount = 0;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
