@@ -36,6 +36,7 @@ extern "C" {
 extern std::string asciify(std::string);
 extern bool headless;
 extern bool cli;
+extern bool forceCheckTimeout;
 extern std::string script_args;
 extern std::string script_file;
 std::vector<Computer*> computers;
@@ -127,6 +128,7 @@ extern "C" {
         Computer * computer = get_comp(L);
         int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
         computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+        if (!computer->hasBreakpoints) forceCheckTimeout = true;
         computer->hasBreakpoints = true;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
@@ -225,8 +227,8 @@ void Computer::run(std::string bios_name) {
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
-        if (::config.debug_enable) lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
+        if (::config.debug_enable) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        else lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);

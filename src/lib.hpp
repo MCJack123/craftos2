@@ -17,7 +17,7 @@ extern "C" {
 #include <lualib.h>
 }
 
-#define CRAFTOSPC_VERSION "v2.2.6"
+#define CRAFTOSPC_VERSION "v2.3"
 #define CRAFTOSPC_INDEV   true
 
 class Computer;
