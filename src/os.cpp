@@ -405,7 +405,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) {
         printf("Queue item is not a thread for event \"%s\"!\n", ev.c_str()); 
-        lua_remove(computer->paramQueue, 1);
+        if (lua_gettop(computer->paramQueue) > 0) lua_remove(computer->paramQueue, 1);
         return 0;
     }
     int count = lua_gettop(param);

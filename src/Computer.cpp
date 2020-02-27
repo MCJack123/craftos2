@@ -212,6 +212,7 @@ void Computer::run(std::string bios_name) {
 
         coro = lua_newthread(L);
         paramQueue = lua_newthread(L);
+        while (!eventQueue.empty()) eventQueue.pop();
 
         // Push reference to this to the registry
         //lua_pushlightuserdata(L, &computer_key);
