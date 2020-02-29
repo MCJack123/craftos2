@@ -26,7 +26,8 @@ extern "C" {
 #include "platform.hpp"
 #include "term.hpp"
 #include "config.hpp"
-#include "CLITerminalWindow.hpp"
+#include "terminal/SDLTerminal.hpp"
+#include "terminal/CLITerminal.hpp"
 #include "peripheral/monitor.hpp"
 #ifndef NO_CLI
 #include <signal.h>
@@ -98,7 +99,7 @@ void pressControl(int sig) {
     e.type = SDL_KEYDOWN;
     e.key.keysym.scancode = (SDL_Scancode)29;
     for (Computer * c : computers) {
-        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+        if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             e.key.windowID = c->term->id;
             c->termEventQueue.push(e);
             e.type = SDL_KEYUP;
@@ -114,7 +115,7 @@ void pressAlt(int sig) {
     e.type = SDL_KEYDOWN;
     e.key.keysym.scancode = (SDL_Scancode)56;
     for (Computer * c : computers) {
-        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+        if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             e.key.windowID = c->term->id;
             c->termEventQueue.push(e);
             e.type = SDL_KEYUP;
@@ -172,13 +173,16 @@ void mainLoop() {
                         term->surf = NULL;
                     }
 #else
-                    for (TerminalWindow* term : TerminalWindow::renderTargets) {
-                        std::lock_guard<std::mutex> lock(term->locked);
-                        if (term->surf != NULL) {
-                            SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
-                            SDL_UpdateWindowSurface(term->win);
-                            SDL_FreeSurface(term->surf);
-                            term->surf = NULL;
+                    for (Terminal* term : Terminal::renderTargets) {
+                        SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+                        if (sdlterm != NULL) {
+                            std::lock_guard<std::mutex> lock(sdlterm->locked);
+                            if (sdlterm->surf != NULL) {
+                                SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
+                                SDL_UpdateWindowSurface(sdlterm->win);
+                                SDL_FreeSurface(sdlterm->surf);
+                                sdlterm->surf = NULL;
+                            }
                         }
                     }
 #endif
@@ -213,7 +217,7 @@ void mainLoop() {
                         e.type = SDL_KEYUP;
                         e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
                         for (Computer * c : computers) {
-                            if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                            if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                                 e.key.windowID = c->term->id;
                                 c->termEventQueue.push(e);
                                 c->event_lock.notify_all();
@@ -228,7 +232,7 @@ void mainLoop() {
             }
             if (resizeRefresh) {
                 resizeRefresh = false;
-                CLITerminalWindow::stopRender = true;
+                CLITerminal::stopRender = true;
                 delwin(tmpwin);
                 endwin();
                 refresh();
@@ -238,8 +242,8 @@ void mainLoop() {
                 e.type = SDL_WINDOWEVENT;
                 e.window.event = SDL_WINDOWEVENT_RESIZED;
                 for (Computer * c : computers) {
-                    e.window.data1 = COLS * c->term->charWidth + 4*(2/TerminalWindow::fontScale)*c->term->charScale;
-                    e.window.data2 = (LINES-1) * c->term->charHeight + 4*(2/TerminalWindow::fontScale)*c->term->charScale;
+                    e.window.data1 = COLS * (Terminal::fontWidth * 2/SDLTerminal::fontScale * 2) + 4*(2/SDLTerminal::fontScale)*(Terminal::fontWidth * 2/SDLTerminal::fontScale * 2);
+                    e.window.data2 = (LINES-1) * (Terminal::fontHeight * 2/SDLTerminal::fontScale * 2) + 4*(2/SDLTerminal::fontScale)*(Terminal::fontHeight * 2/SDLTerminal::fontScale * 2);
                     e.window.windowID = c->term->id;
                     c->term->changed = true;
                     c->termEventQueue.push(e);
@@ -252,8 +256,8 @@ void mainLoop() {
                 taskQueueReturns[std::get<0>(v)] = retval;
                 taskQueue.pop();
             }
-            if (ch == KEY_SLEFT) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
-            else if (ch == KEY_SRIGHT) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
+            if (ch == KEY_SLEFT) {CLITerminal::previousWindow(); CLITerminal::renderNavbar("");}
+            else if (ch == KEY_SRIGHT) {CLITerminal::nextWindow(); CLITerminal::renderNavbar("");}
             else if (ch == KEY_MOUSE) {
                 if (getmouse(&me) != OK) continue;
                 if (me.y == LINES - 1) {
@@ -262,14 +266,14 @@ void mainLoop() {
                             e.type = SDL_WINDOWEVENT;
                             e.window.event = SDL_WINDOWEVENT_CLOSE;
                             for (Computer * c : computers) {
-                                if (*CLITerminalWindow::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminalWindow::selectedWindow, tmps) != NULL) {
-                                    e.button.windowID = *CLITerminalWindow::selectedWindow;
+                                if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
+                                    e.button.windowID = *CLITerminal::selectedWindow;
                                     c->termEventQueue.push(e);
                                     c->event_lock.notify_all();
                                 }
                             }
-                        } else if (me.x == COLS - 2) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
-                        else if (me.x == COLS - 3) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
+                        } else if (me.x == COLS - 2) {CLITerminal::nextWindow(); CLITerminal::renderNavbar("");}
+                        else if (me.x == COLS - 3) {CLITerminal::previousWindow(); CLITerminal::renderNavbar("");}
                     }
                     continue;
                 }
@@ -283,7 +287,7 @@ void mainLoop() {
                 e.button.x = me.x + 1;
                 e.button.y = me.y + 1;
                 for (Computer * c : computers) {
-                    if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                    if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                         e.button.windowID = c->term->id;
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
@@ -297,7 +301,7 @@ void mainLoop() {
                     e.text.text[0] = ch;
                     e.text.text[1] = '\0';
                     for (Computer * c : computers) {
-                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                        if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                             e.text.windowID = c->term->id;
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
@@ -309,7 +313,7 @@ void mainLoop() {
                 if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
                 if (ch != 27) {
                     for (Computer * c : computers) {
-                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+                        if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
                             e.key.windowID = c->term->id;
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();

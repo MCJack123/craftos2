@@ -10,6 +10,7 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "drive.hpp"
+#include "../platform.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
 extern "C" {

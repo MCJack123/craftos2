@@ -11,11 +11,12 @@
 #define CRAFTOSPC_INTERNAL
 #include "debugger.hpp"
 #include "../os.hpp"
-#include "../CLITerminalWindow.hpp"
+#include "../terminal/CLITerminal.hpp"
 #include "../term.hpp"
 #include "../mounter.hpp"
+#include "../platform.hpp"
 #include <sstream>
-#include <functional>
+#include <thread>
 #include <unordered_set>
 #include <cassert>
 extern "C" {

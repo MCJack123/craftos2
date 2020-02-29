@@ -17,7 +17,7 @@
 #include "peripheral/modem.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/printer.hpp"
-#include "TerminalWindow.hpp"
+#include "terminal/Terminal.hpp"
 #include "term.hpp"
 #include "os.hpp"
 #include <unordered_map>

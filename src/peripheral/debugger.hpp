@@ -13,6 +13,7 @@
 #include "peripheral.hpp"
 #include <mutex>
 #include <condition_variable>
+#include <thread>
 
 #define DEBUGGER_BREAK_TYPE_NONSTOP 0
 #define DEBUGGER_BREAK_TYPE_LINE    1

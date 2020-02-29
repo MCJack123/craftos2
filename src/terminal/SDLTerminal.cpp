@@ -1,24 +1,24 @@
 /*
- * TerminalWindow.cpp
+ * SDLTerminal.cpp
  * CraftOS-PC 2
  * 
- * This file implements the TerminalWindow class.
+ * This file implements the SDLTerminal class.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "TerminalWindow.hpp"
+#include "SDLTerminal.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
 #include <sstream>
 #include <assert.h>
-#include "favicon.h"
-#include "config.hpp"
-#include "gif.hpp"
-#include "os.hpp"
+#include "../favicon.h"
+#include "../config.hpp"
+#include "../gif.hpp"
+#include "../os.hpp"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
@@ -38,6 +38,7 @@ extern "C" {
     extern struct font_image font_image;
 }
 
+// from Terminal.hpp
 Color defaultPalette[16] = {
     {0xf0, 0xf0, 0xf0},
     {0xf2, 0xb2, 0x33},
@@ -77,34 +78,34 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
     if (defaultDpi) *defaultDpi = kSysDefaultDpi;
 }
 
-int TerminalWindow::fontScale = 2;
-std::list<TerminalWindow*> TerminalWindow::renderTargets;
-std::mutex TerminalWindow::renderTargetsLock;
+int SDLTerminal::fontScale = 2;
+std::list<Terminal*> Terminal::renderTargets;
+std::mutex Terminal::renderTargetsLock;
 #ifdef __EMSCRIPTEN__
-std::list<TerminalWindow*>::iterator TerminalWindow::renderTarget = TerminalWindow::renderTargets.end();
-SDL_Window *TerminalWindow::win = NULL;
+std::list<Terminal*>::iterator Terminal::renderTarget = Terminal::renderTargets.end();
+SDL_Window *SDLTerminal::win = NULL;
 int nextWindowID = 1;
 
 extern "C" {
     void EMSCRIPTEN_KEEPALIVE nextRenderTarget() {
-        if (++TerminalWindow::renderTarget == TerminalWindow::renderTargets.end()) TerminalWindow::renderTarget = TerminalWindow::renderTargets.begin();
-        (*TerminalWindow::renderTarget)->changed = true;
+        if (++Terminal::renderTarget == Terminal::renderTargets.end()) Terminal::renderTarget = Terminal::renderTargets.begin();
+        (*Terminal::renderTarget)->changed = true;
     }
 
     void EMSCRIPTEN_KEEPALIVE previousRenderTarget() {
-        if (TerminalWindow::renderTarget == TerminalWindow::renderTargets.begin()) TerminalWindow::renderTarget = TerminalWindow::renderTargets.end();
-        TerminalWindow::renderTarget--;
-        (*TerminalWindow::renderTarget)->changed = true;
+        if (Terminal::renderTarget == Terminal::renderTargets.begin()) Terminal::renderTarget = Terminal::renderTargets.end();
+        Terminal::renderTarget--;
+        (*Terminal::renderTarget)->changed = true;
     }
 
     bool EMSCRIPTEN_KEEPALIVE selectRenderTarget(int id) {
-        for (TerminalWindow::renderTarget = TerminalWindow::renderTargets.begin(); TerminalWindow::renderTarget != TerminalWindow::renderTargets.end(); TerminalWindow::renderTarget++) if ((*TerminalWindow::renderTarget)->id == id) break;
-        (*TerminalWindow::renderTarget)->changed = true;
-        return TerminalWindow::renderTarget != TerminalWindow::renderTargets.end();
+        for (Terminal::renderTarget = Terminal::renderTargets.begin(); Terminal::renderTarget != Terminal::renderTargets.end(); Terminal::renderTarget++) if ((*Terminal::renderTarget)->id == id) break;
+        (*Terminal::renderTarget)->changed = true;
+        return Terminal::renderTarget != Terminal::renderTargets.end();
     }
 
     const char * EMSCRIPTEN_KEEPALIVE getRenderTargetName() {
-        return (*TerminalWindow::renderTarget)->title.c_str();
+        return (*Terminal::renderTarget)->title.c_str();
     }
 }
 
@@ -112,11 +113,7 @@ void onWindowCreate(int id, const char * title) {EM_ASM({Module.windowEventListe
 void onWindowDestroy(int id) {EM_ASM({Module.windowEventListener.onWindowDestroy($0);}, id);}
 #endif
 
-TerminalWindow::TerminalWindow(int w, int h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
-    memcpy(palette, defaultPalette, sizeof(defaultPalette));
-}
-
-TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
+SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
     this->title = title;
 #ifdef __EMSCRIPTEN__
     dpiScale = emscripten_get_device_pixel_ratio();
@@ -194,18 +191,18 @@ TerminalWindow::TerminalWindow(std::string title): TerminalWindow(51, 19) {
 #endif
 }
 
-TerminalWindow::~TerminalWindow() {
+SDLTerminal::~SDLTerminal() {
 #ifdef __EMSCRIPTEN__
     onWindowDestroy(id);
 #endif
-    TerminalWindow::renderTargetsLock.lock();
+    SDLTerminal::renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    TerminalWindow::renderTargetsLock.unlock();
+    SDLTerminal::renderTargetsLock.unlock();
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
         SDL_FreeSurface(bmp);
@@ -215,11 +212,11 @@ TerminalWindow::~TerminalWindow() {
     }
 }
 
-void TerminalWindow::setPalette(Color * p) {
+void SDLTerminal::setPalette(Color * p) {
     for (int i = 0; i < 16; i++) palette[i] = p[i];
 }
 
-void TerminalWindow::setCharScale(int scale) {
+void SDLTerminal::setCharScale(int scale) {
     if (scale < 1) scale = 1;
     charScale = scale;
     charWidth = fontWidth * (2/fontScale) * charScale;
@@ -231,7 +228,7 @@ bool operator!=(Color lhs, Color rhs) {
     return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b;
 }
 
-bool TerminalWindow::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
         x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
@@ -273,7 +270,7 @@ static unsigned char circlePix[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-void TerminalWindow::render() {
+void SDLTerminal::render() {
     std::lock_guard<std::mutex> locked_g(locked);
     if (gotResizeEvent) {
         gotResizeEvent = false;
@@ -392,12 +389,12 @@ void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {
     *y = (int) (*y / scale_y) - viewport.y;
 }
 
-void TerminalWindow::getMouse(int *x, int *y) {
+void SDLTerminal::getMouse(int *x, int *y) {
     SDL_GetMouseState(x, y);
     //convert_to_renderer_coordinates(ren, x, y);
 }
 
-SDL_Rect TerminalWindow::getCharacterRect(unsigned char c) {
+SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
     SDL_Rect retval;
     retval.w = fontWidth * 2/fontScale;
     retval.h = fontHeight * 2/fontScale;
@@ -406,7 +403,7 @@ SDL_Rect TerminalWindow::getCharacterRect(unsigned char c) {
     return retval;
 }
 
-bool TerminalWindow::resize(int w, int h) {
+bool SDLTerminal::resize(int w, int h) {
     newWidth = (w - 4*(2/fontScale)*charScale) / charWidth;
     newHeight = (h - 4*(2/fontScale)*charScale) / charHeight;
     gotResizeEvent = (newWidth != width || newHeight != height);
@@ -415,7 +412,7 @@ bool TerminalWindow::resize(int w, int h) {
     return true;
 }
 
-void TerminalWindow::screenshot(std::string path) {
+void SDLTerminal::screenshot(std::string path) {
     shouldScreenshot = true;
     if (path != "") screenshotPath = path;
     else {
@@ -439,7 +436,7 @@ void TerminalWindow::screenshot(std::string path) {
     }
 }
 
-void TerminalWindow::record(std::string path) {
+void SDLTerminal::record(std::string path) {
     shouldRecord = true;
     recordedFrames = 0;
     frameWait = 0;
@@ -466,7 +463,7 @@ uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
     return &ptr[num];
 }
 
-void TerminalWindow::stopRecording() {
+void SDLTerminal::stopRecording() {
     shouldRecord = false;
     recorderMutex.lock();
     if (recording.size() < 1) { recorderMutex.unlock(); return; }
@@ -488,15 +485,15 @@ void TerminalWindow::stopRecording() {
     recorderMutex.unlock();
 }
 
-void TerminalWindow::showMessage(Uint32 flags, const char * title, const char * message) {SDL_ShowSimpleMessageBox(flags, title, message, win);}
+void SDLTerminal::showMessage(Uint32 flags, const char * title, const char * message) {SDL_ShowSimpleMessageBox(flags, title, message, win);}
 
-void TerminalWindow::toggleFullscreen() {
+void SDLTerminal::toggleFullscreen() {
     fullscreen = !fullscreen;
     if (fullscreen) queueTask([ ](void* param)->void*{SDL_SetWindowFullscreen((SDL_Window*)param, SDL_WINDOW_FULLSCREEN_DESKTOP); return NULL;}, win);
     else queueTask([ ](void* param)->void*{SDL_SetWindowFullscreen((SDL_Window*)param, 0); return NULL;}, win);
 }
 
-void TerminalWindow::setLabel(std::string label) {
+void SDLTerminal::setLabel(std::string label) {
     title = label;
     queueTask([label](void*win)->void*{SDL_SetWindowTitle((SDL_Window*)win, label.c_str()); return NULL;}, win, true);
 }

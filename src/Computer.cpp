@@ -13,7 +13,6 @@
 #include "platform.hpp"
 #include "term.hpp"
 #include "bit.hpp"
-#include "CLITerminalWindow.hpp"
 #include "config.hpp"
 #include "fs.hpp"
 #include "http.hpp"
@@ -22,6 +21,8 @@
 #include "redstone.hpp"
 #include "peripheral/peripheral.hpp"
 #include "peripheral/computer.hpp"
+#include "terminal/SDLTerminal.hpp"
+#include "terminal/CLITerminal.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
@@ -77,9 +78,9 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
     if (headless) term = NULL;
 #ifndef NO_CLI
-    else if (cli) term = new CLITerminalWindow(term_title);
+    else if (cli) term = new CLITerminal(term_title);
 #endif
-    else term = new TerminalWindow(term_title);
+    else term = new SDLTerminal(term_title);
 }
 
 extern void stopWebsocket(void*);
@@ -198,7 +199,7 @@ void Computer::run(std::string bios_name) {
             term->blinkY = 0;
             term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
             term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
-            term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
+            term->pixels = vector2d<unsigned char>(term->width * Terminal::fontWidth, term->height * Terminal::fontHeight, 0x0F);
             memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
             term->mode = 0;
         }
@@ -426,7 +427,7 @@ void Computer::run(std::string bios_name) {
             /* the stack */
             fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)\n", bios_path_expanded.c_str(), lua_tostring(L, -1));
             queueTask([bios_path_expanded](void* term)->void*{
-                ((TerminalWindow*)term)->showMessage(
+                ((Terminal*)term)->showMessage(
                     SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
                     std::string(
                         "Couldn't load BIOS from " + bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)"

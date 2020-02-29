@@ -11,7 +11,8 @@
 #define CRAFTOSPC_INTERNAL
 #include "monitor.hpp"
 #include "../os.hpp"
-#include "../CLITerminalWindow.hpp"
+#include "../terminal/SDLTerminal.hpp"
+#include "../terminal/CLITerminal.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
@@ -20,12 +21,12 @@ extern bool cli;
 monitor::monitor(lua_State *L, const char * side) {
 #ifndef NO_CLI
     if (cli) {
-        term = new CLITerminalWindow("CraftOS Terminal: Monitor " + std::string(side));
+        term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
     } else 
 #endif
     {
-        term = (TerminalWindow*)queueTask([ ](void* side)->void* {
-            return new TerminalWindow("CraftOS Terminal: Monitor " + std::string((const char*)side));
+        term = (SDLTerminal*)queueTask([ ](void* side)->void* {
+            return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);
     }
     term->canBlink = false;
@@ -102,7 +103,7 @@ int monitor::getSize(lua_State *L) {
 int monitor::clear(lua_State *L) {
     std::lock_guard<std::mutex> lock(term->locked);
     if (term->mode != 0) {
-        term->pixels = vector2d<unsigned char>(term->width * TerminalWindow::fontWidth, term->height * TerminalWindow::fontHeight, 0x0F);
+        term->pixels = vector2d<unsigned char>(term->width * Terminal::fontWidth, term->height * Terminal::fontHeight, 0x0F);
     } else {
         term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
         term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
@@ -230,15 +231,20 @@ int monitor::getPixel(lua_State *L) {
 
 int monitor::setTextScale(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    std::lock_guard<std::mutex> lock(term->locked);
-    term->charScale = lua_tonumber(L, -1) * 2;
-    queueTask([ ](void* term)->void*{((TerminalWindow*)term)->setCharScale(((TerminalWindow*)term)->charScale); return NULL;}, term);
-    term->changed = true;
+    SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+    if (sdlterm != NULL) {
+        std::lock_guard<std::mutex> lock(sdlterm->locked);
+        sdlterm->charScale = lua_tonumber(L, -1) * 2;
+        queueTask([ ](void* term)->void*{((SDLTerminal*)term)->setCharScale(((SDLTerminal*)term)->charScale); return NULL;}, sdlterm);
+        sdlterm->changed = true;
+    }
     return 0;
 }
 
 int monitor::getTextScale(lua_State *L) {
-    lua_pushnumber(L, term->charScale / 2.0);
+    SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+    if (sdlterm != NULL) lua_pushnumber(L, sdlterm->charScale / 2.0);
+    else lua_pushnumber(L, 1.0);
     return 1;
 }
 
@@ -248,16 +254,16 @@ int monitor::drawPixels(lua_State *L) {
     if (!lua_istable(L, 3)) bad_argument(L, "table", 3);
     std::lock_guard<std::mutex> lock(term->locked);
     int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
-    for (int y = 1; y < lua_objlen(L, 3) && init_y + y - 1 < term->height * TerminalWindow::fontHeight; y++) {
+    for (int y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < term->height * Terminal::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 
         if (lua_isstring(L, -1)) {
             size_t str_sz;
             const char * str = lua_tolstring(L, -1, &str_sz);
-            if (init_x + str_sz - 1 < term->width * TerminalWindow::fontWidth)
+            if (init_x + str_sz - 1 < term->width * Terminal::fontWidth)
                 memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
-            for (int x = 1; x < lua_objlen(L, -1) && init_x + x - 1 < term->width * TerminalWindow::fontWidth; x++) {
+            for (int x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < term->width * Terminal::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
                 term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);

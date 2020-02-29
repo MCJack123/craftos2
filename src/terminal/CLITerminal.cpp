@@ -1,8 +1,8 @@
 /*
- * CLITerminalWindow.cpp
+ * CLITerminal.cpp
  * CraftOS-PC 2
  * 
- * This file implements the CLITerminalWindow class.
+ * This file implements the CLITerminal class.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
@@ -10,7 +10,8 @@
 
 #define CRAFTOSPC_INTERNAL
 #ifndef NO_CLI
-#include "CLITerminalWindow.hpp"
+#include "CLITerminal.hpp"
+#include <thread>
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
@@ -22,11 +23,11 @@ extern void termRenderLoop();
 extern std::thread * renderThread;
 extern std::unordered_map<int, unsigned char> keymap_cli;
 std::set<unsigned> currentIDs;
-std::set<unsigned>::iterator CLITerminalWindow::selectedWindow = currentIDs.begin();
-bool CLITerminalWindow::stopRender = false;
-bool CLITerminalWindow::forceRender = false;
+std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
+bool CLITerminal::stopRender = false;
+bool CLITerminal::forceRender = false;
 
-void CLITerminalWindow::renderNavbar(std::string title) {
+void CLITerminal::renderNavbar(std::string title) {
     move(LINES-1, 0);
     if (stopRender) return;
     attron(COLOR_PAIR(0x78));
@@ -55,15 +56,15 @@ void CLITerminalWindow::renderNavbar(std::string title) {
     fflush(stdout);
 }
 
-CLITerminalWindow::CLITerminalWindow(std::string title): TerminalWindow(COLS, LINES-1), title(title) {
-    overridden = true;
+CLITerminal::CLITerminal(std::string title): Terminal(COLS, LINES-1) {
+    this->title = title;
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++);
     selectedWindow = currentIDs.insert(currentIDs.end(), id);
     last_pair = 0;
     renderTargets.push_back(this);
 }
 
-CLITerminalWindow::~CLITerminalWindow() {
+CLITerminal::~CLITerminal() {
     auto pos = currentIDs.find(id);
     auto next = currentIDs.erase(pos);
     if (currentIDs.size() == 0) return;
@@ -71,11 +72,11 @@ CLITerminalWindow::~CLITerminalWindow() {
     selectedWindow = next;
 }
 
-bool CLITerminalWindow::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool CLITerminal::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
     return false;
 }
 
-void CLITerminalWindow::render() {
+void CLITerminal::render() {
     if (forceRender) changed = true;
     if (gotResizeEvent) {
         gotResizeEvent = false;
@@ -119,27 +120,27 @@ void CLITerminalWindow::render() {
     }
 }
 
-void CLITerminalWindow::getMouse(int *x, int *y) {
+void CLITerminal::getMouse(int *x, int *y) {
     *x = -1;
     *y = -1;
 }
 
-void CLITerminalWindow::showMessage(Uint32 flags, const char * title, const char * message) {
+void CLITerminal::showMessage(Uint32 flags, const char * title, const char * message) {
     fprintf(stderr, "%s: %s\n", title, message);
 }
 
-void CLITerminalWindow::nextWindow() {
+void CLITerminal::nextWindow() {
     if (++selectedWindow == currentIDs.end()) selectedWindow = currentIDs.begin();
     forceRender = true;
 }
 
-void CLITerminalWindow::previousWindow() {
+void CLITerminal::previousWindow() {
     if (selectedWindow == currentIDs.begin()) selectedWindow = currentIDs.end();
     selectedWindow--;
     forceRender = true;
 }
 
-void CLITerminalWindow::setLabel(std::string label) {
+void CLITerminal::setLabel(std::string label) {
     title = label;
     if (*selectedWindow == id) renderNavbar(label);
 }

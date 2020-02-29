@@ -35,7 +35,7 @@ extern "C" {
 #include <panel.h>
 #endif
 #include "peripheral/peripheral.hpp"
-#include "TerminalWindow.hpp"
+#include "terminal/Terminal.hpp"
 #include "config.hpp"
 
 typedef const char * (*event_provider)(lua_State *L, void* data);
@@ -54,7 +54,7 @@ public:
     std::mutex peripherals_mutex;
     std::queue<std::pair<event_provider, void*> > event_provider_queue;
     std::mutex event_provider_queue_mutex;
-    TerminalWindow * term;
+    Terminal * term;
 #ifndef NO_CLI
     PANEL * cli_panel;
     WINDOW * cli_term;
