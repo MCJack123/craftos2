@@ -212,6 +212,7 @@ int main(int argc, char*argv[]) {
     bool manualID = false;
     for (int i = 1; i < argc; i++) {
 		if (std::string(argv[i]) == "--headless") selectedRenderer = 1;
+        else if (std::string(argv[i]) == "--gui" || std::string(argv[i]) == "--sdl") selectedRenderer = 0;
 		else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") selectedRenderer = 2;
         else if (std::string(argv[i]) == "--raw") selectedRenderer = 3;
         else if (std::string(argv[i]) == "--raw-client") rawClient = true;
@@ -221,8 +222,51 @@ int main(int argc, char*argv[]) {
 		else if (std::string(argv[i]) == "--directory" || std::string(argv[i]) == "-d") setBasePath(argv[++i]);
 		else if (std::string(argv[i]) == "--rom") setROMPath(argv[++i]);
         else if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--id") {manualID = true; id = std::stoi(argv[++i]);}
-        else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
-            std::cerr << "Usage: " << argv[0] << " [-c|--cli] [--headless] [-d|--directory <path>] [--rom <path>] [-i|--id <id>] [--script <file>] [--args <args>]\n";
+        else if (std::string(argv[i]) == "-V" || std::string(argv[i]) == "--version") {
+            std::cout << "CraftOS-PC " << CRAFTOSPC_VERSION;
+#if CRAFTOSPC_INDEV == true && defined(CRAFTOSPC_COMMIT)
+            std::cout << " (commit " << CRAFTOSPC_COMMIT << ")";
+#endif
+            std::cout << "\nBuilt with:";
+#ifndef NO_CLI
+            std::cout << " cli";
+#endif
+#ifndef NO_PNG
+            std::cout << " png";
+#endif
+#ifndef NO_MIXER
+            std::cout << " mixer";
+#endif
+#ifdef __EMSCRIPTEN__
+            std::cout << " wasm";
+#endif
+#if PRINT_TYPE == 0
+            std::cout << " print_pdf";
+#elif PRINT_TYPE == 1
+            std::cout << " print_html";
+#else
+            std::cout << " print_txt";
+#endif
+            std::cout << "\nCopyright (c) 2019-2020 JackMacWindows. Licensed under the MIT License.\n";
+            return 0;
+        } else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
+            std::cout << "Usage: " << argv[0] << " [options...]\n\n"
+                      << "General options:\n"
+                      << "  --directory <dir>       Sets the directory that stores user data\n"
+                      << "  --rom <dir>             Sets the directory that holds the ROM & BIOS\n"
+                      << "  -i|--id <id>            Sets the ID of the computer that will launch\n"
+                      << "  --script <file>         Sets a script to be run before starting the shell\n"
+                      << "  --args \"<args>\"       Sets arguments to be passed to the file in --script\n"
+                      << "  -h|-?|--help            Shows this help message\n"
+                      << "  -V|--version            Shows the current version\n\n"
+                      << "Renderer options:\n"
+                      << "  --gui                   Default: Outputs to a GUI terminal\n"
+#ifndef NO_CLI
+                      << "  -c|--cli                Outputs using an ncurses-based interface\n"
+#endif
+                      << "  --headless              Outputs only text straight to stdout\n"
+                      << "  --raw                   Outputs terminal contents using a binary format\n"
+                      << "  --raw-client            Renders raw output from another terminal\n";
             return 0;
         }
     }
