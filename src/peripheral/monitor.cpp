@@ -16,19 +16,21 @@
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
-extern bool cli;
+extern int selectedRenderer;
 
 monitor::monitor(lua_State *L, const char * side) {
 #ifndef NO_CLI
-    if (cli) {
+    if (selectedRenderer == 2) {
         term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
     } else 
 #endif
-    {
+    if (selectedRenderer == 3) {
+        
+    } else if (selectedRenderer == 0) {
         term = (SDLTerminal*)queueTask([ ](void* side)->void* {
             return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);
-    }
+    } else throw std::invalid_argument("Monitors are not available in headless mode");
     term->canBlink = false;
 }
 

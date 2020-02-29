@@ -1,3 +1,14 @@
+/*
+ * Terminal.hpp
+ * CraftOS-PC 2
+ * 
+ * This file defines the Terminal base class, which is implemented by all 
+ * renderer classes.
+ * 
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019-2020 JackMacWindows.
+ */
+
 class Terminal;
 #ifndef TERMINAL_TERMINAL_HPP
 #define TERMINAL_TERMINAL_HPP

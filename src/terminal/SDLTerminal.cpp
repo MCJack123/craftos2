@@ -195,14 +195,14 @@ SDLTerminal::~SDLTerminal() {
 #ifdef __EMSCRIPTEN__
     onWindowDestroy(id);
 #endif
-    SDLTerminal::renderTargetsLock.lock();
+    Terminal::renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    SDLTerminal::renderTargetsLock.unlock();
+    Terminal::renderTargetsLock.unlock();
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
         SDL_FreeSurface(bmp);
@@ -496,4 +496,26 @@ void SDLTerminal::toggleFullscreen() {
 void SDLTerminal::setLabel(std::string label) {
     title = label;
     queueTask([label](void*win)->void*{SDL_SetWindowTitle((SDL_Window*)win, label.c_str()); return NULL;}, win, true);
+}
+
+extern Uint32 task_event_type, render_event_type;
+extern std::thread * renderThread;
+extern void termRenderLoop();
+
+void SDLTerminal::init() {
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+    SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
+    SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
+#if SDL_VERSION_ATLEAST(2, 0, 8)
+    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+#endif
+    task_event_type = SDL_RegisterEvents(2);
+    render_event_type = task_event_type + 1;
+    renderThread = new std::thread(termRenderLoop);
+}
+
+void SDLTerminal::quit() {
+    renderThread->join();
+    delete renderThread;
+    SDL_Quit();
 }

@@ -37,8 +37,7 @@
 
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 extern void peripheral_update();
-extern bool headless;
-extern bool cli;
+extern int selectedRenderer;
 extern bool exiting;
 std::thread * renderThread;
 std::unordered_map<int, unsigned char> keymap = {
@@ -234,23 +233,7 @@ Uint32 render_event_type;
 
 void termRenderLoop();
 
-void termInit() {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-    SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
-    SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
-#if SDL_VERSION_ATLEAST(2, 0, 8)
-    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
-#endif
-    task_event_type = SDL_RegisterEvents(2);
-    render_event_type = task_event_type + 1;
-    renderThread = new std::thread(termRenderLoop);
-}
 
-void termClose() {
-    renderThread->join();
-    delete renderThread;
-    SDL_Quit();
-}
 
 int buttonConvert(Uint8 button) {
     switch (button) {
@@ -566,7 +549,7 @@ void termRenderLoop() {
         #endif
         for (Terminal* term : Terminal::renderTargets) {
             if (!term->canBlink) term->blink = false;
-            else if (!cli && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
+            else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
                 term->blink = !term->blink;
                 term->last_blink = std::chrono::high_resolution_clock::now();
                 term->changed = true;
@@ -641,7 +624,7 @@ const char * termGetEvent(lua_State *L) {
     if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) 
             return "die";
-        else if (e.type == SDL_KEYDOWN && (cli || keymap.find(e.key.keysym.scancode) != keymap.end())) {
+        else if (e.type == SDL_KEYDOWN && (selectedRenderer == 2 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && e.key.keysym.mod == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
@@ -682,17 +665,17 @@ const char * termGetEvent(lua_State *L) {
                 return "paste";
             } else computer->waitingForTerminate = 0;
 #ifndef NO_CLI
-            if (cli) lua_pushinteger(L, e.key.keysym.scancode); 
+            if (selectedRenderer == 2) lua_pushinteger(L, e.key.keysym.scancode); 
             else 
 #endif
             lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
             lua_pushboolean(L, false);
             return "key";
-        } else if (e.type == SDL_KEYUP && (cli || keymap.find(e.key.keysym.scancode) != keymap.end())) {
+        } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
 #ifndef NO_CLI
-                if (cli) lua_pushinteger(L, e.key.keysym.scancode); 
+                if (selectedRenderer == 2) lua_pushinteger(L, e.key.keysym.scancode); 
                 else 
 #endif
                 lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
@@ -707,7 +690,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config.isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
-            if (cli) {
+            if (selectedRenderer == 2) {
                 lua_pushinteger(L, e.button.x);
                 lua_pushinteger(L, e.button.y);
             } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
@@ -718,7 +701,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config.isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
-            if (cli) {
+            if (selectedRenderer == 2) {
                 lua_pushinteger(L, e.button.x);
                 lua_pushinteger(L, e.button.y);
             } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
@@ -773,7 +756,7 @@ int headlessCursorX = 1, headlessCursorY = 1;
 
 int term_write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (headless) {
+    if (selectedRenderer == 1) {
         printf("%s", lua_tostring(L, 1));
         headlessCursorX += lua_strlen(L, 1);
         return 0;
@@ -797,7 +780,7 @@ int term_write(lua_State *L) {
 
 int term_scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (headless) {
+    if (selectedRenderer == 1) {
         for (int i = 0; i < lua_tointeger(L, 1); i++) printf("\n");
         return 0;
     }
@@ -820,7 +803,7 @@ int term_scroll(lua_State *L) {
 int term_setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (headless) {
+    if (selectedRenderer == 1) {
         if (lua_tointeger(L, 1) < headlessCursorX) printf("\r");
         else if (lua_tointeger(L, 1) > headlessCursorX) for (int i = headlessCursorX; i < lua_tointeger(L, 1); i++) printf(" ");
         if (lua_tointeger(L, 2) != headlessCursorY) printf("\n");
@@ -842,7 +825,7 @@ bool can_blink_headless = true;
 
 int term_setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    if (!headless) {
+    if (selectedRenderer != 1) {
         get_comp(L)->term->canBlink = lua_toboolean(L, 1);
         get_comp(L)->term->changed = true;
     } else can_blink_headless = lua_toboolean(L, 1);
@@ -850,7 +833,7 @@ int term_setCursorBlink(lua_State *L) {
 }
 
 int term_getCursorPos(lua_State *L) {
-    if (headless) {
+    if (selectedRenderer == 1) {
         lua_pushinteger(L, headlessCursorX);
         lua_pushinteger(L, headlessCursorY);
         return 2;
@@ -863,13 +846,13 @@ int term_getCursorPos(lua_State *L) {
 }
 
 int term_getCursorBlink(lua_State *L) {
-    if (headless) lua_pushboolean(L, can_blink_headless);
+    if (selectedRenderer == 1) lua_pushboolean(L, can_blink_headless);
     else lua_pushboolean(L, get_comp(L)->term->canBlink);
     return 1;
 }
 
 int term_getSize(lua_State *L) {
-    if (headless) {
+    if (selectedRenderer == 1) {
         lua_pushinteger(L, 51);
         lua_pushinteger(L, 19);
         return 2;
@@ -882,7 +865,7 @@ int term_getSize(lua_State *L) {
 }
 
 int term_clear(lua_State *L) {
-    if (headless) {
+    if (selectedRenderer == 1) {
         for (int i = 0; i < 30; i++) printf("\n");
         return 0;
     }
@@ -900,7 +883,7 @@ int term_clear(lua_State *L) {
 }
 
 int term_clearLine(lua_State *L) {
-    if (headless) {
+    if (selectedRenderer == 1) {
         printf("\r");
         for (int i = 0; i < 100; i++) printf(" ");
         printf("\r");
@@ -934,7 +917,7 @@ int term_setBackgroundColor(lua_State *L) {
 }
 
 int term_isColor(lua_State *L) {
-    if (headless) {
+    if (selectedRenderer == 1) {
         lua_pushboolean(L, false);
         return 1;
     }
@@ -963,7 +946,7 @@ int term_blit(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
-    if (headless) {
+    if (selectedRenderer == 1) {
         printf("%s", lua_tostring(L, 1));
         headlessCursorX += lua_strlen(L, 1);
         return 0;
@@ -994,7 +977,7 @@ int term_blit(lua_State *L) {
 
 int term_getPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (headless) {
+    if (selectedRenderer == 1) {
         if (lua_tointeger(L, 1) == 0x1) {
             lua_pushnumber(L, 0xF0 / 255.0);
             lua_pushnumber(L, 0xF0 / 255.0);
@@ -1025,7 +1008,7 @@ int term_setPaletteColor(lua_State *L) {
         if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
     }
     Computer * computer = get_comp(L);
-    if (headless || !(computer->config.isColor || computer->isDebugger)) return 0;
+    if (selectedRenderer == 1 || !(computer->config.isColor || computer->isDebugger)) return 0;
     Terminal * term = computer->term;
     int color;
     if (term->mode == 2) color = lua_tointeger(L, 1);
@@ -1048,7 +1031,7 @@ int term_setPaletteColor(lua_State *L) {
 int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "boolean or number", 1);
     Computer * computer = get_comp(L);
-    if (headless || cli || !(computer->config.isColor || computer->isDebugger)) return 0;
+    if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config.isColor || computer->isDebugger)) return 0;
     computer->term->mode = lua_isboolean(L, 1) ? lua_toboolean(L, 1) : lua_tointeger(L, 1);
     computer->term->changed = true;
     return 0;
@@ -1056,7 +1039,7 @@ int term_setGraphicsMode(lua_State *L) {
 
 int term_getGraphicsMode(lua_State *L) {
     Computer * computer = get_comp(L);
-    if (headless || cli || !(computer->config.isColor || computer->isDebugger)) {
+    if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config.isColor || computer->isDebugger)) {
         lua_pushboolean(L, false);
         return 1;
     }
@@ -1069,7 +1052,7 @@ int term_setPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
-    if (headless || cli) return 0;
+    if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
@@ -1086,7 +1069,7 @@ int term_setPixel(lua_State *L) {
 int term_getPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (headless || cli) {
+    if (selectedRenderer == 1 || selectedRenderer == 2) {
         lua_pushinteger(L, 0x8000);
         return 1;
     }
@@ -1132,7 +1115,7 @@ int term_drawPixels(lua_State *L) {
 }
 
 int term_screenshot(lua_State *L) {
-    if (headless || cli) return 0;
+    if (selectedRenderer != 0) return 0;
     Computer * computer = get_comp(L);
     SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
     if (term == NULL) return 0;

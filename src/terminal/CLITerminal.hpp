@@ -1,8 +1,8 @@
 /*
- * CLITerminalWindow.hpp
+ * CLITerminal.hpp
  * CraftOS-PC 2
  * 
- * This file defines the CLITerminalWindow class.
+ * This file defines the CLITerminal class.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
@@ -25,6 +25,8 @@ class CLITerminal: public Terminal {
     unsigned short lastPaletteChecksum = 0;
     static std::set<unsigned>::iterator selectedWindow;
 public:
+    static void init();
+    static void quit();
     static void renderNavbar(std::string title);
     static void nextWindow();
     static void previousWindow();
@@ -40,7 +42,5 @@ public:
     void setLabel(std::string label) override;
 };
 
-extern void cliInit();
-extern void cliClose();
 #endif
 #endif

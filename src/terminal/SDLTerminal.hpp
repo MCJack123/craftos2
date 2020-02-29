@@ -1,8 +1,8 @@
 /*
- * TerminalWindow.hpp
+ * SDLTerminal.hpp
  * CraftOS-PC 2
  * 
- * This file defines the TerminalWindow class.
+ * This file defines the SDLTerminal class, which is the default renderer.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
@@ -24,6 +24,7 @@
 class SDLTerminal: public Terminal {
     friend void mainLoop();
     friend int termPanic(lua_State *L);
+    friend int runRenderer();
 protected:
     static int fontScale;
     bool shouldScreenshot = false;
@@ -45,6 +46,8 @@ public:
     int currentFPS = 0;
     int lastSecond = time(0);
 
+    static void init();
+    static void quit();
     SDLTerminal(std::string title);
     ~SDLTerminal() override;
     void setPalette(Color * p);

@@ -51,22 +51,6 @@ public:
     //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
 };
 
-std::string b64encode(std::string orig) {
-    std::stringstream ss;
-    Poco::Base64Encoder enc(ss);
-    enc.write(orig.c_str(), orig.size());
-    enc.close();
-    return ss.str();
-}
-
-std::string b64decode(std::string orig) {
-    std::stringstream ss;
-    std::stringstream out(orig);
-    Poco::Base64Decoder dec(out);
-    std::copy(std::istreambuf_iterator<char>(dec), std::istreambuf_iterator<char>(), std::ostreambuf_iterator<char>(ss));
-    return ss.str();
-}
-
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true};
     std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");

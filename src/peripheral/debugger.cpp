@@ -23,7 +23,7 @@ extern "C" {
 #include <lauxlib.h>
 }
 
-extern bool cli;
+
 extern std::list<std::thread*> computerThreads;
 extern std::unordered_set<Computer*> freedComputers;
 extern std::thread::id mainThreadID;

@@ -47,7 +47,7 @@ std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueu
 std::unordered_map<int, void*> taskQueueReturns;
 bool exiting = false;
 bool forceCheckTimeout = false;
-extern bool cli, headless;
+extern int selectedRenderer;
 extern Uint32 task_event_type;
 extern Uint32 render_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
@@ -58,7 +58,7 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
     int myID = nextTaskID++;
     taskQueue.push(std::make_tuple(myID, func, arg, async));
-    if (!headless && !cli && !exiting) {
+    if (selectedRenderer == 0 && !exiting) {
         SDL_Event ev;
         ev.type = task_event_type;
         SDL_PushEvent(&ev);
@@ -134,7 +134,7 @@ void mainLoop() {
     MEVENT me;
     WINDOW * tmpwin;
     std::set<int> lastch;
-    if (cli) { 
+    if (selectedRenderer == 2) { 
         tmpwin = newwin(0, 0, 1, 1);
         nodelay(tmpwin, TRUE);
         keypad(tmpwin, TRUE);
@@ -149,7 +149,7 @@ void mainLoop() {
 #ifndef __EMSCRIPTEN__
     while (computers.size() > 0) {
 #endif
-        if (!headless && !cli) { 
+        if (selectedRenderer == 0) { 
 #ifdef __EMSCRIPTEN__
             if (SDL_PollEvent(&e)) {
 #else
@@ -209,7 +209,7 @@ void mainLoop() {
                 }
             }
 #ifndef NO_CLI
-        } else if (cli) {
+        } else if (selectedRenderer == 2) {
             int ch = wgetch(tmpwin);
             if (ch == ERR) {
                 for (int cc : lastch) {
@@ -338,7 +338,7 @@ void mainLoop() {
 #else
     }
 #ifndef NO_CLI
-    if (cli) delwin(tmpwin);
+    if (selectedRenderer == 2) delwin(tmpwin);
 #endif
     exiting = true;
 #endif
@@ -445,7 +445,7 @@ int os_setComputerLabel(lua_State *L) {
     if (!lua_isnoneornil(L, 1) && !lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * comp = get_comp(L);
     comp->config.label = lua_isstring(L, 1) ? std::string(lua_tostring(L, 1), lua_strlen(L, 1)) : "";
-    if (!headless) comp->term->setLabel(comp->config.label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config.label));
+    if (comp->term != NULL) comp->term->setLabel(comp->config.label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config.label));
     return 0;
 }
 
@@ -661,9 +661,9 @@ Special thanks:\n\
     return 1;
 }
 
-extern bool headless;
+extern int selectedRenderer;
 int os_exit(lua_State *L) {
-    if (headless) exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
+    if (selectedRenderer == 1) exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
     return 0;
 }
 

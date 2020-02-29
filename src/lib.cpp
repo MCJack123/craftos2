@@ -15,6 +15,9 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+#include <sstream>
+#include <Poco/Base64Decoder.h>
+#include <Poco/Base64Encoder.h>
 extern "C" {
 #include <lauxlib.h>
 }
@@ -49,4 +52,20 @@ void bad_argument(lua_State *L, const char * type, int pos) {
     lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
     lua_concat(L, 2);
     lua_error(L);
+}
+
+std::string b64encode(std::string orig) {
+    std::stringstream ss;
+    Poco::Base64Encoder enc(ss);
+    enc.write(orig.c_str(), orig.size());
+    enc.close();
+    return ss.str();
+}
+
+std::string b64decode(std::string orig) {
+    std::stringstream ss;
+    std::stringstream out(orig);
+    Poco::Base64Decoder dec(out);
+    std::copy(std::istreambuf_iterator<char>(dec), std::istreambuf_iterator<char>(), std::ostreambuf_iterator<char>(ss));
+    return ss.str();
 }

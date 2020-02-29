@@ -41,6 +41,8 @@ inline T max(T a, T b) { return a > b ? a : b; }
 extern char computer_key;
 extern void load_library(Computer *comp, lua_State *L, library_t lib);
 extern void bad_argument(lua_State *L, const char * type, int pos);
+extern std::string b64encode(std::string orig);
+extern std::string b64decode(std::string orig);
 
 #ifdef CRAFTOSPC_INTERNAL
 extern void* getCompCache_glob;

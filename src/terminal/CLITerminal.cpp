@@ -70,6 +70,14 @@ CLITerminal::~CLITerminal() {
     if (currentIDs.size() == 0) return;
     if (next == currentIDs.end()) next--;
     selectedWindow = next;
+    Terminal::renderTargetsLock.lock();
+    std::lock_guard<std::mutex> locked_g(locked);
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
+        if (*it == this)
+            it = renderTargets.erase(it);
+        if (it == renderTargets.end()) break;
+    }
+    Terminal::renderTargetsLock.unlock();
 }
 
 bool CLITerminal::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
@@ -147,7 +155,7 @@ void CLITerminal::setLabel(std::string label) {
 
 short original_colors[16][3];
 
-void cliInit() {
+void CLITerminal::init() {
     SDL_Init(SDL_INIT_AUDIO);
     initscr();
     keypad(stdscr, TRUE);
@@ -183,7 +191,7 @@ void cliInit() {
     }
 }
 
-void cliClose() {
+void CLITerminal::quit() {
     renderThread->join();
     delete renderThread;
     if (can_change_color()) for (int i = 0; i < 16 && i < COLORS; i++) init_color(i, original_colors[i][0], original_colors[i][1], original_colors[i][2]);

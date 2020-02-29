@@ -675,8 +675,6 @@ public:
     };
 };
 
-extern bool cli, headless;
-
 void stopWebsocket(void* wsh) {
     ((struct ws_handle*)wsh)->closed = true; 
     ((struct ws_handle*)wsh)->externalClosed = 1;

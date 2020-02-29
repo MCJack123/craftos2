@@ -23,6 +23,7 @@
 #include "peripheral/computer.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
+#include "terminal/RawTerminal.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
@@ -35,8 +36,7 @@ extern "C" {
 #define PLUGIN_VERSION 2
 
 extern std::string asciify(std::string);
-extern bool headless;
-extern bool cli;
+extern int selectedRenderer;
 extern bool forceCheckTimeout;
 extern std::string script_args;
 extern std::string script_file;
@@ -76,10 +76,11 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     try {config = getComputerConfig(id);} catch (std::exception &e) {throw std::runtime_error(e.what());}
     // Create the terminal
     std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
-    if (headless) term = NULL;
+    if (selectedRenderer == 1) term = NULL;
 #ifndef NO_CLI
-    else if (cli) term = new CLITerminal(term_title);
+    else if (selectedRenderer == 2) term = new CLITerminal(term_title);
 #endif
+    else if (selectedRenderer == 3) term = new RawTerminal(51, 19);
     else term = new SDLTerminal(term_title);
 }
 
@@ -88,7 +89,7 @@ extern void stopWebsocket(void*);
 // Destructor
 Computer::~Computer() {
     // Destroy terminal
-    if (!headless) delete term;
+    if (term != NULL) delete term;
     // Save config
     setComputerConfig(id, config);
     // Deinitialize all peripherals
@@ -192,7 +193,7 @@ void Computer::run(std::string bios_name) {
     while (running) {
         int status;
         lua_State *coro;
-        if (!headless) {
+        if (term != NULL) {
             // Initialize terminal contents
             std::lock_guard<std::mutex> lock(term->locked);
             term->blinkX = 0;
@@ -393,7 +394,7 @@ void Computer::run(std::string bios_name) {
         lua_pushstring(L, "ComputerCraft 1.86.2 (CraftOS-PC " CRAFTOSPC_VERSION ")");
 #endif
         lua_setglobal(L, "_HOST");
-        if (headless) {
+        if (selectedRenderer == 1) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_HEADLESS");
         }
@@ -497,7 +498,7 @@ std::list<std::thread*> computerThreads;
 Computer * startComputer(int id) {
     Computer * comp;
     try {comp = new Computer(id);} catch (std::exception &e) {
-        if (!cli && !headless) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what())).c_str(), NULL);
+        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what())).c_str(), NULL);
         else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
         return NULL;
     }
