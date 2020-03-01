@@ -139,6 +139,7 @@ void sendRawData(uint8_t type, uint8_t id, std::function<void(std::ostream&)> ca
 	str.erase(std::remove_if(str.begin(), str.end(), [](char c)->bool {return c == '\n' || c == '\r'; }), str.end());
 	std::cout << "!CPC" << std::hex << std::setfill('0') << std::setw(4) << str.length() << std::dec;
 	std::cout << str << "\n";
+    std::cout.flush();
 }
 
 void parseIBTTag(std::istream& in, lua_State *L) {
@@ -304,6 +305,7 @@ void rawInputLoop() {
 }
 
 void RawTerminal::init() {
+    SDL_Init(SDL_INIT_TIMER);
     renderThread = new std::thread(termRenderLoop);
 	inputThread = new std::thread(rawInputLoop);
 }
@@ -311,6 +313,7 @@ void RawTerminal::init() {
 void RawTerminal::quit() {
     renderThread->join();
     delete renderThread;
+    SDL_Quit();
 }
 
 RawTerminal::RawTerminal(std::string title) : Terminal(51, 19) {
@@ -354,6 +357,7 @@ void RawTerminal::render() {
 		output.write((char*)&height, 2);
 		output.write((char*)&blinkX, 2);
 		output.write((char*)&blinkY, 2);
+        for (int i = 0; i < 4; i++) output.put(0);
 		if (mode == 0) {
 			unsigned char c = screen[0][0];
 			unsigned char n = 0;

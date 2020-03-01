@@ -296,6 +296,7 @@ int main(int argc, char*argv[]) {
 #endif
     if (selectedRenderer == 3) RawTerminal::init();
     else if (selectedRenderer == 0) SDLTerminal::init();
+    else SDL_Init(SDL_INIT_TIMER);
     driveInit();
 #ifndef __EMSCRIPTEN__
     if (!CRAFTOSPC_INDEV && selectedRenderer == 0 && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
@@ -322,5 +323,6 @@ int main(int argc, char*argv[]) {
 #endif
     if (selectedRenderer == 3) RawTerminal::quit();
     else if (selectedRenderer == 0) SDLTerminal::quit();
+    else SDL_Quit();
     return 0;
 }

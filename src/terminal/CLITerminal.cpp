@@ -201,7 +201,7 @@ void pressAlt(int sig) {
 }
 
 void CLITerminal::init() {
-    SDL_Init(SDL_INIT_AUDIO);
+    SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER);
     initscr();
     keypad(stdscr, TRUE);
     noecho();

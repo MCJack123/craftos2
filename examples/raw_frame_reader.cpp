@@ -9,7 +9,7 @@
    base64.cpp and base64.h
    base64 encoding and decoding with C++.
    Version: 1.01.00
-   Copyright (C) 2004-2017 René Nyffenegger
+   Copyright (C) 2004-2017 Renï¿½ Nyffenegger
    This source code is provided 'as-is', without any express or implied
    warranty. In no event will the author be held liable for any damages
    arising from the use of this software.
@@ -23,7 +23,7 @@
    2. Altered source versions must be plainly marked as such, and must not be
 	  misrepresented as being the original source code.
    3. This notice may not be removed or altered from any source distribution.
-   René Nyffenegger rene.nyffenegger@adp-gmbh.ch
+   Renï¿½ Nyffenegger rene.nyffenegger@adp-gmbh.ch
 */
 
 static const std::string base64_chars =
@@ -193,7 +193,6 @@ int main() {
 			char * tmp = new char[sizen + 1];
 			tmp[sizen] = 0;
 			std::cin.read(tmp, sizen);
-			uint32_t sum = rc_crc32(0, tmp, sizen);
 			std::stringstream in(base64_decode(tmp));
 			delete[] tmp;
 			uint8_t type = in.get();
@@ -215,17 +214,19 @@ int main() {
 					while (i < width * height) {
 						char c = in.get();
 						int len = in.get();
-						for (int j = 0; j < len + 1; j++) {
-							if ((i + j) % width == 0) std::cout << "\n";
+						for (int j = 0; j < len; j++) {
+							if (i + j > 0 && (i + j) % width == 0) std::cout << "\n";
 							std::cout << c;
 						}
 						i += len;
 					}
+					i = 0;
 					while (i < width * height) {
 						in.get();
 						int len = in.get();
 						i += len;
 					}
+					std::cout << "\n";
 				} else {
 					while (i < width * height * 56) {
 						in.get();
@@ -241,6 +242,7 @@ int main() {
 					b = in.get();
 					printf("%s#%02x%02x%02x", (i == 0 ? "" : ", "), r, g, b);
 				}
+				std::cout << "\n";
 			} else if (type == 1) {
 				std::cout << "> Key ID: " << (int)in.get();
 				char c = in.get();
@@ -262,6 +264,7 @@ int main() {
 				for (int i = 0; i < paramCount; i++) {
 					std::cout << "> ";
 					parseIBTTag(in, 1);
+					std::cout << "\n";
 				}
 			} else if (type == 4) {
 				std::cout << "> Closing window? " << (in.get() ? "Yes" : "No") << "\n";
@@ -286,10 +289,12 @@ int main() {
 				while ((c = in.get())) str += c;
 				std::cout << "> Message: " << str << "\n";
 			}
+			std::string fullstr = in.str();
+			uint32_t sum = rc_crc32(0, fullstr.c_str(), fullstr.length()-4);
 			uint32_t getsum = 0;
 			in.read((char*)&getsum, 4);
-			if (sum == getsum) std::cout << "> Checksums match (" << getsum << ")\n";
-			else std::cout << "> Checksums don't match! (" << sum << " vs. expected " << getsum << ")\n";
+			if (sum == getsum) printf("> Checksums match (%08X)\n", getsum);
+			else printf("\n> Checksums don't match! (%08X vs. expected %08X)\n", sum, getsum);
 		}
 	}
 }
