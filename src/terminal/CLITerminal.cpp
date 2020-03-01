@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <ncurses.h>
 #include <panel.h>
+#include <signal.h>
 
 extern void termRenderLoop();
 extern std::thread * renderThread;
