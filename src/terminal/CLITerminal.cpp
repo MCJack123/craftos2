@@ -22,7 +22,7 @@
 extern void termRenderLoop();
 extern std::thread * renderThread;
 extern std::unordered_map<int, unsigned char> keymap_cli;
-std::set<unsigned> currentIDs;
+std::set<unsigned> CLITerminal::currentIDs;
 std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
 bool CLITerminal::stopRender = false;
 bool CLITerminal::forceRender = false;
@@ -154,6 +154,49 @@ void CLITerminal::setLabel(std::string label) {
 }
 
 short original_colors[16][3];
+MEVENT me;
+WINDOW * tmpwin;
+std::set<int> lastch;
+bool resizeRefresh = false;
+
+void handle_winch(int sig) {
+	resizeRefresh = true;
+	endwin();
+	refresh();
+	clear();
+}
+
+void pressControl(int sig) {
+	SDL_Event e;
+	e.type = SDL_KEYDOWN;
+	e.key.keysym.scancode = (SDL_Scancode)29;
+	for (Computer * c : computers) {
+		if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+			e.key.windowID = c->term->id;
+			c->termEventQueue.push(e);
+			e.type = SDL_KEYUP;
+			e.key.keysym.scancode = (SDL_Scancode)29;
+			c->termEventQueue.push(e);
+			c->event_lock.notify_all();
+		}
+	}
+}
+
+void pressAlt(int sig) {
+	SDL_Event e;
+	e.type = SDL_KEYDOWN;
+	e.key.keysym.scancode = (SDL_Scancode)56;
+	for (Computer * c : computers) {
+		if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+			e.key.windowID = c->term->id;
+			c->termEventQueue.push(e);
+			e.type = SDL_KEYUP;
+			e.key.keysym.scancode = (SDL_Scancode)56;
+			c->termEventQueue.push(e);
+			c->event_lock.notify_all();
+		}
+	}
+}
 
 void CLITerminal::init() {
     SDL_Init(SDL_INIT_AUDIO);
@@ -189,9 +232,18 @@ void CLITerminal::init() {
             keymap_cli[KEY_SEND] = 56;
         }
     }
+	tmpwin = newwin(0, 0, 1, 1);
+	nodelay(tmpwin, TRUE);
+	keypad(tmpwin, TRUE);
+	signal(SIGWINCH, handle_winch);
+	if (config.cliControlKeyMode == 3) {
+		signal(SIGINT, pressControl);
+		signal(SIGQUIT, pressAlt);
+	}
 }
 
 void CLITerminal::quit() {
+	delwin(tmpwin);
     renderThread->join();
     delete renderThread;
     if (can_change_color()) for (int i = 0; i < 16 && i < COLORS; i++) init_color(i, original_colors[i][0], original_colors[i][1], original_colors[i][2]);
@@ -202,5 +254,117 @@ void CLITerminal::quit() {
     mousemask(0, NULL);
     endwin();
     SDL_Quit();
-} 
+}
+
+bool CLITerminal::pollEvents() {
+	int ch = wgetch(tmpwin);
+	if (ch == ERR) {
+		for (int cc : lastch) {
+			if (cc != 27) {
+				e.type = SDL_KEYUP;
+				e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
+				for (Computer * c : computers) {
+					if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+						e.key.windowID = c->term->id;
+						c->termEventQueue.push(e);
+						c->event_lock.notify_all();
+					}
+				}
+			}
+		}
+		lastch.clear();
+		nodelay(tmpwin, TRUE);
+		keypad(tmpwin, TRUE);
+		while (ch == ERR && taskQueue.size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
+			}
+	if (resizeRefresh) {
+		resizeRefresh = false;
+		CLITerminal::stopRender = true;
+		delwin(tmpwin);
+		endwin();
+		refresh();
+		tmpwin = newwin(0, 0, 1, 1);
+		nodelay(tmpwin, TRUE);
+		keypad(tmpwin, TRUE);
+		e.type = SDL_WINDOWEVENT;
+		e.window.event = SDL_WINDOWEVENT_RESIZED;
+		for (Computer * c : computers) {
+			e.window.data1 = COLS * (Terminal::fontWidth * 2 / SDLTerminal::fontScale * 2) + 4 * (2 / SDLTerminal::fontScale) * (Terminal::fontWidth * 2 / SDLTerminal::fontScale * 2);
+			e.window.data2 = (LINES - 1) * (Terminal::fontHeight * 2 / SDLTerminal::fontScale * 2) + 4 * (2 / SDLTerminal::fontScale) * (Terminal::fontHeight * 2 / SDLTerminal::fontScale * 2);
+			e.window.windowID = c->term->id;
+			c->term->changed = true;
+			c->termEventQueue.push(e);
+			c->event_lock.notify_all();
+		}
+	}
+	while (taskQueue.size() > 0) {
+		auto v = taskQueue.front();
+		void* retval = std::get<1>(v)(std::get<2>(v));
+		taskQueueReturns[std::get<0>(v)] = retval;
+		taskQueue.pop();
+	}
+	if (ch == KEY_SLEFT) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); } else if (ch == KEY_SRIGHT) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } else if (ch == KEY_MOUSE) {
+		if (getmouse(&me) != OK) continue;
+		if (me.y == LINES - 1) {
+			if (me.bstate & BUTTON1_PRESSED) {
+				if (me.x == COLS - 1) {
+					e.type = SDL_WINDOWEVENT;
+					e.window.event = SDL_WINDOWEVENT_CLOSE;
+					for (Computer * c : computers) {
+						if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
+							e.button.windowID = *CLITerminal::selectedWindow;
+							c->termEventQueue.push(e);
+							c->event_lock.notify_all();
+						}
+					}
+				} else if (me.x == COLS - 2) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } else if (me.x == COLS - 3) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); }
+			}
+			continue;
+		}
+		if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
+		else if (me.bstate & NCURSES_BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
+		else continue;
+		if ((me.bstate & BUTTON1_PRESSED) || (me.bstate & BUTTON1_RELEASED)) e.button.button = SDL_BUTTON_LEFT;
+		else if ((me.bstate & BUTTON2_PRESSED) || (me.bstate & BUTTON2_RELEASED)) e.button.button = SDL_BUTTON_RIGHT;
+		else if ((me.bstate & BUTTON3_PRESSED) || (me.bstate & BUTTON3_RELEASED)) e.button.button = SDL_BUTTON_MIDDLE;
+		else continue;
+		e.button.x = me.x + 1;
+		e.button.y = me.y + 1;
+		for (Computer * c : computers) {
+			if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+				e.button.windowID = c->term->id;
+				c->termEventQueue.push(e);
+				c->event_lock.notify_all();
+			}
+		}
+	} else if (ch != ERR && ch != KEY_RESIZE) {
+		if (config.cliControlKeyMode == 2 && ch == 'c' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1025;
+		else if (config.cliControlKeyMode == 2 && ch == 'a' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1026;
+		if ((ch >= 32 && ch < 127)) {
+			e.type = SDL_TEXTINPUT;
+			e.text.text[0] = ch;
+			e.text.text[1] = '\0';
+			for (Computer * c : computers) {
+				if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+					e.text.windowID = c->term->id;
+					c->termEventQueue.push(e);
+					c->event_lock.notify_all();
+				}
+			}
+		}
+		e.type = SDL_KEYDOWN;
+		e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
+		if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
+		if (ch != 27) {
+			for (Computer * c : computers) {
+				if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+					e.key.windowID = c->term->id;
+					c->termEventQueue.push(e);
+					c->event_lock.notify_all();
+				}
+			}
+		}
+		lastch.insert(ch);
+	}
+}
 #endif

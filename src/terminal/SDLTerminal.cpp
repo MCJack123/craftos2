@@ -19,6 +19,7 @@
 #include "../config.hpp"
 #include "../gif.hpp"
 #include "../os.hpp"
+#include "../peripheral/monitor.hpp"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
@@ -518,4 +519,73 @@ void SDLTerminal::quit() {
     renderThread->join();
     delete renderThread;
     SDL_Quit();
+}
+
+extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
+extern std::unordered_map<int, void*> taskQueueReturns;
+extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
+
+#ifdef __EMSCRIPTEN__
+#define checkWindowID(c, wid) (c->term == *TerminalWindow::renderTarget || findMonitorFromWindowID(c, (*TerminalWindow::renderTarget)->id, tmps) != NULL)
+#else
+#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
+#endif
+
+bool SDLTerminal::pollEvents() {
+	SDL_Event e;
+	std::string tmps;
+#ifdef __EMSCRIPTEN__
+	if (SDL_PollEvent(&e)) {
+#else
+	if (SDL_WaitEvent(&e)) {
+#endif
+		if (e.type == task_event_type) {
+			while (taskQueue.size() > 0) {
+				auto v = taskQueue.front();
+				void* retval = std::get<1>(v)(std::get<2>(v));
+				taskQueueReturns[std::get<0>(v)] = retval;
+				taskQueue.pop();
+			}
+		} else if (e.type == render_event_type) {
+#ifdef __EMSCRIPTEN__
+			TerminalWindow* term = *TerminalWindow::renderTarget;
+			std::lock_guard<std::mutex> lock(term->locked);
+			if (term->surf != NULL) {
+				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(TerminalWindow::win), NULL);
+				SDL_UpdateWindowSurface(TerminalWindow::win);
+				SDL_FreeSurface(term->surf);
+				term->surf = NULL;
+			}
+#else
+			for (Terminal* term : Terminal::renderTargets) {
+				SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+				if (sdlterm != NULL) {
+					std::lock_guard<std::mutex> lock(sdlterm->locked);
+					if (sdlterm->surf != NULL) {
+						SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
+						SDL_UpdateWindowSurface(sdlterm->win);
+						SDL_FreeSurface(sdlterm->surf);
+						sdlterm->surf = NULL;
+					}
+				}
+			}
+#endif
+		} else {
+			for (Computer * c : computers) {
+				if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
+					((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
+					((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
+					(e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+					(e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
+					(e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
+					(e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
+					e.type == SDL_QUIT) {
+					c->termEventQueue.push(e);
+					c->event_lock.notify_all();
+				}
+			}
+			if (e.type == SDL_QUIT) return true;
+		}
+	}
+	return false;
 }

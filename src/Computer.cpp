@@ -80,7 +80,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #ifndef NO_CLI
     else if (selectedRenderer == 2) term = new CLITerminal(term_title);
 #endif
-    else if (selectedRenderer == 3) term = new RawTerminal(51, 19);
+    else if (selectedRenderer == 3) term = new RawTerminal(term_title);
     else term = new SDLTerminal(term_title);
 }
 

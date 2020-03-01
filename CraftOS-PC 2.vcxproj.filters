@@ -40,6 +40,9 @@
     <None Include="README.md">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include=".github\workflows\main.yml">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\Ccblink.ico">
@@ -50,9 +53,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\TerminalWindow.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\peripheral\monitor.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -125,6 +125,18 @@
     <ClInclude Include="src\peripheral\debugger.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\terminal\CLITerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\RawTerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\SDLTerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\Terminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\peripheral\monitor.cpp">
@@ -158,9 +170,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\term.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\TerminalWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\mounter.cpp">
@@ -200,6 +209,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\debugger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\CLITerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\RawTerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\SDLTerminal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

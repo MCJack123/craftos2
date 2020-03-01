@@ -18,11 +18,13 @@
 #include "terminal/SDLTerminal.hpp"
 #include <functional>
 #include <thread>
+#include <iomanip>
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/JSON/Parser.h>
+#include <Poco/Checksum.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #endif
@@ -101,7 +103,10 @@ int runRenderer() {
     if (selectedRenderer == 1) {
         std::cerr << "Error: Headless mode cannot be used in conjunction with raw client mode.";
         return 3;
-    } else if (selectedRenderer == 2) CLITerminal::init();
+    }
+#ifndef NO_CLI
+	else if (selectedRenderer == 2) CLITerminal::init();
+#endif
     else if (selectedRenderer == 3) RawTerminal::init();
     else SDLTerminal::init();
     Terminal * term;
@@ -109,26 +114,32 @@ int runRenderer() {
     if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal");
     else
 #endif
-    if (selectedRenderer == 3) term = new RawTerminal(51, 19);
+    if (selectedRenderer == 3) term = new RawTerminal("CraftOS Terminal");
     else term = new SDLTerminal("CraftOS Terminal");
     while (true) {
         unsigned char c = std::cin.get();
         if (c == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
             char size[5];
             std::cin.read(size, 4);
-            int sizen = strtol(size, NULL, 16);
+            long sizen = strtol(size, NULL, 16);
             char * tmp = new char[sizen+1];
             tmp[sizen] = 0;
             std::cin.read(tmp, sizen);
+			Poco::Checksum chk;
+			chk.update(tmp, sizen);
+			if (chk.checksum() != *(uint32_t*)&tmp[sizen - 4]) {
+				fprintf(stderr, "Invalid checksum: expected %08X, got %08X\n", chk.checksum(), *(uint32_t*)&tmp[sizen - 4]);
+				continue;
+			}
             std::stringstream in(b64decode(tmp));
             delete[] tmp;
+			if (in.get() != 0) continue;
+			term->id = in.get();
+			term->mode = in.get();
+			term->blink = in.get();
             uint16_t width, height;
             in.read((char*)&width, 2);
             in.read((char*)&height, 2);
-            term->id = in.get();
-            term->mode = in.get();
-            term->blink = in.get();
-            in.get();
             in.read((char*)&term->blinkX, 2);
             in.read((char*)&term->blinkY, 2);
             if (term->mode == 0) {
@@ -256,7 +267,7 @@ int main(int argc, char*argv[]) {
                       << "  --rom <dir>             Sets the directory that holds the ROM & BIOS\n"
                       << "  -i|--id <id>            Sets the ID of the computer that will launch\n"
                       << "  --script <file>         Sets a script to be run before starting the shell\n"
-                      << "  --args \"<args>\"       Sets arguments to be passed to the file in --script\n"
+                      << "  --args \"<args>\"         Sets arguments to be passed to the file in --script\n"
                       << "  -h|-?|--help            Shows this help message\n"
                       << "  -V|--version            Shows the current version\n\n"
                       << "Renderer options:\n"

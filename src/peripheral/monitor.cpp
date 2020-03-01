@@ -13,6 +13,7 @@
 #include "../os.hpp"
 #include "../terminal/SDLTerminal.hpp"
 #include "../terminal/CLITerminal.hpp"
+#include "../terminal/RawTerminal.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
@@ -20,13 +21,11 @@ extern int selectedRenderer;
 
 monitor::monitor(lua_State *L, const char * side) {
 #ifndef NO_CLI
-    if (selectedRenderer == 2) {
-        term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
-    } else 
+	if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
+	else
 #endif
-    if (selectedRenderer == 3) {
-        
-    } else if (selectedRenderer == 0) {
+    if (selectedRenderer == 3) term = new RawTerminal("CraftOS Terminal: Monitor " + std::string(side));
+	else if (selectedRenderer == 0) {
         term = (SDLTerminal*)queueTask([ ](void* side)->void* {
             return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);

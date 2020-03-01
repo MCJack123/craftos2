@@ -24,9 +24,11 @@ class CLITerminal: public Terminal {
     unsigned last_pair;
     unsigned short lastPaletteChecksum = 0;
     static std::set<unsigned>::iterator selectedWindow;
+	static std::set<unsigned> currentIDs;
 public:
     static void init();
     static void quit();
+	static void pollEvents();
     static void renderNavbar(std::string title);
     static void nextWindow();
     static void previousWindow();

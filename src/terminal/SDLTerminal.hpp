@@ -8,8 +8,8 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#ifndef TERMINALWINDOW_HPP
-#define TERMINALWINDOW_HPP
+#ifndef TERMINAL_SDLTERMINAL_HPP
+#define TERMINAL_SDLTERMINAL_HPP
 #ifdef _WIN32
 #include <SDL.h>
 #else
@@ -48,6 +48,7 @@ public:
 
     static void init();
     static void quit();
+	static bool pollEvents();
     SDLTerminal(std::string title);
     ~SDLTerminal() override;
     void setPalette(Color * p);

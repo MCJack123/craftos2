@@ -624,7 +624,7 @@ const char * termGetEvent(lua_State *L) {
     if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) 
             return "die";
-        else if (e.type == SDL_KEYDOWN && (selectedRenderer == 2 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
+        else if (e.type == SDL_KEYDOWN && (selectedRenderer != 0 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && e.key.keysym.mod == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
@@ -664,21 +664,15 @@ const char * termGetEvent(lua_State *L) {
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
-#ifndef NO_CLI
-            if (selectedRenderer == 2) lua_pushinteger(L, e.key.keysym.scancode); 
-            else 
-#endif
-            lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
+            if (selectedRenderer != 0) lua_pushinteger(L, e.key.keysym.scancode); 
+            else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
             lua_pushboolean(L, false);
             return "key";
         } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
-#ifndef NO_CLI
-                if (selectedRenderer == 2) lua_pushinteger(L, e.key.keysym.scancode); 
-                else 
-#endif
-                lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
+                if (selectedRenderer != 0) lua_pushinteger(L, e.key.keysym.scancode); 
+                else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 return "key_up";
             }
         } else if (e.type == SDL_TEXTINPUT) {
