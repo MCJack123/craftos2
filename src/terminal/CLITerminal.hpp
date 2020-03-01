@@ -28,7 +28,7 @@ class CLITerminal: public Terminal {
 public:
     static void init();
     static void quit();
-	static void pollEvents();
+	static bool pollEvents();
     static void renderNavbar(std::string title);
     static void nextWindow();
     static void previousWindow();

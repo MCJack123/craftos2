@@ -278,6 +278,7 @@
     <ClInclude Include="src\terminal\Terminal.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="examples\raw_frame_reader.cpp" />
     <ClCompile Include="src\Computer.cpp" />
     <ClCompile Include="src\config.cpp" />
     <ClCompile Include="src\font.c" />

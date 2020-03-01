@@ -220,6 +220,9 @@
     <ClCompile Include="src\terminal\SDLTerminal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="examples\raw_frame_reader.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="CraftOS-PC 2.rc">

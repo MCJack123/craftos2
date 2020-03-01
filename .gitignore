@@ -29,3 +29,5 @@ CraftOS-PC.html
 a.out*
 *.mem
 index.html
+*.obj
+*.exe
