@@ -11,6 +11,8 @@
 #define CRAFTOSPC_INTERNAL
 #ifndef NO_CLI
 #include "CLITerminal.hpp"
+#include "SDLTerminal.hpp"
+#include "../peripheral/monitor.hpp"
 #include <thread>
 #include <errno.h>
 #include <string.h>
@@ -256,7 +258,19 @@ void CLITerminal::quit() {
     SDL_Quit();
 }
 
+extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
+extern std::unordered_map<int, void*> taskQueueReturns;
+extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
+
+#ifdef __EMSCRIPTEN__
+#define checkWindowID(c, wid) (c->term == *TerminalWindow::renderTarget || findMonitorFromWindowID(c, (*TerminalWindow::renderTarget)->id, tmps) != NULL)
+#else
+#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
+#endif
+
 bool CLITerminal::pollEvents() {
+    SDL_Event e;
+    std::string tmps;
 	int ch = wgetch(tmpwin);
 	if (ch == ERR) {
 		for (int cc : lastch) {
@@ -304,7 +318,7 @@ bool CLITerminal::pollEvents() {
 		taskQueue.pop();
 	}
 	if (ch == KEY_SLEFT) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); } else if (ch == KEY_SRIGHT) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } else if (ch == KEY_MOUSE) {
-		if (getmouse(&me) != OK) continue;
+		if (getmouse(&me) != OK) return false;
 		if (me.y == LINES - 1) {
 			if (me.bstate & BUTTON1_PRESSED) {
 				if (me.x == COLS - 1) {
@@ -319,15 +333,15 @@ bool CLITerminal::pollEvents() {
 					}
 				} else if (me.x == COLS - 2) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } else if (me.x == COLS - 3) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); }
 			}
-			continue;
+			return false;
 		}
 		if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
 		else if (me.bstate & NCURSES_BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
-		else continue;
+		else return false;
 		if ((me.bstate & BUTTON1_PRESSED) || (me.bstate & BUTTON1_RELEASED)) e.button.button = SDL_BUTTON_LEFT;
 		else if ((me.bstate & BUTTON2_PRESSED) || (me.bstate & BUTTON2_RELEASED)) e.button.button = SDL_BUTTON_RIGHT;
 		else if ((me.bstate & BUTTON3_PRESSED) || (me.bstate & BUTTON3_RELEASED)) e.button.button = SDL_BUTTON_MIDDLE;
-		else continue;
+		else return false;
 		e.button.x = me.x + 1;
 		e.button.y = me.y + 1;
 		for (Computer * c : computers) {
@@ -366,5 +380,6 @@ bool CLITerminal::pollEvents() {
 		}
 		lastch.insert(ch);
 	}
+    return false;
 }
 #endif

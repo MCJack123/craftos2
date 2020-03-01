@@ -26,7 +26,6 @@ class SDLTerminal: public Terminal {
     friend int termPanic(lua_State *L);
     friend int runRenderer();
 protected:
-    static int fontScale;
     bool shouldScreenshot = false;
     bool shouldRecord = false;
     bool fullscreen = false;
@@ -38,6 +37,7 @@ protected:
     std::mutex recorderMutex;
     bool overridden = false;
 public:
+    static int fontScale;
     int charScale = 2;
     int dpiScale = 1;
     int charWidth = fontWidth * 2/fontScale * charScale;
