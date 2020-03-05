@@ -92,11 +92,11 @@ int drive::ejectDisk(lua_State *L) {
         for (auto it = computer->mounts.begin(); it != computer->mounts.end(); it++) {
             if (1 == std::get<0>(*it).size() && std::get<0>(*it).front() == mount_path) {
                 computer->mounts.erase(it);
-                if (mount_path == "disk") usedMounts.erase(0);
+                if (mount_path == "disk") computer->usedDriveMounts.erase(0);
                 else {
                     int n = std::stoi(mount_path.substr(4)) - 1;
-                    for (std::unordered_set<int>::iterator it = usedMounts.begin(); it != usedMounts.end(); it++) {
-                        if (*it == n) { usedMounts.erase(*it); break; }
+                    for (std::unordered_set<int>::iterator it = computer->usedDriveMounts.begin(); it != computer->usedDriveMounts.end(); it++) {
+                        if (*it == n) { computer->usedDriveMounts.erase(*it); break; }
                     }
                 }
                 break;
@@ -116,14 +116,15 @@ int drive::getDiskID(lua_State *L) {
 #include <cassert>
 
 int drive::insertDisk(lua_State *L, bool init) {
+    Computer * comp = get_comp(L);
     int arg = init * 2 + 1;
     if (diskType != DISK_TYPE_NONE) lua_pop(L, ejectDisk(L));
     if (lua_isnumber(L, arg)) {
         id = lua_tointeger(L, arg);
         diskType = DISK_TYPE_DISK;
         int i;
-        for (i = 0; usedMounts.find(i) != usedMounts.end(); i++);
-        usedMounts.insert(i);
+        for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
+        comp->usedDriveMounts.insert(i);
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
 #ifdef WIN32
         createDirectory((std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str());
@@ -148,8 +149,8 @@ int drive::insertDisk(lua_State *L, bool init) {
         if (S_ISDIR(st.st_mode)) {
             diskType = DISK_TYPE_MOUNT;
             int i;
-            for (i = 0; usedMounts.find(i) != usedMounts.end(); i++);
-            usedMounts.insert(i);
+            for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
+            comp->usedDriveMounts.insert(i);
             mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
             addMount(get_comp(L), path.c_str(), mount_path.c_str(), false);
         }
@@ -222,5 +223,4 @@ const char * drive_keys[12] = {
     "insertDisk"
 };
 
-std::unordered_set<int> drive::usedMounts;
 library_t drive::methods = {"drive", 12, drive_keys, NULL, nullptr, nullptr};

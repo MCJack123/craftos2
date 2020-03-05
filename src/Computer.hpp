@@ -82,6 +82,7 @@ public:
     bool hasBreakpoints = false;
     bool shouldDeinitDebugger = false;
     int timeoutCheckCount = 0;
+    std::unordered_set<int> usedDriveMounts;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
