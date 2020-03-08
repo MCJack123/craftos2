@@ -62,12 +62,12 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
         ev.type = task_event_type;
         SDL_PushEvent(&ev);
     }
-    {
-        std::lock_guard<std::mutex> lock(taskQueueMutex);
+    if (selectedRenderer != 0 && selectedRenderer != 2) {
+        {std::lock_guard<std::mutex> lock(taskQueueMutex);}
+        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        taskQueueNotify.notify_all();
+        while (!taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     }
-    while (!taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    taskQueueNotify.notify_all();
-    while (!taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     if (async) return NULL;
     while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
     void* retval = taskQueueReturns[myID];
