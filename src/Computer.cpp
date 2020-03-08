@@ -474,6 +474,10 @@ bool Computer::getEvent(SDL_Event* e) {
     return true;
 }
 
+extern std::mutex taskQueueMutex;
+extern std::atomic_bool taskQueueReady;
+extern std::condition_variable taskQueueNotify;
+
 // Thread wrapper for running a computer
 void* computerThread(void* data) {
     Computer * comp = (Computer*)data;
@@ -488,6 +492,12 @@ void* computerThread(void* data) {
             it = computers.erase(it);
             if (it == computers.end()) break;
         }
+    }
+    if (selectedRenderer != 0 && selectedRenderer != 2) {
+        {std::lock_guard<std::mutex> lock(taskQueueMutex);}
+        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        taskQueueNotify.notify_all();
+        while (!taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     }
     return NULL;
 }

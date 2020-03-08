@@ -439,8 +439,15 @@ Special thanks:\n\
 
 extern int selectedRenderer;
 int os_exit(lua_State *L) {
-    if (selectedRenderer == 1) exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
-    else {lua_pushstring(L, "Cannot exit outside of headless mode"); lua_error(L);}
+    if (selectedRenderer == 1) {
+        get_comp(L)->running = 0;
+        computers.clear();
+        {std::lock_guard<std::mutex> lock(taskQueueMutex);}
+        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        taskQueueNotify.notify_all();
+        while (!taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
+        exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
+    } else {lua_pushstring(L, "Cannot exit outside of headless mode"); lua_error(L);}
     return 0;
 }
 
