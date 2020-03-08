@@ -51,6 +51,7 @@ extern Uint32 render_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
 extern std::unordered_map<int, unsigned char> keymap;
 std::thread::id mainThreadID;
+std::atomic_bool taskQueueReady(false);
 
 void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
@@ -62,9 +63,11 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
         SDL_PushEvent(&ev);
     }
     {
-        std::unique_lock<std::mutex> lock(taskQueueMutex);
-        taskQueueNotify.notify_all();
+        std::lock_guard<std::mutex> lock(taskQueueMutex);
     }
+    while (!taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    taskQueueNotify.notify_all();
+    while (!taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     if (async) return NULL;
     while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
     void* retval = taskQueueReturns[myID];
@@ -96,8 +99,10 @@ void mainLoop() {
 		else if (selectedRenderer == 2) res = CLITerminal::pollEvents();
 #endif
         else {
-			std::unique_lock<std::mutex> lock(taskQueueMutex);
-			taskQueueNotify.wait(lock);
+            std::unique_lock<std::mutex> lock(taskQueueMutex);
+            taskQueueReady = false;
+            taskQueueNotify.wait(lock);
+            taskQueueReady = true;
             while (taskQueue.size() > 0) {
                 auto v = taskQueue.front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
@@ -435,6 +440,7 @@ Special thanks:\n\
 extern int selectedRenderer;
 int os_exit(lua_State *L) {
     if (selectedRenderer == 1) exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
+    else {lua_pushstring(L, "Cannot exit outside of headless mode"); lua_error(L);}
     return 0;
 }
 
