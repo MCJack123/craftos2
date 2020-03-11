@@ -42,9 +42,10 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
     }
     delete (library_t*)comp->debugger;
     if (!dbg->deleteThis) {
-        dbg->computer->peripherals_mutex.lock();
-        dbg->computer->peripherals.erase(side);
-        dbg->computer->peripherals_mutex.unlock();
+        {
+            std::lock_guard<std::mutex> lock(dbg->computer->peripherals_mutex);
+            dbg->computer->peripherals.erase(side);
+        }
         dbg->computer->shouldDeinitDebugger = true;
         queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL, true);
     }
@@ -449,9 +450,44 @@ const char * debugger_print(lua_State *L, void* arg) {
     return "debugger_print";
 }
 
+static int lua_converttostring (lua_State *L) {
+  if (lua_icontext(L)) return 1;
+  luaL_checkany(L, 1);
+  if (luaL_getmetafield(L, 1, "__tostring")) {
+    lua_pushvalue(L, 1);
+    lua_icall(L, 1, 1, 1);  /* call metamethod */
+    return 1;
+  }
+  switch (lua_type(L, 1)) {
+    case LUA_TNUMBER:
+      lua_pushstring(L, lua_tostring(L, 1));
+      break;
+    case LUA_TSTRING:
+      lua_pushvalue(L, 1);
+      break;
+    case LUA_TBOOLEAN:
+      lua_pushstring(L, (lua_toboolean(L, 1) ? "true" : "false"));
+      break;
+    case LUA_TNIL:
+      lua_pushliteral(L, "nil");
+      break;
+    default:
+      lua_pushfstring(L, "%s: %p", luaL_typename(L, 1), lua_topointer(L, 1));
+      break;
+  }
+  return 1;
+}
+
 int debugger::print(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    std::string * str = new std::string(lua_tostring(L, 1), lua_strlen(L, 1));
+    lua_settop(L, 1);
+    if (!lua_isstring(L, -1)) {
+        lua_pushcfunction(L, lua_converttostring);
+        lua_pushvalue(L, -2);
+        lua_call(L, 1, 1);
+        if (!lua_isstring(L, -1))
+            bad_argument(L, "string", 1);
+    }
+    std::string * str = new std::string(lua_tostring(L, -1), lua_strlen(L, -1));
     termQueueProvider(monitor, debugger_print, str);
     return 0;
 }

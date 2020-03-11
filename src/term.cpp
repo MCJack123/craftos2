@@ -1071,9 +1071,10 @@ int term_getPixel(lua_State *L) {
     Terminal * term = computer->term;
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x > term->width || y > term->height || x < 0 || y < 0) return 0;
+    if (x > term->width * term->fontWidth || y > term->height * term->fontHeight || x < 0 || y < 0) return 0;
     if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    else return 0;
     return 1;
 }
 

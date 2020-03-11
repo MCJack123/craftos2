@@ -78,7 +78,7 @@ int periphemu_create(lua_State* L) {
 	}
 	//lua_pop(L, 2);
 	try {
-		if (type == std::string("debugger") && computer->debugger == NULL) computer->peripherals[side] = new debugger(L, side.c_str());
+		if (type == std::string("debugger") && computer->debugger == NULL && config.debug_enable) computer->peripherals[side] = new debugger(L, side.c_str());
 		else if (initializers.find(type) != initializers.end()) computer->peripherals[side] = initializers[type](L, side.c_str());
         else {
 			printf("not found: %s\n", type.c_str());
@@ -99,10 +99,9 @@ int periphemu_remove(lua_State* L) {
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
 	Computer * computer = get_comp(L);
 	std::string side = lua_tostring(L, 1);
-    computer->peripherals_mutex.lock();
+    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
 	if (computer->peripherals.find(side) == computer->peripherals.end()) {
 		lua_pushboolean(L, false);
-        computer->peripherals_mutex.unlock();
 		return 1;
 	}
     if (std::string(computer->peripherals[side]->getMethods().name) == "drive")
@@ -111,7 +110,6 @@ int periphemu_remove(lua_State* L) {
 		computer->peripherals[side]->call(L, "deinit");
 	queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, computer->peripherals[side]);
 	computer->peripherals.erase(side);
-    computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
     termQueueProvider(computer, peripheral_detach, sidearg);

@@ -95,7 +95,7 @@ Computer::~Computer() {
     // Deinitialize all peripherals
     for (auto p : peripherals) p.second->getDestructor()(p.second);
     for (std::list<Computer*>::iterator c = referencers.begin(); c != referencers.end(); c++) {
-        (*c)->peripherals_mutex.lock();
+        std::lock_guard<std::mutex> lock((*c)->peripherals_mutex);
         for (auto it = (*c)->peripherals.begin(); it != (*c)->peripherals.end(); it++) {
             if (std::string(it->second->getMethods().name) == "computer" && ((computer*)it->second)->comp == this) {
                 // Detach computer peripherals pointing to this on other computers
@@ -104,7 +104,6 @@ Computer::~Computer() {
                 if (it == (*c)->peripherals.end()) break;
             }
         }
-        (*c)->peripherals_mutex.unlock();
         if (c == referencers.end()) break;
     }
 	// Mark all currently running timers as invalid
