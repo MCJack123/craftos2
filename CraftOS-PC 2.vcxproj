@@ -278,7 +278,10 @@
     <ClInclude Include="src\terminal\Terminal.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="examples\raw_frame_reader.cpp" />
+    <ClCompile Include="examples\raw_frame_reader.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\Computer.cpp" />
     <ClCompile Include="src\config.cpp" />
     <ClCompile Include="src\font.c" />
