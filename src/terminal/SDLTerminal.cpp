@@ -405,8 +405,8 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 }
 
 bool SDLTerminal::resize(int w, int h) {
-    newWidth = (w - 4*(2/fontScale)*charScale) / charWidth;
-    newHeight = (h - 4*(2/fontScale)*charScale) / charHeight;
+    newWidth = w;
+    newHeight = h;
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
     while (gotResizeEvent) std::this_thread::yield();
@@ -525,6 +525,9 @@ extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > t
 extern std::unordered_map<int, void*> taskQueueReturns;
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
+extern bool rawClient;
+extern void sendRawEvent(SDL_Event e);
+
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *TerminalWindow::renderTarget || findMonitorFromWindowID(c, (*TerminalWindow::renderTarget)->id, tmps) != NULL)
 #else
@@ -571,19 +574,23 @@ bool SDLTerminal::pollEvents() {
 			}
 #endif
 		} else {
-			for (Computer * c : computers) {
-				if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
-					((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
-					((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
-					(e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
-					(e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
-					(e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
-					(e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
-					e.type == SDL_QUIT) {
-					c->termEventQueue.push(e);
-					c->event_lock.notify_all();
-				}
-			}
+            if (rawClient) {
+                sendRawEvent(e);
+            } else {
+                for (Computer * c : computers) {
+                    if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
+                        ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
+                        ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
+                        (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+                        (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
+                        (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
+                        (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
+                        e.type == SDL_QUIT) {
+                        c->termEventQueue.push(e);
+                        c->event_lock.notify_all();
+                    }
+                }
+            }
 			if (e.type == SDL_QUIT) return true;
 		}
 	}

@@ -31,3 +31,4 @@ a.out*
 index.html
 *.obj
 *.exe
+raw_frame_reader

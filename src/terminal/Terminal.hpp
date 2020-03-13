@@ -120,6 +120,7 @@ public:
     virtual void render()=0;
     virtual void showMessage(Uint32 flags, const char * title, const char * message)=0;
     virtual void setLabel(std::string label)=0;
+    virtual bool resize(int w, int h)=0;
 };
 
 #endif

@@ -46,6 +46,7 @@ std::mutex taskQueueMutex;
 bool exiting = false;
 bool forceCheckTimeout = false;
 extern int selectedRenderer;
+extern bool rawClient;
 extern Uint32 task_event_type;
 extern Uint32 render_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
@@ -91,7 +92,7 @@ void awaitTasks() {
 void mainLoop() {
     mainThreadID = std::this_thread::get_id();
 #ifndef __EMSCRIPTEN__
-    while (computers.size() > 0) {
+    while (rawClient || computers.size() > 0) {
 #endif
 		bool res = false;
 		if (selectedRenderer == 0) res = SDLTerminal::pollEvents();
@@ -113,7 +114,7 @@ void mainLoop() {
 
         std::this_thread::yield();
 #ifdef __EMSCRIPTEN__
-		if (computers.size() == 0) exiting = true;
+		if (!rawClient && computers.size() == 0) exiting = true;
 #else
     }
     exiting = true;

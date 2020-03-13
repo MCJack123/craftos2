@@ -233,8 +233,6 @@ Uint32 render_event_type;
 
 void termRenderLoop();
 
-
-
 int buttonConvert(Uint8 button) {
     switch (button) {
         case SDL_BUTTON_RIGHT: return 2;
@@ -695,7 +693,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config.isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             lua_pushinteger(L, buttonConvert(e.button.button));
-            if (selectedRenderer == 2) {
+            if (selectedRenderer != 0) {
                 lua_pushinteger(L, e.button.x);
                 lua_pushinteger(L, e.button.y);
             } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
@@ -705,28 +703,43 @@ const char * termGetEvent(lua_State *L) {
             return "mouse_up";
         } else if (e.type == SDL_MOUSEWHEEL && (computer->config.isColor || computer->isDebugger)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term);
-            if (term == NULL) return NULL;
-            int x = 0, y = 0;
-            term->getMouse(&x, &y);
-            lua_pushinteger(L, max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
-            lua_pushinteger(L, convertX(term, x));
-            lua_pushinteger(L, convertY(term, y));
+            if (term == NULL) {
+                return NULL;
+            } else {
+                int x = 0, y = 0;
+                term->getMouse(&x, &y);
+                lua_pushinteger(L, max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
+                lua_pushinteger(L, convertX(term, x));
+                lua_pushinteger(L, convertY(term, y));
+            }
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && e.motion.state && (computer->config.isColor || computer->isDebugger)) {
-            SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term);
-            if (term == NULL) return NULL;
             lua_pushinteger(L, buttonConvert2(e.motion.state));
-            lua_pushinteger(L, convertX(term, e.motion.x));
-            lua_pushinteger(L, convertY(term, e.motion.y));
+            SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term);
+            if (term == NULL) {
+                lua_pushinteger(L, e.motion.x);
+                lua_pushinteger(L, e.motion.y);
+            } else {
+                lua_pushinteger(L, convertX(term, e.motion.x));
+                lua_pushinteger(L, convertY(term, e.motion.y));
+            }
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            if (e.window.windowID == computer->term->id && (dynamic_cast<SDLTerminal*>(computer->term) == NULL || dynamic_cast<SDLTerminal*>(computer->term)->resize(e.window.data1, e.window.data2))) {
+            unsigned w, h;
+            if (selectedRenderer == 0) {
+                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
+                if (sdlterm != NULL) {
+                    w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
+                    h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
+                } else w = 51, h = 19;
+            } else w = e.window.data1, h = e.window.data2;
+            if (e.window.windowID == computer->term->id && computer->term->resize(w, h)) {
                 computer->lastResizeEvent = true;
                 return "term_resize";
             } else {
                 std::string side;
                 monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
-                if (m != NULL && (dynamic_cast<SDLTerminal*>(m->term) == NULL || dynamic_cast<SDLTerminal*>(m->term)->resize(e.window.data1, e.window.data2))) {
+                if (m != NULL && m->term->resize(w, h)) {
                     lua_pushstring(L, side.c_str());
                     return "monitor_resize";
                 }

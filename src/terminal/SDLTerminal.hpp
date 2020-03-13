@@ -55,7 +55,7 @@ public:
     void setCharScale(int scale);
     bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
-    bool resize(int w, int h);
+    bool resize(int w, int h) override;
     void getMouse(int *x, int *y);
     void screenshot(std::string path = ""); // asynchronous; captures on next render
     void record(std::string path = ""); // asynchronous; captures on next render

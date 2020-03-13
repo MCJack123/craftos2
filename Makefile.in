@@ -120,6 +120,10 @@ install: craftos
 	echo " [CP]    $(DESTDIR)/craftos"
 	cp craftos $(DESTDIR)/craftos
 
+uninstall:
+	echo " [RM]    $(DESTDIR)/craftos"
+	rm $(DESTDIR)/craftos
+
 test: craftos
 	./craftos --headless --script $(shell pwd)/CraftOSTest.lua
 

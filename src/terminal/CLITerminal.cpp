@@ -136,6 +136,15 @@ void CLITerminal::getMouse(int *x, int *y) {
     *y = -1;
 }
 
+bool CLITerminal::resize(int w, int h) {
+    newWidth = w;
+    newHeight = h;
+    gotResizeEvent = (newWidth != width || newHeight != height);
+    if (!gotResizeEvent) return false;
+    while (gotResizeEvent) std::this_thread::yield();
+    return true;
+}
+
 void CLITerminal::showMessage(Uint32 flags, const char * title, const char * message) {
     fprintf(stderr, "%s: %s\n", title, message);
 }
@@ -269,6 +278,16 @@ extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::strin
 #define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
 #endif
 
+extern bool rawClient;
+extern void sendRawEvent(SDL_Event e);
+#define sendEventToTermQueue(e, TYPE) \
+	if (rawClient) {e.TYPE.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}\
+	else {for (Computer * c : computers) {if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
+		e.TYPE.windowID = c->term->id;\
+		c->termEventQueue.push(e);\
+		c->event_lock.notify_all();\
+	}}}
+
 bool CLITerminal::pollEvents() {
     SDL_Event e;
     std::string tmps;
@@ -278,20 +297,14 @@ bool CLITerminal::pollEvents() {
 			if (cc != 27) {
 				e.type = SDL_KEYUP;
 				e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
-				for (Computer * c : computers) {
-					if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-						e.key.windowID = c->term->id;
-						c->termEventQueue.push(e);
-						c->event_lock.notify_all();
-					}
-				}
+				sendEventToTermQueue(e, key);
 			}
 		}
 		lastch.clear();
 		nodelay(tmpwin, TRUE);
 		keypad(tmpwin, TRUE);
 		while (ch == ERR && taskQueue.size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
-			}
+	}
 	if (resizeRefresh) {
 		resizeRefresh = false;
 		CLITerminal::stopRender = true;
@@ -301,11 +314,12 @@ bool CLITerminal::pollEvents() {
 		tmpwin = newwin(0, 0, 1, 1);
 		nodelay(tmpwin, TRUE);
 		keypad(tmpwin, TRUE);
+		// TODO: Fix this for raw client mode
 		e.type = SDL_WINDOWEVENT;
 		e.window.event = SDL_WINDOWEVENT_RESIZED;
 		for (Computer * c : computers) {
-			e.window.data1 = COLS * (Terminal::fontWidth * 2 / SDLTerminal::fontScale * 2) + 4 * (2 / SDLTerminal::fontScale) * (Terminal::fontWidth * 2 / SDLTerminal::fontScale * 2);
-			e.window.data2 = (LINES - 1) * (Terminal::fontHeight * 2 / SDLTerminal::fontScale * 2) + 4 * (2 / SDLTerminal::fontScale) * (Terminal::fontHeight * 2 / SDLTerminal::fontScale * 2);
+			e.window.data1 = COLS;
+			e.window.data2 = LINES - 1;
 			e.window.windowID = c->term->id;
 			c->term->changed = true;
 			c->termEventQueue.push(e);
@@ -327,14 +341,18 @@ bool CLITerminal::pollEvents() {
 				if (me.x == COLS - 1) {
 					e.type = SDL_WINDOWEVENT;
 					e.window.event = SDL_WINDOWEVENT_CLOSE;
-					for (Computer * c : computers) {
-						if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
-							e.button.windowID = *CLITerminal::selectedWindow;
-							c->termEventQueue.push(e);
-							c->event_lock.notify_all();
+					if (rawClient) {e.button.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}
+					else {
+						for (Computer * c : computers) {
+							if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
+								e.button.windowID = *CLITerminal::selectedWindow;
+								c->termEventQueue.push(e);
+								c->event_lock.notify_all();
+							}
 						}
 					}
-				} else if (me.x == COLS - 2) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } else if (me.x == COLS - 3) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); }
+				} else if (me.x == COLS - 2) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } 
+				else if (me.x == COLS - 3) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); }
 			}
 			return false;
 		}
@@ -347,13 +365,7 @@ bool CLITerminal::pollEvents() {
 		else return false;
 		e.button.x = me.x + 1;
 		e.button.y = me.y + 1;
-		for (Computer * c : computers) {
-			if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-				e.button.windowID = c->term->id;
-				c->termEventQueue.push(e);
-				c->event_lock.notify_all();
-			}
-		}
+		sendEventToTermQueue(e, button);
 	} else if (ch != ERR && ch != KEY_RESIZE) {
 		if (config.cliControlKeyMode == 2 && ch == 'c' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1025;
 		else if (config.cliControlKeyMode == 2 && ch == 'a' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1026;
@@ -361,25 +373,13 @@ bool CLITerminal::pollEvents() {
 			e.type = SDL_TEXTINPUT;
 			e.text.text[0] = ch;
 			e.text.text[1] = '\0';
-			for (Computer * c : computers) {
-				if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-					e.text.windowID = c->term->id;
-					c->termEventQueue.push(e);
-					c->event_lock.notify_all();
-				}
-			}
+			sendEventToTermQueue(e, text);
 		}
 		e.type = SDL_KEYDOWN;
 		e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
 		if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
 		if (ch != 27) {
-			for (Computer * c : computers) {
-				if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-					e.key.windowID = c->term->id;
-					c->termEventQueue.push(e);
-					c->event_lock.notify_all();
-				}
-			}
+			sendEventToTermQueue(e, key);
 		}
 		lastch.insert(ch);
 	}

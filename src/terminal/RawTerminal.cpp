@@ -9,6 +9,7 @@
  */
 
 #include "RawTerminal.hpp"
+#include "SDLTerminal.hpp"
 #include "../lib.hpp"
 #include "../term.hpp"
 #include "../peripheral/monitor.hpp"
@@ -56,9 +57,8 @@
 * Type 1: Key event data (client -> server)
 
   Offset     Bytes      Purpose
-  0x02       1          Key ID (as in keys API)
-  0x03       1          Character, if applicable (0 otherwise)
-  0x04       1          Bit 0 = key (1) or key_up (0), bit 1 = is_held, bit 2 = control held
+  0x02       1          Key ID (as in keys API) or character (depending on bit 3 of flags)
+  0x03       1          Bit 0 = key (1) or key_up (0), bit 1 = is_held, bit 2 = control held, bit 3 = character (1) or key (0)
 
 * Type 2: Mouse event data (client -> server)
 
@@ -86,14 +86,14 @@
 	=================== End type 4: table data
   ===================== End event parameters
 
-* Type 4: Terminal change (use this to detect new windows) (server -> client)
+* Type 4: Terminal change (use this to detect new windows) (either -> either)
 	
   Offset     Bytes      Purpose
-  0x02       1          Set to 1 when closing window (if so, other fields may be any value)
+  0x02       1          Set to 1 when closing window or 2 when quitting program (if so, other fields may be any value)
   0x03       1          Reserved
   0x04       2          Width
   0x06       2          Height
-  0x08       *x*        Title (NUL-terminated)
+  0x08       *x*        Title (NUL-terminated) (ignored when sending client -> server)
 
 * Type 5: Show message (server -> client)
   
@@ -104,8 +104,8 @@
 
 * Common Footer
 
-  END-4      4          CRC32 of previous data
   ===================== End Base64 payload
+  END-4      8          CRC32 of payload (hex string)
   END        1          Newline
 
 */
@@ -131,14 +131,13 @@ void sendRawData(uint8_t type, uint8_t id, std::function<void(std::ostream&)> ca
 	output.put(type);
 	output.put(id);
 	callback(output);
-	Poco::Checksum chk;
-	chk.update(output.str());
-	uint32_t sum = chk.checksum();
-	output.write((char*)&sum, 4);
 	std::string str = b64encode(output.str());
 	str.erase(std::remove_if(str.begin(), str.end(), [](char c)->bool {return c == '\n' || c == '\r'; }), str.end());
+	Poco::Checksum chk;
+	chk.update(str);
+	uint32_t sum = chk.checksum();
 	std::cout << "!CPC" << std::hex << std::setfill('0') << std::setw(4) << str.length() << std::dec;
-	std::cout << str << "\n";
+	std::cout << str << std::hex << std::setfill('0') << std::setw(8) << sum << "\n";
     std::cout.flush();
 }
 
@@ -169,6 +168,88 @@ void parseIBTTag(std::istream& in, lua_State *L) {
 	} else {
 		lua_pushnil(L);
 	}
+}
+
+extern int selectedRenderer;
+extern std::unordered_map<int, unsigned char> keymap;
+extern std::map<uint8_t, Terminal*> rawClientTerminals;
+extern std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
+extern int buttonConvert(Uint8 button);
+extern int buttonConvert2(Uint32 state);
+extern int convertX(SDLTerminal *term, int x);
+extern int convertY(SDLTerminal *term, int y);
+
+void sendRawEvent(SDL_Event e) {
+	if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (selectedRenderer != 0 || keymap.find(e.key.keysym.scancode) != keymap.end())) 
+		sendRawData(CCPC_RAW_KEY_DATA, rawClientTerminalIDs[e.key.windowID], [e](std::ostream& output) {
+			if (selectedRenderer == 0) output.put(keymap.at(e.key.keysym.scancode));
+			else output.put(e.key.keysym.scancode);
+			output.put((e.type == SDL_KEYUP) | ((0) << 1) | (((e.key.keysym.mod & KMOD_CTRL) != 0) << 2) | ((0) << 3));
+		});
+	else if (e.type == SDL_TEXTINPUT)
+		sendRawData(CCPC_RAW_KEY_DATA, rawClientTerminalIDs[e.text.windowID], [e](std::ostream& output) {
+			output.put(e.text.text[0]);
+			output.put((0) | ((0) << 1) | ((0) << 2) | ((1) << 3));
+		});
+	else if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end())
+		sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.button.windowID], [e](std::ostream &output) {
+			output.put(e.type == SDL_MOUSEBUTTONUP);
+			output.put(buttonConvert(e.button.button));
+			SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
+			uint16_t x, y;
+			if (sdlterm != NULL) {
+				x = convertX(sdlterm, e.button.x);
+				y = convertY(sdlterm, e.button.y);
+			} else {
+				x = e.button.x;
+				y = e.button.y;
+			}
+			output.write((char*)&x, 2);
+			output.write((char*)&y, 2);
+		});
+	else if (e.type == SDL_MOUSEWHEEL && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end() && selectedRenderer == 0)
+		sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.wheel.windowID], [e](std::ostream &output) {
+			output.put(2);
+			output.put(max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
+			SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
+			uint16_t x, y;
+			if (sdlterm != NULL) {
+				int tx = 0, ty = 0;
+				sdlterm->getMouse(&tx, &ty);
+				x = convertX(sdlterm, tx);
+				y = convertY(sdlterm, ty);
+			} else {
+				// ???
+			}
+			output.write((char*)&x, 2);
+			output.write((char*)&y, 2);
+		});
+	else if (e.type == SDL_MOUSEMOTION && e.motion.state && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end())
+		sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.motion.windowID], [e](std::ostream &output) {
+			output.put(3);
+			output.put(buttonConvert2(e.motion.state));
+			SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
+			uint16_t x, y;
+			if (sdlterm != NULL) {
+				x = convertX(sdlterm, e.button.x);
+				y = convertY(sdlterm, e.button.y);
+			} else {
+				x = e.button.x;
+				y = e.button.y;
+			}
+			output.write((char*)&x, 2);
+			output.write((char*)&y, 2);
+		});
+	else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE)
+		sendRawData(CCPC_RAW_TERMINAL_CHANGE, rawClientTerminalIDs[e.window.windowID], [](std::ostream &output) {
+			output.put(1);
+			for (int i = 0; i < 6; i++) output.put(0);
+		});
+	else if (e.type == SDL_QUIT)
+		sendRawData(CCPC_RAW_TERMINAL_CHANGE, rawClientTerminalIDs[e.window.windowID], [](std::ostream &output) {
+			output.put(2);
+			for (int i = 0; i < 6; i++) output.put(0);
+		});
 }
 
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
@@ -223,60 +304,59 @@ void rawInputLoop() {
 			std::cin.read(tmp, sizen);
 			Poco::Checksum chk;
 			chk.update(tmp, sizen);
-			if (chk.checksum() != *(uint32_t*)&tmp[sizen - 4]) {
-				fprintf(stderr, "Invalid checksum: expected %08X, got %08X\n", chk.checksum(), *(uint32_t*)&tmp[sizen - 4]);
+			char hexstr[9];
+			std::cin.read(hexstr, 8);
+			hexstr[8] = 0;
+			if (chk.checksum() != strtoul(hexstr, NULL, 16)) {
+				fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), strtoul(hexstr, NULL, 16));
 				continue;
 			}
 			std::stringstream in(b64decode(tmp));
 			delete[] tmp;
 
 			SDL_Event e;
+			memset(&e, 0, sizeof(SDL_Event));
 			std::string tmps;
 			uint8_t type = in.get();
 			uint8_t id = in.get();
-			if (type == 1) {
+			if (type == CCPC_RAW_KEY_DATA) {
 				uint8_t key = in.get();
-				char ch = in.get();
 				uint8_t flags = in.get();
-				if (flags & 1) {
+				if (flags & 8) {
+					e.type = SDL_TEXTINPUT;
+					e.text.text[0] = key;
+					e.text.text[1] = '\0';
+					for (Computer * c : computers) {
+						if (checkWindowID(c, e.key.windowID)) {
+							e.text.windowID = c->term->id;
+							c->termEventQueue.push(e);
+							c->event_lock.notify_all();
+						}
+					}
+				} else if ((flags & 9) == 1) {
 					e.type = SDL_KEYUP;
-					memset(&e.key, 0, sizeof(SDL_KeyboardEvent));
 					e.key.keysym.scancode = (SDL_Scancode)key;
-					e.key.windowID = id;
 					if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
 					for (Computer * c : computers) {
 						if (checkWindowID(c, e.key.windowID)) {
+							e.key.windowID = c->term->id;
 							c->termEventQueue.push(e);
 							c->event_lock.notify_all();
 						}
 					}
 				} else {
 					e.type = SDL_KEYDOWN;
-					memset(&e.key, 0, sizeof(SDL_KeyboardEvent));
 					e.key.keysym.scancode = (SDL_Scancode)key;
-					e.key.windowID = id;
 					if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
 					for (Computer * c : computers) {
 						if (checkWindowID(c, e.key.windowID)) {
+							e.key.windowID = c->term->id;
 							c->termEventQueue.push(e);
 							c->event_lock.notify_all();
 						}
 					}
-					if (ch) {
-						e.type = SDL_TEXTINPUT;
-						memset(&e.text, 0, sizeof(SDL_TextInputEvent));
-						e.text.text[0] = ch;
-						e.text.text[1] = '\0';
-						e.text.windowID = id;
-						for (Computer * c : computers) {
-							if (checkWindowID(c, e.key.windowID)) {
-								c->termEventQueue.push(e);
-								c->event_lock.notify_all();
-							}
-						}
-					}
 				}
-			} else if (type == 2) {
+			} else if (type == CCPC_RAW_MOUSE_DATA) {
 				uint8_t evtype = in.get();
 				uint8_t button = in.get();
 				uint32_t x = 0, y = 0;
@@ -292,11 +372,45 @@ void rawInputLoop() {
 						termQueueProvider(c, rawMouseProvider, d);
 					}
 				}
-			} else if (type == 3) {
+			} else if (type == CCPC_RAW_EVENT_DATA) {
 				for (Computer * c : computers) {
 					if (checkWindowID(c, id)) {
 						std::stringstream * ss = new std::stringstream(in.str().substr(2));
 						termQueueProvider(c, rawEventProvider, ss);
+					}
+				}
+			} else if (type == CCPC_RAW_TERMINAL_CHANGE) {
+				int isClosing = in.get();
+				if (isClosing == 1) {
+					e.type = SDL_WINDOWEVENT;
+					e.window.event = SDL_WINDOWEVENT_CLOSE;
+					for (Computer * c : computers) {
+						if (checkWindowID(c, e.window.windowID)) {
+							e.window.windowID = c->term->id;
+							c->termEventQueue.push(e);
+							c->event_lock.notify_all();
+						}
+					}
+				} else if (isClosing == 2) {
+					e.type = SDL_QUIT;
+					for (Computer * c : computers) {
+						c->termEventQueue.push(e);
+						c->event_lock.notify_all();
+					}
+				} else {
+					in.get(); // reserved
+					uint16_t w = 0, h = 0;
+					in.read((char*)&w, 2);
+					in.read((char*)&h, 2);
+					e.type = SDL_WINDOWEVENT;
+					e.window.event = SDL_WINDOWEVENT_RESIZED;
+					e.window.data1 = w;
+					e.window.data2 = h;
+					for (Computer * c : computers) {
+						if (checkWindowID(c, e.window.windowID)) {
+							c->termEventQueue.push(e);
+							c->event_lock.notify_all();
+						}
 					}
 				}
 			}
@@ -331,7 +445,7 @@ RawTerminal::RawTerminal(std::string title) : Terminal(51, 19) {
 }
 
 RawTerminal::~RawTerminal() {
-	sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this](std::ostream& output) {
+	sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [](std::ostream& output) {
 		output.put(1);
 		for (int i = 0; i < 6; i++) output.put(0);
 	});
@@ -440,4 +554,13 @@ void RawTerminal::setLabel(std::string label) {
 		output.write(title.c_str(), strlen(title.c_str()));
 		output.put(0);
 	});
+}
+
+bool RawTerminal::resize(int w, int h) {
+    newWidth = w;
+    newHeight = h;
+    gotResizeEvent = (newWidth != width || newHeight != height);
+    if (!gotResizeEvent) return false;
+    while (gotResizeEvent) std::this_thread::yield();
+    return true;
 }

@@ -193,6 +193,11 @@ int main() {
 			char * tmp = new char[sizen + 1];
 			tmp[sizen] = 0;
 			std::cin.read(tmp, sizen);
+			uint32_t sum = rc_crc32(0, tmp, sizen);
+			uint32_t getsum = 0;
+			scanf("%08x", &getsum);
+			if (sum == getsum) printf("> Checksums match (%08X)\n", getsum);
+			else printf("\n> Checksums don't match! (%08X vs. expected %08X)\n", sum, getsum);
 			std::stringstream in(base64_decode(tmp));
 			delete[] tmp;
 			uint8_t type = in.get();
@@ -244,9 +249,7 @@ int main() {
 				}
 				std::cout << "\n";
 			} else if (type == 1) {
-				std::cout << "> Key ID: " << (int)in.get();
-				char c = in.get();
-				if (c != '\0') std::cout << ", character: " << c;
+				std::cout << "> Key ID or character: " << (int)in.get();
 				std::cout << "\n> Flags: " << std::hex << in.get() << "\n";
 			} else if (type == 2) {
 				std::cout << "> Mouse event type: " << (int)in.get() << "\n> Button: " << (int)in.get() << "\n";
@@ -289,12 +292,6 @@ int main() {
 				while ((c = in.get())) str += c;
 				std::cout << "> Message: " << str << "\n";
 			}
-			std::string fullstr = in.str();
-			uint32_t sum = rc_crc32(0, fullstr.c_str(), fullstr.length()-4);
-			uint32_t getsum = 0;
-			in.read((char*)&getsum, 4);
-			if (sum == getsum) printf("> Checksums match (%08X)\n", getsum);
-			else printf("\n> Checksums don't match! (%08X vs. expected %08X)\n", sum, getsum);
 		}
 	}
 }

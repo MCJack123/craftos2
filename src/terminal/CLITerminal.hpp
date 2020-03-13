@@ -39,6 +39,7 @@ public:
     ~CLITerminal() override;
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
+    bool resize(int w, int h) override;
     void getMouse(int *x, int *y);
     void showMessage(Uint32 flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
