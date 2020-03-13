@@ -425,6 +425,10 @@ void RawTerminal::init() {
 }
 
 void RawTerminal::quit() {
+	sendRawData(CCPC_RAW_TERMINAL_CHANGE, 0, [](std::ostream& output) {
+		output.put(2);
+		for (int i = 0; i < 6; i++) output.put(0);
+	});
     renderThread->join();
     delete renderThread;
     SDL_Quit();

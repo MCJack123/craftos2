@@ -37,6 +37,9 @@ extern void http_server_stop();
 extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
+extern std::mutex taskQueueMutex;
+extern std::atomic_bool taskQueueReady;
+extern std::condition_variable taskQueueNotify;
 int selectedRenderer = 0; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
 std::map<uint8_t, Terminal*> rawClientTerminals;
@@ -113,18 +116,10 @@ inline Terminal * createTerminal(std::string title) {
 extern std::thread::id mainThreadID;
 
 int runRenderer() {
-    if (selectedRenderer == 1) {
-        std::cerr << "Error: Headless mode cannot be used in conjunction with raw client mode.";
+    if (selectedRenderer != 0) {
+        std::cerr << "Error: Raw client mode requires using a GUI terminal.\n";
         return 3;
-    }
-    else if (selectedRenderer == 3) {
-        std::cerr << "Error: Raw output mode cannot be used in conjunction with raw client mode.";
-        return 3;
-    }
-#ifndef NO_CLI
-	else if (selectedRenderer == 2) CLITerminal::init();
-#endif
-    else SDLTerminal::init();
+    } else SDLTerminal::init();
     std::thread inputThread([](){
         while (!exiting) {
             unsigned char c = std::cin.get();
@@ -218,7 +213,8 @@ int runRenderer() {
                     }
                     break;
                 } case 4: {
-                    if (in.get()) {
+                    uint8_t quit = in.get();
+                    if (quit == 1) {
                         queueTask([id](void*)->void*{
                             rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
                             delete rawClientTerminals[id];
@@ -226,6 +222,15 @@ int runRenderer() {
                             return NULL;
                         }, NULL);
                         break;
+                    } else if (quit == 2) {
+                        exiting = true;
+                        if (selectedRenderer == 0) {
+                            SDL_Event e;
+                            memset(&e, 0, sizeof(SDL_Event));
+                            e.type = SDL_QUIT;
+                            SDL_PushEvent(&e);
+                        }
+                        return;
                     }
                     in.get(); // reserved
                     uint16_t width = 0, height = 0;
@@ -254,12 +259,8 @@ int runRenderer() {
     });
     mainLoop();
     inputThread.join();
-#ifndef NO_CLI
-    if (selectedRenderer == 2) CLITerminal::quit();
-    else 
-#endif
-    if (selectedRenderer == 0) SDLTerminal::quit();
-    else SDL_Quit();
+    for (auto t : rawClientTerminals) delete t.second;
+    SDLTerminal::quit();
     return 0;
 }
 

@@ -92,7 +92,7 @@ void awaitTasks() {
 void mainLoop() {
     mainThreadID = std::this_thread::get_id();
 #ifndef __EMSCRIPTEN__
-    while (rawClient || computers.size() > 0) {
+    while (rawClient ? !exiting : computers.size() > 0) {
 #endif
 		bool res = false;
 		if (selectedRenderer == 0) res = SDLTerminal::pollEvents();
