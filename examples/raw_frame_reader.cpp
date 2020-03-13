@@ -181,7 +181,10 @@ void parseIBTTag(std::istream& in, int level = 0) {
 	}
 }
 
-int main() {
+bool noterm = false;
+
+int main(int argc, const char * argv[]) {
+	if (argc > 1 && std::string(argv[1]) == "--noterm") noterm = true;
 	std::cout << "Listening for data...\n";
 	while (true) {
 		unsigned char c = std::cin.get();
@@ -215,13 +218,15 @@ int main() {
 				in.seekg((long)in.tellg() + 4);
 				int i = 0;
 				if (mode == 0) {
-					std::cout << "> Terminal contents:\n";
+					if (!noterm) std::cout << "> Terminal contents:\n";
 					while (i < width * height) {
 						char c = in.get();
 						int len = in.get();
-						for (int j = 0; j < len; j++) {
-							if (i + j > 0 && (i + j) % width == 0) std::cout << "\n";
-							std::cout << c;
+						if (!noterm) {
+							for (int j = 0; j < len; j++) {
+								if (i + j > 0 && (i + j) % width == 0) std::cout << "\n";
+								std::cout << c;
+							}
 						}
 						i += len;
 					}
@@ -231,7 +236,7 @@ int main() {
 						int len = in.get();
 						i += len;
 					}
-					std::cout << "\n";
+					if (!noterm) std::cout << "\n";
 				} else {
 					while (i < width * height * 56) {
 						in.get();
