@@ -16,6 +16,8 @@ extern "C" {
 #include <lua.h>
 #include <lualib.h>
 }
+#include <Poco/JSON/JSON.h>
+#include <Poco/JSON/Parser.h>
 
 #define CRAFTOSPC_VERSION "v2.3"
 #define CRAFTOSPC_INDEV   true
@@ -43,6 +45,44 @@ extern void load_library(Computer *comp, lua_State *L, library_t lib);
 extern void bad_argument(lua_State *L, const char * type, int pos);
 extern std::string b64encode(std::string orig);
 extern std::string b64decode(std::string orig);
+
+class Value {
+    Poco::Dynamic::Var obj;
+    Value* parent = NULL;
+    std::string key;
+    Value(Poco::Dynamic::Var o, Value* p, std::string k): obj(o), parent(p), key(k) {}
+    void updateParent() {
+        if (parent == NULL) return;
+        Poco::JSON::Object o(parent->obj.extract<Poco::JSON::Object>());
+        o.set(key, obj);
+        parent->obj = o;
+    }
+public:
+    Value() {obj = Poco::JSON::Object();}
+    Value(Poco::Dynamic::Var o): obj(o) {}
+    Value operator[](std::string key) { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); }
+    void operator=(int v) { obj = v; updateParent(); }
+    void operator=(bool v) { obj = v; updateParent(); }
+    void operator=(std::string v) { obj = v; updateParent(); }
+    bool asBool() { return obj.convert<bool>(); }
+    int asInt() { return obj.convert<int>(); }
+    float asFloat() { return obj.convert<float>(); }
+    std::string asString() { return obj.toString(); }
+    const char * asCString() { return obj.toString().c_str(); }
+    bool isArray() {return obj.isArray();}
+    bool isBoolean() {return obj.isBoolean();}
+    bool isInt() {return obj.isInteger();}
+    bool isString() {return obj.isString();}
+    bool isObject() {try {obj.extract<Poco::JSON::Object>(); return true;} catch (Poco::BadCastException &e) {return false;}}
+    bool isMember(std::string key) { return obj.extract<Poco::JSON::Object>().has(key); }
+    Poco::JSON::Object::Ptr parse(std::istream& in) { Poco::JSON::Object::Ptr p = Poco::JSON::Parser().parse(in).extract<Poco::JSON::Object::Ptr>(); obj = *p; return p; }
+    friend std::ostream& operator<<(std::ostream &out, Value &v) { v.obj.extract<Poco::JSON::Object>().stringify(out, 4, -1); return out; }
+    //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
+    Poco::JSON::Array::ConstIterator arrayBegin() {return obj.extract<Poco::JSON::Array>().begin();}
+    Poco::JSON::Array::ConstIterator arrayEnd() {return obj.extract<Poco::JSON::Array>().end();}
+    Poco::JSON::Object::ConstIterator begin() { return obj.extract<Poco::JSON::Object>().begin(); }
+    Poco::JSON::Object::ConstIterator end() { return obj.extract<Poco::JSON::Object>().end(); }
+};
 
 #ifdef CRAFTOSPC_INTERNAL
 extern void* getCompCache_glob;

@@ -17,6 +17,7 @@
 #include "peripheral/modem.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/printer.hpp"
+#include "peripheral/speaker.hpp"
 #include "terminal/Terminal.hpp"
 #include "term.hpp"
 #include "os.hpp"
@@ -44,6 +45,7 @@ std::unordered_map<std::string, peripheral_init> initializers = {
 	{"computer", &computer::init},
 	{"modem", &modem::init},
 	{"drive", &drive::init},
+	{"speaker", &speaker::init}
 };
 
 void registerPeripheral(std::string name, peripheral_init initializer) {

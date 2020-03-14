@@ -12,6 +12,7 @@
 #include "Computer.hpp"
 #include "config.hpp"
 #include "peripheral/drive.hpp"
+#include "peripheral/speaker.hpp"
 #include "platform.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
@@ -351,6 +352,7 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 0) SDLTerminal::init();
     else SDL_Init(SDL_INIT_TIMER);
     driveInit();
+    speakerInit();
 #ifndef __EMSCRIPTEN__
     if (!CRAFTOSPC_INDEV && selectedRenderer == 0 && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
@@ -363,6 +365,7 @@ int main(int argc, char*argv[]) {
     mainLoop();
 #endif
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
+    speakerQuit();
     driveQuit();
     http_server_stop();
     config_save(true);

@@ -15,41 +15,10 @@
 #include <fstream>
 #include <string>
 #include <unordered_map>
-#include <Poco/JSON/JSON.h>
-#include <Poco/JSON/Parser.h>
 #include <Poco/Base64Encoder.h>
 #include <Poco/Base64Decoder.h>
 
-using namespace Poco::JSON;
 struct configuration config;
-
-class Value {
-    Poco::Dynamic::Var obj;
-    Value* parent = NULL;
-    std::string key;
-    Value(Poco::Dynamic::Var o, Value* p, std::string k): obj(o), parent(p), key(k) {}
-    void updateParent() {
-        if (parent == NULL) return;
-        Object o(parent->obj.extract<Object>());
-        o.set(key, obj);
-        parent->obj = o;
-    }
-public:
-    Value() {obj = Object();}
-    Value(Poco::Dynamic::Var o): obj(o) {}
-    Value operator[](std::string key) { return Value(obj.extract<Object>().get(key), this, key); }
-    void operator=(int v) { obj = v; updateParent(); }
-    void operator=(bool v) { obj = v; updateParent(); }
-    void operator=(std::string v) { obj = v; updateParent(); }
-    bool asBool() { return obj.convert<bool>(); }
-    int asInt() { return obj.convert<int>(); }
-    std::string asString() { return obj.toString(); }
-    const char * asCString() { return obj.toString().c_str(); }
-    bool isMember(std::string key) { return obj.extract<Object>().has(key); }
-    Object::Ptr parse(std::istream& in) { Object::Ptr p = Parser().parse(in).extract<Object::Ptr>(); obj = *p; return p; }
-    friend std::ostream& operator<<(std::ostream &out, Value &v) { v.obj.extract<Object>().stringify(out, 4, -1); return out; }
-    //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
-};
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true};
@@ -57,7 +26,7 @@ struct computer_configuration getComputerConfig(int id) {
     if (!in.is_open()) return cfg; 
     if (in.peek() == std::ifstream::traits_type::eof()) {in.close(); return cfg;} // treat an empty file as if it didn't exist in the first place
     Value root;
-    Object::Ptr p;
+    Poco::JSON::Object::Ptr p;
     try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {throw std::runtime_error(e.message());}
     in.close();
     cfg.isColor = root["isColor"].asBool();
@@ -110,7 +79,7 @@ void config_init() {
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
     Value root;
-    Object::Ptr p = root.parse(in);
+    Poco::JSON::Object::Ptr p = root.parse(in);
     in.close();
     if (root.isMember("http_enable")) config.http_enable = root["http_enable"].asBool();
     if (root.isMember("debug_enable")) config.debug_enable = root["debug_enable"].asBool();
