@@ -390,8 +390,11 @@ int os_cancelAlarm(lua_State *L) {
     return 0;
 }
 
+extern int selectedRenderer;
+extern int returnValue;
 int os_shutdown(lua_State *L) {
     get_comp(L)->running = 0;
+    if (selectedRenderer == 1 && lua_isnumber(L, 1)) returnValue = lua_tointeger(L, 1);
     return 0;
 }
 
@@ -438,21 +441,7 @@ Special thanks:\n\
     return 1;
 }
 
-extern int selectedRenderer;
-int os_exit(lua_State *L) {
-    if (selectedRenderer == 1) {
-        get_comp(L)->running = 0;
-        computers.clear();
-        {std::lock_guard<std::mutex> lock(taskQueueMutex);}
-        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        taskQueueNotify.notify_all();
-        while (!taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
-        exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
-    } else {lua_pushstring(L, "Cannot exit outside of headless mode"); lua_error(L);}
-    return 0;
-}
-
-const char * os_keys[19] = {
+const char * os_keys[18] = {
     "getComputerID",
     "computerID",
     "getComputerLabel",
@@ -470,11 +459,10 @@ const char * os_keys[19] = {
     "shutdown",
     "reboot",
     "system",
-    "about",
-    "exit"
+    "about"
 };
 
-lua_CFunction os_values[19] = {
+lua_CFunction os_values[18] = {
     os_getComputerID,
     os_getComputerID,
     os_getComputerLabel,
@@ -492,8 +480,7 @@ lua_CFunction os_values[19] = {
     os_shutdown,
     os_reboot,
     os_system,
-    os_about,
-    os_exit
+    os_about
 };
 
-library_t os_lib = {"os", 19, os_keys, os_values, nullptr, nullptr};
+library_t os_lib = {"os", 18, os_keys, os_values, nullptr, nullptr};

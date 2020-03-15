@@ -12,7 +12,7 @@ local logfile, err = fs.open("CraftOSTest.log", "w")
 if logfile == nil then
 	term.setTextColor(colors.red)
 	print("!!! Could not open log file: " .. err)
-	if _HEADLESS then os.exit(1) end
+	if _HEADLESS then os.shutdown(1) end
 end
 local main_thread = coroutine.running()
 
@@ -724,4 +724,4 @@ else
 	term.setTextColor(colors.white)
 end
 logfile.close()
-if _HEADLESS then os.exit(#failed) end
+if _HEADLESS then os.shutdown(#failed) end

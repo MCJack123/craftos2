@@ -48,6 +48,7 @@ std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
+int returnValue = 0;
 
 void update_thread() {
     try {
@@ -366,19 +367,13 @@ int main(int argc, char*argv[]) {
 #else
     mainLoop();
 #endif
-    printf("Main loop done\n");
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
-    printf("All threads joined\n");
 #ifndef NO_MIXER
     speakerQuit();
-    printf("Speaker deinitialized\n");
 #endif
     driveQuit();
-    printf("Drive deinitialized\n");
     http_server_stop();
-    printf("HTTP server deinitialized\n");
     config_save(true);
-    printf("Config saved\n");
     if (!updateAtQuit.empty()) {
         updateNow(updateAtQuit);
         awaitTasks();
@@ -390,6 +385,5 @@ int main(int argc, char*argv[]) {
     if (selectedRenderer == 3) RawTerminal::quit();
     else if (selectedRenderer == 0) SDLTerminal::quit();
     else SDL_Quit();
-    printf("Finished deinitialization. Quitting...\n");
-    return 0;
+    return returnValue;
 }
