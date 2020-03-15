@@ -16,8 +16,6 @@ extern "C" {
 #include <lua.h>
 #include <lualib.h>
 }
-#include <Poco/JSON/JSON.h>
-#include <Poco/JSON/Parser.h>
 
 #define CRAFTOSPC_VERSION "v2.3"
 #define CRAFTOSPC_INDEV   true
@@ -45,6 +43,11 @@ extern void load_library(Computer *comp, lua_State *L, library_t lib);
 extern void bad_argument(lua_State *L, const char * type, int pos);
 extern std::string b64encode(std::string orig);
 extern std::string b64decode(std::string orig);
+
+#ifdef CRAFTOSPC_INTERNAL // so plugins won't need Poco
+
+#include <Poco/JSON/JSON.h>
+#include <Poco/JSON/Parser.h>
 
 class Value {
     Poco::Dynamic::Var obj;
@@ -83,6 +86,8 @@ public:
     Poco::JSON::Object::ConstIterator begin() { return obj.extract<Poco::JSON::Object>().begin(); }
     Poco::JSON::Object::ConstIterator end() { return obj.extract<Poco::JSON::Object>().end(); }
 };
+
+#endif
 
 #ifdef CRAFTOSPC_INTERNAL
 extern void* getCompCache_glob;

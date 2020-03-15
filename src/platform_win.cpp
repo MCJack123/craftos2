@@ -194,7 +194,7 @@ std::unordered_map<std::string, HINSTANCE> dylibs;
 
 void * loadSymbol(std::string path, std::string symbol) {
     HINSTANCE handle;
-    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibrary(path.c_str());
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibraryA(path.c_str());
     handle = dylibs[path];
     return GetProcAddress(handle, symbol.c_str());
 }

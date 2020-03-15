@@ -269,6 +269,7 @@
     <ClInclude Include="src\peripheral\monitor.hpp" />
     <ClInclude Include="src\peripheral\peripheral.hpp" />
     <ClInclude Include="src\peripheral\printer.hpp" />
+    <ClInclude Include="src\peripheral\speaker.hpp" />
     <ClInclude Include="src\platform.hpp" />
     <ClInclude Include="src\redstone.hpp" />
     <ClInclude Include="src\term.hpp" />
@@ -301,6 +302,15 @@
     <ClCompile Include="src\peripheral\monitor.cpp" />
     <ClCompile Include="src\peripheral\peripheral.cpp" />
     <ClCompile Include="src\peripheral\printer.cpp" />
+    <ClCompile Include="src\peripheral\speaker.cpp" />
+    <ClCompile Include="src\peripheral\speaker_sounds.cpp">
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</MinimalRebuild>
+    </ClCompile>
     <ClCompile Include="src\platform.cpp" />
     <ClCompile Include="src\platform_darwin.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
