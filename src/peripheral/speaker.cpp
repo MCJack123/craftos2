@@ -26,6 +26,7 @@ extern "C" {
 #include <dirent.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <random>
 
 #pragma region
 /*
@@ -238,6 +239,7 @@ typedef struct {
 
 extern std::unordered_map<std::string, std::pair<unsigned char *, unsigned int> > speaker_sounds;
 std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;
+std::mt19937 RNG;
 
 /* Adding custom sounds:
  * Custom sounds can be added with this folder structure:
@@ -254,8 +256,36 @@ std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;
  * for more info.
  */
 
-bool playSoundEvent(std::string name, float volume, float pitch) {
-	// TODO
+bool playSoundEvent(std::string name, float volume, float speed) {
+	if (name.find(":") == std::string::npos) name = "minecraft:" + name;
+	if (soundEvents.find(name) == soundEvents.end()) return false;
+	unsigned randMax = 0;
+	for (sound_file_t f : soundEvents[name]) randMax += f.weight;
+	unsigned num = std::uniform_int_distribution<unsigned>(0, randMax-1)(RNG);
+	unsigned i = 0;
+	for (sound_file_t f : soundEvents[name]) {
+		if ((i += f.pitch) > num) {
+			// play this event
+			if (f.isEvent) return playSoundEvent(f.name, max(volume * f.volume, 3.0f), max(speed * f.pitch, 2.0f));
+			std::string path((getROMPath() + "/sounds/" + (f.name.find(":") == std::string::npos ? "minecraft" : f.name.substr(0, f.name.find(":") - 1)) + "/sounds/" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
+			Mix_Chunk * chunk = Mix_LoadWAV((path + ".ogg").c_str());
+			if (chunk == NULL) {
+				chunk = Mix_LoadWAV((path + ".mp3").c_str());
+				if (chunk == NULL) {
+					chunk = Mix_LoadWAV((path + ".flac").c_str());
+					if (chunk == NULL) {
+						chunk = Mix_LoadWAV((path + ".wav").c_str());
+						if (chunk == NULL) return false;
+					}
+				}
+			}
+			Mix_VolumeChunk(chunk, volume * (MIX_MAX_VOLUME / 3));
+			int channel = Mix_PlayChannel(-1, chunk, 0);
+			if (channel == -1) return false;
+			setupForNextPlayback(speed, chunk, channel, false);
+			return true;
+		}
+	}
 	return false;
 }
 
@@ -302,7 +332,7 @@ int speaker::playSound(lua_State *L) {
 }
 
 speaker::speaker(lua_State *L, const char * side) {
-
+	RNG.seed(time(0)); // doing this here so the seed can be refreshed
 }
 
 speaker::~speaker() {
@@ -335,27 +365,33 @@ void speakerInit() {
             Value root;
             Poco::JSON::Object::Ptr p = root.parse(in);
             in.close();
-            for (auto it = root.begin(); it != root.end(); it++) {
-				std::string eventName = std::string(dir->d_name) + ":" + it->first;
-				Value obj(it->second);
-				std::vector<sound_file_t> items;
-				for (auto it2 = obj["sounds"].arrayBegin(); it2 != obj["sounds"].arrayEnd(); it2++) {
-					Value obj2(*it2);
-					sound_file_t item;
-					if (obj2.isString()) {
-						item.name = obj2.asString();
-					} else {
-						item.name = obj2["name"].asString();
-						if (obj2.isMember("volume")) item.volume = obj2["volume"].asFloat();
-						if (obj2.isMember("pitch")) item.pitch = obj2["pitch"].asFloat();
-						if (obj2.isMember("weight")) item.weight = obj2["weight"].asInt();
-						if (obj2.isMember("type")) item.isEvent = obj2["type"].asString() == "event";
+			try {
+				for (auto it = root.begin(); it != root.end(); it++) {
+					std::string eventName = std::string(dir->d_name) + ":" + it->first;
+					std::vector<sound_file_t> items;
+					for (auto it2 = it->second.extract<Poco::JSON::Object::Ptr>()->get("sounds").extract<Poco::JSON::Array::Ptr>()->begin(); 
+						 it2 != it->second.extract<Poco::JSON::Object::Ptr>()->get("sounds").extract<Poco::JSON::Array::Ptr>()->end(); it2++) {
+						Value obj2(*it2);
+						sound_file_t item;
+						if (obj2.isString()) {
+							item.name = obj2.asString();
+						} else {
+							obj2 = Value(*it2->extract<Poco::JSON::Object::Ptr>());
+							item.name = obj2["name"].asString();
+							if (obj2.isMember("volume")) item.volume = obj2["volume"].asFloat();
+							if (obj2.isMember("pitch")) item.pitch = obj2["pitch"].asFloat();
+							if (obj2.isMember("weight")) item.weight = obj2["weight"].asInt();
+							if (obj2.isMember("type")) item.isEvent = obj2["type"].asString() == "event";
+						}
+						items.push_back(item);
 					}
-					items.push_back(item);
+					Value obj(*it->second.extract<Poco::JSON::Object::Ptr>());
+					if (soundEvents.find(eventName) == soundEvents.end() || (obj.isMember("replace") && obj["replace"].isBoolean() && obj["replace"].asBool())) 
+						soundEvents[eventName] = items;
+					else for (sound_file_t f : items) soundEvents[eventName].push_back(f);
 				}
-				if (soundEvents.find(eventName) == soundEvents.end() || (obj.isMember("replace") && obj["replace"].isBoolean() && obj["replace"].asBool())) 
-					soundEvents[eventName] = items;
-				else for (sound_file_t f : items) soundEvents[eventName].push_back(f);
+			} catch (Poco::BadCastException &e) {
+				printf("%s\n", e.displayText().c_str());
 			}
         }
         closedir(d);
@@ -363,7 +399,7 @@ void speakerInit() {
 }
 
 void speakerQuit() {
-    // free current chunks?
+    Mix_HaltChannel(-1); // automatically frees chunks
 }
 
 const char * speaker_names[] = {
