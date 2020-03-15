@@ -45,7 +45,9 @@ std::unordered_map<std::string, peripheral_init> initializers = {
 	{"computer", &computer::init},
 	{"modem", &modem::init},
 	{"drive", &drive::init},
+#ifndef NO_MIXER
 	{"speaker", &speaker::init}
+#endif
 };
 
 void registerPeripheral(std::string name, peripheral_init initializer) {
