@@ -455,7 +455,6 @@ void Computer::run(std::string bios_name) {
                 return;
             }
         }
-        printf("Closing computer...\n");
         
         // Shutdown threads
         event_lock.notify_all();
@@ -463,7 +462,6 @@ void Computer::run(std::string bios_name) {
             if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
         lua_close(L);   /* Cya, Lua */
         L = NULL;
-        printf("Computer closed.\n");
     }
 }
 
@@ -478,6 +476,7 @@ bool Computer::getEvent(SDL_Event* e) {
 extern std::mutex taskQueueMutex;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
+extern bool exiting;
 
 // Thread wrapper for running a computer
 void* computerThread(void* data) {
@@ -486,7 +485,6 @@ void* computerThread(void* data) {
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
 #endif
     comp->run("bios.lua");
-    printf("Finished running\n");
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {
@@ -495,15 +493,13 @@ void* computerThread(void* data) {
             if (it == computers.end()) break;
         }
     }
-    printf("Removed from list\n");
-    if (selectedRenderer != 0 && selectedRenderer != 2) {
+    if (selectedRenderer != 0 && selectedRenderer != 2 && !exiting) {
         {std::lock_guard<std::mutex> lock(taskQueueMutex);}
-        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         taskQueueReady = true;
         taskQueueNotify.notify_all();
-        while (taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
+        while (taskQueueReady && !exiting) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     }
-    printf("Thread complete\n");
     return NULL;
 }
 
