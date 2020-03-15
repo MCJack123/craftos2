@@ -658,6 +658,7 @@ const char * termGetEvent(lua_State *L) {
               SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
                 std::string str = utf8_to_string(text, std::locale("C"));
+                str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
                 lua_pushstring(L, str.c_str());
                 SDL_free(text);
                 return "paste";

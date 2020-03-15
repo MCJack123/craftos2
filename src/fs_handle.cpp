@@ -110,7 +110,7 @@ int fs_handle_readLine(lua_State *L) {
         lua_pushnil(L);
         return 1;
     }
-	char* retval = new char[256];
+	char* retval = (char*)malloc(256);
 	for (unsigned i = 0; 1; i += 256) {
 		if (fgets(&retval[i], 256, fp) == NULL) break;
 		if (strlen(retval) < i + 255) break;
@@ -124,10 +124,10 @@ int fs_handle_readLine(lua_State *L) {
 	catch (std::exception & e) {
 		fprintf(stderr, "fs_handle_readLine: Error decoding UTF-8: %s\n", e.what());
 		lua_pushlstring(L, retval, len);
-		delete[] retval;
+		free(retval);
 		return 1;
 	}
-    delete[] retval;
+    free(retval);
     std::string out;
     for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     lua_pushlstring(L, out.c_str(), out.length());
