@@ -66,8 +66,9 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     if (selectedRenderer != 0 && selectedRenderer != 2) {
         {std::lock_guard<std::mutex> lock(taskQueueMutex);}
         while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        taskQueueReady = true;
         taskQueueNotify.notify_all();
-        while (!taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
+        while (taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     }
     if (async) return NULL;
     while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
@@ -101,15 +102,14 @@ void mainLoop() {
 #endif
         else {
             std::unique_lock<std::mutex> lock(taskQueueMutex);
-            taskQueueReady = false;
-            taskQueueNotify.wait(lock);
-            taskQueueReady = true;
+            while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
             while (taskQueue.size() > 0) {
                 auto v = taskQueue.front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
                 if (!std::get<3>(v)) taskQueueReturns[std::get<0>(v)] = retval;
                 taskQueue.pop();
             }
+            taskQueueReady = false;
         }
 
         std::this_thread::yield();
