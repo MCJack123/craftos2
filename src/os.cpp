@@ -129,6 +129,7 @@ Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
 
 int getNextEvent(lua_State *L, std::string filter) {
     Computer * computer = get_comp(L);
+    if (computer->running != 1) return 0;
     if (computer->eventTimeout != 0) {SDL_RemoveTimer(computer->eventTimeout); computer->eventTimeout = 0; computer->timeoutCheckCount = 0;}
     std::string ev;
     gettingEvent(computer);
@@ -152,7 +153,8 @@ int getNextEvent(lua_State *L, std::string filter) {
             if (computer->alarms.size() == 0) {
                 std::mutex m;
                 std::unique_lock<std::mutex> l(m);
-                computer->event_lock.wait(l);
+                while (computer->alarms.size() == 0 && !termHasEvent(computer)) 
+                    computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return computer->alarms.size() != 0 || termHasEvent(computer);});
             }
             if (computer->running != 1) return 0;
             if (computer->alarms.size() > 0 && computer->alarms.back() == -1) computer->alarms.pop_back();
