@@ -153,8 +153,8 @@ int getNextEvent(lua_State *L, std::string filter) {
             if (computer->alarms.size() == 0) {
                 std::mutex m;
                 std::unique_lock<std::mutex> l(m);
-                while (computer->alarms.size() == 0 && !termHasEvent(computer)) 
-                    computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return computer->alarms.size() != 0 || termHasEvent(computer);});
+                while (computer->running == 1 && computer->alarms.size() == 0 && !termHasEvent(computer)) 
+                    computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return computer->alarms.size() != 0 || termHasEvent(computer) || computer->running != 1;});
             }
             if (computer->running != 1) return 0;
             if (computer->alarms.size() > 0 && computer->alarms.back() == -1) computer->alarms.pop_back();
