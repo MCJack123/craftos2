@@ -541,12 +541,15 @@ int websocket_free(lua_State *L) {
 }
 
 const char websocket_receive[] = "local _url, _isOpen = ...\n"
-"return function()\n"
+"return function(timeout)\n"
+"   local tm\n"
+"   if timeout then tm = os.startTimer(timeout) end\n"
 "   while true do\n"
 "       if not _isOpen() then error('attempt to use a closed file', 2) end\n"
 "       local ev, url, param = os.pullEvent()\n"
 "       if ev == 'websocket_message' and url == _url then return param\n"
-"       elseif ev == 'websocket_closed' and url == _url and not _isOpen() then return nil end\n"
+"       elseif ev == 'websocket_closed' and url == _url and not _isOpen() then return nil\n"
+"       elseif ev == 'timer' and url == tm then return nil end\n"
 "   end\n"
 "end";
 

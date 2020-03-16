@@ -39,6 +39,10 @@ extern "C" {
 #include <unistd.h>
 #include <libgen.h>
 #endif
+#if defined(__INTELLISENSE__) && !defined(S_ISDIR)
+#define S_ISDIR(m) 1 // silence errors in IntelliSense (which isn't very intelligent for its name)
+#define W_OK 2
+#endif
 
 extern void injectMounts(lua_State *L, const char * comp_path, int idx);
 
@@ -166,7 +170,8 @@ int fs_getFreeSpace(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1));
 	if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
-	lua_pushinteger(L, getFreeSpace(path));
+    if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) lua_pushinteger(L, 0);
+	else lua_pushinteger(L, getFreeSpace(path));
     return 1;
 }
 
@@ -445,7 +450,50 @@ int fs_getDir(lua_State *L) {
     return 1;
 }
 
-const char * fs_keys[16] = {
+#if defined(__APPLE__) // macOS has ns-precise times in st_[x]timespec.tv_nsec
+#define st_time_ms(st) ((st##timespec.tv_nsec / 1000000) + (st##timespec.tv_sec * 1000))
+#elif defined(__linux__) // Linux has ns-precise times in st_[x]tim.tv_nsec
+#define st_time_ms(st) ((st##tim.tv_nsec / 1000000) + (st##time * 1000))
+#else // Other systems have only the standard s-precise times
+#define st_time_ms(st) (st##time * 1000)
+#endif
+
+int fs_attributes(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    std::string path = fixpath(get_comp(L), lua_tostring(L, 1));
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        lua_pushnil(L);
+        return 1;
+    }
+    lua_newtable(L);
+    lua_pushinteger(L, st_time_ms(st.st_a));
+    lua_setfield(L, -2, "access");
+    lua_pushinteger(L, st_time_ms(st.st_m));
+    lua_setfield(L, -2, "modification");
+    lua_pushinteger(L, st_time_ms(st.st_c));
+    lua_setfield(L, -2, "created");
+    lua_pushinteger(L, S_ISDIR(st.st_mode) ? 0 : st.st_size);
+    lua_setfield(L, -2, "size");
+    lua_pushboolean(L, S_ISDIR(st.st_mode));
+    lua_setfield(L, -2, "isDir");
+    return 1;
+}
+
+int fs_getCapacity(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    std::string mountPath;
+    std::string path = fixpath(get_comp(L), lua_tostring(L, 1), true, &mountPath);
+    if (mountPath == "rom") {
+        lua_pushnil(L);
+        return 1;
+    }
+    if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+    lua_pushinteger(L, getCapacity(path));
+    return 1;
+}
+
+const char * fs_keys[18] = {
     "list",
     "exists",
     "isDir",
@@ -461,10 +509,12 @@ const char * fs_keys[16] = {
     "combine",
     "open",
     "find",
-    "getDir"
+    "getDir",
+    "attributes",
+    "getCapacity"
 };
 
-lua_CFunction fs_values[16] = {
+lua_CFunction fs_values[18] = {
     fs_list,
     fs_exists,
     fs_isDir,
@@ -480,7 +530,9 @@ lua_CFunction fs_values[16] = {
     fs_combine,
     fs_open,
     fs_find,
-    fs_getDir
+    fs_getDir,
+    fs_attributes,
+    fs_getCapacity
 };
 
-library_t fs_lib = {"fs", 16, fs_keys, fs_values, nullptr, nullptr};
+library_t fs_lib = {"fs", 18, fs_keys, fs_values, nullptr, nullptr};

@@ -135,6 +135,15 @@ unsigned long long getFreeSpace(std::string path) {
 	return st.f_bavail * st.f_bsize;
 }
 
+unsigned long long getCapacity(std::string path) {
+	struct statvfs st;
+	if (statvfs(path.c_str(), &st) != 0) {
+        if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
+        else return getCapacity(path.substr(0, path.find_last_of("/")-1));
+    }
+	return st.f_blocks * st.f_frsize;
+}
+
 void updateNow(std::string tag_name) {
     
 }
