@@ -6,7 +6,7 @@
       version="2.3.0.0"
       processorArchitecture="amd64"
     />
-  <description> my exe </description>
+  <description>Advanced ComputerCraft Emulator</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
