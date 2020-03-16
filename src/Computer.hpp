@@ -78,6 +78,7 @@ public:
     int hookMask = 0;
 	std::unordered_set<SDL_TimerID> timerIDs;
     std::vector<void*> openWebsockets;
+    std::unordered_set<int> usedDriveMounts;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);

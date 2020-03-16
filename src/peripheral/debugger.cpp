@@ -40,9 +40,10 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
     }
     delete (library_t*)comp->debugger;
     if (!dbg->deleteThis) {
-        dbg->computer->peripherals_mutex.lock();
-        dbg->computer->peripherals.erase(side);
-        dbg->computer->peripherals_mutex.unlock();
+        {
+            std::lock_guard<std::mutex> lock(dbg->computer->peripherals_mutex);
+            dbg->computer->peripherals.erase(side);
+        }
         queueTask([comp](void*arg)->void*{delete (debugger*)arg; delete comp; return NULL;}, dbg, true);
     }
 }

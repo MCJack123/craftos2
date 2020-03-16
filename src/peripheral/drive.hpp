@@ -39,7 +39,6 @@ private:
     void* music = NULL;
 #endif
     int id = 0;
-    static std::unordered_set<int> usedMounts;
     int isDiskPresent(lua_State *L);
     int getDiskLabel(lua_State *L);
     int setDiskLabel(lua_State *L);

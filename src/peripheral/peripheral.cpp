@@ -17,9 +17,8 @@ peripheral::~peripheral(){}
 int peripheral_isPresent(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * computer = get_comp(L);
-    computer->peripherals_mutex.lock();
+    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
     lua_pushboolean(L, computer->peripherals.find(std::string(lua_tostring(L, -1))) != computer->peripherals.end());
-    computer->peripherals_mutex.unlock();
     return 1;
 }
 
@@ -27,11 +26,10 @@ int peripheral_getType(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * computer = get_comp(L);
     std::string side(lua_tostring(L, 1));
-    computer->peripherals_mutex.lock();
+    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
     if (computer->peripherals.find(side) != computer->peripherals.end())
         lua_pushstring(L, computer->peripherals[side]->getMethods().name);
-    else { computer->peripherals_mutex.unlock(); return 0; }
-    computer->peripherals_mutex.unlock();
+    else return 0;
     return 1;
 }
 
@@ -39,10 +37,9 @@ int peripheral_getMethods(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * computer = get_comp(L);
     std::string side(lua_tostring(L, 1));
-    computer->peripherals_mutex.lock();
-    if (computer->peripherals.find(side) == computer->peripherals.end()) { computer->peripherals_mutex.unlock(); return 0; }
+    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+    if (computer->peripherals.find(side) == computer->peripherals.end()) return 0;
     library_t methods = computer->peripherals[side]->getMethods();
-    computer->peripherals_mutex.unlock();
     lua_newtable(L);
     for (int i = 0; i < methods.count; i++) {
         lua_pushnumber(L, i+1);
@@ -58,11 +55,15 @@ int peripheral_call(lua_State *L) {
     Computer * computer = get_comp(L);
     std::string side(lua_tostring(L, 1));
     std::string func(lua_tostring(L, 2));
-    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
-    if (computer->peripherals.find(side) == computer->peripherals.end()) return 0;
-    lua_remove(L, 1);
-    lua_remove(L, 1);
-    return computer->peripherals[side]->call(L, func.c_str());
+    peripheral * p;
+    {
+        std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+        if (computer->peripherals.find(side) == computer->peripherals.end()) return 0;
+        lua_remove(L, 1);
+        lua_remove(L, 1);
+        p = computer->peripherals[side];
+    }
+    return p->call(L, func.c_str());
 }
 
 void peripheral_update(Computer *comp) {
