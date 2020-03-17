@@ -108,7 +108,7 @@ int fs_list(lua_State *L) {
                 bool found = false;
                 for (unsigned j = 0; j < sizeof(ignored_files) / sizeof(const char *); j++) 
                     if (strcmp(dir->d_name, ignored_files[j]) == 0) found = true;
-                if (!found) entries.insert(std::string(dir->d_name, dir->d_namlen));
+                if (!found) entries.insert(std::string(dir->d_name));
             }
             closedir(d);
         }
