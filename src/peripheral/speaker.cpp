@@ -235,6 +235,7 @@ typedef struct {
     float pitch = 1.0;
     int weight = 1;
     bool isEvent = false;
+	bool isMusic = false;
 } sound_file_t;
 
 extern std::unordered_map<std::string, std::pair<unsigned char *, unsigned int> > speaker_sounds;
@@ -256,6 +257,9 @@ std::mt19937 RNG;
  * for more info.
  */
 
+Mix_Music * currentlyPlayingMusic = NULL;
+void musicFinished() {if (currentlyPlayingMusic != NULL) {Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL;}}
+
 bool playSoundEvent(std::string name, float volume, float speed) {
 	if (name.find(":") == std::string::npos) name = "minecraft:" + name;
 	if (soundEvents.find(name) == soundEvents.end()) return false;
@@ -266,24 +270,44 @@ bool playSoundEvent(std::string name, float volume, float speed) {
 	for (sound_file_t f : soundEvents[name]) {
 		if ((i += f.pitch) > num) {
 			// play this event
-			if (f.isEvent) return playSoundEvent(f.name, max(volume * f.volume, 3.0f), max(speed * f.pitch, 2.0f));
-			std::string path((getROMPath() + "/sounds/" + (f.name.find(":") == std::string::npos ? "minecraft" : f.name.substr(0, f.name.find(":") - 1)) + "/sounds/" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
-			Mix_Chunk * chunk = Mix_LoadWAV((path + ".ogg").c_str());
-			if (chunk == NULL) {
-				chunk = Mix_LoadWAV((path + ".mp3").c_str());
+			if (f.isEvent) return playSoundEvent(f.name, min(volume * f.volume, 3.0f), min(speed * f.pitch, 2.0f));
+			std::string path((getROMPath() + "/sounds/" + (f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + "/sounds/" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
+			if (f.isMusic) {
+				Mix_Music * chunk = Mix_LoadMUS((path + ".ogg").c_str());
 				if (chunk == NULL) {
-					chunk = Mix_LoadWAV((path + ".flac").c_str());
+					chunk = Mix_LoadMUS((path + ".mp3").c_str());
 					if (chunk == NULL) {
-						chunk = Mix_LoadWAV((path + ".wav").c_str());
-						if (chunk == NULL) return false;
+						chunk = Mix_LoadMUS((path + ".flac").c_str());
+						if (chunk == NULL) {
+							chunk = Mix_LoadMUS((path + ".wav").c_str());
+							if (chunk == NULL) return false;
+						}
 					}
 				}
+				if (Mix_PlayingMusic()) Mix_HaltMusic();
+				Mix_VolumeMusic(min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3));
+				currentlyPlayingMusic = chunk;
+				Mix_PlayMusic(chunk, 0);
+				Mix_HookMusicFinished(musicFinished);
+				return true;
+			} else {
+				Mix_Chunk * chunk = Mix_LoadWAV((path + ".ogg").c_str());
+				if (chunk == NULL) {
+					chunk = Mix_LoadWAV((path + ".mp3").c_str());
+					if (chunk == NULL) {
+						chunk = Mix_LoadWAV((path + ".flac").c_str());
+						if (chunk == NULL) {
+							chunk = Mix_LoadWAV((path + ".wav").c_str());
+							if (chunk == NULL) return false;
+						}
+					}
+				}
+				Mix_VolumeChunk(chunk, min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3));
+				int channel = Mix_PlayChannel(-1, chunk, 0);
+				if (channel == -1) return false;
+				setupForNextPlayback(speed, chunk, channel, false);
+				return true;
 			}
-			Mix_VolumeChunk(chunk, volume * (MIX_MAX_VOLUME / 3));
-			int channel = Mix_PlayChannel(-1, chunk, 0);
-			if (channel == -1) return false;
-			setupForNextPlayback(speed, chunk, channel, false);
-			return true;
 		}
 	}
 	return false;
@@ -299,7 +323,10 @@ int speaker::playNote(lua_State *L) {
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
     if (pitch < 0 || pitch > 24) luaL_error(L, "invalid pitch %d", pitch);
     if (speaker_sounds.find(inst) == speaker_sounds.end()) luaL_error(L, "invalid instrument %s", inst.c_str());
-    if (soundEvents.find("minecraft:block.note." + inst) != soundEvents.end()) {
+    if (soundEvents.find("minecraft:block.note_block." + inst) != soundEvents.end()) {
+		lua_pushboolean(L, playSoundEvent("minecraft:block.note_block." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0)));
+		return 1;
+	} else if (soundEvents.find("minecraft:block.note." + inst) != soundEvents.end()) {
 		lua_pushboolean(L, playSoundEvent("minecraft:block.note." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0)));
 		return 1;
 	} else {
@@ -331,6 +358,42 @@ int speaker::playSound(lua_State *L) {
     return 1;
 }
 
+extern std::vector<std::string> split(std::string strToSplit, char delimeter);
+
+int speaker::listSounds(lua_State *L) {
+	lua_newtable(L);
+	for (auto ev : soundEvents) {
+		std::vector<std::string> parts = split(ev.first.substr(ev.first.find(':') + 1), '.');
+		std::string back = parts.back();
+		parts.pop_back();
+		lua_pushstring(L, ev.first.substr(0, ev.first.find(':')).c_str());
+		lua_gettable(L, -2);
+		if (!lua_istable(L, -1)) {
+			lua_pop(L, 1);
+			lua_newtable(L);
+			lua_pushstring(L, ev.first.substr(0, ev.first.find(':')).c_str());
+			lua_pushvalue(L, -2);
+			lua_settable(L, -4);
+		}
+		for (std::string p : parts) {
+			lua_pushstring(L, p.c_str());
+			lua_gettable(L, -2);
+			if (!lua_istable(L, -1)) {
+				lua_pop(L, 1);
+				lua_newtable(L);
+				lua_pushstring(L, p.c_str());
+				lua_pushvalue(L, -2);
+				lua_settable(L, -4);
+			}
+		}
+		lua_pushstring(L, back.c_str());
+		lua_pushstring(L, ev.first.c_str());
+		lua_settable(L, -3);
+		lua_pop(L, parts.size() + 1);
+	}
+	return 1;
+}
+
 speaker::speaker(lua_State *L, const char * side) {
 	RNG.seed(time(0)); // doing this here so the seed can be refreshed
 }
@@ -343,6 +406,7 @@ int speaker::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "playNote") return playNote(L);
     else if (m == "playSound") return playSound(L);
+	else if (m == "listSounds") return listSounds(L);
     else return 0;
 }
 
@@ -382,6 +446,7 @@ void speakerInit() {
 							if (obj2.isMember("pitch")) item.pitch = obj2["pitch"].asFloat();
 							if (obj2.isMember("weight")) item.weight = obj2["weight"].asInt();
 							if (obj2.isMember("type")) item.isEvent = obj2["type"].asString() == "event";
+							if (obj2.isMember("stream")) item.isMusic = obj2["stream"].asBool();
 						}
 						items.push_back(item);
 					}
@@ -404,9 +469,10 @@ void speakerQuit() {
 
 const char * speaker_names[] = {
     "playNote",
-    "playSound"
+    "playSound",
+	"listSounds"
 };
 
-library_t speaker::methods = {"speaker", 2, speaker_names, NULL, nullptr, nullptr};
+library_t speaker::methods = {"speaker", 3, speaker_names, NULL, nullptr, nullptr};
 
 #endif

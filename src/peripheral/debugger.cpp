@@ -153,7 +153,7 @@ int debugger_lib_setBreakpoint(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     int id = dbg->computer->breakpoints.size() > 0 ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
-    dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false, false), lua_tointeger(L, 2));
     dbg->computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
@@ -437,7 +437,7 @@ int debugger::setBreakpoint(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     Computer * computer = get_comp(L);
     int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
-    computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false, false), lua_tointeger(L, 2));
     computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;

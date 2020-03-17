@@ -45,13 +45,13 @@ macapp: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform_macapp.o
 	install_name_tool -add_rpath @executable_path/../Frameworks CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libharu/lib/libhpdf-2.3.0.dylib "@rpath/libhpdf-2.3.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libpng/lib/libpng16.16.dylib "@rpath/libpng16.16.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoNetSSL.64.dylib "@rpath/libPocoNetSSL.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoCrypto.64.dylib "@rpath/libPocoCrypto.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoFoundation.64.dylib "@rpath/libPocoFoundation.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoJSON.64.dylib "@rpath/libPocoJSON.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoNet.64.dylib "@rpath/libPocoNet.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoUtil.64.dylib "@rpath/libPocoUtil.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoXML.64.dylib "@rpath/libPocoXML.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoNetSSL.71.dylib "@rpath/libPocoNetSSL.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoCrypto.71.dylib "@rpath/libPocoCrypto.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoFoundation.71.dylib "@rpath/libPocoFoundation.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoJSON.71.dylib "@rpath/libPocoJSON.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoNet.71.dylib "@rpath/libPocoNet.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoUtil.71.dylib "@rpath/libPocoUtil.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoXML.71.dylib "@rpath/libPocoXML.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/sdl2_mixer/lib/libSDL2_mixer-2.0.0.dylib "@rpath/libSDL2_mixer-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib "@rpath/libSDL2-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/flac/lib/libFLAC.8.dylib "@rpath/libFLAC.8.dylib" CraftOS-PC.app/Contents/MacOS/craftos
