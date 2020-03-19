@@ -9,6 +9,7 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include "fs_standalone.hpp"
 #include "mounter.hpp"
 #include "platform.hpp"
 #include <string>
@@ -40,6 +41,8 @@ std::vector<std::string> split(std::string strToSplit, char delimeter) {
     return splittedStrings;
 }
 
+bool nothrow(std::function<void()> f) {try {f(); return true;} catch (std::exception &e) {return false;}}
+
 std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults) {
     std::vector<std::string> elems = split(path, '/');
     std::list<std::string> pathc;
@@ -47,7 +50,12 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
         if (s == "..") { if (pathc.size() < 1) return std::string(); else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
-    if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua") return getROMPath() + "/bios.lua";
+    if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua") 
+#ifdef STANDALONE_ROM
+        return ":bios.lua";
+#else
+        return getROMPath() + "/bios.lua";
+#endif
     std::stringstream ss;
     if (addExt) {
         std::pair<size_t, std::vector<std::string> > max_path = std::make_pair(0, std::vector<std::string>(1, getBasePath() + PATH_SEP + "computer" + PATH_SEP + std::to_string(comp->id)));
@@ -70,7 +78,11 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
                 struct stat st;
                 sstmp << p;
                 for (std::string s : pathc) sstmp << PATH_SEP << s;
-                if ((stat((sstmp.str()).c_str(), &st) == 0)) {
+                if (
+#ifdef STANDALONE_ROM
+                (p == "rom:" && nothrow([&sstmp](){standaloneROM.path(sstmp.str());})) || (p == "debug:" && nothrow([&sstmp](){standaloneDebug.path(sstmp.str());})) ||
+#endif
+                (stat((sstmp.str()).c_str(), &st) == 0)) {
                     if (getAllResults && found) ss << "\n";
                     ss << sstmp.str();
                     found = true;
@@ -130,7 +142,12 @@ bool fixpath_ro(Computer *comp, const char * path) {
 
 bool addMount(Computer *comp, const char * real_path, const char * comp_path, bool read_only) {
     struct stat sb;
-    if (stat(real_path, &sb) != 0 || !S_ISDIR(sb.st_mode)) return false;
+    if (
+#ifdef STANDALONE_ROM
+        (std::string(real_path) != "rom:" && std::string(real_path) != "debug:") &&
+#endif
+        (stat(real_path, &sb) != 0 || !S_ISDIR(sb.st_mode))
+        ) return false;
     std::vector<std::string> elems = split(comp_path, '/');
     std::list<std::string> pathc;
     for (std::string s : elems) {

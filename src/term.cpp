@@ -289,8 +289,9 @@ int termPanic(lua_State *L) {
     Computer * comp = get_comp(L);
     comp->running = 0;
     lua_Debug ar;
-    if (lua_getstack(L, 0, &ar)) {
-        lua_getinfo(L, "nSl", &ar);
+    int status;
+    for (int i = 0; (status = lua_getstack(L, i, &ar)) && (status = lua_getinfo(L, "nSl", &ar)) && ar.what[0] == 'C'; i++);
+    if (status && ar.what[0] != 'C') {
         fprintf(stderr, "An unexpected error occurred in a Lua function: %s:%s:%d: %s\n", checkstr(ar.short_src), checkstr(ar.name), ar.currentline, checkstr(lua_tostring(L, 1)));
         if (dynamic_cast<SDLTerminal*>(comp->term) != NULL) queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(checkstr(ar.short_src)) + ":" + std::string(checkstr(ar.name)) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), dynamic_cast<SDLTerminal*>(comp->term)->win); return NULL;}, L);
     } else {

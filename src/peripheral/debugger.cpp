@@ -10,6 +10,7 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "debugger.hpp"
+#include "../fs_standalone.hpp"
 #include "../os.hpp"
 #include "../terminal/CLITerminal.hpp"
 #include "../term.hpp"
@@ -32,7 +33,11 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread (Debugger)").c_str());
 #endif
+#ifdef STANDALONE_ROM
+    comp->run(standaloneDebug["bios.lua"].data);
+#else
     comp->run("debug/bios.lua");
+#endif
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {

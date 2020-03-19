@@ -136,12 +136,14 @@ int drive::insertDisk(lua_State *L, bool init) {
     } else if (lua_isstring(L, arg)) {
         path = lua_tostring(L, arg);
         struct stat st;
+#ifndef STANDALONE_ROM
         if (path.substr(0, 9) == "treasure:") {
 #ifdef WIN32
             for (int i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
 #endif
             path = std::string(getROMPath()) + "\\treasure\\" + path.substr(9);
         }
+#endif
         if (stat(path.c_str(), &st) != 0) {
             lua_pushfstring(L, "Could not mount: %s", strerror(errno));
             lua_error(L);

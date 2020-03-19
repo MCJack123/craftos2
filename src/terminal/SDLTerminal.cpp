@@ -167,7 +167,9 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
     SDL_Surface* old_bmp;
     if (config.customFontPath.empty()) 
         old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
+#ifndef STANDALONE_ROM
     else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP((getROMPath() + "/hdfont.bmp").c_str());
+#endif
     else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
     if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
 #ifndef __EMSCRIPTEN__

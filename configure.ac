@@ -14,6 +14,7 @@ AC_ARG_WITH(sdl_mixer, [AS_HELP_STRING([--without-sdl_mixer], [do not support au
 AC_ARG_WITH(hpdf, [AS_HELP_STRING([--with-hpdf], [make printer output PDF files])])
 AC_ARG_WITH(html, [AS_HELP_STRING([--with-html], [make printer output HTML files])])
 AC_ARG_WITH(txt, [AS_HELP_STRING([--with-txt], [make printer output text files])])
+AC_ARG_WITH(standalone_rom, [AS_HELP_STRING([--with-standalone-rom], [path to standalone ROM file, enables standalone build])])
 AC_ARG_ENABLE(wasm, [AS_HELP_STRING([--enable-wasm], [compile for WebAssembly using Emscripten])])
 AC_ARG_WITH(wasm_poco, [AS_HELP_STRING([--with-wasm-poco], [path to Poco build for WASM])])
 AC_ARG_WITH(wasm_openssl, [AS_HELP_STRING([--with-wasm-openssl], [path to OpenSSL build for WASM])])
@@ -87,6 +88,17 @@ else
     AX_CXX_CHECK_LIB(PocoNet, [Poco::Net::HTTPRequest], [], [AC_MSG_ERROR([Could not find Poco Net library.])])
     AX_CXX_CHECK_LIB(PocoNetSSL, [Poco::Net::HTTPSClientSession], [], [AC_MSG_ERROR([Could not find Poco NetSSL library.])])
     AC_SUBST(OUT_TARGET, craftos)
+fi
+
+# Find standalone ROM if supplied
+
+if test "x$with_standalone_rom" != "x"; then
+    if test ! -e "$with_standalone_rom"; then
+        AC_MSG_ERROR([Could not find ROM file specified.])
+    fi
+    cp "$with_standalone_rom" "src/fs_standalone.cpp"
+    CPPFLAGS="$CPPFLAGS -DSTANDALONE_ROM"
+    AC_SUBST(OBJS, fs_standalone.o)
 fi
 
 # Check optional features

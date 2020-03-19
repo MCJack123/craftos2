@@ -346,6 +346,10 @@ int speaker::playNote(lua_State *L) {
 }
 
 int speaker::playSound(lua_State *L) {
+#ifdef STANDALONE_ROM
+	luaL_error(L, "Sounds are not available on standalone builds");
+	return 0;
+#else
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
     if (!lua_isnoneornil(L, 3) && !lua_isnumber(L, 3)) bad_argument(L, "number or nil", 3);
@@ -356,6 +360,7 @@ int speaker::playSound(lua_State *L) {
 	if (speed < 0.0 || speed > 2.0) luaL_error(L, "invalid pitch %f", speed);
 	lua_pushboolean(L, playSoundEvent(inst, volume, speed));
     return 1;
+#endif
 }
 
 extern std::vector<std::string> split(std::string strToSplit, char delimeter);
@@ -414,6 +419,7 @@ void speakerInit() {
     Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_MID);
     //Mix_QuerySpec(&AudioSpec::frequency, &AudioSpec::format, &AudioSpec::channelCount);
     AudioSpec::allocatedMixChannelsCount = Mix_AllocateChannels(config.maxNotesPerTick);
+#ifndef STANDALONE_ROM
     DIR * d = opendir((getROMPath() + "/sounds").c_str());
     if (d) {
         struct dirent *dir;
@@ -461,6 +467,7 @@ void speakerInit() {
         }
         closedir(d);
     }
+#endif
 }
 
 void speakerQuit() {

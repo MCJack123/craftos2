@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+OBJS
 OUT_TARGET
 EGREP
 GREP
@@ -682,6 +683,7 @@ with_sdl_mixer
 with_hpdf
 with_html
 with_txt
+with_standalone_rom
 enable_wasm
 with_wasm_poco
 with_wasm_openssl
@@ -1322,6 +1324,8 @@ Optional Packages:
   --with-hpdf             make printer output PDF files
   --with-html             make printer output HTML files
   --with-txt              make printer output text files
+  --with-standalone-rom   path to standalone ROM file, enables standalone
+                          build
   --with-wasm-poco        path to Poco build for WASM
   --with-wasm-openssl     path to OpenSSL build for WASM
   --with-wasm-rom         path to ROM for WASM builds
@@ -2185,6 +2189,12 @@ fi
 # Check whether --with-txt was given.
 if test "${with_txt+set}" = set; then :
   withval=$with_txt;
+fi
+
+
+# Check whether --with-standalone_rom was given.
+if test "${with_standalone_rom+set}" = set; then :
+  withval=$with_standalone_rom;
 fi
 
 # Check whether --enable-wasm was given.
@@ -5205,6 +5215,18 @@ else
   as_fn_error $? "Could not find Poco NetSSL library." "$LINENO" 5
 fi
     OUT_TARGET=craftos
+
+fi
+
+# Find standalone ROM if supplied
+
+if test "x$with_standalone_rom" != "x"; then
+    if test ! -e "$with_standalone_rom"; then
+        as_fn_error $? "Could not find ROM file specified." "$LINENO" 5
+    fi
+    cp "$with_standalone_rom" "src/fs_standalone.cpp"
+    CPPFLAGS="$CPPFLAGS -DSTANDALONE_ROM"
+    OBJS=fs_standalone.o
 
 fi
 

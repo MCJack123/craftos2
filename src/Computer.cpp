@@ -15,6 +15,7 @@
 #include "bit.hpp"
 #include "config.hpp"
 #include "fs.hpp"
+#include "fs_standalone.hpp"
 #include "http.hpp"
 #include "mounter.hpp"
 #include "os.hpp"
@@ -63,8 +64,13 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     id = i;
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
+#ifdef STANDALONE_ROM
+    addMount(this, "rom:", "rom", true);
+    if (debug) addMount(this, "debug:", "debug", true);
+#else
     addMount(this, (getROMPath() + "/rom").c_str(), "rom", ::config.romReadOnly);
     if (debug) addMount(this, (getROMPath() + "/debug").c_str(), "debug", true);
+#endif
     mounter_initializing = false;
     // Create the root directory
 #ifdef _WIN32
@@ -245,6 +251,7 @@ void Computer::run(std::string bios_name) {
         lua_setglobal(L, "os_date");
 
         // Load any plugins available
+#ifndef STANDALONE_ROM
         if (!::config.vanilla) {
             lua_newtable(L);
             lua_setfield(L, LUA_REGISTRYINDEX, "plugin_info");
@@ -321,6 +328,7 @@ void Computer::run(std::string bios_name) {
                 closedir(d);
             } //else printf("Could not open plugins from %s\n", plugin_path.c_str());
         }
+#endif
 
         // Delete unwanted globals
         lua_pushnil(L);
@@ -416,13 +424,18 @@ void Computer::run(std::string bios_name) {
         }
 
         /* Load the file containing the script we are going to run */
+#ifdef STANDALONE_ROM
+        status = luaL_loadstring(coro, bios_name.c_str());
+        std::string bios_path_expanded = "standalone ROM";
+#else
 #ifdef WIN32
         std::string bios_path_expanded = getROMPath() + "\\" + bios_name;
 #else
         std::string bios_path_expanded = getROMPath() + "/" + bios_name;
 #endif
         status = luaL_loadfile(coro, bios_path_expanded.c_str());
-        if (status) {
+#endif
+        if (status || !lua_isfunction(coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
             fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)\n", bios_path_expanded.c_str(), lua_tostring(L, -1));
@@ -450,9 +463,11 @@ void Computer::run(std::string bios_name) {
             } else if (status != 0) {
                 // Catch runtime error
                 running = 0;
-                lua_pushcfunction(L, termPanic);
-                lua_call(L, 1, 0);
-                return;
+                lua_pushcfunction(coro, termPanic);
+                if (lua_isstring(coro, -2)) lua_pushvalue(coro, -2);
+                else lua_pushnil(coro);
+                lua_call(coro, 1, 0);
+                break;
             }
         }
         
@@ -484,7 +499,11 @@ void* computerThread(void* data) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
 #endif
+#ifdef STANDALONE_ROM
+    comp->run(standaloneBIOS);
+#else
     comp->run("bios.lua");
+#endif
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {

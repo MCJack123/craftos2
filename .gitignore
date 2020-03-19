@@ -32,3 +32,4 @@ index.html
 *.obj
 *.exe
 raw_frame_reader
+src/fs_standalone.cpp
