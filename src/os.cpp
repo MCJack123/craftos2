@@ -38,6 +38,7 @@ extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::strin
 int nextTaskID = 0;
 std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
 std::unordered_map<int, void*> taskQueueReturns;
+std::mutex taskQueueReturnsMutex;
 std::condition_variable taskQueueNotify;
 std::mutex taskQueueMutex;
 bool exiting = false;
@@ -68,9 +69,10 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
         while (taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     }
     if (async) return NULL;
-    while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
+    while (([]()->bool{taskQueueReturnsMutex.lock(); return true;})() && taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) {taskQueueReturnsMutex.unlock(); std::this_thread::yield();}
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
+    taskQueueReturnsMutex.unlock();
     return retval;
 }
 
@@ -103,7 +105,10 @@ void mainLoop() {
             while (taskQueue.size() > 0) {
                 auto v = taskQueue.front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
-                if (!std::get<3>(v)) taskQueueReturns[std::get<0>(v)] = retval;
+                if (!std::get<3>(v)) {
+                    std::lock_guard<std::mutex> lock2(taskQueueReturnsMutex);
+                    taskQueueReturns[std::get<0>(v)] = retval;
+                }
                 taskQueue.pop();
             }
             taskQueueReady = false;

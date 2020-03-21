@@ -525,6 +525,7 @@ void SDLTerminal::quit() {
 
 extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
 extern std::unordered_map<int, void*> taskQueueReturns;
+extern std::mutex taskQueueReturnsMutex;
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
 extern bool rawClient;
@@ -548,7 +549,10 @@ bool SDLTerminal::pollEvents() {
 			while (taskQueue.size() > 0) {
 				auto v = taskQueue.front();
 				void* retval = std::get<1>(v)(std::get<2>(v));
-				taskQueueReturns[std::get<0>(v)] = retval;
+				if (!std::get<3>(v)) {
+                    std::lock_guard<std::mutex> lock2(taskQueueReturnsMutex);
+                    taskQueueReturns[std::get<0>(v)] = retval;
+                }
 				taskQueue.pop();
 			}
 		} else if (e.type == render_event_type) {
