@@ -53,14 +53,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Download ROM
-      run: sudo git clone https://github.com/MCJack123/craftos2-rom
     - name: Install dependencies
       run: |
         sudo apt update
         sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev nodejs
     - name: Build standalone ROM
       run: |
+        git clone https://github.com/MCJack123/craftos2-rom
         cd craftos2-rom
         node ../packStandaloneROM.js
         cd ..
