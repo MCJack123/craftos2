@@ -528,7 +528,7 @@ debugger::~debugger() {
     }
     assert(thread == NULL);
     if (compThread->joinable()) compThread->join();
-    computer->debugger = NULL;
+    computer->shouldDeinitDebugger = true;
 }
 
 int debugger::call(lua_State *L, const char * method) {
@@ -543,6 +543,7 @@ int debugger::call(lua_State *L, const char * method) {
 int debugger::_deinit(lua_State *L) {
     if (!computer->hasBreakpoints) {
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
     }
     return 0;

@@ -5234,119 +5234,6 @@ fi
 
 if test "x$enable_wasm" != "xyes"; then
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing mpg123_init" >&5
-$as_echo_n "checking for library containing mpg123_init... " >&6; }
-if ${ac_cv_search_mpg123_init+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char mpg123_init ();
-int
-main ()
-{
-return mpg123_init ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' mpg123; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_search_mpg123_init=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_mpg123_init+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_mpg123_init+:} false; then :
-
-else
-  ac_cv_search_mpg123_init=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_mpg123_init" >&5
-$as_echo "$ac_cv_search_mpg123_init" >&6; }
-ac_res=$ac_cv_search_mpg123_init
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-fi
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing FLAC__stream_decoder_new" >&5
-$as_echo_n "checking for library containing FLAC__stream_decoder_new... " >&6; }
-if ${ac_cv_search_FLAC__stream_decoder_new+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char FLAC__stream_decoder_new ();
-int
-main ()
-{
-return FLAC__stream_decoder_new ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' flac; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_search_FLAC__stream_decoder_new=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_FLAC__stream_decoder_new+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_FLAC__stream_decoder_new+:} false; then :
-
-else
-  ac_cv_search_FLAC__stream_decoder_new=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_FLAC__stream_decoder_new" >&5
-$as_echo "$ac_cv_search_FLAC__stream_decoder_new" >&6; }
-ac_res=$ac_cv_search_FLAC__stream_decoder_new
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-fi
-
-
     if test "x$with_png" != "xno"; then :
 
         for ac_header in png++/png.hpp
@@ -5600,6 +5487,179 @@ else
   as_fn_error $? "Could not find SDL2_mixer library." "$LINENO" 5
 else
   NO_MIXER=1
+fi
+fi
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing mpg123_init" >&5
+$as_echo_n "checking for library containing mpg123_init... " >&6; }
+if ${ac_cv_search_mpg123_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char mpg123_init ();
+int
+main ()
+{
+return mpg123_init ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mpg123; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_search_mpg123_init=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_mpg123_init+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_mpg123_init+:} false; then :
+
+else
+  ac_cv_search_mpg123_init=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_mpg123_init" >&5
+$as_echo "$ac_cv_search_mpg123_init" >&6; }
+ac_res=$ac_cv_search_mpg123_init
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing FLAC__stream_decoder_new" >&5
+$as_echo_n "checking for library containing FLAC__stream_decoder_new... " >&6; }
+if ${ac_cv_search_FLAC__stream_decoder_new+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char FLAC__stream_decoder_new ();
+int
+main ()
+{
+return FLAC__stream_decoder_new ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' flac; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_search_FLAC__stream_decoder_new=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_FLAC__stream_decoder_new+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_FLAC__stream_decoder_new+:} false; then :
+
+else
+  ac_cv_search_FLAC__stream_decoder_new=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_FLAC__stream_decoder_new" >&5
+$as_echo "$ac_cv_search_FLAC__stream_decoder_new" >&6; }
+ac_res=$ac_cv_search_FLAC__stream_decoder_new
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing new_fluid_synth" >&5
+$as_echo_n "checking for library containing new_fluid_synth... " >&6; }
+if ${ac_cv_search_new_fluid_synth+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char new_fluid_synth ();
+int
+main ()
+{
+return new_fluid_synth ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' fluidsynth; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_search_new_fluid_synth=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_new_fluid_synth+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_new_fluid_synth+:} false; then :
+
+else
+  ac_cv_search_new_fluid_synth=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_new_fluid_synth" >&5
+$as_echo "$ac_cv_search_new_fluid_synth" >&6; }
+ac_res=$ac_cv_search_new_fluid_synth
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else
+  if test "x$with_sdl_mixer" = "xyes"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Could not find FluidSynth library. Soundfont support will be limited or non-existent." >&5
+$as_echo "$as_me: WARNING: Could not find FluidSynth library. Soundfont support will be limited or non-existent." >&2;}
 fi
 fi
 

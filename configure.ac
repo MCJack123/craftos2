@@ -105,9 +105,6 @@ fi
 
 if test "x$enable_wasm" != "xyes"; then
 
-    AC_SEARCH_LIBS(mpg123_init, mpg123)
-    AC_SEARCH_LIBS(FLAC__stream_decoder_new, flac)
-
     AS_IF([test "x$with_png" != "xno"], [
         AC_CHECK_HEADERS([png++/png.hpp], [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find png++ header.])], [NO_PNG=1])])
         AC_SEARCH_LIBS(png_init_io, png, [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find libpng library.])], [NO_PNG=1])])
@@ -121,6 +118,9 @@ if test "x$enable_wasm" != "xyes"; then
     AS_IF([test "x$with_sdl_mixer" != "xno"], [
         AC_CHECK_HEADERS(SDL2/SDL_mixer.h, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_ERROR([Could not find SDL2_mixer header.])], [NO_MIXER=1])])
         AC_SEARCH_LIBS(Mix_Init, SDL2_mixer, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_ERROR([Could not find SDL2_mixer library.])], [NO_MIXER=1])])
+        AC_SEARCH_LIBS(mpg123_init, mpg123)
+        AC_SEARCH_LIBS(FLAC__stream_decoder_new, flac)
+        AC_SEARCH_LIBS(new_fluid_synth, fluidsynth, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_WARN([Could not find FluidSynth library. Soundfont support will be limited or non-existent.])], [])])
     ], [NO_MIXER=1])
 
     AS_IF([test "x$PRINT_TYPE" = "x" || test "x$PRINT_TYPE" = "x0"], [
