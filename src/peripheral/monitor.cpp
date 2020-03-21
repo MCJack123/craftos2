@@ -14,6 +14,7 @@
 #include "../terminal/SDLTerminal.hpp"
 #include "../terminal/CLITerminal.hpp"
 #include "../terminal/RawTerminal.hpp"
+#include "../terminal/TRoRTerminal.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
@@ -25,6 +26,7 @@ monitor::monitor(lua_State *L, const char * side) {
 	else
 #endif
     if (selectedRenderer == 3) term = new RawTerminal("CraftOS Terminal: Monitor " + std::string(side));
+    else if (selectedRenderer == 4) term = new TRoRTerminal("CraftOS Terminal: Monitor " + std::string(side));
 	else if (selectedRenderer == 0) {
         term = (SDLTerminal*)queueTask([ ](void* side)->void* {
             return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
@@ -37,6 +39,7 @@ monitor::~monitor() {delete term;}
 
 int monitor::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (selectedRenderer == 4) printf("TW:%d;%s\n", term->id, lua_tostring(L, 1));
     size_t str_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
     std::lock_guard<std::mutex> lock(term->locked);
@@ -50,6 +53,7 @@ int monitor::write(lua_State *L) {
 
 int monitor::scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (selectedRenderer == 4) printf("TS:%d;%ld\n", term->id, lua_tointeger(L, 1));
     int lines = lua_tointeger(L, 1);
     std::lock_guard<std::mutex> lock(term->locked);
     for (int i = lines; i < term->height; i++) {
@@ -67,6 +71,7 @@ int monitor::scroll(lua_State *L) {
 int monitor::setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (selectedRenderer == 4) printf("TC:%d;%ld,%ld\n", term->id, lua_tointeger(L, 1), lua_tointeger(L, 2));
     std::lock_guard<std::mutex> lock(term->locked);
     term->blinkX = lua_tointeger(L, 1) - 1;
     term->blinkY = lua_tointeger(L, 2) - 1;
@@ -81,6 +86,7 @@ int monitor::setCursorBlink(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
     std::lock_guard<std::mutex> lock(term->locked);
     term->canBlink = lua_toboolean(L, 1);
+    if (selectedRenderer == 4) printf("TB:%d;%s\n", term->id, lua_toboolean(L, 1) ? "true" : "false");
     return 0;
 }
 
@@ -102,6 +108,7 @@ int monitor::getSize(lua_State *L) {
 }
 
 int monitor::clear(lua_State *L) {
+    if (selectedRenderer == 4) printf("TE:%d;\n", term->id);
     std::lock_guard<std::mutex> lock(term->locked);
     if (term->mode != 0) {
         term->pixels = vector2d<unsigned char>(term->width * Terminal::fontWidth, term->height * Terminal::fontHeight, 0x0F);
@@ -114,6 +121,7 @@ int monitor::clear(lua_State *L) {
 }
 
 int monitor::clearLine(lua_State *L) {
+    if (selectedRenderer == 4) printf("TL:%d;\n", term->id);
     std::lock_guard<std::mutex> lock(term->locked);
     term->screen[term->blinkY] = std::vector<unsigned char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
@@ -123,6 +131,8 @@ int monitor::clearLine(lua_State *L) {
 
 int monitor::setTextColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (selectedRenderer == 4 && lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < 16) 
+        printf("TF:%d;%c\n", term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     int c = log2i(lua_tointeger(L, 1));
     colors = (colors & 0xf0) | c;
     return 0;
@@ -130,6 +140,8 @@ int monitor::setTextColor(lua_State *L) {
 
 int monitor::setBackgroundColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (selectedRenderer == 4 && lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < 16) 
+        printf("TK:%d;%c\n", term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     int c = log2i(lua_tointeger(L, 1));
     colors = (colors & 0x0f) | (c << 4);
     return 0;
@@ -165,6 +177,8 @@ int monitor::blit(lua_State *L) {
     std::lock_guard<std::mutex> lock(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
         colors = htoi(bg[i]) << 4 | htoi(fg[i]);
+        if (selectedRenderer == 4)
+            printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[colors & 0xf], term->id, ("0123456789abcdef")[colors >> 4], term->id, str[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = colors;
     }
@@ -186,10 +200,13 @@ int monitor::setPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
     if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
     int color = log2i(lua_tointeger(L, 1));
+    if (color < 0 || color > 255) luaL_error(L, "bad argument #1 (invalid color %d)", color);
     std::lock_guard<std::mutex> lock(term->locked);
     term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
     term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
     term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
+    if (selectedRenderer == 4 && color < 16) 
+        printf("TM:%d;%d,%f,%f,%f\n", term->id, color, term->palette[color].r / 255.0, term->palette[color].g / 255.0, term->palette[color].b / 255.0);
     term->changed = true;
     return 0;
 }

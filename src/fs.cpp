@@ -15,9 +15,6 @@
 #include "platform.hpp"
 #include "mounter.hpp"
 #include "config.hpp"
-extern "C" {
-#include <lauxlib.h>
-}
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +47,6 @@ extern "C" {
 #endif
 
 extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
-extern std::vector<std::string> split(std::string strToSplit, char delimeter);
 
 void err(lua_State *L, int idx, const char * err) {
     luaL_where(L, 1);

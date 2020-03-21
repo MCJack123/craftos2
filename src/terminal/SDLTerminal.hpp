@@ -10,6 +10,7 @@
 
 #ifndef TERMINAL_SDLTERMINAL_HPP
 #define TERMINAL_SDLTERMINAL_HPP
+#include "Terminal.hpp"
 #ifdef _WIN32
 #include <SDL.h>
 #else

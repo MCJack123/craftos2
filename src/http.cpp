@@ -25,9 +25,6 @@
 #include <cctype>
 #include <functional>
 #include <chrono>
-extern "C" {
-#include <lauxlib.h>
-}
 #include <Poco/URI.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>

@@ -25,14 +25,12 @@
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
+#include "terminal/TRoRTerminal.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
 #include <dirent.h>
 #include <sys/stat.h>
-extern "C" {
-#include <lauxlib.h>
-}
 
 #define PLUGIN_VERSION 2
 
@@ -87,6 +85,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else if (selectedRenderer == 2) term = new CLITerminal(term_title);
 #endif
     else if (selectedRenderer == 3) term = new RawTerminal(term_title);
+    else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
     else term = new SDLTerminal(term_title);
 }
 

@@ -13,9 +13,6 @@
 #include "../platform.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
-extern "C" {
-#include <lauxlib.h>
-}
 
 int drive::isDiskPresent(lua_State *L) {
     lua_pushboolean(L, diskType != DISK_TYPE_NONE);

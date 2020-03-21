@@ -17,6 +17,7 @@
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/SDLTerminal.hpp"
+#include "terminal/TRoRTerminal.hpp"
 #include <functional>
 #include <thread>
 #include <iomanip>
@@ -282,6 +283,7 @@ int main(int argc, char*argv[]) {
 		else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") selectedRenderer = 2;
         else if (std::string(argv[i]) == "--raw") selectedRenderer = 3;
         else if (std::string(argv[i]) == "--raw-client") rawClient = true;
+        else if (std::string(argv[i]) == "--tror") selectedRenderer = 4;
 		else if (std::string(argv[i]) == "--script") script_file = argv[++i];
 		else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
 		else if (std::string(argv[i]) == "--args") script_args = argv[++i];
@@ -332,7 +334,8 @@ int main(int argc, char*argv[]) {
 #endif
                       << "  --headless              Outputs only text straight to stdout\n"
                       << "  --raw                   Outputs terminal contents using a binary format\n"
-                      << "  --raw-client            Renders raw output from another terminal\n";
+                      << "  --raw-client            Renders raw output from another terminal\n"
+                      << "  --tror                  Outputs TRoR (terminal redirect over Rednet) packets\n";
             return 0;
         }
     }
@@ -351,6 +354,7 @@ int main(int argc, char*argv[]) {
 #endif
     if (selectedRenderer == 3) RawTerminal::init();
     else if (selectedRenderer == 0) SDLTerminal::init();
+    else if (selectedRenderer == 4) TRoRTerminal::init();
     else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
     driveInit();
 #ifndef NO_MIXER
@@ -384,6 +388,7 @@ int main(int argc, char*argv[]) {
 #endif
     if (selectedRenderer == 3) RawTerminal::quit();
     else if (selectedRenderer == 0) SDLTerminal::quit();
+    else if (selectedRenderer == 4) TRoRTerminal::quit();
     else SDL_Quit();
     return returnValue;
 }

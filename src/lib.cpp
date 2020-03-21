@@ -18,9 +18,6 @@
 #include <sstream>
 #include <Poco/Base64Decoder.h>
 #include <Poco/Base64Encoder.h>
-extern "C" {
-#include <lauxlib.h>
-}
 #include "Computer.hpp"
 
 char computer_key = 'C';
@@ -68,4 +65,14 @@ std::string b64decode(std::string orig) {
     Poco::Base64Decoder dec(out);
     std::copy(std::istreambuf_iterator<char>(dec), std::istreambuf_iterator<char>(), std::ostreambuf_iterator<char>(ss));
     return ss.str();
+}
+
+std::vector<std::string> split(std::string strToSplit, char delimeter) {
+    std::stringstream ss(strToSplit);
+    std::string item;
+    std::vector<std::string> splittedStrings;
+    while (std::getline(ss, item, delimeter)) {
+        splittedStrings.push_back(item);
+    }
+    return splittedStrings;
 }

@@ -431,6 +431,8 @@ void RawTerminal::quit() {
 	});
     renderThread->join();
     delete renderThread;
+	inputThread->join();
+	delete inputThread;
     SDL_Quit();
 }
 
@@ -466,6 +468,15 @@ RawTerminal::~RawTerminal() {
 }
 
 void RawTerminal::render() {
+	if (gotResizeEvent) {
+        gotResizeEvent = false;
+        this->screen.resize(newWidth, newHeight, ' ');
+        this->colors.resize(newWidth, newHeight, 0xF0);
+        this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+        this->width = newWidth;
+        this->height = newHeight;
+        changed = true;
+    }
     if (!changed) return;
     changed = false;
 	sendRawData(CCPC_RAW_TERMINAL_DATA, (uint8_t)id, [this](std::ostream& output) {

@@ -16,9 +16,6 @@
 #include "term.hpp"
 #include "os.hpp"
 #include <unordered_map>
-extern "C" {
-#include <lauxlib.h>
-}
 #include <emscripten/emscripten.h>
 #include <emscripten/fetch.h>
 

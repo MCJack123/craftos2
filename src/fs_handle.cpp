@@ -15,9 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-extern "C" {
-#include <lauxlib.h>
-}
+
 #include <codecvt>
 #include <string>
 #include <locale>

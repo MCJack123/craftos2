@@ -31,16 +31,6 @@
 
 extern std::string script_file;
 
-std::vector<std::string> split(std::string strToSplit, char delimeter) {
-    std::stringstream ss(strToSplit);
-    std::string item;
-    std::vector<std::string> splittedStrings;
-    while (std::getline(ss, item, delimeter)) {
-        splittedStrings.push_back(item);
-    }
-    return splittedStrings;
-}
-
 bool nothrow(std::function<void()> f) {try {f(); return true;} catch (std::exception &e) {return false;}}
 
 std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults) {

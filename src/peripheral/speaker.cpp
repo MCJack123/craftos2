@@ -19,9 +19,6 @@
 #include <SDL2/SDL_mixer.h>
 #endif
 #include <cmath>
-extern "C" {
-#include <lauxlib.h>
-}
 #include <fstream>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -362,8 +359,6 @@ int speaker::playSound(lua_State *L) {
     return 1;
 #endif
 }
-
-extern std::vector<std::string> split(std::string strToSplit, char delimeter);
 
 int speaker::listSounds(lua_State *L) {
 	lua_newtable(L);

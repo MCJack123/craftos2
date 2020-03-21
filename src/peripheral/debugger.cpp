@@ -20,9 +20,6 @@
 #include <thread>
 #include <unordered_set>
 #include <cassert>
-extern "C" {
-#include <lauxlib.h>
-}
 
 
 extern std::list<std::thread*> computerThreads;

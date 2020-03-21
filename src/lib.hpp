@@ -12,9 +12,12 @@
 #ifndef LIB_HPP
 #define LIB_HPP
 #include <functional>
+#include <vector>
+#include <string>
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
+#include <lauxlib.h>
 }
 
 #define CRAFTOSPC_VERSION "v2.3"
@@ -43,6 +46,7 @@ extern void load_library(Computer *comp, lua_State *L, library_t lib);
 extern void bad_argument(lua_State *L, const char * type, int pos);
 extern std::string b64encode(std::string orig);
 extern std::string b64decode(std::string orig);
+extern std::vector<std::string> split(std::string strToSplit, char delimeter);
 
 #ifdef CRAFTOSPC_INTERNAL // so plugins won't need Poco
 

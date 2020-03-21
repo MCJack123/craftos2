@@ -769,7 +769,7 @@ int term_write(lua_State *L) {
         printf("%s", lua_tostring(L, 1));
         headlessCursorX += lua_strlen(L, 1);
         return 0;
-    }
+    } else if (selectedRenderer == 4) printf("TW:%d;%s\n", get_comp(L)->term->id, lua_tostring(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     if (term->blinkX >= term->width || term->blinkY >= term->height) return 0;
@@ -792,7 +792,7 @@ int term_scroll(lua_State *L) {
     if (selectedRenderer == 1) {
         for (int i = 0; i < lua_tointeger(L, 1); i++) printf("\n");
         return 0;
-    }
+    } else if (selectedRenderer == 4) printf("TS:%d;%ld\n", get_comp(L)->term->id, lua_tointeger(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
@@ -820,7 +820,7 @@ int term_setCursorPos(lua_State *L) {
         headlessCursorY = lua_tointeger(L, 2);
         fflush(stdout);
         return 0;
-    }
+    } else if (selectedRenderer == 4) printf("TC:%d;%ld,%ld\n", get_comp(L)->term->id, lua_tointeger(L, 1), lua_tointeger(L, 2));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
@@ -838,6 +838,7 @@ int term_setCursorBlink(lua_State *L) {
         get_comp(L)->term->canBlink = lua_toboolean(L, 1);
         get_comp(L)->term->changed = true;
     } else can_blink_headless = lua_toboolean(L, 1);
+    if (selectedRenderer == 4) printf("TB:%d;%s\n", get_comp(L)->term->id, lua_toboolean(L, 1) ? "true" : "false");
     return 0;
 }
 
@@ -877,7 +878,7 @@ int term_clear(lua_State *L) {
     if (selectedRenderer == 1) {
         for (int i = 0; i < 30; i++) printf("\n");
         return 0;
-    }
+    } else if (selectedRenderer == 4) printf("TE:%d;\n", get_comp(L)->term->id);
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
@@ -897,7 +898,7 @@ int term_clearLine(lua_State *L) {
         for (int i = 0; i < 100; i++) printf(" ");
         printf("\r");
         return 0;
-    }
+    } else if (selectedRenderer == 4) printf("TL:%d;\n", get_comp(L)->term->id);
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
@@ -909,6 +910,8 @@ int term_clearLine(lua_State *L) {
 
 int term_setTextColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (selectedRenderer == 4 && lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < 16) 
+        printf("TF:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
     unsigned int c = log2i(lua_tointeger(L, 1));
     if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
@@ -918,6 +921,8 @@ int term_setTextColor(lua_State *L) {
 
 int term_setBackgroundColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (selectedRenderer == 4 && lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < 16) 
+        printf("TK:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
     unsigned int c = log2i(lua_tointeger(L, 1));
     if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
@@ -977,6 +982,8 @@ int term_blit(lua_State *L) {
             computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
         if ((computer->config.isColor || computer->isDebugger) || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) 
             computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
+        if (selectedRenderer == 4)
+            printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[computer->colors & 0xf], term->id, ("0123456789abcdef")[computer->colors >> 4], term->id, str[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];
         term->colors[term->blinkY][term->blinkX] = computer->colors;
     }}
@@ -1022,6 +1029,7 @@ int term_setPaletteColor(lua_State *L) {
     int color;
     if (term->mode == 2) color = lua_tointeger(L, 1);
     else color = log2i(lua_tointeger(L, 1));
+    if (color < 0 || color > 255) luaL_error(L, "bad argument #1 (invalid color %d)", color);
     if (lua_isnoneornil(L, 3)) {
         unsigned int rgb = lua_tointeger(L, 2);
         term->palette[color].r = rgb >> 16 & 0xFF;
@@ -1032,6 +1040,8 @@ int term_setPaletteColor(lua_State *L) {
         term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
         term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
     }
+    if (selectedRenderer == 4 && color < 16) 
+        printf("TM:%d;%d,%f,%f,%f\n", term->id, color, term->palette[color].r / 255.0, term->palette[color].g / 255.0, term->palette[color].b / 255.0);
     term->changed = true;
     //printf("%d -> %d, %d, %d\n", color, term->palette[color].r, term->palette[color].g, term->palette[color].b);
     return 0;
