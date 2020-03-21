@@ -99,7 +99,13 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
                 struct stat st;
                 sstmp << p;
                 for (std::string s : pathc) sstmp << PATH_SEP << s;
-                if ((stat((sstmp.str() + PATH_SEP + back).c_str(), &st) == 0) || (!exists && stat(sstmp.str().c_str(), &st) == 0 && S_ISDIR(st.st_mode))) {
+                if (
+#ifdef STANDALONE_ROM
+                (p == "rom:" && (nothrow([&sstmp, back](){standaloneROM.path(sstmp.str() + "/" + back);}) || (nothrow([&sstmp](){standaloneROM.path(sstmp.str());}) && standaloneROM.path(sstmp.str()).isDir))) || 
+                (p == "debug:" && (nothrow([&sstmp, back](){standaloneDebug.path(sstmp.str() + "/" + back);}) || (nothrow([&sstmp](){standaloneDebug.path(sstmp.str());}) && standaloneDebug.path(sstmp.str()).isDir))) ||
+#endif
+                (stat((sstmp.str() + PATH_SEP + back).c_str(), &st) == 0) || (stat(sstmp.str().c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+                ) {
                     if (getAllResults && found) ss << "\n";
                     ss << sstmp.str() << PATH_SEP << back;
                     found = true;

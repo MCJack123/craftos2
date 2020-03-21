@@ -64,27 +64,27 @@ std::string concat(std::vector<std::string> c, char sep) {
     bool started = false;
     for (std::string s : c) {
         if (started) ss << sep;
-        ss >> s;
+        ss << s;
         started = true;
     }
     return ss.str();
 }
 
-std::string fixpath_mkdir(Computer * comp, std::string path, bool md = true) {
-    if (fixpath_ro(comp, path.c_str())) return std::string();
+std::string fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL) {
+    if (md && fixpath_ro(comp, path.c_str())) return std::string();
     std::vector<std::string> components = split(path, PATH_SEPC);
     components.pop_back();
     std::vector<std::string> append;
-    std::string maxPath = fixpath(comp, concat(components, PATH_SEPC).c_str(), false);
+    std::string maxPath = fixpath(comp, concat(components, PATH_SEPC).c_str(), false, true, mountPath);
     while (maxPath.empty()) {
         append.push_back(components.back());
         components.pop_back();
         if (components.empty()) return std::string();
-        maxPath = fixpath(comp, concat(components, PATH_SEPC).c_str(), false);
+        maxPath = fixpath(comp, concat(components, PATH_SEPC).c_str(), false, true, mountPath);
     }
     if (!md) return maxPath;
     if (createDirectory(maxPath + "/" + concat(append, PATH_SEPC)) != 0) return std::string();
-    return fixpath(comp, path.c_str(), false);
+    return fixpath(comp, path.c_str(), false, true, mountPath);
 }
 
 const char * ignored_files[4] = {
@@ -217,7 +217,7 @@ int fs_getName(lua_State *L) {
 int fs_getDrive(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     std::string retval;
-    fixpath(get_comp(L), lua_tostring(L, 1), false, true, &retval);
+    fixpath_mkdir(get_comp(L), std::string(lua_tostring(L, 1)) + "/a", false, &retval);
     lua_pushstring(L, retval.c_str());
     return 1;
 }
