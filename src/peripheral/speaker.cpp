@@ -401,7 +401,7 @@ int speaker::listSounds(lua_State *L) {
 	return 1;
 }
 
-int speaker::playLocalSound(lua_State *L) {
+int speaker::playLocalMusic(lua_State *L) {
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
 	if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
 	std::string path = fixpath(get_comp(L), lua_tostring(L, 1), true);
@@ -418,6 +418,18 @@ int speaker::playLocalSound(lua_State *L) {
 	return 0;
 }
 
+int speaker::setSoundFont(lua_State *L) {
+	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+	Mix_SetSoundFonts(lua_tostring(L, 1));
+	return 0;
+}
+
+int speaker::stopSounds(lua_State *L) {
+	Mix_HaltMusic();
+	Mix_HaltChannel(-1);
+	return 0;
+}
+
 speaker::speaker(lua_State *L, const char * side) {
 	RNG.seed(time(0)); // doing this here so the seed can be refreshed
 }
@@ -431,7 +443,8 @@ int speaker::call(lua_State *L, const char * method) {
     if (m == "playNote") return playNote(L);
     else if (m == "playSound") return playSound(L);
 	else if (m == "listSounds") return listSounds(L);
-	else if (m == "playLocalSound") return playLocalSound(L);
+	else if (m == "playLocalMusic") return playLocalMusic(L);
+	else if (m == "setSoundFont") return setSoundFont(L);
     else return 0;
 }
 
@@ -498,9 +511,11 @@ const char * speaker_names[] = {
     "playNote",
     "playSound",
 	"listSounds",
-	"playLocalSound"
+	"playLocalSound",
+	"setSoundFont",
+	"stopSounds"
 };
 
-library_t speaker::methods = {"speaker", 4, speaker_names, NULL, nullptr, nullptr};
+library_t speaker::methods = {"speaker", 6, speaker_names, NULL, nullptr, nullptr};
 
 #endif

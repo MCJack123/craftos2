@@ -18,8 +18,10 @@ private:
     static library_t methods;
     int playNote(lua_State *L);
     int playSound(lua_State *L);
-    int playLocalSound(lua_State *L);
+    int playLocalMusic(lua_State *L);
     int listSounds(lua_State *L);
+    int setSoundFont(lua_State *L);
+    int stopSounds(lua_State *L);
 public:
     static peripheral * init(lua_State *L, const char * side) {return new speaker(L, side);}
     static void deinit(peripheral * p) {delete (speaker*)p;}
