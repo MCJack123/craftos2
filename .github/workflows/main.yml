@@ -47,3 +47,30 @@ jobs:
         make
     - name: Run CraftOSTest
       run: make test
+
+  build-standalone:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: sudo git clone https://github.com/MCJack123/craftos2-rom
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev node
+    - name: Build standalone ROM
+      run: |
+        cd craftos2-rom
+        node ../packStandaloneROM.js
+        cd ..
+    - name: Build Lua
+      run: |
+        git submodule update --init --recursive
+        make -C craftos2-lua linux
+    - name: Build CraftOS-PC
+      run: |
+        CFLAGS=-Wall ./configure --with-standalone-rom=craftos2-rom/fs_standalone.cpp
+        make
+    - name: Run CraftOSTest
+      run: make test
