@@ -21,6 +21,7 @@ extern "C" {
 #include <codecvt>
 #include <string>
 #include <locale>
+#include <iostream>
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #include "os.hpp"
