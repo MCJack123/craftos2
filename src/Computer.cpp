@@ -196,7 +196,6 @@ void Computer::run(std::string bios_name) {
     setjmp(on_panic);
     while (running) {
         int status;
-        lua_State *coro;
         if (term != NULL) {
             // Initialize terminal contents
             std::lock_guard<std::mutex> lock(term->locked);
@@ -234,7 +233,7 @@ void Computer::run(std::string bios_name) {
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
-        if (::config.debug_enable) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        if (::config.debug_enable && !isDebugger) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         else lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);

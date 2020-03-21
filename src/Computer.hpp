@@ -83,6 +83,7 @@ public:
     bool shouldDeinitDebugger = false;
     int timeoutCheckCount = 0;
     std::unordered_set<int> usedDriveMounts;
+    lua_State *coro;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);

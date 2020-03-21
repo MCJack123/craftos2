@@ -13,6 +13,7 @@
 #include "speaker.hpp"
 #include "../config.hpp"
 #include "../platform.hpp"
+#include "../mounter.hpp"
 #ifdef _WIN32
 #include <SDL_mixer.h>
 #else
@@ -277,7 +278,10 @@ bool playSoundEvent(std::string name, float volume, float speed) {
 						chunk = Mix_LoadMUS((path + ".flac").c_str());
 						if (chunk == NULL) {
 							chunk = Mix_LoadMUS((path + ".wav").c_str());
-							if (chunk == NULL) return false;
+							if (chunk == NULL) {
+								chunk = Mix_LoadMUS((path + ".mid").c_str());
+								if (chunk == NULL) return false;
+							}
 						}
 					}
 				}
@@ -295,7 +299,10 @@ bool playSoundEvent(std::string name, float volume, float speed) {
 						chunk = Mix_LoadWAV((path + ".flac").c_str());
 						if (chunk == NULL) {
 							chunk = Mix_LoadWAV((path + ".wav").c_str());
-							if (chunk == NULL) return false;
+							if (chunk == NULL) {
+								chunk = Mix_LoadWAV((path + ".mid").c_str());
+								if (chunk == NULL) return false;
+							}
 						}
 					}
 				}
@@ -394,6 +401,23 @@ int speaker::listSounds(lua_State *L) {
 	return 1;
 }
 
+int speaker::playLocalSound(lua_State *L) {
+	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+	if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
+	std::string path = fixpath(get_comp(L), lua_tostring(L, 1), true);
+	if (path.empty()) luaL_error(L, "%s: File does not exist", lua_tostring(L, 1));
+	float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
+	if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
+	Mix_Music * mus = Mix_LoadMUS(path.c_str());
+	if (mus == NULL) luaL_error(L, "%s: Could not load music file", lua_tostring(L, 1));
+	if (Mix_PlayingMusic()) Mix_HaltMusic();
+	Mix_VolumeMusic(volume * (MIX_MAX_VOLUME / 3));
+	currentlyPlayingMusic = mus;
+	Mix_PlayMusic(mus, 0);
+	Mix_HookMusicFinished(musicFinished);
+	return 0;
+}
+
 speaker::speaker(lua_State *L, const char * side) {
 	RNG.seed(time(0)); // doing this here so the seed can be refreshed
 }
@@ -407,6 +431,7 @@ int speaker::call(lua_State *L, const char * method) {
     if (m == "playNote") return playNote(L);
     else if (m == "playSound") return playSound(L);
 	else if (m == "listSounds") return listSounds(L);
+	else if (m == "playLocalSound") return playLocalSound(L);
     else return 0;
 }
 
@@ -472,9 +497,10 @@ void speakerQuit() {
 const char * speaker_names[] = {
     "playNote",
     "playSound",
-	"listSounds"
+	"listSounds",
+	"playLocalSound"
 };
 
-library_t speaker::methods = {"speaker", 3, speaker_names, NULL, nullptr, nullptr};
+library_t speaker::methods = {"speaker", 4, speaker_names, NULL, nullptr, nullptr};
 
 #endif

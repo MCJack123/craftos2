@@ -386,6 +386,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
     if (computer->shouldDeinitDebugger && computer->debugger != NULL && !computer->isDebugger) {
         computer->shouldDeinitDebugger = false;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
         computer->debugger = NULL;
