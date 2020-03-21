@@ -416,9 +416,9 @@ int fs_handle_istream_seek(lua_State *L) {
     size_t offset = lua_isnumber(L, 2) ? lua_tointeger(L, 2) : 0;
     std::istream * fp = (std::iostream*)lua_touserdata(L, lua_upvalueindex(1));
     std::ios::seekdir origin;
-    if (strcmp(whence, "set") == 0) origin = std::ios::seekdir::beg;
-    else if (strcmp(whence, "cur") == 0) origin = std::ios::seekdir::cur;
-    else if (strcmp(whence, "end") == 0) origin = std::ios::seekdir::end;
+    if (strcmp(whence, "set") == 0) origin = std::ios::beg;
+    else if (strcmp(whence, "cur") == 0) origin = std::ios::cur;
+    else if (strcmp(whence, "end") == 0) origin = std::ios::end;
     else {
         lua_pushfstring(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
         lua_error(L);
