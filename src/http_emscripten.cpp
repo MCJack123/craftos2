@@ -15,7 +15,9 @@
 #include "http.hpp"
 #include "term.hpp"
 #include "os.hpp"
+#include "platform.hpp"
 #include <unordered_map>
+#include <thread>
 #include <emscripten/emscripten.h>
 #include <emscripten/fetch.h>
 

@@ -532,7 +532,7 @@ extern bool rawClient;
 extern void sendRawEvent(SDL_Event e);
 
 #ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *TerminalWindow::renderTarget || findMonitorFromWindowID(c, (*TerminalWindow::renderTarget)->id, tmps) != NULL)
+#define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
 #define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
 #endif
@@ -557,11 +557,11 @@ bool SDLTerminal::pollEvents() {
 			}
 		} else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
-			TerminalWindow* term = *TerminalWindow::renderTarget;
+			SDLTerminal* term = dynamic_cast<SDLTerminal*>(*SDLTerminal::renderTarget);
 			std::lock_guard<std::mutex> lock(term->locked);
 			if (term->surf != NULL) {
-				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(TerminalWindow::win), NULL);
-				SDL_UpdateWindowSurface(TerminalWindow::win);
+				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
+				SDL_UpdateWindowSurface(SDLTerminal::win);
 				SDL_FreeSurface(term->surf);
 				term->surf = NULL;
 			}

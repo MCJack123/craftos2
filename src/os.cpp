@@ -132,7 +132,15 @@ Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
 int getNextEvent(lua_State *L, std::string filter) {
     Computer * computer = get_comp(L);
     if (computer->running != 1) return 0;
-    if (computer->eventTimeout != 0) {SDL_RemoveTimer(computer->eventTimeout); computer->eventTimeout = 0; computer->timeoutCheckCount = 0;}
+    if (computer->eventTimeout != 0) {
+#ifdef __EMSCRIPTEN__
+        queueTask([computer](void*)->void*{SDL_RemoveTimer(computer->eventTimeout); return NULL;}, NULL);
+#else
+        SDL_RemoveTimer(computer->eventTimeout);
+#endif
+        computer->eventTimeout = 0;
+        computer->timeoutCheckCount = 0;
+    }
     std::string ev;
     gettingEvent(computer);
     if (!lua_checkstack(computer->paramQueue, 1)) {
@@ -316,7 +324,11 @@ int os_startTimer(lua_State *L) {
 
 int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+#ifdef __EMSCRIPTEN__
     queueTask([L](void*)->void*{SDL_RemoveTimer(lua_tointeger(L, 1)); return NULL;}, NULL);
+#else
+    SDL_RemoveTimer(lua_tointeger(L, 1));
+#endif
     return 0;
 }
 

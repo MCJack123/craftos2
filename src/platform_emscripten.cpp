@@ -48,6 +48,8 @@ int removeDirectory(std::string path) {
 
 void setBasePath(const char * path) {}
 
+void setROMPath(const char * path) {}
+
 std::string getBasePath() {
     return "/user-data";
 }
