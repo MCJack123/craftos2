@@ -339,6 +339,9 @@ void SDLTerminal::render() {
         SDL_SaveBMP(conv, screenshotPath.c_str());
         SDL_FreeSurface(conv);
 #endif
+#ifdef __EMSCRIPTEN__
+        EM_ASM(FS.syncfs());
+#endif
     }
     if (shouldRecord) {
         if (recordedFrames >= config.maxRecordingTime * config.recordingFPS) stopRecording();
@@ -486,6 +489,9 @@ void SDLTerminal::stopRecording() {
     GifEnd(&g);
     recording.clear();
     recorderMutex.unlock();
+#ifdef __EMSCRIPTEN__
+    EM_ASM(FS.syncfs());
+#endif
 }
 
 void SDLTerminal::showMessage(Uint32 flags, const char * title, const char * message) {SDL_ShowSimpleMessageBox(flags, title, message, win);}

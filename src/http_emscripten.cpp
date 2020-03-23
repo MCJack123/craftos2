@@ -314,6 +314,8 @@ int http_websocket(lua_State *L) {
     return 0;
 }
 
+void stopWebsocket(void*n){}
+
 const char * http_keys[5] = {
     "request",
     "checkURL",
