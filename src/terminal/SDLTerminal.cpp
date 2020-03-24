@@ -340,7 +340,7 @@ void SDLTerminal::render() {
         SDL_FreeSurface(conv);
 #endif
 #ifdef __EMSCRIPTEN__
-        EM_ASM(FS.syncfs());
+        EM_ASM(FS.syncfs(()=>{}));
 #endif
     }
     if (shouldRecord) {
@@ -490,7 +490,7 @@ void SDLTerminal::stopRecording() {
     recording.clear();
     recorderMutex.unlock();
 #ifdef __EMSCRIPTEN__
-    EM_ASM(FS.syncfs());
+    EM_ASM(FS.syncfs(()=>{}));
 #endif
 }
 
