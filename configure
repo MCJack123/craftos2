@@ -4171,7 +4171,7 @@ if test "x$enable_wasm" = "xyes"; then
     LIBS="$LIBS -lPocoNetSSL -lPocoNet -lPocoCrypto -lPocoJSON -lPocoXML -lPocoUtil -lPocoFoundation -lssl -lcrypto"
     OUT_TARGET=craftos.html
 
-    HTTP_TARGET=http_emscripten.o
+    HTTP_TARGET="http_emscripten.o"
 
 else
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Poco::ASCIIEncoding in -lPocoFoundation" >&5
@@ -5219,7 +5219,7 @@ else
 fi
     OUT_TARGET=craftos
 
-    HTTP_TARGET=http_handle.o http.o
+    HTTP_TARGET="http_handle.o http.o"
 
 fi
 
