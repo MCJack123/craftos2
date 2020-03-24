@@ -43,9 +43,9 @@ int fs_handle_close(lua_State *L) {
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));
     get_comp(L)->files_open--;
-    #ifdef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
-    #endif
+#endif
     return 0;
 }
 
@@ -61,9 +61,9 @@ int fs_handle_istream_close(lua_State *L) {
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));
     get_comp(L)->files_open--;
-    #ifdef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
-    #endif
+#endif
     return 0;
 }
 

@@ -108,6 +108,8 @@ extern "C" {
     const char * EMSCRIPTEN_KEEPALIVE getRenderTargetName() {
         return (*Terminal::renderTarget)->title.c_str();
     }
+
+    extern void syncfs();
 }
 
 void onWindowCreate(int id, const char * title) {EM_ASM({Module.windowEventListener.onWindowCreate($0, $1);}, id, title);}
@@ -340,7 +342,7 @@ void SDLTerminal::render() {
         SDL_FreeSurface(conv);
 #endif
 #ifdef __EMSCRIPTEN__
-        EM_ASM(FS.syncfs(()=>{}));
+        queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif
     }
     if (shouldRecord) {
@@ -490,7 +492,7 @@ void SDLTerminal::stopRecording() {
     recording.clear();
     recorderMutex.unlock();
 #ifdef __EMSCRIPTEN__
-    EM_ASM(FS.syncfs(()=>{}));
+    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif
 }
 
