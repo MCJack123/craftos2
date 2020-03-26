@@ -112,8 +112,8 @@ extern "C" {
     extern void syncfs();
 }
 
-void onWindowCreate(int id, const char * title) {EM_ASM({Module.windowEventListener.onWindowCreate($0, $1);}, id, title);}
-void onWindowDestroy(int id) {EM_ASM({Module.windowEventListener.onWindowDestroy($0);}, id);}
+void onWindowCreate(int id, const char * title) {EM_ASM({if (Module.windowEventListener !== undefined) Module.windowEventListener.onWindowCreate($0, $1);}, id, title);}
+void onWindowDestroy(int id) {EM_ASM({if (Module.windowEventListener !== undefined) Module.windowEventListener.onWindowDestroy($0);}, id);}
 #endif
 
 SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
@@ -141,10 +141,16 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
         charWidth = fontWidth * 2/fontScale * charScale;
         charHeight = fontHeight * 2/fontScale * charScale;
     }
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
     if (win == NULL)
+#else
+    dpiScale = 1;
 #endif
-    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth+(4 * charScale * (2 / fontScale)), height*charHeight+(4 * charScale * (2 / fontScale)), SDL_WINDOW_SHOWN | (EMSCRIPTEN_ENABLED ? 0 : SDL_WINDOW_ALLOW_HIGHDPI) | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
+    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale), height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale), SDL_WINDOW_SHOWN | 
+#if !(defined(__EMSCRIPTEN__) && defined(NO_EMSCRIPTEN_HIDPI))
+    SDL_WINDOW_ALLOW_HIGHDPI |
+#endif
+    SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
         overridden = true;
         throw window_exception("Failed to create window");
@@ -165,7 +171,6 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
     SDL_FreeSurface(icon);
     delete[] icon_pixels;
 #endif
-    dpiScale = 1;
     SDL_Surface* old_bmp;
     if (config.customFontPath.empty()) 
         old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
