@@ -8,12 +8,11 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "drive.hpp"
+#include "../platform.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
-extern "C" {
-#include <lauxlib.h>
-}
 
 int drive::isDiskPresent(lua_State *L) {
     lua_pushboolean(L, diskType != DISK_TYPE_NONE);
@@ -134,12 +133,14 @@ int drive::insertDisk(lua_State *L, bool init) {
     } else if (lua_isstring(L, arg)) {
         path = lua_tostring(L, arg);
         struct stat st;
+#ifndef STANDALONE_ROM
         if (path.substr(0, 9) == "treasure:") {
 #ifdef WIN32
             for (int i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
 #endif
             path = std::string(getROMPath()) + "\\treasure\\" + path.substr(9);
         }
+#endif
         if (stat(path.c_str(), &st) != 0) {
             lua_pushfstring(L, "Could not mount: %s", strerror(errno));
             lua_error(L);
@@ -170,7 +171,7 @@ int drive::insertDisk(lua_State *L, bool init) {
 void driveInit() {
 #ifndef NO_MIXER
     Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
-    Mix_OpenAudio(44100, AUDIO_S16, 2, 2048);
+    Mix_OpenAudio(44100, AUDIO_S16, 2, 4096);
 #endif
 }
 

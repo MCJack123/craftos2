@@ -1,55 +1,49 @@
 /*
- * CLITerminalWindow.hpp
+ * CLITerminal.hpp
  * CraftOS-PC 2
  * 
- * This file defines the CLITerminalWindow class.
+ * This file defines the CLITerminal class.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #ifndef NO_CLI
-#ifndef CLITERMINALWINDOW_HPP
-#define CLITERMINALWINDOW_HPP
-#include "TerminalWindow.hpp"
+#ifndef TERMINAL_CLITERMINAL_HPP
+#define TERMINAL_CLITERMINAL_HPP
+#include "Terminal.hpp"
 #include <string>
 #include <ncurses.h>
 #include <vector>
 #include <set>
 
-class CLITerminalWindow: public TerminalWindow {
+class CLITerminal: public Terminal {
     friend void mainLoop();
     friend void pressControl(int sig);
     friend void pressAlt(int sig);
-    std::string title;
     unsigned last_pair;
     unsigned short lastPaletteChecksum = 0;
     static std::set<unsigned>::iterator selectedWindow;
+	static std::set<unsigned> currentIDs;
 public:
+    static void init();
+    static void quit();
+	static bool pollEvents();
     static void renderNavbar(std::string title);
     static void nextWindow();
     static void previousWindow();
     static bool stopRender;
     static bool forceRender;
 
-    CLITerminalWindow(std::string title);
-    ~CLITerminalWindow() override;
-    void setPalette(Color * p) {}
-    void setCharScale(int scale) {}
+    CLITerminal(std::string title);
+    ~CLITerminal() override;
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
-    bool resize(int w, int h) {return false;}
+    bool resize(int w, int h) override;
     void getMouse(int *x, int *y);
-    void screenshot(std::string path = "") {}
-    void record(std::string path = "") {}
-    void stopRecording() {}
-    void toggleRecording() {}
-    void showMessage(Uint32 flags, const char * title, const char * message);
-    void toggleFullscreen() {}
+    void showMessage(Uint32 flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
 };
 
-extern void cliInit();
-extern void cliClose();
 #endif
 #endif

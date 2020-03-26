@@ -1,5 +1,5 @@
 # Initialize
-AC_INIT([CraftOS-PC], [2.2])
+AC_INIT([CraftOS-PC], [2.3])
 AC_CONFIG_SRCDIR([src/main.cpp])
 m4_include([m4/find_cxx.m4])
 m4_include([m4/find_cxx11.m4])
@@ -14,6 +14,7 @@ AC_ARG_WITH(sdl_mixer, [AS_HELP_STRING([--without-sdl_mixer], [do not support au
 AC_ARG_WITH(hpdf, [AS_HELP_STRING([--with-hpdf], [make printer output PDF files])])
 AC_ARG_WITH(html, [AS_HELP_STRING([--with-html], [make printer output HTML files])])
 AC_ARG_WITH(txt, [AS_HELP_STRING([--with-txt], [make printer output text files])])
+AC_ARG_WITH(standalone_rom, [AS_HELP_STRING([--with-standalone-rom], [path to standalone ROM file, enables standalone build])])
 AC_ARG_ENABLE(wasm, [AS_HELP_STRING([--enable-wasm], [compile for WebAssembly using Emscripten])])
 AC_ARG_WITH(wasm_poco, [AS_HELP_STRING([--with-wasm-poco], [path to Poco build for WASM])])
 AC_ARG_WITH(wasm_openssl, [AS_HELP_STRING([--with-wasm-openssl], [path to OpenSSL build for WASM])])
@@ -42,7 +43,7 @@ if test "x$enable_wasm" = "xyes"; then
     CXX=em++
     CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -I$with_wasm_openssl/include -Icraftos2-lua/include -DNO_CLI -DNO_PNG -DNO_MIXER -DPRINT_TYPE=1"
     CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1 -s BINARYEN_TRAP_MODE=clamp"
-    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -L$with_wasm_openssl/lib -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s BINARYEN_TRAP_MODE=clamp"
+    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -L$with_wasm_openssl/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s BINARYEN_TRAP_MODE=clamp -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\", \"cwrap\"]'"
 fi
 
 # Check language
@@ -78,6 +79,7 @@ if test "x$enable_wasm" = "xyes"; then
     LDFLAGS="$LDFLAGS -s USE_PTHREADS=1 --embed-file $with_wasm_rom@/craftos --shared-memory"
     LIBS="$LIBS -lPocoNetSSL -lPocoNet -lPocoCrypto -lPocoJSON -lPocoXML -lPocoUtil -lPocoFoundation -lssl -lcrypto"
     AC_SUBST(OUT_TARGET, craftos.html)
+    AC_SUBST(HTTP_TARGET, "http_emscripten.o")
 else
     AX_CXX_CHECK_LIB(PocoFoundation, [Poco::ASCIIEncoding], [], [AC_MSG_ERROR([Could not find Poco Foundation library.])])
     AX_CXX_CHECK_LIB(PocoUtil, [Poco::Util::Timer], [], [AC_MSG_ERROR([Could not find Poco Util library.])])
@@ -87,14 +89,23 @@ else
     AX_CXX_CHECK_LIB(PocoNet, [Poco::Net::HTTPRequest], [], [AC_MSG_ERROR([Could not find Poco Net library.])])
     AX_CXX_CHECK_LIB(PocoNetSSL, [Poco::Net::HTTPSClientSession], [], [AC_MSG_ERROR([Could not find Poco NetSSL library.])])
     AC_SUBST(OUT_TARGET, craftos)
+    AC_SUBST(HTTP_TARGET, "http_handle.o http.o")
+fi
+
+# Find standalone ROM if supplied
+
+if test "x$with_standalone_rom" != "x"; then
+    if test ! -e "$with_standalone_rom"; then
+        AC_MSG_ERROR([Could not find ROM file specified.])
+    fi
+    cp "$with_standalone_rom" "src/fs_standalone.cpp"
+    CPPFLAGS="$CPPFLAGS -DSTANDALONE_ROM"
+    AC_SUBST(OBJS, fs_standalone.o)
 fi
 
 # Check optional features
 
 if test "x$enable_wasm" != "xyes"; then
-
-    AC_SEARCH_LIBS(mpg123_init, mpg123)
-    AC_SEARCH_LIBS(FLAC__stream_decoder_new, flac)
 
     AS_IF([test "x$with_png" != "xno"], [
         AC_CHECK_HEADERS([png++/png.hpp], [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find png++ header.])], [NO_PNG=1])])
@@ -109,6 +120,9 @@ if test "x$enable_wasm" != "xyes"; then
     AS_IF([test "x$with_sdl_mixer" != "xno"], [
         AC_CHECK_HEADERS(SDL2/SDL_mixer.h, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_ERROR([Could not find SDL2_mixer header.])], [NO_MIXER=1])])
         AC_SEARCH_LIBS(Mix_Init, SDL2_mixer, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_ERROR([Could not find SDL2_mixer library.])], [NO_MIXER=1])])
+        AC_SEARCH_LIBS(mpg123_init, mpg123)
+        AC_SEARCH_LIBS(FLAC__stream_decoder_new, flac)
+        AC_SEARCH_LIBS(new_fluid_synth, fluidsynth, [], [AS_IF([test "x$with_sdl_mixer" = "xyes"], [AC_MSG_WARN([Could not find FluidSynth library. Soundfont support will be limited or non-existent.])], [])])
     ], [NO_MIXER=1])
 
     AS_IF([test "x$PRINT_TYPE" = "x" || test "x$PRINT_TYPE" = "x0"], [

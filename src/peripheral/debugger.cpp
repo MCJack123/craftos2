@@ -8,20 +8,20 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "debugger.hpp"
+#include "../fs_standalone.hpp"
 #include "../os.hpp"
-#include "../CLITerminalWindow.hpp"
+#include "../terminal/CLITerminal.hpp"
 #include "../term.hpp"
 #include "../mounter.hpp"
+#include "../platform.hpp"
 #include <sstream>
-#include <functional>
+#include <thread>
 #include <unordered_set>
 #include <cassert>
-extern "C" {
-#include <lauxlib.h>
-}
 
-extern bool cli;
+
 extern std::list<std::thread*> computerThreads;
 extern std::unordered_set<Computer*> freedComputers;
 extern std::thread::id mainThreadID;
@@ -30,7 +30,11 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread (Debugger)").c_str());
 #endif
+#ifdef STANDALONE_ROM
+    comp->run(standaloneDebug["bios.lua"].data);
+#else
     comp->run("debug/bios.lua");
+#endif
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {
@@ -44,7 +48,8 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
             std::lock_guard<std::mutex> lock(dbg->computer->peripherals_mutex);
             dbg->computer->peripherals.erase(side);
         }
-        queueTask([comp](void*arg)->void*{delete (debugger*)arg; delete comp; return NULL;}, dbg, true);
+        dbg->computer->shouldDeinitDebugger = true;
+        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL, true);
     }
 }
 
@@ -150,7 +155,8 @@ int debugger_lib_setBreakpoint(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     int id = dbg->computer->breakpoints.size() > 0 ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
-    dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false, false), lua_tointeger(L, 2));
+    dbg->computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
 }
@@ -160,6 +166,9 @@ int debugger_lib_unsetBreakpoint(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (dbg->computer->breakpoints.find(lua_tointeger(L, 1)) != dbg->computer->breakpoints.end()) {
         dbg->computer->breakpoints.erase(lua_tointeger(L, 1));
+        if (dbg->computer->breakpoints.size() == 0) {
+            dbg->computer->hasBreakpoints = false;
+        }
         lua_pushboolean(L, true);
     } else lua_pushboolean(L, false);
     return 1;
@@ -430,7 +439,8 @@ int debugger::setBreakpoint(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     Computer * computer = get_comp(L);
     int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
-    computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false, false), lua_tointeger(L, 2));
+    computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
 }
@@ -442,9 +452,44 @@ const char * debugger_print(lua_State *L, void* arg) {
     return "debugger_print";
 }
 
+static int lua_converttostring (lua_State *L) {
+  if (lua_icontext(L)) return 1;
+  luaL_checkany(L, 1);
+  if (luaL_getmetafield(L, 1, "__tostring")) {
+    lua_pushvalue(L, 1);
+    lua_icall(L, 1, 1, 1);  /* call metamethod */
+    return 1;
+  }
+  switch (lua_type(L, 1)) {
+    case LUA_TNUMBER:
+      lua_pushstring(L, lua_tostring(L, 1));
+      break;
+    case LUA_TSTRING:
+      lua_pushvalue(L, 1);
+      break;
+    case LUA_TBOOLEAN:
+      lua_pushstring(L, (lua_toboolean(L, 1) ? "true" : "false"));
+      break;
+    case LUA_TNIL:
+      lua_pushliteral(L, "nil");
+      break;
+    default:
+      lua_pushfstring(L, "%s: %p", luaL_typename(L, 1), lua_topointer(L, 1));
+      break;
+  }
+  return 1;
+}
+
 int debugger::print(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    std::string * str = new std::string(lua_tostring(L, 1), lua_strlen(L, 1));
+    lua_settop(L, 1);
+    if (!lua_isstring(L, -1)) {
+        lua_pushcfunction(L, lua_converttostring);
+        lua_pushvalue(L, -2);
+        lua_call(L, 1, 1);
+        if (!lua_isstring(L, -1))
+            bad_argument(L, "string", 1);
+    }
+    std::string * str = new std::string(lua_tostring(L, -1), lua_strlen(L, -1));
     termQueueProvider(monitor, debugger_print, str);
     return 0;
 }
@@ -460,6 +505,9 @@ debugger::debugger(lua_State *L, const char * side) {
     computerThreads.push_back(compThread);
     if (computer->debugger != NULL) throw std::bad_exception();
     computer->debugger = this;
+    lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
 }
 
 debugger::~debugger() {
@@ -480,7 +528,7 @@ debugger::~debugger() {
     }
     assert(thread == NULL);
     if (compThread->joinable()) compThread->join();
-    computer->debugger = NULL;
+    computer->shouldDeinitDebugger = true;
 }
 
 int debugger::call(lua_State *L, const char * method) {
@@ -488,7 +536,17 @@ int debugger::call(lua_State *L, const char * method) {
     if (m == "stop" || m == "break") return _break(L);
     else if (m == "setBreakpoint") return setBreakpoint(L);
     else if (m == "print") return print(L);
+    else if (m == "deinit") return _deinit(L);
     else return 0;
+}
+
+int debugger::_deinit(lua_State *L) {
+    if (!computer->hasBreakpoints) {
+        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    }
+    return 0;
 }
 
 const char * debugger_keys[] = {

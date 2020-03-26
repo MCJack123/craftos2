@@ -118,12 +118,21 @@ int removeDirectory(std::string path) {
 }
 
 unsigned long long getFreeSpace(std::string path) {
-	struct statvfs st;
-	if (statvfs(path.c_str(), &st) != 0) {
+	NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
+    if (dict == nil) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
     }
-	return st.f_bavail * st.f_bsize;
+    return [(NSNumber*)dict[NSFileSystemFreeSize] unsignedLongLongValue];
+}
+
+unsigned long long getCapacity(std::string path) {
+	NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
+    if (dict == nil) {
+        if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
+        else return getCapacity(path.substr(0, path.find_last_of("/")-1));
+    }
+    return [(NSNumber*)dict[NSFileSystemSize] unsignedLongLongValue];
 }
 
 CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {

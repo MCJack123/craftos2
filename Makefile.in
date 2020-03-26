@@ -20,7 +20,9 @@ CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)/share/craftos\"
 endif
 SDIR=@srcdir@/src
 ODIR=obj
-_OBJ=CLITerminalWindow.o Computer.o config.o font.o fs_handle.o fs.o http_handle.o http.o lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o TerminalWindow.o peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o
+_OBJ=Computer.o config.o font.o fs_handle.o fs.o @HTTP_TARGET@ lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o speaker_sounds.o \
+	 peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o peripheral_speaker.o \
+	 terminal_SDLTerminal.o terminal_CLITerminal.o terminal_RawTerminal.o terminal_TRoRTerminal.o @OBJS@
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: $(ODIR) @OUT_TARGET@
@@ -29,7 +31,7 @@ craftos2-lua:
 	git submodule update --init --recursive
 
 craftos2-lua/src/liblua.a: craftos2-lua
-	$(error Please build Lua for your platform inside the craftos2-lua directory)
+	$(error Please build Lua for your platform inside the craftos2-lua directory.)
 
 @OUT_TARGET@: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
 	echo " [LD]    $@"
@@ -43,13 +45,13 @@ macapp: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform_macapp.o
 	install_name_tool -add_rpath @executable_path/../Frameworks CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libharu/lib/libhpdf-2.3.0.dylib "@rpath/libhpdf-2.3.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/libpng/lib/libpng16.16.dylib "@rpath/libpng16.16.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoNetSSL.64.dylib "@rpath/libPocoNetSSL.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoCrypto.64.dylib "@rpath/libPocoCrypto.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoFoundation.64.dylib "@rpath/libPocoFoundation.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoJSON.64.dylib "@rpath/libPocoJSON.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoNet.64.dylib "@rpath/libPocoNet.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoUtil.64.dylib "@rpath/libPocoUtil.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
-	install_name_tool -change /usr/local/opt/poco/lib/libPocoXML.64.dylib "@rpath/libPocoXML.64.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoNetSSL.71.dylib "@rpath/libPocoNetSSL.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoCrypto.71.dylib "@rpath/libPocoCrypto.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoFoundation.71.dylib "@rpath/libPocoFoundation.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoJSON.71.dylib "@rpath/libPocoJSON.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoNet.71.dylib "@rpath/libPocoNet.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoUtil.71.dylib "@rpath/libPocoUtil.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
+	install_name_tool -change /usr/local/opt/poco/lib/libPocoXML.71.dylib "@rpath/libPocoXML.71.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/sdl2_mixer/lib/libSDL2_mixer-2.0.0.dylib "@rpath/libSDL2_mixer-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib "@rpath/libSDL2-2.0.0.dylib" CraftOS-PC.app/Contents/MacOS/craftos
 	install_name_tool -change /usr/local/opt/flac/lib/libFLAC.8.dylib "@rpath/libFLAC.8.dylib" CraftOS-PC.app/Contents/MacOS/craftos
@@ -72,11 +74,15 @@ $(ODIR)/platform_macapp.o: $(SDIR)/platform_macapp.mm $(SDIR)/platform.hpp
 	echo " [OBJC]  $@"
 	clang++ -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.hpp $(SDIR)/platform_linux.cpp $(SDIR)/platform_darwin.cpp
+$(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.hpp $(SDIR)/platform_linux.cpp $(SDIR)/platform_darwin.cpp $(SDIR)/platform_emscripten.cpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
 $(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/peripheral.hpp $(SDIR)/lib.hpp
+	echo " [CXX]   $@"
+	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
+
+$(ODIR)/http_emscripten.o: $(SDIR)/http_emscripten.cpp $(SDIR)/lib.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
@@ -96,6 +102,14 @@ $(ODIR)/peripheral_computer.o: $(SDIR)/peripheral/computer_p.cpp $(SDIR)/periphe
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
+$(ODIR)/speaker_sounds.o: $(SDIR)/peripheral/speaker_sounds.cpp
+	echo " [CXX]   $@"
+	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
+
+$(ODIR)/terminal_%.o: $(SDIR)/terminal/%.cpp $(SDIR)/terminal/%.hpp $(SDIR)/terminal/Terminal.hpp
+	echo " [CXX]   $@"
+	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
+
 mac-plugin:
 	echo " [LD]    ccemux.bundle"
 	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
@@ -106,13 +120,17 @@ linux-plugin:
 
 clean: $(ODIR)
 	rm -f craftos
-	rm -f obj/*
+	find obj -type f -not -name speaker_sounds.o -exec rm -f {} \;
 
 rebuild: clean craftos
 
 install: craftos
 	echo " [CP]    $(DESTDIR)/craftos"
 	cp craftos $(DESTDIR)/craftos
+
+uninstall:
+	echo " [RM]    $(DESTDIR)/craftos"
+	rm $(DESTDIR)/craftos
 
 test: craftos
 	./craftos --headless --script $(shell pwd)/CraftOSTest.lua

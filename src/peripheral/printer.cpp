@@ -8,11 +8,9 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "printer.hpp"
 #include "../platform.hpp"
-extern "C" {
-#include <lauxlib.h>
-}
 #include <cstring>
 
 #if PRINT_TYPE == PRINT_TYPE_PDF

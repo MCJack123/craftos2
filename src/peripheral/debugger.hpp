@@ -13,6 +13,7 @@
 #include "peripheral.hpp"
 #include <mutex>
 #include <condition_variable>
+#include <thread>
 
 #define DEBUGGER_BREAK_TYPE_NONSTOP 0
 #define DEBUGGER_BREAK_TYPE_LINE    1
@@ -35,6 +36,7 @@ private:
     int setBreakpoint(lua_State *L);
     int print(lua_State *L);
     void init(Computer * comp);
+    int _deinit(lua_State *L);
     library_t * createDebuggerLibrary();
     static library_t methods;
 public:

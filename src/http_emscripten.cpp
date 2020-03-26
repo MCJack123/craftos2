@@ -9,15 +9,15 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #ifdef __EMSCRIPTEN__
 
 #include "http.hpp"
 #include "term.hpp"
 #include "os.hpp"
+#include "platform.hpp"
 #include <unordered_map>
-extern "C" {
-#include <lauxlib.h>
-}
+#include <thread>
 #include <emscripten/emscripten.h>
 #include <emscripten/fetch.h>
 
@@ -313,6 +313,8 @@ int http_removeListener(lua_State *L) {
 int http_websocket(lua_State *L) {
     return 0;
 }
+
+void stopWebsocket(void*n){}
 
 const char * http_keys[5] = {
     "request",

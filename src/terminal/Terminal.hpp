@@ -1,40 +1,30 @@
 /*
- * TerminalWindow.hpp
+ * Terminal.hpp
  * CraftOS-PC 2
  * 
- * This file defines the TerminalWindow class.
+ * This file defines the Terminal base class, which is implemented by all 
+ * renderer classes.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-class TerminalWindow;
-#ifndef TERMINALWINDOW_HPP
-#define TERMINALWINDOW_HPP
-#ifdef _WIN32
-#include <SDL.h>
-#else
-#include <SDL2/SDL.h>
-#endif
-#include <string>
+class Terminal;
+#ifndef TERMINAL_TERMINAL_HPP
+#define TERMINAL_TERMINAL_HPP
+
+#include <cstdint>
 #include <vector>
-#include <ctime>
-#include <atomic>
-#include <mutex>
-#include "platform.hpp"
+#include <string>
+#include "../lib.hpp"
 
 typedef struct color {
-    Uint8 r;
-    Uint8 g;
-    Uint8 b;
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
 } Color;
 
 extern Color defaultPalette[16];
-
-template<typename T>
-inline T min(T a, T b) { return a < b ? a : b; }
-template<typename T>
-inline T max(T a, T b) { return a > b ? a : b; }
 
 class window_exception: public std::exception {
     std::string err;
@@ -92,44 +82,24 @@ public:
     }
 };
 
-
-class TerminalWindow {
-    friend void mainLoop();
-    friend int termPanic(lua_State *L);
+class Terminal {
 public:
+    int type;
     unsigned id;
     int width;
     int height;
-    bool changed = true;
-    std::string title;
     static const int fontWidth = 6;
     static const int fontHeight = 9;
-    static std::list<TerminalWindow*> renderTargets;
+    bool changed = true;
+    bool gotResizeEvent = false;
+    int newWidth, newHeight;
+    std::string title;
+    static std::list<Terminal*> renderTargets;
     static std::mutex renderTargetsLock;
 #ifdef __EMSCRIPTEN__
-    static std::list<TerminalWindow*>::iterator renderTarget;
+    static std::list<Terminal*>::iterator renderTarget;
 #endif
-protected:
-    static int fontScale;
-    bool shouldScreenshot = false;
-    bool shouldRecord = false;
-    bool gotResizeEvent = false;
-    bool fullscreen = false;
-    int newWidth, newHeight;
-    std::string screenshotPath;
-    std::string recordingPath;
-    int recordedFrames = 0;
-    int frameWait = 0;
-    std::vector<std::string> recording;
-    std::mutex recorderMutex;
-    bool overridden = false;
-    TerminalWindow(int w, int h);
-public:
     std::mutex locked;
-    int charScale = 2;
-    int dpiScale = 1;
-    int charWidth = fontWidth * 2/fontScale * charScale;
-    int charHeight = fontHeight * 2/fontScale * charScale;
     vector2d<unsigned char> screen;
     vector2d<unsigned char> colors;
     vector2d<unsigned char> pixels;
@@ -141,35 +111,16 @@ public:
     bool blink = true;
     bool canBlink = true;
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
-    int lastFPS = 0;
-    int currentFPS = 0;
-    int lastSecond = time(0);
-
-    TerminalWindow(std::string title);
-    virtual ~TerminalWindow();
-    void setPalette(Color * p);
-    void setCharScale(int scale);
-    bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
-    virtual void render();
-    bool resize(int w, int h);
-    void getMouse(int *x, int *y);
-    void screenshot(std::string path = ""); // asynchronous; captures on next render
-    void record(std::string path = ""); // asynchronous; captures on next render
-    void stopRecording();
-    void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
-    void showMessage(Uint32 flags, const char * title, const char * message);
-    void toggleFullscreen();
-    virtual void setLabel(std::string label);
-
-private:
-#ifdef __EMSCRIPTEN__
-    static SDL_Window *win;
-#else
-    SDL_Window *win;
-#endif
-    SDL_Surface *surf = NULL;
-    SDL_Surface *bmp;
-
-    static SDL_Rect getCharacterRect(unsigned char c);
+protected:
+    Terminal(int w, int h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
+        memcpy(palette, defaultPalette, sizeof(defaultPalette));
+    }
+public:
+    virtual ~Terminal(){}
+    virtual void render()=0;
+    virtual void showMessage(Uint32 flags, const char * title, const char * message)=0;
+    virtual void setLabel(std::string label)=0;
+    virtual bool resize(int w, int h)=0;
 };
+
 #endif

@@ -19,6 +19,7 @@ extern "C" {
 extern void setThreadName(std::thread &t, std::string name);
 extern int createDirectory(std::string path);
 extern unsigned long long getFreeSpace(std::string path);
+extern unsigned long long getCapacity(std::string path);
 extern int removeDirectory(std::string path);
 extern void setBasePath(const char * path);
 extern void setROMPath(const char * path);

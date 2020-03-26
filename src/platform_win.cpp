@@ -95,7 +95,19 @@ char* dirname(char* path) {
 
 unsigned long long getFreeSpace(std::string path) {
 	ULARGE_INTEGER retval;
-	GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL);
+	if (GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
+        if (path.substr(0, path.find_last_of("\\")-1).empty()) return 0;
+        else return getFreeSpace(path.substr(0, path.find_last_of("\\")-1));
+    }
+	return retval.QuadPart;
+}
+
+unsigned long long getCapacity(std::string path) {
+	ULARGE_INTEGER retval;
+	if (GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
+        if (path.substr(0, path.find_last_of("\\")-1).empty()) return 0;
+        else return getCapacity(path.substr(0, path.find_last_of("\\")-1));
+    }
 	return retval.QuadPart;
 }
 
@@ -194,7 +206,7 @@ std::unordered_map<std::string, HINSTANCE> dylibs;
 
 void * loadSymbol(std::string path, std::string symbol) {
     HINSTANCE handle;
-    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibrary(path.c_str());
+    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibraryA(path.c_str());
     handle = dylibs[path];
     return GetProcAddress(handle, symbol.c_str());
 }

@@ -10,6 +10,10 @@ unsigned long long getFreeSpace(std::string path) {
     return 1000000;
 }
 
+unsigned long long getCapacity(std::string path) {
+    return 1000000;
+}
+
 int createDirectory(std::string path) {
     if (mkdir(path.c_str(), 0777) != 0) {
         if (errno == ENOENT && path != "/") {
@@ -43,6 +47,8 @@ int removeDirectory(std::string path) {
 }
 
 void setBasePath(const char * path) {}
+
+void setROMPath(const char * path) {}
 
 std::string getBasePath() {
     return "/user-data";

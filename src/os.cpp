@@ -8,9 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-extern "C" {
-#include <lauxlib.h>
-}
+#define CRAFTOSPC_INTERNAL
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -25,15 +23,12 @@ extern "C" {
 #include "platform.hpp"
 #include "term.hpp"
 #include "config.hpp"
-#include "CLITerminalWindow.hpp"
+#include "terminal/SDLTerminal.hpp"
+#include "terminal/CLITerminal.hpp"
+#include "terminal/RawTerminal.hpp"
 #include "peripheral/monitor.hpp"
 #ifndef NO_CLI
 #include <signal.h>
-#endif
-#ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *TerminalWindow::renderTarget || findMonitorFromWindowID(c, (*TerminalWindow::renderTarget)->id, tmps) != NULL)
-#else
-#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
 #endif
 
 void gettingEvent(Computer *comp);
@@ -43,27 +38,41 @@ extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::strin
 int nextTaskID = 0;
 std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
 std::unordered_map<int, void*> taskQueueReturns;
+std::mutex taskQueueReturnsMutex;
+std::condition_variable taskQueueNotify;
+std::mutex taskQueueMutex;
 bool exiting = false;
-extern bool cli, headless;
+bool forceCheckTimeout = false;
+extern int selectedRenderer;
+extern bool rawClient;
 extern Uint32 task_event_type;
 extern Uint32 render_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
 extern std::unordered_map<int, unsigned char> keymap;
 std::thread::id mainThreadID;
+std::atomic_bool taskQueueReady(false);
 
 void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
     int myID = nextTaskID++;
     taskQueue.push(std::make_tuple(myID, func, arg, async));
-    if (!headless && !cli && !exiting) {
+    if (selectedRenderer == 0 && !exiting) {
         SDL_Event ev;
         ev.type = task_event_type;
         SDL_PushEvent(&ev);
     }
+    if (selectedRenderer != 0 && selectedRenderer != 2) {
+        {std::lock_guard<std::mutex> lock(taskQueueMutex);}
+        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        taskQueueReady = true;
+        taskQueueNotify.notify_all();
+        while (taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
+    }
     if (async) return NULL;
-    while (taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) std::this_thread::yield();
+    while (([]()->bool{taskQueueReturnsMutex.lock(); return true;})() && taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) {taskQueueReturnsMutex.unlock(); std::this_thread::yield();}
     void* retval = taskQueueReturns[myID];
     taskQueueReturns.erase(myID);
+    taskQueueReturnsMutex.unlock();
     return retval;
 }
 
@@ -80,267 +89,58 @@ void awaitTasks() {
     }
 }
 
-#ifndef NO_CLI
-extern std::set<unsigned> currentIDs;
-bool resizeRefresh = false;
-
-void handle_winch(int sig) {
-    resizeRefresh = true;
-    endwin();
-    refresh();
-    clear();
-}
-
-void pressControl(int sig) {
-    SDL_Event e;
-    e.type = SDL_KEYDOWN;
-    e.key.keysym.scancode = (SDL_Scancode)29;
-    for (Computer * c : computers) {
-        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-            e.key.windowID = c->term->id;
-            c->termEventQueue.push(e);
-            e.type = SDL_KEYUP;
-            e.key.keysym.scancode = (SDL_Scancode)29;
-            c->termEventQueue.push(e);
-            c->event_lock.notify_all();
-        }
-    }
-}
-
-void pressAlt(int sig) {
-    SDL_Event e;
-    e.type = SDL_KEYDOWN;
-    e.key.keysym.scancode = (SDL_Scancode)56;
-    for (Computer * c : computers) {
-        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-            e.key.windowID = c->term->id;
-            c->termEventQueue.push(e);
-            e.type = SDL_KEYUP;
-            e.key.keysym.scancode = (SDL_Scancode)56;
-            c->termEventQueue.push(e);
-            c->event_lock.notify_all();
-        }
-    }
-}
-#endif
-
 void mainLoop() {
-    SDL_Event e;
-    std::string tmps;
-#ifndef NO_CLI
-    MEVENT me;
-    WINDOW * tmpwin;
-    std::set<int> lastch;
-    if (cli) { 
-        tmpwin = newwin(0, 0, 1, 1);
-        nodelay(tmpwin, TRUE);
-        keypad(tmpwin, TRUE);
-        signal(SIGWINCH, handle_winch);
-        if (config.cliControlKeyMode == 3) {
-            signal(SIGINT, pressControl);
-            signal(SIGQUIT, pressAlt);
-        }
-    }
-#endif
     mainThreadID = std::this_thread::get_id();
 #ifndef __EMSCRIPTEN__
-    while (computers.size() > 0) {
+    while (rawClient ? !exiting : computers.size() > 0) {
 #endif
-        if (!headless && !cli) { 
-#ifdef __EMSCRIPTEN__
-            if (SDL_PollEvent(&e)) {
-#else
-            if (SDL_WaitEvent(&e)) {
-#endif
-                if (e.type == task_event_type) {
-                    while (taskQueue.size() > 0) {
-                        auto v = taskQueue.front();
-                        void* retval = std::get<1>(v)(std::get<2>(v));
-                        taskQueueReturns[std::get<0>(v)] = retval;
-                        taskQueue.pop();
-                    }
-                } else if (e.type == render_event_type) {
-#ifdef __EMSCRIPTEN__
-                    TerminalWindow* term = *TerminalWindow::renderTarget;
-                    std::lock_guard<std::mutex> lock(term->locked);
-                    if (term->surf != NULL) {
-                        SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(TerminalWindow::win), NULL);
-                        SDL_UpdateWindowSurface(TerminalWindow::win);
-                        SDL_FreeSurface(term->surf);
-                        term->surf = NULL;
-                    }
-#else
-                    for (TerminalWindow* term : TerminalWindow::renderTargets) {
-                        std::lock_guard<std::mutex> lock(term->locked);
-                        if (term->surf != NULL) {
-                            SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(term->win), NULL);
-                            SDL_UpdateWindowSurface(term->win);
-                            SDL_FreeSurface(term->surf);
-                            term->surf = NULL;
-                        }
-                    }
-#endif
-                } else {
-                    for (Computer * c : computers) {
-                        if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
-                            ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
-                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
-                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
-                            (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
-                            (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
-                            (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
-                            e.type == SDL_QUIT) {
-                            c->termEventQueue.push(e);
-                            c->event_lock.notify_all();
-                        }
-                    }
-                    if (e.type == SDL_QUIT) 
-                    #ifdef __EMSCRIPTEN__
-                        return;
-                    #else
-                        break;
-                    #endif
-                }
-            }
+		bool res = false;
+		if (selectedRenderer == 0) res = SDLTerminal::pollEvents();
 #ifndef NO_CLI
-        } else if (cli) {
-            int ch = wgetch(tmpwin);
-            if (ch == ERR) {
-                for (int cc : lastch) {
-                    if (cc != 27) {
-                        e.type = SDL_KEYUP;
-                        e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
-                        for (Computer * c : computers) {
-                            if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-                                e.key.windowID = c->term->id;
-                                c->termEventQueue.push(e);
-                                c->event_lock.notify_all();
-                            }
-                        }
-                    }
-                }
-                lastch.clear();
-                nodelay(tmpwin, TRUE);
-                keypad(tmpwin, TRUE);
-                while (ch == ERR && taskQueue.size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
-            }
-            if (resizeRefresh) {
-                resizeRefresh = false;
-                CLITerminalWindow::stopRender = true;
-                delwin(tmpwin);
-                endwin();
-                refresh();
-                tmpwin = newwin(0, 0, 1, 1);
-                nodelay(tmpwin, TRUE);
-                keypad(tmpwin, TRUE);
-                e.type = SDL_WINDOWEVENT;
-                e.window.event = SDL_WINDOWEVENT_RESIZED;
-                for (Computer * c : computers) {
-                    e.window.data1 = COLS * c->term->charWidth + 4*(2/TerminalWindow::fontScale)*c->term->charScale;
-                    e.window.data2 = (LINES-1) * c->term->charHeight + 4*(2/TerminalWindow::fontScale)*c->term->charScale;
-                    e.window.windowID = c->term->id;
-                    c->term->changed = true;
-                    c->termEventQueue.push(e);
-                    c->event_lock.notify_all();
-                }
-            }
-            while (taskQueue.size() > 0) {
-                auto v = taskQueue.front();
-                void* retval = std::get<1>(v)(std::get<2>(v));
-                taskQueueReturns[std::get<0>(v)] = retval;
-                taskQueue.pop();
-            }
-            if (ch == KEY_SLEFT) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
-            else if (ch == KEY_SRIGHT) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
-            else if (ch == KEY_MOUSE) {
-                if (getmouse(&me) != OK) continue;
-                if (me.y == LINES - 1) {
-                    if (me.bstate & BUTTON1_PRESSED) {
-                        if (me.x == COLS - 1) {
-                            e.type = SDL_WINDOWEVENT;
-                            e.window.event = SDL_WINDOWEVENT_CLOSE;
-                            for (Computer * c : computers) {
-                                if (*CLITerminalWindow::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminalWindow::selectedWindow, tmps) != NULL) {
-                                    e.button.windowID = *CLITerminalWindow::selectedWindow;
-                                    c->termEventQueue.push(e);
-                                    c->event_lock.notify_all();
-                                }
-                            }
-                        } else if (me.x == COLS - 2) {CLITerminalWindow::nextWindow(); CLITerminalWindow::renderNavbar("");}
-                        else if (me.x == COLS - 3) {CLITerminalWindow::previousWindow(); CLITerminalWindow::renderNavbar("");}
-                    }
-                    continue;
-                }
-                if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
-                else if (me.bstate & NCURSES_BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
-                else continue;
-                if ((me.bstate & BUTTON1_PRESSED) || (me.bstate & BUTTON1_RELEASED)) e.button.button = SDL_BUTTON_LEFT;
-                else if ((me.bstate & BUTTON2_PRESSED) || (me.bstate & BUTTON2_RELEASED)) e.button.button = SDL_BUTTON_RIGHT;
-                else if ((me.bstate & BUTTON3_PRESSED) || (me.bstate & BUTTON3_RELEASED)) e.button.button = SDL_BUTTON_MIDDLE;
-                else continue;
-                e.button.x = me.x + 1;
-                e.button.y = me.y + 1;
-                for (Computer * c : computers) {
-                    if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-                        e.button.windowID = c->term->id;
-                        c->termEventQueue.push(e);
-                        c->event_lock.notify_all();
-                    }
-                }
-            } else if (ch != ERR && ch != KEY_RESIZE) {
-                if (config.cliControlKeyMode == 2 && ch == 'c' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1025;
-                else if (config.cliControlKeyMode == 2 && ch == 'a' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1026;
-                if ((ch >= 32 && ch < 127)) {
-                    e.type = SDL_TEXTINPUT;
-                    e.text.text[0] = ch;
-                    e.text.text[1] = '\0';
-                    for (Computer * c : computers) {
-                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-                            e.text.windowID = c->term->id;
-                            c->termEventQueue.push(e);
-                            c->event_lock.notify_all();
-                        }
-                    }
-                }
-                e.type = SDL_KEYDOWN;
-                e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
-                if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
-                if (ch != 27) {
-                    for (Computer * c : computers) {
-                        if (*CLITerminalWindow::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
-                            e.key.windowID = c->term->id;
-                            c->termEventQueue.push(e);
-                            c->event_lock.notify_all();
-                        }
-                    }
-                }
-                lastch.insert(ch);
-            }
+		else if (selectedRenderer == 2) res = CLITerminal::pollEvents();
 #endif
-        } else {
-            while (taskQueue.size() == 0) std::this_thread::yield();
+        else {
+            std::unique_lock<std::mutex> lock(taskQueueMutex);
+            while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
             while (taskQueue.size() > 0) {
                 auto v = taskQueue.front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
-                if (!std::get<3>(v)) taskQueueReturns[std::get<0>(v)] = retval;
+                if (!std::get<3>(v)) {
+                    std::lock_guard<std::mutex> lock2(taskQueueReturnsMutex);
+                    taskQueueReturns[std::get<0>(v)] = retval;
+                }
                 taskQueue.pop();
             }
+            taskQueueReady = false;
         }
+
         std::this_thread::yield();
 #ifdef __EMSCRIPTEN__
-    if (computers.size() == 0) exiting = true;
+		if (!rawClient && computers.size() == 0) exiting = true;
 #else
     }
-#ifndef NO_CLI
-    if (cli) delwin(tmpwin);
-#endif
     exiting = true;
 #endif
 }
 
+Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
+    //Computer * comp = (Computer*)param;
+    forceCheckTimeout = true;
+    return 1000;
+}
+
 int getNextEvent(lua_State *L, std::string filter) {
     Computer * computer = get_comp(L);
-    //if (computer->paramQueue == NULL) computer->paramQueue = lua_newthread(L);
+    if (computer->running != 1) return 0;
+    if (computer->eventTimeout != 0) {
+#ifdef __EMSCRIPTEN__
+        queueTask([computer](void*)->void*{SDL_RemoveTimer(computer->eventTimeout); return NULL;}, NULL);
+#else
+        SDL_RemoveTimer(computer->eventTimeout);
+#endif
+        computer->eventTimeout = 0;
+        computer->timeoutCheckCount = 0;
+    }
     std::string ev;
     gettingEvent(computer);
     if (!lua_checkstack(computer->paramQueue, 1)) {
@@ -363,7 +163,8 @@ int getNextEvent(lua_State *L, std::string filter) {
             if (computer->alarms.size() == 0) {
                 std::mutex m;
                 std::unique_lock<std::mutex> l(m);
-                computer->event_lock.wait(l);
+                while (computer->running == 1 && computer->alarms.size() == 0 && !termHasEvent(computer)) 
+                    computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return computer->alarms.size() != 0 || termHasEvent(computer) || computer->running != 1;});
             }
             if (computer->running != 1) return 0;
             if (computer->alarms.size() > 0 && computer->alarms.back() == -1) computer->alarms.pop_back();
@@ -397,7 +198,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) {
         printf("Queue item is not a thread for event \"%s\"!\n", ev.c_str()); 
-        lua_remove(computer->paramQueue, 1);
+        if (lua_gettop(computer->paramQueue) > 0) lua_remove(computer->paramQueue, 1);
         return 0;
     }
     int count = lua_gettop(param);
@@ -411,6 +212,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     lua_remove(computer->paramQueue, 1);
     //lua_close(param);
     gotEvent(computer);
+    computer->eventTimeout = SDL_AddTimer(config.abortTimeout, eventTimeoutEvent, computer);
     return count + 1;
 }
 
@@ -432,7 +234,7 @@ int os_setComputerLabel(lua_State *L) {
     if (!lua_isnoneornil(L, 1) && !lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * comp = get_comp(L);
     comp->config.label = lua_isstring(L, 1) ? std::string(lua_tostring(L, 1), lua_strlen(L, 1)) : "";
-    if (!headless) comp->term->setLabel(comp->config.label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config.label));
+    if (comp->term != NULL) comp->term->setLabel(comp->config.label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config.label));
     return 0;
 }
 
@@ -522,7 +324,11 @@ int os_startTimer(lua_State *L) {
 
 int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+#ifdef __EMSCRIPTEN__
     queueTask([L](void*)->void*{SDL_RemoveTimer(lua_tointeger(L, 1)); return NULL;}, NULL);
+#else
+    SDL_RemoveTimer(lua_tointeger(L, 1));
+#endif
     return 0;
 }
 
@@ -600,8 +406,11 @@ int os_cancelAlarm(lua_State *L) {
     return 0;
 }
 
+extern int selectedRenderer;
+extern int returnValue;
 int os_shutdown(lua_State *L) {
     get_comp(L)->running = 0;
+    if (selectedRenderer == 1 && lua_isnumber(L, 1)) returnValue = lua_tointeger(L, 1);
     return 0;
 }
 
@@ -648,13 +457,7 @@ Special thanks:\n\
     return 1;
 }
 
-extern bool headless;
-int os_exit(lua_State *L) {
-    if (headless) exit(lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 0);
-    return 0;
-}
-
-const char * os_keys[19] = {
+const char * os_keys[18] = {
     "getComputerID",
     "computerID",
     "getComputerLabel",
@@ -672,11 +475,10 @@ const char * os_keys[19] = {
     "shutdown",
     "reboot",
     "system",
-    "about",
-    "exit"
+    "about"
 };
 
-lua_CFunction os_values[19] = {
+lua_CFunction os_values[18] = {
     os_getComputerID,
     os_getComputerID,
     os_getComputerLabel,
@@ -694,8 +496,7 @@ lua_CFunction os_values[19] = {
     os_shutdown,
     os_reboot,
     os_system,
-    os_about,
-    os_exit
+    os_about
 };
 
-library_t os_lib = {"os", 19, os_keys, os_values, nullptr, nullptr};
+library_t os_lib = {"os", 18, os_keys, os_values, nullptr, nullptr};

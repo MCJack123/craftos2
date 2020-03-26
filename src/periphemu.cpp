@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "periphemu.hpp"
 #include "peripheral/peripheral.hpp"
 #include "peripheral/computer.hpp"
@@ -16,7 +17,8 @@
 #include "peripheral/modem.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/printer.hpp"
-#include "TerminalWindow.hpp"
+#include "peripheral/speaker.hpp"
+#include "terminal/Terminal.hpp"
 #include "term.hpp"
 #include "os.hpp"
 #include <unordered_map>
@@ -43,6 +45,9 @@ std::unordered_map<std::string, peripheral_init> initializers = {
 	{"computer", &computer::init},
 	{"modem", &modem::init},
 	{"drive", &drive::init},
+#ifndef NO_MIXER
+	{"speaker", &speaker::init}
+#endif
 };
 
 void registerPeripheral(std::string name, peripheral_init initializer) {
@@ -98,15 +103,15 @@ int periphemu_remove(lua_State* L) {
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
 	Computer * computer = get_comp(L);
 	std::string side = lua_tostring(L, 1);
-	std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
 	if (computer->peripherals.find(side) == computer->peripherals.end()) {
 		lua_pushboolean(L, false);
-		computer->peripherals_mutex.unlock();
 		return 1;
 	}
-	if (std::string(computer->peripherals[side]->getMethods().name) == "drive") {
-		computer->peripherals[side]->call(L, "ejectDisk");
-	}
+    if (std::string(computer->peripherals[side]->getMethods().name) == "drive")
+        computer->peripherals[side]->call(L, "ejectDisk");
+    else if (std::string(computer->peripherals[side]->getMethods().name) == "debugger")
+		computer->peripherals[side]->call(L, "deinit");
 	queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, computer->peripherals[side]);
 	computer->peripherals.erase(side);
 	lua_pushboolean(L, true);
