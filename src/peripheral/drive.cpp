@@ -125,10 +125,10 @@ int drive::insertDisk(lua_State *L, bool init) {
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
 #ifdef WIN32
         createDirectory((std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str());
-        addMount(get_comp(L), (std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str(), mount_path.c_str(), false);
+        addMount(comp, (std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str(), mount_path.c_str(), false);
 #else
         assert(createDirectory((std::string(getBasePath()) + "/computer/disk/" + std::to_string(id)).c_str()) == 0);
-        addMount(get_comp(L), (std::string(getBasePath()) + "/computer/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
+        addMount(comp, (std::string(getBasePath()) + "/computer/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
 #endif
     } else if (lua_isstring(L, arg)) {
         path = lua_tostring(L, arg);
@@ -151,7 +151,7 @@ int drive::insertDisk(lua_State *L, bool init) {
             for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
             comp->usedDriveMounts.insert(i);
             mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
-            addMount(get_comp(L), path.c_str(), mount_path.c_str(), false);
+            addMount(comp, path.c_str(), mount_path.c_str(), false);
         }
 #ifndef NO_MIXER
         else {

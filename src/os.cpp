@@ -204,7 +204,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     int count = lua_gettop(param);
     if (!lua_checkstack(L, count + 1)) {
         printf("Could not allocate enough space in the stack for %d elements, skipping event \"%s\"\n", count, ev.c_str());
-        lua_remove(computer->paramQueue, 1);
+        if (lua_gettop(computer->paramQueue) > 0) lua_remove(computer->paramQueue, 1);
         return 0;
     }
     lua_pushstring(L, ev.c_str());

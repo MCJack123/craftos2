@@ -578,9 +578,10 @@ void termRenderLoop() {
 }
 
 void termQueueProvider(Computer *comp, event_provider p, void* data) {
-    comp->event_provider_queue_mutex.lock();
-    comp->event_provider_queue.push(std::make_pair(p, data));
-    comp->event_provider_queue_mutex.unlock();
+    {
+        std::lock_guard<std::mutex> lock(comp->event_provider_queue_mutex);
+        comp->event_provider_queue.push(std::make_pair(p, data));
+    }
     comp->event_lock.notify_all();
 }
 
@@ -1097,8 +1098,8 @@ int term_getPixel(lua_State *L) {
     Terminal * term = computer->term;
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x > term->width * term->fontWidth || y > term->height * term->fontHeight || x < 0 || y < 0) return 0;
-    if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    if (x > term->width * term->fontWidth || y > term->height * term->fontHeight || x < 0 || y < 0) lua_pushnil(L);
+    else if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
     else return 0;
     return 1;
