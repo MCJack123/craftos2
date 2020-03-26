@@ -123,7 +123,7 @@ unsigned long long getFreeSpace(std::string path) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
     }
-    return dict[NSFileSystemFreeSize];
+    return [(NSNumber*)dict[NSFileSystemFreeSize] unsignedLongLongValue];
 }
 
 unsigned long long getCapacity(std::string path) {
@@ -132,7 +132,7 @@ unsigned long long getCapacity(std::string path) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
     }
-    return dict[NSFileSystemSize];
+    return [(NSNumber*)dict[NSFileSystemSize] unsignedLongLongValue];
 }
 
 CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {
