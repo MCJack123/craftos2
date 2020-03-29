@@ -287,8 +287,7 @@ void copyImage(SDL_Surface* surf) {
     std::stringstream ss;
     img.write_stream(ss);
     NSData * nsdata = [NSData dataWithBytes:ss.str().c_str() length:surf->w*surf->h*3];
-    NSImage * nsimg = [[NSImage alloc] initWithData:nsdata];
-    NSArray * arr = [NSArray arrayWithObject:nsimg];
     [[NSPasteboard generalPasteboard] clearContents];
-    [[NSPasteboard generalPasteboard] writeObjects:arr];
+    [[NSPasteboard generalPasteboard] setData:nsdata forType:NSPasteboardTypePNG];
+    [nsdata release];
 }

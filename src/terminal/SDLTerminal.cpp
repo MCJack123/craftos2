@@ -202,6 +202,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
 }
 
 SDLTerminal::~SDLTerminal() {
+    if (shouldRecord) stopRecording();
 #ifdef __EMSCRIPTEN__
     onWindowDestroy(id);
 #endif
