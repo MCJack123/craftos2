@@ -158,7 +158,9 @@ void downloadThread(void* arg) {
     session->setTimeout(Poco::Timespan(15, 0));
     //if (param->postData != NULL) request.setMethod("POST");
     request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
+    request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
     for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
+    if (param->postData != NULL) request.setContentLength(param->postDataSize);
     try {
         std::ostream& reqs = session->sendRequest(request);
         if (param->postData != NULL) reqs.write(param->postData, param->postDataSize);
@@ -167,6 +169,8 @@ void downloadThread(void* arg) {
             if (param->url != param->old_url) delete[] param->old_url;
             termQueueProvider(param->comp, http_failure, param->url);
             delete param;
+            delete response;
+            delete session;
             return;
         }
     } catch (NetException &e) {
@@ -175,6 +179,8 @@ void downloadThread(void* arg) {
         if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
         delete param;
+        delete response;
+        delete session;
         return;
     }
     http_handle_t * handle;
@@ -186,6 +192,8 @@ void downloadThread(void* arg) {
         if (param->url != param->old_url) delete[] param->old_url;
         termQueueProvider(param->comp, http_failure, param->url);
         delete param;
+        delete response;
+        delete session;
         return;
     }
     handle->session = session;
