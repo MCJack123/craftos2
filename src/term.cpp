@@ -916,8 +916,10 @@ int term_setTextColor(lua_State *L) {
         printf("TF:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
     unsigned int c = log2i(lua_tointeger(L, 1));
-    if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
+    if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6) {
         computer->colors = (computer->colors & 0xf0) | c;
+        if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = c;
+    }
     return 0;
 }
 
@@ -982,8 +984,10 @@ int term_blit(lua_State *L) {
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {if (term->blinkX >= 0) {
         if ((computer->config.isColor || computer->isDebugger) || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
             computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
-        if ((computer->config.isColor || computer->isDebugger) || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) 
+        if ((computer->config.isColor || computer->isDebugger) || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) {
             computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
+            if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i]);
+        }
         if (selectedRenderer == 4)
             printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[computer->colors & 0xf], term->id, ("0123456789abcdef")[computer->colors >> 4], term->id, str[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];

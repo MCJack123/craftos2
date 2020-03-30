@@ -135,6 +135,7 @@ int monitor::setTextColor(lua_State *L) {
         printf("TF:%d;%c\n", term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     int c = log2i(lua_tointeger(L, 1));
     colors = (colors & 0xf0) | c;
+    if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = c;
     return 0;
 }
 
@@ -177,6 +178,7 @@ int monitor::blit(lua_State *L) {
     std::lock_guard<std::mutex> lock(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
         colors = htoi(bg[i]) << 4 | htoi(fg[i]);
+        if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = htoi(fg[i]);
         if (selectedRenderer == 4)
             printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[colors & 0xf], term->id, ("0123456789abcdef")[colors >> 4], term->id, str[i]);
         term->screen[term->blinkY][term->blinkX] = str[i];

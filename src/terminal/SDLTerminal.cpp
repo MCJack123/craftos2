@@ -316,7 +316,7 @@ void SDLTerminal::render() {
         for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) 
             if (gotResizeEvent || !drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4])) return;
         if (gotResizeEvent) return;
-        if (blink && blinkX >= 0 && blinkY >= 0 && blinkX < width && blinkY < height) if (!drawChar('_', blinkX, blinkY, palette[0], palette[colors[blinkY][blinkX] >> 4], true)) return;
+        if (blink && blinkX >= 0 && blinkY >= 0 && blinkX < width && blinkY < height) if (!drawChar('_', blinkX, blinkY, palette[cursorColor], palette[colors[blinkY][blinkX] >> 4], true)) return;
     }
     currentFPS++;
     if (lastSecond != time(0)) {
