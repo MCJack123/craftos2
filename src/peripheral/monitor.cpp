@@ -189,7 +189,10 @@ int monitor::blit(lua_State *L) {
 }
 
 int monitor::getPaletteColor(lua_State *L) {
-    int color = log2i(lua_tointeger(L, 1));
+    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    int color;
+    if (term->mode == 2) color = lua_tointeger(L, 1);
+    else color = log2i(lua_tointeger(L, 1));
     lua_pushnumber(L, term->palette[color].r/255.0);
     lua_pushnumber(L, term->palette[color].g/255.0);
     lua_pushnumber(L, term->palette[color].b/255.0);
@@ -199,14 +202,25 @@ int monitor::getPaletteColor(lua_State *L) {
 int monitor::setPaletteColor(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
-    if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
-    int color = log2i(lua_tointeger(L, 1));
+    if (!lua_isnoneornil(L, 3)) {
+        if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
+        if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
+    }
+    int color;
+    if (term->mode == 2) color = lua_tointeger(L, 1);
+    else color = log2i(lua_tointeger(L, 1));
     if (color < 0 || color > 255) luaL_error(L, "bad argument #1 (invalid color %d)", color);
     std::lock_guard<std::mutex> lock(term->locked);
-    term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
-    term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
-    term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
+    if (lua_isnoneornil(L, 3)) {
+        unsigned int rgb = lua_tointeger(L, 2);
+        term->palette[color].r = rgb >> 16 & 0xFF;
+        term->palette[color].g = rgb >> 8 & 0xFF;
+        term->palette[color].b = rgb & 0xFF;
+    } else {
+        term->palette[color].r = (int)(lua_tonumber(L, 2) * 255);
+        term->palette[color].g = (int)(lua_tonumber(L, 3) * 255);
+        term->palette[color].b = (int)(lua_tonumber(L, 4) * 255);
+    }
     if (selectedRenderer == 4 && color < 16) 
         printf("TM:%d;%d,%f,%f,%f\n", term->id, color, term->palette[color].r / 255.0, term->palette[color].g / 255.0, term->palette[color].b / 255.0);
     term->changed = true;
@@ -214,15 +228,21 @@ int monitor::setPaletteColor(lua_State *L) {
 }
 
 int monitor::setGraphicsMode(lua_State *L) {
-    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
+    if (!lua_isnumber(L, 1) && !lua_isboolean(L, 1)) bad_argument(L, "number", 1);
+    if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     std::lock_guard<std::mutex> lock(term->locked);
-    term->mode = lua_toboolean(L, 1);
+    term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : lua_tointeger(L, 1);
     term->changed = true;
     return 0;
 }
 
 int monitor::getGraphicsMode(lua_State *L) {
-    lua_pushboolean(L, term->mode);
+    if (selectedRenderer == 1 || selectedRenderer == 2) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    if (term->mode == 0) lua_pushboolean(L, false);
+    else lua_pushinteger(L, term->mode);
     return 1;
 }
 
@@ -230,11 +250,13 @@ int monitor::setPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
+    if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     std::lock_guard<std::mutex> lock(term->locked);
-    if (x >= term->width * term->fontWidth || y >= term->height * term->fontHeight || x < 0 || y < 0) return 0;
-    term->pixels[y][x] = log2i(lua_tointeger(L, 3));
+    if (x >= term->width * 6 || y >= term->height * 9 || x < 0 || y < 0) return 0;
+    if (term->mode == 1) term->pixels[y][x] = log2i(lua_tointeger(L, 3));
+    else if (term->mode == 2) term->pixels[y][x] = lua_tointeger(L, 3);
     term->changed = true;
     return 0;
 }
@@ -242,10 +264,13 @@ int monitor::setPixel(lua_State *L) {
 int monitor::getPixel(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
-    if (x >= term->width * term->fontWidth || y >= term->height * term->fontHeight || x < 0 || y < 0) return 0;
-    lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    if (x > term->width * term->fontWidth || y > term->height * term->fontHeight || x < 0 || y < 0) lua_pushnil(L);
+    else if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    else if (term->mode == 2) lua_pushinteger(L, term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    else return 0;
     return 1;
 }
 
@@ -274,6 +299,7 @@ int monitor::drawPixels(lua_State *L) {
     if (!lua_istable(L, 3)) bad_argument(L, "table", 3);
     std::lock_guard<std::mutex> lock(term->locked);
     int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
+    if (init_x < 0 || init_y < 0) {lua_pushstring(L, "Invalid initial position"); lua_error(L);}
     for (int y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < term->height * Terminal::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 

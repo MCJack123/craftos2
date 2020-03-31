@@ -1036,6 +1036,7 @@ int term_setPaletteColor(lua_State *L) {
     if (term->mode == 2) color = lua_tointeger(L, 1);
     else color = log2i(lua_tointeger(L, 1));
     if (color < 0 || color > 255) luaL_error(L, "bad argument #1 (invalid color %d)", color);
+    std::lock_guard<std::mutex> lock(term->locked);
     if (lua_isnoneornil(L, 3)) {
         unsigned int rgb = lua_tointeger(L, 2);
         term->palette[color].r = rgb >> 16 & 0xFF;
