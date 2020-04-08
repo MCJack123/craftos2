@@ -54,8 +54,12 @@ std::atomic_bool taskQueueReady(false);
 
 void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
-    int myID = nextTaskID++;
-    taskQueue.push(std::make_tuple(myID, func, arg, async));
+    int myID;
+    {
+        std::lock_guard<std::mutex> lock(taskQueueMutex);
+        myID = nextTaskID++;
+        taskQueue.push(std::make_tuple(myID, func, arg, async));
+    }
     if (selectedRenderer == 0 && !exiting) {
         SDL_Event ev;
         ev.type = task_event_type;

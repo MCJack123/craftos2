@@ -784,7 +784,7 @@ void websocket_client_thread(Computer *comp, std::string str, bool binary, std::
         std::this_thread::yield();
     }
     wsh->url = "";
-    if (!wsh->externalClosed) ws->shutdown();
+    try {if (!wsh->externalClosed) ws->shutdown();} catch (std::exception &e) {}
     for (auto it = comp->openWebsockets.begin(); it != comp->openWebsockets.end(); it++) {
         if (*it == wsh) {
             comp->openWebsockets.erase(it);

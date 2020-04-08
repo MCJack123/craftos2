@@ -72,13 +72,13 @@ static void xcopy1(lua_State *L, lua_State *T, int n) {
     case LUA_TSTRING:
         lua_pushlstring(T, lua_tostring(L, n), lua_strlen(L, n));
         break;
-    case LUA_TLIGHTUSERDATA:
-        lua_pushlightuserdata(T, (void *)lua_touserdata(L, n));
-        break;
-    case LUA_TFUNCTION:
-        if (lua_iscfunction(L, n)) lua_pushcfunction(T, lua_tocfunction(L, n));
-        else lua_pushnil(T);
-        break;
+    //case LUA_TLIGHTUSERDATA:
+    //    lua_pushlightuserdata(T, (void *)lua_touserdata(L, n));
+    //    break;
+    //case LUA_TFUNCTION:
+    //    if (lua_iscfunction(L, n)) lua_pushcfunction(T, lua_tocfunction(L, n));
+    //    else lua_pushnil(T);
+    //    break;
     default:
         lua_pushnil(T);
         break;
@@ -103,7 +103,11 @@ static void xcopy(lua_State *L, lua_State *T, int t) {
 }
 
 void modem::receive(uint16_t port, uint16_t replyPort, lua_State *param) {
-    lua_checkstack(eventQueue, 5);
+    lua_gc(comp->L, LUA_GCSTOP, 0);
+    if (!lua_checkstack(eventQueue, 1)) {
+        fprintf(stderr, "Could not resize modem event queue, skipping message\n");
+        return;
+    }
     lua_State *message = lua_newthread(eventQueue);
     lua_pushlightuserdata(message, this);
     lua_pushstring(message, side.c_str());
@@ -117,6 +121,7 @@ void modem::receive(uint16_t port, uint16_t replyPort, lua_State *param) {
     else if (lua_type(param, 3) == LUA_TTABLE) xcopy(param, message, 3);
     else lua_pushnil(message);
     termQueueProvider(comp, modem_message, message);
+    lua_gc(comp->L, LUA_GCRESTART, 0);
 }
 
 modem::modem(lua_State *L, const char * side) {
