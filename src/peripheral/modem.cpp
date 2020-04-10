@@ -62,7 +62,6 @@ int modem::transmit(lua_State *L) {
     lua_xmove(L, eventQueue, 1);
     lua_setfield(eventQueue, -2, "data");
     lua_settable(eventQueue, 1);
-    assert(lua_gettop(eventQueue) == 1);
     for (modem* m : network) if (m != this && m->openPorts.find(port) != m->openPorts.end()) {
         m->receive(port, lua_tointeger(L, 2), id, this);
         (*refc)++;
@@ -119,7 +118,7 @@ static void xcopy(lua_State *L, lua_State *T, int t) {
     lua_newtable(T);
     w = lua_gettop(T);
     lua_pushnil(L); /* first key */
-    while (lua_next(L, t) != 0) {
+    while (lua_next(L, t-(t<0)) != 0) {
         xcopy1(L, T, -2);
         if (lua_type(L, -1) == LUA_TTABLE)
             xcopy(L, T, lua_gettop(L));

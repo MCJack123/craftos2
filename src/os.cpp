@@ -300,8 +300,8 @@ Uint32 notifyEvent(Uint32 interval, void* param) {
 		}
 	}
 	if (data->comp->timerIDs.find(data->timer) != data->comp->timerIDs.end()) data->comp->timerIDs.erase(data->timer);
-    termQueueProvider(data->comp, timer_event, data);
     data->comp->event_lock.notify_all();
+    termQueueProvider(data->comp, timer_event, data);
     return 0;
 }
 
