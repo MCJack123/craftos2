@@ -98,10 +98,10 @@ void mainLoop() {
 #ifndef __EMSCRIPTEN__
     while (rawClient ? !exiting : computers.size() > 0) {
 #endif
-		bool res = false;
-		if (selectedRenderer == 0) res = SDLTerminal::pollEvents();
+		//bool res = false; // I forgot what this is for
+		if (selectedRenderer == 0) /*res =*/ SDLTerminal::pollEvents();
 #ifndef NO_CLI
-		else if (selectedRenderer == 2) res = CLITerminal::pollEvents();
+		else if (selectedRenderer == 2) /*res =*/ CLITerminal::pollEvents();
 #endif
         else {
             std::unique_lock<std::mutex> lock(taskQueueMutex);

@@ -71,7 +71,7 @@ void trorInputLoop() {
         std::string code = line.substr(0, 2);
         std::string meta = line.substr(3, line.find(';') - 3);
         std::string payload = line.substr(line.find(';') + 1);
-        int id = meta.empty() ? 0 : std::stoi(meta);
+        unsigned id = meta.empty() ? 0 : std::stoi(meta);
         if (code == "SP") {
             std::vector<std::string> args = split(payload, '-');
             for (std::string a : args) if (!a.empty()) trorExtensions.insert(a);

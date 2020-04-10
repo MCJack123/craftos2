@@ -26,7 +26,9 @@
 #include <algorithm>
 #include <random>
 
+#ifdef __INTELLISENSE__
 #pragma region
+#endif
 /*
  * sound_pitching_example.cpp
  * Original source available at https://gist.github.com/hydren/f60d107f144fcb41dd6f898b126e17b2
@@ -225,7 +227,9 @@ void setupForNextPlayback(float& speed, Mix_Chunk* chunk, int channel, bool loop
 	}
 }
 
+#ifdef __INTELLISENSE__
 #pragma endregion
+#endif
 
 typedef struct {
     std::string name;
