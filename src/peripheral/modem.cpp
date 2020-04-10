@@ -44,7 +44,35 @@ int modem::transmit(lua_State *L) {
     if (lua_isnone(L, 3)) bad_argument(L, "value", 3);
     lua_settop(L, 3);
     uint16_t port = lua_tointeger(L, 1);
-    for (modem* m : network) if (m != this && m->openPorts.find(port) != m->openPorts.end()) m->receive(port, lua_tointeger(L, 2), L);
+    std::lock_guard<std::mutex> lock(eventQueueMutex);
+    if (idsToDelete.size() > 0) {
+        for (int i : idsToDelete) {
+            lua_pushinteger(eventQueue, i);
+            lua_pushnil(eventQueue);
+            lua_settable(eventQueue, 1);
+        }
+        idsToDelete.clear();
+    }
+    int id = lua_objlen(eventQueue, 1) + 1;
+    int * refc = new int(0);
+    lua_pushinteger(eventQueue, id);
+    lua_newtable(eventQueue);
+    lua_pushlightuserdata(eventQueue, refc);
+    lua_setfield(eventQueue, -2, "refcount");
+    lua_xmove(L, eventQueue, 1);
+    lua_setfield(eventQueue, -2, "data");
+    lua_settable(eventQueue, 1);
+    assert(lua_gettop(eventQueue) == 1);
+    for (modem* m : network) if (m != this && m->openPorts.find(port) != m->openPorts.end()) {
+        m->receive(port, lua_tointeger(L, 2), id, this);
+        (*refc)++;
+    }
+    if (*refc == 0) {
+        lua_pushinteger(eventQueue, id);
+        lua_pushnil(eventQueue);
+        lua_settable(eventQueue, 1);
+        delete refc;
+    }
     return 0;
 }
 
@@ -53,12 +81,12 @@ int modem::isWireless(lua_State *L) {
     return 1;
 }
 
-const char * modem_message(lua_State *L, void* data) {
-    lua_State *message = (lua_State*)data;
-    lua_xmove(message, L, 4);
-    modem * m = (modem*)lua_touserdata(message, 1);
-    lua_remove(m->eventQueue, 1);
-    return "modem_message";
+struct modem_message_data {
+    modem * m;
+    modem * sender;
+    int id;
+    uint16_t port;
+    uint16_t replyPort;
 };
 
 static void xcopy1(lua_State *L, lua_State *T, int n) {
@@ -102,37 +130,61 @@ static void xcopy(lua_State *L, lua_State *T, int t) {
     }
 }
 
-void modem::receive(uint16_t port, uint16_t replyPort, lua_State *param) {
-    lua_gc(comp->L, LUA_GCSTOP, 0);
-    if (!lua_checkstack(eventQueue, 1)) {
-        fprintf(stderr, "Could not resize modem event queue, skipping message\n");
-        return;
-    }
-    lua_State *message = lua_newthread(eventQueue);
-    lua_pushlightuserdata(message, this);
-    lua_pushstring(message, side.c_str());
-    lua_pushinteger(message, lua_tointeger(param, 1));
-    lua_pushinteger(message, lua_tointeger(param, 2));
-    if (lua_type(param, 3) == LUA_TNUMBER) lua_pushnumber(message, lua_tonumber(param, 3));
-    else if (lua_type(param, 3) == LUA_TSTRING) lua_pushlstring(message, lua_tostring(param, 3), lua_strlen(param, 3));
-    else if (lua_type(param, 3) == LUA_TBOOLEAN) lua_pushboolean(message, lua_toboolean(param, 3));
-    else if (lua_type(param, 3) == LUA_TLIGHTUSERDATA) lua_pushlightuserdata(message, lua_touserdata(param, 3));
-    else if (lua_type(param, 3) == LUA_TFUNCTION && lua_iscfunction(param, 3)) lua_pushcfunction(message, lua_tocfunction(param, 3));
-    else if (lua_type(param, 3) == LUA_TTABLE) xcopy(param, message, 3);
+const char * modem_message(lua_State *message, void* data) {
+    struct modem_message_data * d = (struct modem_message_data*)data;
+    lua_pushstring(message, d->m->side.c_str());
+    lua_pushinteger(message, d->port);
+    lua_pushinteger(message, d->replyPort);
+    std::lock_guard<std::mutex> lock(d->sender->eventQueueMutex);
+    lua_pushinteger(d->sender->eventQueue, d->id);
+    lua_gettable(d->sender->eventQueue, 1);
+    if (lua_isnil(d->sender->eventQueue, -1)) {
+        fprintf(stderr, "Missing event data for id %d\n", d->id);
+        delete d;
+        return NULL;
+    } 
+    lua_getfield(d->sender->eventQueue, -1, "data");
+    if (lua_type(d->sender->eventQueue, -1) == LUA_TNUMBER) lua_pushnumber(message, lua_tonumber(d->sender->eventQueue, -1));
+    else if (lua_type(d->sender->eventQueue, -1) == LUA_TSTRING) lua_pushlstring(message, lua_tostring(d->sender->eventQueue, -1), lua_strlen(d->sender->eventQueue, -1));
+    else if (lua_type(d->sender->eventQueue, -1) == LUA_TBOOLEAN) lua_pushboolean(message, lua_toboolean(d->sender->eventQueue, -1));
+    else if (lua_type(d->sender->eventQueue, -1) == LUA_TLIGHTUSERDATA) lua_pushlightuserdata(message, lua_touserdata(d->sender->eventQueue, -1));
+    else if (lua_type(d->sender->eventQueue, -1) == LUA_TFUNCTION && lua_iscfunction(d->sender->eventQueue, -1)) lua_pushcfunction(message, lua_tocfunction(d->sender->eventQueue, -1));
+    else if (lua_type(d->sender->eventQueue, -1) == LUA_TTABLE) xcopy(d->sender->eventQueue, message, -1);
     else lua_pushnil(message);
-    termQueueProvider(comp, modem_message, message);
-    lua_gc(comp->L, LUA_GCRESTART, 0);
+    lua_pop(d->sender->eventQueue, 1);
+    lua_getfield(d->sender->eventQueue, -1, "refcount");
+    int * refc = (int*)lua_touserdata(d->sender->eventQueue, -1);
+    lua_pop(d->sender->eventQueue, 2);
+    if (!--(*refc)) {
+        delete refc;
+        d->sender->idsToDelete.insert(d->id);
+    }
+    delete d;
+    return "modem_message";
+};
+
+void modem::receive(uint16_t port, uint16_t replyPort, int id, modem * sender) {
+    struct modem_message_data * d = new struct modem_message_data;
+    d->id = id;
+    d->port = port;
+    d->replyPort = replyPort;
+    d->m = this;
+    d->sender = sender;
+    termQueueProvider(comp, modem_message, d);
 }
 
 modem::modem(lua_State *L, const char * side) {
     comp = get_comp(L);
     eventQueue = lua_newthread(comp->L);
+    lua_newtable(eventQueue);
     this->side = side;
     network.push_back(this);
 }
 
 modem::~modem() {
     for (std::list<modem*>::iterator it = network.begin(); it != network.end(); it++) {if (*it == this) {network.erase(it); return;}}
+    lua_pop(eventQueue, 1);
+    for (int i = 1; i < lua_gettop(comp->L); i++) if (lua_type(comp->L, i) == LUA_TTHREAD && lua_tothread(comp->L, i) == eventQueue) lua_remove(comp->L, i--);
 }
 
 int modem::call(lua_State *L, const char * method) {

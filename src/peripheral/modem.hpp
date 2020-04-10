@@ -17,6 +17,8 @@ private:
     std::unordered_set<uint16_t> openPorts;
     Computer * comp;
     lua_State * eventQueue;
+    std::mutex eventQueueMutex;
+    std::unordered_set<int> idsToDelete;
     std::string side;
     int isOpen(lua_State *L);
     int open(lua_State *L);
@@ -24,7 +26,7 @@ private:
     int closeAll(lua_State *L);
     int transmit(lua_State *L);
     int isWireless(lua_State *L);
-    void receive(uint16_t port, uint16_t replyPort, lua_State *param);
+    void receive(uint16_t port, uint16_t replyPort, int id, modem * sender);
 public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new modem(L, side);}
