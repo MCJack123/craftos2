@@ -20,6 +20,7 @@ private:
     std::mutex eventQueueMutex;
     std::unordered_set<int> idsToDelete;
     std::string side;
+    int netID = 0;
     int isOpen(lua_State *L);
     int open(lua_State *L);
     int close(lua_State *L);

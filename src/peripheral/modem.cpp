@@ -12,8 +12,9 @@
 #include "modem.hpp"
 #include "../term.hpp"
 #include <list>
+#include <unordered_map>
 
-std::list<modem*> network;
+std::unordered_map<int, std::list<modem*>> network;
 
 int modem::isOpen(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
@@ -62,7 +63,7 @@ int modem::transmit(lua_State *L) {
     lua_xmove(L, eventQueue, 1);
     lua_setfield(eventQueue, -2, "data");
     lua_settable(eventQueue, 1);
-    for (modem* m : network) if (m != this && m->openPorts.find(port) != m->openPorts.end()) {
+    for (modem* m : network[netID]) if (m != this && m->openPorts.find(port) != m->openPorts.end()) {
         m->receive(port, lua_tointeger(L, 2), id, this);
         (*refc)++;
     }
@@ -173,15 +174,17 @@ void modem::receive(uint16_t port, uint16_t replyPort, int id, modem * sender) {
 }
 
 modem::modem(lua_State *L, const char * side) {
+    if (lua_isnumber(L, 3)) netID = lua_tointeger(L, 3);
     comp = get_comp(L);
     eventQueue = lua_newthread(comp->L);
     lua_newtable(eventQueue);
     this->side = side;
-    network.push_back(this);
+    if (network.find(netID) == network.end()) network[netID] = std::list<modem*>();
+    network[netID].push_back(this);
 }
 
 modem::~modem() {
-    for (std::list<modem*>::iterator it = network.begin(); it != network.end(); it++) {if (*it == this) {network.erase(it); return;}}
+    for (std::list<modem*>::iterator it = network[netID].begin(); it != network[netID].end(); it++) {if (*it == this) {network[netID].erase(it); return;}}
     lua_pop(eventQueue, 1);
     for (int i = 1; i < lua_gettop(comp->L); i++) if (lua_type(comp->L, i) == LUA_TTHREAD && lua_tothread(comp->L, i) == eventQueue) lua_remove(comp->L, i--);
 }
