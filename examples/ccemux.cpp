@@ -16,11 +16,10 @@ extern "C" {
 #include "../src/Computer.hpp"
 #include <chrono>
 #include <string>
+#include <SDL2/SDL.h>
 #ifdef _WIN32
-#include <SDL.h>
 #include <windows.h>
 #else
-#include <SDL2/SDL.h>
 #include <stdlib.h>
 #endif
 #define libFunc(lib, name) getLibraryFunction(getLibrary(lib), name)

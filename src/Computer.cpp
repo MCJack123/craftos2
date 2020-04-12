@@ -505,8 +505,8 @@ void* computerThread(void* data) {
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {
-            queueTask([](void* arg)->void*{delete (Computer*)arg; return NULL;}, comp);
             it = computers.erase(it);
+            queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
             if (it == computers.end()) break;
         }
     }

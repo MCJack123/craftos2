@@ -25,11 +25,7 @@ extern "C" {
 #include <atomic>
 #include <condition_variable>
 #include <csetjmp>
-#ifdef _WIN32
-#include <SDL.h>
-#else
 #include <SDL2/SDL.h>
-#endif
 #ifndef NO_CLI
 #include <ncurses.h>
 #include <panel.h>

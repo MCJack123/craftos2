@@ -52,7 +52,7 @@ void config_init() {
     config = {
         true,
         false,
-        MOUNT_MODE_RO,
+        MOUNT_MODE_RO_STRICT,
         false,
         "",
         false,

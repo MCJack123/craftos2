@@ -14,11 +14,7 @@
 #include "../config.hpp"
 #include "../platform.hpp"
 #include "../mounter.hpp"
-#ifdef _WIN32
-#include <SDL_mixer.h>
-#else
 #include <SDL2/SDL_mixer.h>
-#endif
 #include <cmath>
 #include <fstream>
 #include <dirent.h>
@@ -452,8 +448,17 @@ int speaker::call(lua_State *L, const char * method) {
     else return 0;
 }
 
+#define MIXER_FORMATS (MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_MID)
 void speakerInit() {
-    Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
+    int loadedFormats = Mix_Init(MIXER_FORMATS);
+	if ((loadedFormats & MIXER_FORMATS) != MIXER_FORMATS) {
+		fprintf(stderr, "Missing audio support for: ");
+		if (!(loadedFormats & MIX_INIT_FLAC)) fprintf(stderr, "flac ");
+		if (!(loadedFormats & MIX_INIT_MP3)) fprintf(stderr, "mp3 ");
+		if (!(loadedFormats & MIX_INIT_OGG)) fprintf(stderr, "ogg ");
+		if (!(loadedFormats & MIX_INIT_MID)) fprintf(stderr, "mid ");
+		fprintf(stderr, "\n");
+	}
     //Mix_QuerySpec(&AudioSpec::frequency, &AudioSpec::format, &AudioSpec::channelCount);
     AudioSpec::allocatedMixChannelsCount = Mix_AllocateChannels(config.maxNotesPerTick);
 #ifndef STANDALONE_ROM
@@ -515,7 +520,7 @@ const char * speaker_names[] = {
     "playNote",
     "playSound",
 	"listSounds",
-	"playLocalSound",
+	"playLocalMusic",
 	"setSoundFont",
 	"stopSounds"
 };

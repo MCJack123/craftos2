@@ -11,11 +11,7 @@
 #ifndef TERMINAL_SDLTERMINAL_HPP
 #define TERMINAL_SDLTERMINAL_HPP
 #include "Terminal.hpp"
-#ifdef _WIN32
-#include <SDL.h>
-#else
 #include <SDL2/SDL.h>
-#endif
 #include <string>
 #include <vector>
 #include <ctime>
