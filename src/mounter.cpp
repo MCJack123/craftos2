@@ -10,8 +10,10 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "fs_standalone.hpp"
+#include "os.hpp"
 #include "mounter.hpp"
 #include "platform.hpp"
+#include "terminal/SDLTerminal.hpp"
 #include <string>
 #include <vector>
 #include <list>
@@ -175,16 +177,39 @@ std::set<std::string> getMounts(Computer * computer, const char * comp_path) {
 int mounter_mount(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
-    if (config.mount_mode == MOUNT_MODE_NONE) {lua_pushstring(L, "Mounting is disabled"); lua_error(L);}
+    if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     bool read_only = config.mount_mode != MOUNT_MODE_RW;
     if (lua_isboolean(L, 3) && config.mount_mode != MOUNT_MODE_RO_STRICT) read_only = lua_toboolean(L, 3);
+    int selected = 1;
+    if (config.showMountPrompt && dynamic_cast<SDLTerminal*>(get_comp(L)->term) != NULL) {
+        SDL_MessageBoxData data;
+        data.flags = SDL_MESSAGEBOX_WARNING;
+        data.window = dynamic_cast<SDLTerminal*>(get_comp(L)->term)->win;
+        data.title = "Mount requested";
+        // see config.cpp:229 for why this is a pointer (TL;DR Windows is dumb)
+        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(lua_tostring(L, 2)) + ". Any script will be able to read" + (read_only ? " AND WRITE " : " ") + "any files in this directory. Do you want to allow mounting this path?");
+        data.message = message->c_str();
+        data.numbuttons = 2;
+        SDL_MessageBoxButtonData buttons[2];
+        buttons[0].flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
+        buttons[0].buttonid = 0;
+        buttons[0].text = "Deny";
+        buttons[1].flags = 0;
+        buttons[1].buttonid = 1;
+        buttons[1].text = "Allow";
+        data.buttons = buttons;
+        data.colorScheme = NULL;
+        queueTask([data](void*selected)->void*{SDL_ShowMessageBox(&data, (int*)selected); return NULL;}, &selected);
+        delete message;
+    }
+    if (!selected) luaL_error(L, "Mount request was denied");
     lua_pushboolean(L, addMount(get_comp(L), lua_tostring(L, 2), lua_tostring(L, 1), read_only));
     return 1;
 }
 
 int mounter_unmount(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (config.mount_mode == MOUNT_MODE_NONE) {lua_pushstring(L, "Mounting is disabled"); lua_error(L);}
+    if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     Computer * computer = get_comp(L);
     const char * comp_path = lua_tostring(L, 1);
     std::vector<std::string> elems = split(comp_path, '/');
@@ -245,10 +270,8 @@ int mounter_isReadOnly(lua_State *L) {
     std::list<std::string> pathc;
     for (std::string s : elems) {
         if (s == "..") {
-            if (pathc.size() < 1) {
-                lua_pushstring(L, "Not a directory");
-                lua_error(L);
-            } else pathc.pop_back(); 
+            if (pathc.size() < 1) luaL_error(L, "Not a directory");
+            else pathc.pop_back();
         } else if (s != "." && s != "") pathc.push_back(s);
     }
     for (auto it = computer->mounts.begin(); it != computer->mounts.end(); it++) {

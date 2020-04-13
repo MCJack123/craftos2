@@ -43,6 +43,7 @@ struct configuration {
     int maxRecordingTime;
     int recordingFPS; // should be an even divisor of clockSpeed
     int cliControlKeyMode; // 0: home = ctrl, s+home = home; 1: home = home, s+home = ctrl; 2: home = home, esc-c = control; 3: home = home, ctrl-c = control
+    bool showMountPrompt;
 };
 struct computer_configuration {
     std::string label;

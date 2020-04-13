@@ -157,7 +157,7 @@ int getNextEvent(lua_State *L, std::string filter) {
             if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
             const char * name = termGetEvent(param);
             if (name != NULL) {
-                if (strcmp(name, "die") == 0) computer->running = 0;
+                if (strcmp(name, "die") == 0) { computer->running = 0; name = "terminate"; }
                 computer->eventQueue.push(name);
                 param = lua_newthread(computer->paramQueue);
             }
@@ -188,7 +188,7 @@ int getNextEvent(lua_State *L, std::string filter) {
                 if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
                 const char * name = termGetEvent(param);
                 if (name != NULL) {
-                    if (strcmp(name, "die") == 0) computer->running = 0;
+                    if (strcmp(name, "die") == 0) { computer->running = 0; name = "terminate"; }
                     computer->eventQueue.push(name);
                     param = lua_newthread(computer->paramQueue);
                 }
