@@ -252,7 +252,7 @@ int convertX(SDLTerminal * term, int x) {
         if (x < 2 * term->charScale) return 0;
         else if (x >= term->charWidth * term->width + 2 * term->charScale)
             return Terminal::fontWidth * term->width - 1;
-        return (x - (2 * term->charScale)) / term->charScale;
+        return (x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale));
     } else {
         if (x < 2 * term->charScale) x = 2 * term->charScale;
         else if (x > term->charWidth * term->width + 2 * term->charScale)
@@ -266,7 +266,7 @@ int convertY(SDLTerminal * term, int x) {
         if (x < 2 * term->charScale) return 0;
         else if (x >= term->charHeight * term->height + 2 * term->charScale)
             return Terminal::fontHeight * term->height - 1;
-        return (x - (2 * term->charScale)) / term->charScale;
+        return (x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale));
     } else {
         if (x < 2 * term->charScale) x = 2 * term->charScale;
         else if (x > term->charHeight * term->height + 2 * term->charScale)
