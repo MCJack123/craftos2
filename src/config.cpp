@@ -49,7 +49,7 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
     out.close();
 }
 
-#define readConfigSetting(name, type) if (root.isMember(#name)) config.##name = root[#name].as##type()
+#define readConfigSetting(name, type) if (root.isMember(#name)) config.name = root[#name].as##type()
 
 void config_init() {
     createDirectory((std::string(getBasePath()) + "/config").c_str());
