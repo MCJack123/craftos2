@@ -82,13 +82,15 @@ int periphemu_create(lua_State* L) {
 	}
 	//lua_pop(L, 2);
 	try {
-		if (type == std::string("debugger") && computer->debugger == NULL && config.debug_enable) computer->peripherals[side] = new debugger(L, side.c_str());
-		else if (initializers.find(type) != initializers.end()) computer->peripherals[side] = initializers[type](L, side.c_str());
+		peripheral * p;
+		if (type == std::string("debugger") && computer->debugger == NULL && config.debug_enable) p = new debugger(L, side.c_str());
+		else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
         else {
 			printf("not found: %s\n", type.c_str());
 			lua_pushboolean(L, false);
 			return 1;
 		}
+		computer->peripherals[side] = p;
 	} catch (std::exception &e) {
 		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
 		return lua_error(L);
