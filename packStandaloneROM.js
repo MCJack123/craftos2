@@ -212,7 +212,7 @@ function writeDir(path, level) {
     console.log("Reading directory " + path)
     fs.writeSync(out, "{\n")
     for (var f of fs.readdirSync(path)) {
-        if (f == "." || f == ".." || f == ".DS_Store" || f == "desktop.ini") continue;
+        if (f == "." || f == ".." || f == ".DS_Store" || f == "desktop.ini" || f == "packStandaloneROM.js") continue;
         fs.writeSync(out, `${' '.repeat(level * 4)}{"${f}", `)
         if (fs.lstatSync(path + "/" + f).isDirectory()) writeDir(path + "/" + f, level + 1)
         else {
