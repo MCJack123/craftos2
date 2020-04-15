@@ -79,7 +79,10 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Can be disabled with `--without-sdl_mixer`, will disable audio disc support
   * For MP3 support, libmpg123 is required
   * For FLAC support, libFLAC is required
+  * For SF2 support, SDL_mixer must be built manually with fluidsynth support
 * The path to the ROM package can be changed with `--prefix=<path>`, which will store the ROM at `<path>/share/craftos`
+* Standalone builds can be enabled with `--with-standalone-rom=<fs_standalone.cpp>`, with `<fs_standalone.cpp>` referring to the path to the packed standalone ROM file.
+  * The latest packed ROM can be downloaded as an artifact from the latest CI build, found by following the top link [here](https://github.com/MCJack123/craftos2-rom/actions).
 
 You can get all of these dependencies with:
   * Windows: The VS solution includes all packages required except POCO and png (build yourself)
