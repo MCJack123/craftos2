@@ -124,8 +124,12 @@ const char * http_success(lua_State *L, void* data) {
 }
 
 const char * http_failure(lua_State *L, void* data) {
-    lua_pushstring(L, (char*)data);
-    delete[] (char*)data;
+    http_check_t * err = (http_check_t*)data;
+    lua_pushstring(L, err->url);
+    delete[] err->url;
+    if (!err->status.empty()) lua_pushstring(L, err->status.c_str());
+    else lua_pushnil(L);
+    delete err;
     return "http_failure";
 }
 
@@ -167,7 +171,10 @@ void downloadThread(void* arg) {
         if (reqs.bad() || reqs.fail()) {
             if (param->postData != NULL) delete[] param->postData;
             if (param->url != param->old_url) delete[] param->old_url;
-            termQueueProvider(param->comp, http_failure, param->url);
+            http_check_t * err = new http_check_t;
+            err->url = param->url;
+            err->status = "Failed to send request";
+            termQueueProvider(param->comp, http_failure, err);
             delete param;
             delete response;
             delete session;
@@ -177,7 +184,10 @@ void downloadThread(void* arg) {
         printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
-        termQueueProvider(param->comp, http_failure, param->url);
+        http_check_t * err = new http_check_t;
+        err->url = param->url;
+        err->status = e.what();
+        termQueueProvider(param->comp, http_failure, err);
         delete param;
         delete response;
         delete session;
@@ -190,7 +200,10 @@ void downloadThread(void* arg) {
         printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
-        termQueueProvider(param->comp, http_failure, param->url);
+        http_check_t * err = new http_check_t;
+        err->url = param->url;
+        err->status = e.message();
+        termQueueProvider(param->comp, http_failure, err);
         delete param;
         delete response;
         delete session;
