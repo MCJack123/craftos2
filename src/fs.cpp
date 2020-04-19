@@ -69,6 +69,7 @@ std::string concat(std::vector<std::string> c, char sep) {
 std::string fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL) {
     if (md && fixpath_ro(comp, path.c_str())) return std::string();
     std::vector<std::string> components = split(path, PATH_SEPC);
+    if (components.empty()) return fixpath(comp, "", true);
     components.pop_back();
     std::vector<std::string> append;
     std::string maxPath = fixpath(comp, concat(components, PATH_SEPC).c_str(), false, true, mountPath);
