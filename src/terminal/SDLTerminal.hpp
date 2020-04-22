@@ -42,6 +42,7 @@ public:
     int lastFPS = 0;
     int currentFPS = 0;
     int lastSecond = time(0);
+    std::chrono::system_clock::time_point lastScreenshotTime;
     unsigned char cursorColor = 0;
 
     static void init();

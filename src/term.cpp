@@ -1146,8 +1146,11 @@ int term_screenshot(lua_State *L) {
     Computer * computer = get_comp(L);
     SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
     if (term == NULL) return 0;
-    if (lua_isstring(L, 1)) term->screenshot(std::string(lua_tostring(L, 1), lua_strlen(L, 1)));
-    else term->screenshot();
+    if (std::chrono::system_clock::now() - term->lastScreenshotTime < std::chrono::milliseconds(1000 / config.recordingFPS)) return 0;
+    // Specifying a save path is no longer supported.
+    //if (lua_isstring(L, 1)) term->screenshot(std::string(lua_tostring(L, 1), lua_strlen(L, 1))); else
+    term->screenshot();
+    term->lastScreenshotTime = std::chrono::system_clock::now();
     return 0;
 }
 
