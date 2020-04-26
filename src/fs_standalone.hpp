@@ -14,6 +14,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <algorithm>
 
 struct FileEntry {
     bool isDir;
@@ -30,6 +31,7 @@ struct FileEntry {
     FileEntry& operator=(const FileEntry& rhs) {isDir = rhs.isDir; if (isDir) dir = rhs.dir; else data = rhs.data; return *this;}
     FileEntry& operator[](std::string key) {if (!isDir) throw std::runtime_error("Attempted to index a file"); return this->dir.at(key);}
     FileEntry& path(std::string path) { // throws
+        std::replace(path.begin(), path.end(), '\\', '/');
         std::stringstream ss(path);
         std::string item;
         FileEntry * retval = this;

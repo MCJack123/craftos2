@@ -360,7 +360,7 @@ int main(int argc, char*argv[]) {
 #ifndef NO_MIXER
     speakerInit();
 #endif
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(STANDALONE_ROM)
     if (!CRAFTOSPC_INDEV && selectedRenderer == 0 && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
