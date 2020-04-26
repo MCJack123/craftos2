@@ -712,7 +712,7 @@ const char * fs_keys[18] = {
     "open",
     "find",
     "getDir",
-    "attributes",
+    "getAttributes",
     "getCapacity"
 };
 
