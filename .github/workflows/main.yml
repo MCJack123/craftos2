@@ -85,7 +85,6 @@ jobs:
         git clone https://github.com/MCJack123/craftos2-rom
         git clone https://github.com/emscripten-core/emsdk
         cd emsdk
-        ./emsdk update
         ./emsdk install latest
         ./emsdk activate latest
         popd
