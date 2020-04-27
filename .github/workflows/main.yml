@@ -99,6 +99,7 @@ jobs:
         unset -e
         source ../emsdk/emsdk_env.sh
         ./configure --enable-wasm --with-wasm-poco=../wasm-reqs --with-wasm-openssl=../wasm-reqs --with-wasm-rom=../craftos2-rom
+        cat config.log
         emmake make
         mkdir artifact
         cp craftos.js craftos.fetch.js craftos.html.mem craftos.wasm craftos.worker.js craftos.wasm.map artifact/
