@@ -229,7 +229,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)packages\poco.1.9.3\build\native\lib\x64\Debug\v142;$(SolutionDir)packages\png++.0.2.10\build\native\lib\x64\Debug;$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51d.lib;sdl2d.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2maind.lib;SDL2_mixer.lib;PocoNetmtd.lib;PocoFoundationmtd.lib;iphlpapi.lib;PocoNetSSLmtd.lib;PocoCryptomtd.lib;PocoJSONmtd.lib;libpng16d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51d.lib;sdl2d.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;wer.lib;crypt32.lib;normaliz.lib;SDL2maind.lib;SDL2_mixer.lib;PocoNetmtd.lib;PocoFoundationmtd.lib;iphlpapi.lib;PocoNetSSLmtd.lib;PocoCryptomtd.lib;PocoJSONmtd.lib;libpng16d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <AdditionalOptions>/VERBOSE:LIB %(AdditionalOptions)</AdditionalOptions>
       <Profile>true</Profile>

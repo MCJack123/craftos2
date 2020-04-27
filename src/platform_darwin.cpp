@@ -210,7 +210,7 @@ void handler(int sig) {
     size = backtrace(array, 25);
 
     // print out all the frames to stderr
-    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://github.com/MCJack123/craftos2/issues/new?labels=bug&template=bug_report.md. Paste the following text under the 'Screenshots' section:\nOS: Mac (Console build)\n", strsignal(sig));
+    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://github.com/MCJack123/craftos2/issues/new/choose. Paste the following text under the 'Screenshots' section:\nOS: Mac (Console build)\n", strsignal(sig));
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     _Exit(1);
 }

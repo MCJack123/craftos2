@@ -73,3 +73,36 @@ jobs:
         make
     - name: Run CraftOSTest
       run: make test
+
+  build-webassembly:
+    
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install dependencies
+      run: |
+        pushd ..
+        git clone https://github.com/MCJack123/craftos2-rom
+        git clone https://github.com/emscripten-core/emsdk
+        cd emsdk
+        ./emsdk update
+        ./emsdk install latest
+        ./emsdk activate latest
+        popd
+        unzip wasm-reqs.zip
+    - name: Build Lua
+      run: |
+        source ../emsdk/emsdk_env.sh
+        git submodule update --init --recursive
+        emmake make -C craftos2-lua emscripten
+    - name: Build CraftOS-PC
+      run: |
+        emconfigure ./configure --enable-wasm --with-wasm-poco=../wasm-reqs --with-wasm-openssl=../wasm-reqs --with-wasm-rom=../craftos2-rom
+        emmake make
+        mkdir artifact
+        cp craftos.js craftos.fetch.js craftos.html.mem craftos.wasm craftos.worker.js craftos.wasm.map artifact/
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: CraftOS-PC-WASM
+        path: artifact
