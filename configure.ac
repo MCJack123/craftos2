@@ -39,11 +39,13 @@ if test "x$enable_wasm" = "xyes"; then
     AS_IF([test "x$with_wasm_poco" = "x"], [AC_MSG_ERROR([--with-wasm-poco must be specified when building for WASM.])])
     AS_IF([test "x$with_wasm_openssl" = "x"], [AC_MSG_ERROR([--with-wasm-openssl must be specified when building for WASM.])])
     AS_IF([test "x$with_wasm_rom" = "x"], [AC_MSG_ERROR([--with-wasm-rom must be specified when building for WASM.])])
+    SQBROP=@<:@
+    SQBRCL=@:>@
     CC=emcc
     CXX=em++
     CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -I$with_wasm_openssl/include -Icraftos2-lua/include -DNO_CLI -DNO_PNG -DNO_MIXER -DPRINT_TYPE=1"
     CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1 -s BINARYEN_TRAP_MODE=clamp"
-    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -L$with_wasm_openssl/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s BINARYEN_TRAP_MODE=clamp -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\", \"cwrap\"]'"
+    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -L$with_wasm_openssl/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s BINARYEN_TRAP_MODE=clamp -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL"
 fi
 
 # Check language
