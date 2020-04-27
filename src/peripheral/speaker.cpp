@@ -22,6 +22,10 @@
 #include <algorithm>
 #include <random>
 
+#ifndef MIX_INIT_MID
+#define MIX_INIT_MID 0
+#endif
+
 #ifdef __INTELLISENSE__
 #pragma region
 #endif
