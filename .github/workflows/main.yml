@@ -96,7 +96,7 @@ jobs:
         emmake make -C craftos2-lua emscripten
     - name: Build CraftOS-PC
       run: |
-        unset -e
+        unset +e
         source ../emsdk/emsdk_env.sh
         ./configure --enable-wasm --with-wasm-poco=../wasm-reqs --with-wasm-openssl=../wasm-reqs --with-wasm-rom=../craftos2-rom
         cat config.log
