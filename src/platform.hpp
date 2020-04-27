@@ -31,6 +31,7 @@ extern void migrateData();
 extern void * loadSymbol(std::string path, std::string symbol);
 extern void unloadLibraries();
 extern void copyImage(SDL_Surface* surf);
+extern void setupCrashHandler();
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

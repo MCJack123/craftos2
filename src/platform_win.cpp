@@ -229,4 +229,8 @@ void copyImage(SDL_Surface* surf) {
     delete[] bmp;
 }
 
+void setupCrashHandler() {
+    
+}
+
 #endif

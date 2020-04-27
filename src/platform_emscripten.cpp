@@ -72,6 +72,6 @@ void * loadSymbol(std::string path, std::string symbol) {
 
 void unloadLibraries() {}
 
-void copyImage(SDL_Surface* surf) {
+void copyImage(SDL_Surface* surf) {}
 
-}
+void setupCrashHandler() {}

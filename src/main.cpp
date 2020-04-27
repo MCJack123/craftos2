@@ -345,6 +345,7 @@ int main(int argc, char*argv[]) {
         selectedRenderer = 0;
     }
 #endif
+    setupCrashHandler();
     migrateData();
     config_init();
     if (rawClient) return runRenderer();

@@ -127,6 +127,7 @@ std::string page_ext = ".txt";
 #endif
 
 printer::printer(lua_State *L, const char * side) {
+    //*(int*)0 = 0; // debugging
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
     outPath = lua_tostring(L, 3);
 #if PRINT_TYPE == PRINT_TYPE_PDF

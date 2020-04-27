@@ -24,6 +24,8 @@ extern "C" {
 #include <glob.h>
 #include <dirent.h>
 #include <dlfcn.h>
+#include <execinfo.h>
+#include <signal.h>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -290,4 +292,24 @@ void copyImage(SDL_Surface* surf) {
     [[NSPasteboard generalPasteboard] clearContents];
     [[NSPasteboard generalPasteboard] setData:nsdata forType:NSPasteboardTypePNG];
     [nsdata release];
+}
+
+void handler(int sig) {
+    void *array[25];
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 25);
+
+    // print out all the frames to stderr
+    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://github.com/MCJack123/craftos2/issues/new?labels=bug&template=bug_report.md. Paste the following text under the 'Screenshots' section:\nOS: Mac (Application)\n", strsignal(sig));
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    _Exit(1);
+}
+
+void setupCrashHandler() {
+    signal(SIGSEGV, handler);
+    signal(SIGILL, handler);
+    signal(SIGBUS, handler);
+    signal(SIGTRAP, handler);
 }

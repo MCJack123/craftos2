@@ -21,7 +21,7 @@ Steps to reproduce the behavior:
 A clear and concise description of what you expected to happen.
 
 **Screenshots**
-If applicable, add screenshots or recordings to help explain your problem. You can capture these using F2, F3, or F12.
+If applicable, add screenshots or recordings to help explain your problem. You can capture these using F2, F3, or F12. If CraftOS-PC has crashed, paste the stack trace here.
 
 **Environment (please complete the following information):**
  - OS: [e.g. Windows]
