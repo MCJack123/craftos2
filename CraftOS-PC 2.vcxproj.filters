@@ -143,6 +143,9 @@
     <ClInclude Include="src\terminal\TRoRTerminal.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\fs_standalone.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\peripheral\monitor.cpp">
@@ -236,6 +239,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\terminal\TRoRTerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fs_standalone.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
