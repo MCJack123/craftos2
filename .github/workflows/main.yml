@@ -97,7 +97,7 @@ jobs:
     - name: Build CraftOS-PC
       run: |
         source ../emsdk/emsdk_env.sh
-        emconfigure ./configure --enable-wasm --with-wasm-poco=../wasm-reqs --with-wasm-openssl=../wasm-reqs --with-wasm-rom=../craftos2-rom
+        ./configure --enable-wasm --with-wasm-poco=../wasm-reqs --with-wasm-openssl=../wasm-reqs --with-wasm-rom=../craftos2-rom
         emmake make
         mkdir artifact
         cp craftos.js craftos.fetch.js craftos.html.mem craftos.wasm craftos.worker.js craftos.wasm.map artifact/
