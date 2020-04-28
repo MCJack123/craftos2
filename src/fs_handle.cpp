@@ -335,6 +335,38 @@ int fs_handle_istream_readByte(lua_State *L) {
     return 1;
 }
 
+int fs_handle_readAllByte(lua_State *L) {
+    if (!lua_isuserdata(L, lua_upvalueindex(1)))
+        luaL_error(L, "attempt to use a closed file");
+    FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
+    if (feof(fp)) return 0;
+    size_t size = 0;
+    char * str = (char*)malloc(512);
+    while (!feof(fp)) {
+        size += fread(&str[size], 1, 512, fp);
+        if (size % 512 != 0) break;
+        str = (char*)realloc(str, size + 512);
+    }
+    lua_pushlstring(L, str, size);
+    return 1;
+}
+
+int fs_handle_istream_readAllByte(lua_State *L) {
+    if (!lua_isuserdata(L, lua_upvalueindex(1)))
+        luaL_error(L, "attempt to use a closed file");
+    std::istream * fp = (std::istream*)lua_touserdata(L, lua_upvalueindex(1));
+    if (fp->eof()) return 0;
+    size_t size = 0;
+    char * str = (char*)malloc(512);
+    while (fp->eof()) {
+        size += fp->readsome(&str[size], 512);
+        if (size % 512 != 0) break;
+        str = (char*)realloc(str, size + 512);
+    }
+    lua_pushlstring(L, str, size);
+    return 1;
+}
+
 int fs_handle_writeString(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");

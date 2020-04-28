@@ -415,6 +415,11 @@ int fs_open(lua_State *L) {
             lua_pushcclosure(L, fs_handle_istream_readByte, 1);
             lua_settable(L, -3);
 
+            lua_pushstring(L, "readAll");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_istream_readAllByte, 1);
+            lua_settable(L, -3);
+
             lua_pushstring(L, "seek");
             lua_pushlightuserdata(L, fp);
             lua_pushcclosure(L, fs_handle_istream_seek, 1);
@@ -491,6 +496,11 @@ int fs_open(lua_State *L) {
         lua_pushstring(L, "read");
         lua_pushlightuserdata(L, fp);
         lua_pushcclosure(L, fs_handle_readByte, 1);
+        lua_settable(L, -3);
+
+        lua_pushstring(L, "readAll");
+        lua_pushlightuserdata(L, fp);
+        lua_pushcclosure(L, fs_handle_readAllByte, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "seek");
