@@ -16,7 +16,7 @@ unsigned long long getCapacity(std::string path) {
 
 int createDirectory(std::string path) {
     if (mkdir(path.c_str(), 0777) != 0) {
-        if (errno == ENOENT && path != "/") {
+        if (errno == ENOENT && path != "/" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
             mkdir(path.c_str(), 0777);
         } else if (errno != EEXIST) return 1;

@@ -31,7 +31,7 @@ craftos2-lua:
 	git submodule update --init --recursive
 
 craftos2-lua/src/liblua.a: craftos2-lua
-	$(error Please build Lua for your platform inside the craftos2-lua directory.)
+	$(error Please build Lua for your platform inside the craftos2-lua directory. You can do this with `make -C craftos2-lua <platform>`, where <platform> is a platform listed with `make -C craftos2-lua`, usually linux or macosx.)
 
 @OUT_TARGET@: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
 	echo " [LD]    $@"
