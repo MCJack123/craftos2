@@ -774,7 +774,7 @@ int term_write(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TW:%d;%s\n", get_comp(L)->term->id, lua_tostring(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    if (term->blinkX >= term->width || term->blinkY >= term->height) return 0;
+    if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
     size_t str_sz = 0;
     const char * str = lua_tolstring(L, 1, &str_sz);
@@ -903,6 +903,7 @@ int term_clearLine(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TL:%d;\n", get_comp(L)->term->id);
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
+    if (term->blinkY < 0) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
     term->screen[term->blinkY] = std::vector<unsigned char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, computer->colors);
@@ -971,7 +972,7 @@ int term_blit(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    if (term->blinkX >= term->width || term->blinkY >= term->height) return 0;
+    if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
     size_t str_sz, fg_sz, bg_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
     const char * fg = lua_tolstring(L, 2, &fg_sz);
@@ -1131,7 +1132,8 @@ int term_drawPixels(lua_State *L) {
             for (unsigned x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < term->width * Terminal::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
-                term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                if (term->mode == 1) term->pixels[init_y + y - 1][init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
+                else term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);
                 lua_pop(L, 1);
             }
         }

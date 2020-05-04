@@ -312,7 +312,8 @@ int monitor::drawPixels(lua_State *L) {
             for (unsigned x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < term->width * Terminal::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
-                term->pixels[init_y+y-1][init_x+x-1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                if (term->mode == 1) term->pixels[init_y + y - 1][init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
+                else term->pixels[init_y + y - 1][init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
                 lua_pop(L, 1);
             }
         }
