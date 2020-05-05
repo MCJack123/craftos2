@@ -180,7 +180,7 @@ void downloadThread(void* arg) {
             delete session;
             return;
         }
-    } catch (NetException &e) {
+    } catch (Poco::Exception &e) {
         printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
@@ -196,7 +196,7 @@ void downloadThread(void* arg) {
     http_handle_t * handle;
     try {
         handle = new http_handle_t(session->receiveResponse(*response));
-    } catch (NetException &e) {
+    } catch (Poco::Exception &e) {
         printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;

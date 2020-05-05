@@ -371,9 +371,13 @@ int fs_handle_writeString(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    const char * str = lua_tostring(L, 1);
+    std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
-    fwrite(str, strlen(str), 1, fp);
+    std::wstring wstr;
+    for (unsigned char c : str) wstr += (wchar_t)c;
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
+    std::string newstr = converter.to_bytes(wstr);
+    fwrite(newstr.c_str(), newstr.size(), 1, fp);
     return 0;
 }
 
@@ -381,9 +385,13 @@ int fs_handle_writeLine(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    const char * str = lua_tostring(L, 1);
+    std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
-    fwrite(str, strlen(str), 1, fp);
+    std::wstring wstr;
+    for (unsigned char c : str) wstr += (wchar_t)c;
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
+    std::string newstr = converter.to_bytes(wstr);
+    fwrite(newstr.c_str(), newstr.size(), 1, fp);
     fputc('\n', fp);
     return 0;
 }

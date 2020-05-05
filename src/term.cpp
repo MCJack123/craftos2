@@ -39,6 +39,7 @@ extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::strin
 extern void peripheral_update();
 extern int selectedRenderer;
 extern bool exiting;
+extern std::unordered_set<Computer*> freedComputers;
 std::thread * renderThread;
 std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
@@ -578,6 +579,7 @@ void termRenderLoop() {
 }
 
 void termQueueProvider(Computer *comp, event_provider p, void* data) {
+    if (freedComputers.find(comp) != freedComputers.end()) return;
     {
         std::lock_guard<std::mutex> lock(comp->event_provider_queue_mutex);
         comp->event_provider_queue.push(std::make_pair(p, data));

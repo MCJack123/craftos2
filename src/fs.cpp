@@ -345,7 +345,7 @@ int fs_open(lua_State *L) {
     Computer * computer = get_comp(L);
     if (computer->files_open >= config.maximumFilesOpen) err(L, 1, "Too many files open");
     const char * mode = lua_tostring(L, 2);
-    std::string path = fixpath(get_comp(L), lua_tostring(L, 1), mode[0] == 'r');
+    std::string path = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
 	if (path.empty()) {
         lua_pushnil(L);
         lua_pushfstring(L, "/%s: Invalid path", fixpath(computer, lua_tostring(L, 1), false, false).c_str());
