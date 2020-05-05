@@ -29,7 +29,7 @@ struct computer_configuration getComputerConfig(int id) {
     if (in.peek() == std::ifstream::traits_type::eof()) {in.close(); return cfg;} // treat an empty file as if it didn't exist in the first place
     Value root;
     Poco::JSON::Object::Ptr p;
-    try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {throw std::runtime_error(e.message());}
+    try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {throw std::runtime_error("Error parsing per-computer config: " + e.message());}
     in.close();
     cfg.isColor = root["isColor"].asBool();
     if (root.isMember("label")) {

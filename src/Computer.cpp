@@ -66,8 +66,8 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     addMount(this, "rom:", "rom", true);
     if (debug) addMount(this, "debug:", "debug", true);
 #else
-    addMount(this, (getROMPath() + "/rom").c_str(), "rom", ::config.romReadOnly);
-    if (debug) addMount(this, (getROMPath() + "/debug").c_str(), "debug", true);
+    if (!addMount(this, (getROMPath() + "/rom").c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
+    if (debug) if (!addMount(this, (getROMPath() + "/debug").c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
 #endif
     mounter_initializing = false;
     // Create the root directory
@@ -77,7 +77,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     createDirectory((std::string(getBasePath()) + "/computer/" + std::to_string(id)).c_str());
 #endif
     // Load config
-    try {config = getComputerConfig(id);} catch (std::exception &e) {throw std::runtime_error(e.what());}
+    config = getComputerConfig(id);
     // Create the terminal
     std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
     if (selectedRenderer == 1) term = NULL;
@@ -261,7 +261,7 @@ void Computer::run(std::string bios_name) {
                 for (int i = 0; (dir = readdir(d)) != NULL; i++) {
                     if (stat((plugin_path + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
                     if (std::string(dir->d_name) == ".DS_Store" || std::string(dir->d_name) == "desktop.ini") continue;
-                    std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_last_of('.'));
+                    std::string api_name = std::string(dir->d_name).substr(0, std::string(dir->d_name).find_first_of('.'));
                     lua_CFunction info = (lua_CFunction)loadSymbol(plugin_path + "/" + dir->d_name, "plugin_info");
                     if (info == NULL) {
                         printf("The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str()); 
@@ -436,12 +436,12 @@ void Computer::run(std::string bios_name) {
         if (status || !lua_isfunction(coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)\n", bios_path_expanded.c_str(), lua_tostring(L, -1));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.c_str(), lua_tostring(L, -1));
             queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
                     SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
                     std::string(
-                        "Couldn't load BIOS from " + bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://github.com/MCJack123/craftos2-rom for more information.)"
+                        "Couldn't load BIOS from " + bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)"
                     ).c_str()
                 ); 
                 return NULL;
@@ -526,7 +526,7 @@ std::list<std::thread*> computerThreads;
 Computer * startComputer(int id) {
     Computer * comp;
     try {comp = new Computer(id);} catch (std::exception &e) {
-        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what())).c_str(), NULL);
+        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
         else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
         return NULL;
     }

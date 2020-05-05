@@ -365,7 +365,7 @@ int speaker::playSound(lua_State *L) {
     float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
     float speed = lua_isnumber(L, 3) ? lua_tonumber(L, 3) : 1.0;
 	if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
-	if (speed < 0.0 || speed > 2.0) luaL_error(L, "invalid pitch %f", speed);
+	if (speed < 0.0 || speed > 2.0) luaL_error(L, "invalid speed %f", speed);
 	lua_pushboolean(L, playSoundEvent(inst, volume, speed));
     return 1;
 #endif
@@ -413,7 +413,7 @@ int speaker::playLocalMusic(lua_State *L) {
 	float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
 	if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
 	Mix_Music * mus = Mix_LoadMUS(path.c_str());
-	if (mus == NULL) luaL_error(L, "%s: Could not load music file", lua_tostring(L, 1));
+	if (mus == NULL) luaL_error(L, "%s: Could not load music file: %s", lua_tostring(L, 1), Mix_GetError());
 	if (Mix_PlayingMusic()) Mix_HaltMusic();
 	Mix_VolumeMusic(volume * (MIX_MAX_VOLUME / 3));
 	currentlyPlayingMusic = mus;

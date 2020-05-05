@@ -29,8 +29,8 @@ extern Color defaultPalette[16];
 class window_exception: public std::exception {
     std::string err;
 public:
-    virtual const char * what() const throw() {return std::string("Could not create new terminal: " + err).c_str();}
-    window_exception(std::string error): err(error) {}
+    virtual const char * what() const throw() {return err.c_str();}
+    window_exception(std::string error): err(error) {err = "Could not create new terminal: " + err;}
     window_exception(): err("Unknown error") {}
 };
 template<typename T>

@@ -153,7 +153,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
     SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
     if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
         overridden = true;
-        throw window_exception("Failed to create window");
+        throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
     }
 #ifndef __EMSCRIPTEN__
     id = SDL_GetWindowID(win);
@@ -183,7 +183,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
         SDL_DestroyWindow(win);
 #endif
         overridden = true;
-        throw window_exception("Failed to load font");
+        throw window_exception("Failed to load font: " + std::string(SDL_GetError()));
     }
     bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
     if (bmp == nullptr || bmp == NULL || bmp == (SDL_Surface*)0) {
@@ -191,7 +191,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
         SDL_DestroyWindow(win);
 #endif
         overridden = true;
-        throw window_exception("Failed to convert font");
+        throw window_exception("Failed to convert font: " + std::string(SDL_GetError()));
     }
     SDL_FreeSurface(old_bmp);
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));

@@ -494,10 +494,23 @@ int debugger::print(lua_State *L) {
     return 0;
 }
 
+struct debugger_param {
+    int id;
+    std::string err;
+};
+
 debugger::debugger(lua_State *L, const char * side) {
     didBreak = false;
     computer = get_comp(L);
-    monitor = (Computer*)queueTask([](void*computer)->void*{return new Computer(((Computer*)computer)->id, true);}, computer);
+    debugger_param * p = new debugger_param;
+    p->id = computer->id;
+    monitor = (Computer*)queueTask([](void*computer)->void*{try {return new Computer(((debugger_param*)computer)->id, true);} catch (std::exception &e) {((debugger_param*)computer)->err = e.what(); return NULL;}}, p);
+    if (monitor == NULL) {
+        std::string exc = "Could not start debugger session: " + std::string(p->err);
+        delete p;
+        throw std::runtime_error(exc.c_str());
+    }
+    delete p;
     monitor->debugger = createDebuggerLibrary();
     computers.push_back(monitor);
     compThread = new std::thread(debuggerThread, monitor, this, std::string(side));
