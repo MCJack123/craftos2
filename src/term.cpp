@@ -251,28 +251,28 @@ int buttonConvert2(Uint32 state) {
 int convertX(SDLTerminal * term, int x) {
     if (term->mode != 0) {
         if (x < 2 * term->charScale) return 0;
-        else if (x >= term->charWidth * term->width + 2 * term->charScale)
+        else if (x >= term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale))
             return Terminal::fontWidth * term->width - 1;
         return (x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale));
     } else {
-        if (x < 2 * term->charScale) x = 2 * term->charScale;
-        else if (x > term->charWidth * term->width + 2 * term->charScale)
-            x = term->charWidth * term->width + 2 * term->charScale;
-        return (x - 2 * term->charScale) / term->charWidth + 1;
+        if (x < 2 * term->charScale) x = 2 * term->charScale * (2 / SDLTerminal::fontScale);
+        else if (x > term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale))
+            x = term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale);
+        return (x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charWidth + 1;
     }
 }
 
 int convertY(SDLTerminal * term, int x) {
     if (term->mode != 0) {
         if (x < 2 * term->charScale) return 0;
-        else if (x >= term->charHeight * term->height + 2 * term->charScale)
+        else if (x >= term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale))
             return Terminal::fontHeight * term->height - 1;
         return (x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale));
     } else {
-        if (x < 2 * term->charScale) x = 2 * term->charScale;
-        else if (x > term->charHeight * term->height + 2 * term->charScale)
-            x = term->charHeight * term->height + 2 * term->charScale;
-        return (x - 2 * term->charScale) / term->charHeight + 1;
+        if (x < 2 * term->charScale * (2 / SDLTerminal::fontScale)) x = 2 * term->charScale * (2 / SDLTerminal::fontScale);
+        else if (x > term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale))
+            x = term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale);
+        return (x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charHeight + 1;
     }
 }
 
@@ -723,19 +723,19 @@ const char * termGetEvent(lua_State *L) {
                 lua_pushinteger(L, convertY(term, y));
             }
             return "mouse_scroll";
-        } else if (e.type == SDL_MOUSEMOTION && e.motion.state && (computer->config.isColor || computer->isDebugger)) {
+        } else if (e.type == SDL_MOUSEMOTION && (!config.disableMouseMoveEvent || e.motion.state) && (computer->config.isColor || computer->isDebugger)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term);
             int x = 1, y = 1;
             if (selectedRenderer == 2)
                 x = e.button.x, y = e.button.y;
             else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
-            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 2) return NULL;
-            computer->lastMouse = {x, y, e.button.button, 2};
-            lua_pushinteger(L, buttonConvert2(e.button.button));
+            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == buttonConvert2(e.motion.state) && computer->lastMouse.event == 2) return NULL;
+            computer->lastMouse = {x, y, (uint8_t)buttonConvert2(e.motion.state), 2};
+            lua_pushinteger(L, buttonConvert2(e.motion.state));
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
-            return "mouse_drag";
+            return e.motion.state ? "mouse_drag" : "mouse_move";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             unsigned w, h;
             if (selectedRenderer == 0) {
