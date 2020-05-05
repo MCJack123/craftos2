@@ -15,7 +15,7 @@
 
 class computer: public peripheral {
 private:
-    friend class Computer;
+    friend struct Computer;
     Computer * comp;
     Computer * thiscomp;
     int turnOn(lua_State *L);

@@ -687,25 +687,29 @@ const char * termGetEvent(lua_State *L) {
             }
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config.isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
+            int x = 1, y = 1;
+            if (selectedRenderer == 2)
+                x = e.button.x, y = e.button.y;
+            else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
+                x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
+            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 0) return NULL;
+            computer->lastMouse = {x, y, e.button.button, 0};
             lua_pushinteger(L, buttonConvert(e.button.button));
-            if (selectedRenderer == 2) {
-                lua_pushinteger(L, e.button.x);
-                lua_pushinteger(L, e.button.y);
-            } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
-                lua_pushinteger(L, convertX(dynamic_cast<SDLTerminal*>(term), e.button.x));
-                lua_pushinteger(L, convertY(dynamic_cast<SDLTerminal*>(term), e.button.y));
-            }
+            lua_pushinteger(L, x);
+            lua_pushinteger(L, y);
             return "mouse_click";
         } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config.isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
+            int x = 1, y = 1;
+            if (selectedRenderer == 2)
+                x = e.button.x, y = e.button.y;
+            else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
+                x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
+            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 1) return NULL;
+            computer->lastMouse = {x, y, e.button.button, 1};
             lua_pushinteger(L, buttonConvert(e.button.button));
-            if (selectedRenderer != 0) {
-                lua_pushinteger(L, e.button.x);
-                lua_pushinteger(L, e.button.y);
-            } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
-                lua_pushinteger(L, convertX(dynamic_cast<SDLTerminal*>(term), e.button.x));
-                lua_pushinteger(L, convertY(dynamic_cast<SDLTerminal*>(term), e.button.y));
-            }
+            lua_pushinteger(L, x);
+            lua_pushinteger(L, y);
             return "mouse_up";
         } else if (e.type == SDL_MOUSEWHEEL && (computer->config.isColor || computer->isDebugger)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term);
@@ -720,15 +724,17 @@ const char * termGetEvent(lua_State *L) {
             }
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && e.motion.state && (computer->config.isColor || computer->isDebugger)) {
-            lua_pushinteger(L, buttonConvert2(e.motion.state));
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term);
-            if (term == NULL) {
-                lua_pushinteger(L, e.motion.x);
-                lua_pushinteger(L, e.motion.y);
-            } else {
-                lua_pushinteger(L, convertX(term, e.motion.x));
-                lua_pushinteger(L, convertY(term, e.motion.y));
-            }
+            int x = 1, y = 1;
+            if (selectedRenderer == 2)
+                x = e.button.x, y = e.button.y;
+            else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
+                x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
+            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 2) return NULL;
+            computer->lastMouse = {x, y, e.button.button, 2};
+            lua_pushinteger(L, buttonConvert2(e.button.button));
+            lua_pushinteger(L, x);
+            lua_pushinteger(L, y);
             return "mouse_drag";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             unsigned w, h;

@@ -90,7 +90,7 @@ $(ODIR)/%.o: $(SDIR)/%.c
 	echo " [CC]    $@"
 	$(CC) -o $@ -c $(CPPFLAGS) $(CFLAGS) $<
 
-$(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(SDIR)/lib.hpp
+$(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(SDIR)/lib.hpp $(SDIR)/Computer.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 

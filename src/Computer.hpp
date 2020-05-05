@@ -36,8 +36,14 @@ extern "C" {
 
 typedef const char * (*event_provider)(lua_State *L, void* data);
 
-class Computer {
-public:
+struct mouse_event_data {
+    int x;
+    int y;
+    uint8_t button;
+    uint8_t event;
+};
+
+struct Computer {
     int id;
     int running = 0;
     int files_open = 0;
@@ -80,6 +86,7 @@ public:
     int timeoutCheckCount = 0;
     std::unordered_set<int> usedDriveMounts;
     lua_State *coro;
+    mouse_event_data lastMouse;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
