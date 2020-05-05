@@ -156,6 +156,29 @@ bool addMount(Computer *comp, const char * real_path, const char * comp_path, bo
     /*for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++)
         if (pathc.size() == std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
             return std::get<1>(*it) == std::string(real_path);*/
+    int selected = 1;
+    if (!comp->mounter_initializing && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
+        SDL_MessageBoxData data;
+        data.flags = SDL_MESSAGEBOX_WARNING;
+        data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
+        data.title = "Mount requested";
+        // see config.cpp:234 for why this is a pointer (TL;DR Windows is dumb)
+        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(real_path) + ". Any script will be able to read" + (read_only ? " AND WRITE " : " ") + "any files in this directory. Do you want to allow mounting this path?");
+        data.message = message->c_str();
+        data.numbuttons = 2;
+        SDL_MessageBoxButtonData buttons[2];
+        buttons[0].flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
+        buttons[0].buttonid = 0;
+        buttons[0].text = "Deny";
+        buttons[1].flags = 0;
+        buttons[1].buttonid = 1;
+        buttons[1].text = "Allow";
+        data.buttons = buttons;
+        data.colorScheme = NULL;
+        queueTask([data](void*selected)->void*{SDL_ShowMessageBox(&data, (int*)selected); return NULL;}, &selected);
+        delete message;
+    }
+    if (!selected) return false;
     comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), std::string(real_path), read_only));
     return true;
 }
@@ -180,29 +203,6 @@ int mounter_mount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     bool read_only = config.mount_mode != MOUNT_MODE_RW;
     if (lua_isboolean(L, 3) && config.mount_mode != MOUNT_MODE_RO_STRICT) read_only = lua_toboolean(L, 3);
-    int selected = 1;
-    if (config.showMountPrompt && dynamic_cast<SDLTerminal*>(get_comp(L)->term) != NULL) {
-        SDL_MessageBoxData data;
-        data.flags = SDL_MESSAGEBOX_WARNING;
-        data.window = dynamic_cast<SDLTerminal*>(get_comp(L)->term)->win;
-        data.title = "Mount requested";
-        // see config.cpp:229 for why this is a pointer (TL;DR Windows is dumb)
-        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(lua_tostring(L, 2)) + ". Any script will be able to read" + (read_only ? " AND WRITE " : " ") + "any files in this directory. Do you want to allow mounting this path?");
-        data.message = message->c_str();
-        data.numbuttons = 2;
-        SDL_MessageBoxButtonData buttons[2];
-        buttons[0].flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
-        buttons[0].buttonid = 0;
-        buttons[0].text = "Deny";
-        buttons[1].flags = 0;
-        buttons[1].buttonid = 1;
-        buttons[1].text = "Allow";
-        data.buttons = buttons;
-        data.colorScheme = NULL;
-        queueTask([data](void*selected)->void*{SDL_ShowMessageBox(&data, (int*)selected); return NULL;}, &selected);
-        delete message;
-    }
-    if (!selected) luaL_error(L, "Mount request was denied");
     lua_pushboolean(L, addMount(get_comp(L), lua_tostring(L, 2), lua_tostring(L, 1), read_only));
     return 1;
 }

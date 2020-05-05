@@ -75,8 +75,9 @@ int periphemu_create(lua_State* L) {
 	std::string type = lua_tostring(L, 2);
 	std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
 	if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
-    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+    computer->peripherals_mutex.lock();
 	if (computer->peripherals.find(side) != computer->peripherals.end()) {
+		computer->peripherals_mutex.unlock();
 		lua_pushboolean(L, false);
 		return 1;
 	}
@@ -86,15 +87,18 @@ int periphemu_create(lua_State* L) {
 		if (type == std::string("debugger") && computer->debugger == NULL && config.debug_enable) p = new debugger(L, side.c_str());
 		else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
         else {
+			computer->peripherals_mutex.unlock();
 			printf("not found: %s\n", type.c_str());
 			lua_pushboolean(L, false);
 			return 1;
 		}
 		computer->peripherals[side] = p;
 	} catch (std::exception &e) {
+		computer->peripherals_mutex.unlock();
 		lua_pushfstring(L, "Error while creating peripheral: %s", e.what());
 		return lua_error(L);
 	}
+	computer->peripherals_mutex.unlock();
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
     termQueueProvider(computer, peripheral_attach, sidearg);

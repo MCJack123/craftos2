@@ -11,6 +11,8 @@
 #define CRAFTOSPC_INTERNAL
 #include "drive.hpp"
 #include "../platform.hpp"
+#include "../terminal/SDLTerminal.hpp"
+#include "../os.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
 
@@ -92,9 +94,7 @@ int drive::ejectDisk(lua_State *L) {
                 if (mount_path == "disk") computer->usedDriveMounts.erase(0);
                 else {
                     int n = std::stoi(mount_path.substr(4)) - 1;
-                    for (std::unordered_set<int>::iterator it = computer->usedDriveMounts.begin(); it != computer->usedDriveMounts.end(); it++) {
-                        if (*it == n) { computer->usedDriveMounts.erase(*it); break; }
-                    }
+                    computer->usedDriveMounts.erase(n);
                 }
                 break;
             }
@@ -123,6 +123,7 @@ int drive::insertDisk(lua_State *L, bool init) {
         for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
         comp->usedDriveMounts.insert(i);
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
+        comp->mounter_initializing = true;
 #ifdef WIN32
         createDirectory((std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str());
         addMount(comp, (std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str(), mount_path.c_str(), false);
@@ -130,6 +131,7 @@ int drive::insertDisk(lua_State *L, bool init) {
         assert(createDirectory((std::string(getBasePath()) + "/computer/disk/" + std::to_string(id)).c_str()) == 0);
         addMount(comp, (std::string(getBasePath()) + "/computer/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
 #endif
+        comp->mounter_initializing = false;
     } else if (lua_isstring(L, arg)) {
         path = lua_tostring(L, arg);
         struct stat st;
@@ -137,13 +139,15 @@ int drive::insertDisk(lua_State *L, bool init) {
         if (path.substr(0, 9) == "treasure:") {
 #ifdef WIN32
             for (int i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
-#endif
             path = std::string(getROMPath()) + "\\treasure\\" + path.substr(9);
+#else
+            path = std::string(getROMPath()) + "/treasure/" + path.substr(9);
+#endif
         }
 #endif
         if (stat(path.c_str(), &st) != 0) {
-            lua_pushfstring(L, "Could not mount: %s", strerror(errno));
-            lua_error(L);
+            if (init) throw std::system_error(errno, std::system_category(), "Could not mount: ");
+            else luaL_error(L, "Could not mount: %s", strerror(errno));
         }
         if (S_ISDIR(st.st_mode)) {
             diskType = DISK_TYPE_MOUNT;
@@ -151,7 +155,13 @@ int drive::insertDisk(lua_State *L, bool init) {
             for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
             comp->usedDriveMounts.insert(i);
             mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
-            addMount(comp, path.c_str(), mount_path.c_str(), false);
+            if (!addMount(comp, path.c_str(), mount_path.c_str(), false)) {
+                diskType = DISK_TYPE_NONE;
+                comp->usedDriveMounts.erase(i);
+                mount_path.clear();
+                if (init) throw std::runtime_error("Could not mount: Access denied");
+                else luaL_error(L, "Could not mount: Access denied");
+            }
         }
 #ifndef NO_MIXER
         else {
@@ -160,11 +170,14 @@ int drive::insertDisk(lua_State *L, bool init) {
         }
 #else
         else {
-            lua_pushstring(L, "Playing audio is not available in this build");
-            lua_error(L);
+            if (init) throw std::invalid_argument("Playing audio is not available in this build");
+            else luaL_error(L, "Playing audio is not available in this build");
         }
 #endif
-    } else bad_argument(L, "string or number", arg);
+    } else {
+        if (init) throw std::invalid_argument("bad argument (expected string or number)");
+        else bad_argument(L, "string or number", arg);
+    }
     return 0;
 }
 
