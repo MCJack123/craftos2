@@ -79,7 +79,8 @@ void config_init() {
         15,
         10,
         0,
-        true
+        true,
+        128
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -112,6 +113,7 @@ void config_init() {
     readConfigSetting(recordingFPS, Int);
     readConfigSetting(cliControlKeyMode, Int);
     readConfigSetting(showMountPrompt, Bool);
+    readConfigSetting(maxOpenPorts, Int);
 }
 
 void config_save(bool deinit) {
@@ -142,6 +144,7 @@ void config_save(bool deinit) {
     root["recordingFPS"] = config.recordingFPS;
     root["cliControlKeyMode"] = config.cliControlKeyMode;
     root["showMountPrompt"] = config.showMountPrompt;
+    root["maxOpenPorts"] = config.maxOpenPorts;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -201,6 +204,8 @@ int config_get(lua_State *L) {
         lua_pushinteger(L, config.recordingFPS);
     else if (strcmp(name, "showMountPrompt") == 0)
         lua_pushboolean(L, config.showMountPrompt);
+    else if (strcmp(name, "maxOpenPorts") == 0)
+        lua_pushinteger(L, config.maxOpenPorts);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -295,6 +300,8 @@ int config_set(lua_State *L) {
         config.maxRecordingTime = luaL_checkinteger(L, 2);
     else if (strcmp(name, "recordingFPS") == 0)
         config.recordingFPS = luaL_checkinteger(L, 2);
+    else if (strcmp(name, "maxOpenPorts") == 0)
+        config.maxOpenPorts = luaL_checkinteger(L, 2);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     config_save(false);
@@ -325,6 +332,7 @@ const char * configuration_keys[] = {
     "recordingFPS",
     "useHDFont",
     "showMountPrompt",
+    "maxOpenPorts",
     NULL,
 };
 
@@ -353,7 +361,8 @@ int config_getType(lua_State *L) {
     else if (name == "computerSpaceLimit" || name == "maximumFilesOpen" || 
              name == "maxNotesPerTick" || name == "clockSpeed" || 
              name == "abortTimeout" || name == "mount_mode" || 
-             name == "initialComputer" || name == "maxRecordingTime" || name == "recordingFPS")
+             name == "initialComputer" || name == "maxRecordingTime" || 
+             name == "recordingFPS" || name == "maxOpenPorts")
         lua_pushstring(L, "number");
     else lua_pushnil(L);
     return 1;
