@@ -384,7 +384,7 @@ extern bool forceCheckTimeout;
 void termHook(lua_State *L, lua_Debug *ar) {
     if (ar->event == LUA_HOOKCOUNT && !forceCheckTimeout) return;
     Computer * computer = get_comp(L);
-    if (computer->shouldDeinitDebugger && computer->debugger != NULL && !computer->isDebugger) {
+    if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
@@ -446,7 +446,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->thread == NULL) {
                 if (dbg->breakType == DEBUGGER_BREAK_TYPE_LINE) {
-                    if (dbg->stepCount == 0) {dbg->stepCount = 0; debuggerBreak(L, computer, dbg, "Pause");}
+                    if (dbg->stepCount == 0) debuggerBreak(L, computer, dbg, "Pause");
                     else dbg->stepCount--;
                 } else if (computer->breakpoints.size() > 0) {
                     lua_getinfo(L, "Sl", ar);

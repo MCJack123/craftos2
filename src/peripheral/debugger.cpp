@@ -44,6 +44,9 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
     }
     delete (library_t*)comp->debugger;
     if (!dbg->deleteThis) {
+        dbg->breakMask = 0;
+        dbg->didBreak = false;
+        dbg->running = false;
         {
             std::lock_guard<std::mutex> lock(dbg->computer->peripherals_mutex);
             dbg->computer->peripherals.erase(side);
@@ -501,6 +504,7 @@ struct debugger_param {
 
 debugger::debugger(lua_State *L, const char * side) {
     didBreak = false;
+    running = true;
     computer = get_comp(L);
     debugger_param * p = new debugger_param;
     p->id = computer->id;
