@@ -163,7 +163,7 @@ bool addMount(Computer *comp, const char * real_path, const char * comp_path, bo
         data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
         data.title = "Mount requested";
         // see config.cpp:234 for why this is a pointer (TL;DR Windows is dumb)
-        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(real_path) + ". Any script will be able to read" + (read_only ? " AND WRITE " : " ") + "any files in this directory. Do you want to allow mounting this path?");
+        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(real_path) + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
         data.message = message->c_str();
         data.numbuttons = 2;
         SDL_MessageBoxButtonData buttons[2];
