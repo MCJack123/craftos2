@@ -81,7 +81,7 @@ void config_init() {
         0,
         true,
         128,
-        false
+        50
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -115,7 +115,7 @@ void config_init() {
     readConfigSetting(cliControlKeyMode, Int);
     readConfigSetting(showMountPrompt, Bool);
     readConfigSetting(maxOpenPorts, Int);
-    readConfigSetting(disableMouseMoveEvent, Bool);
+    readConfigSetting(mouse_move_throttle, Int);
 }
 
 void config_save(bool deinit) {
@@ -147,7 +147,7 @@ void config_save(bool deinit) {
     root["cliControlKeyMode"] = config.cliControlKeyMode;
     root["showMountPrompt"] = config.showMountPrompt;
     root["maxOpenPorts"] = config.maxOpenPorts;
-    root["disableMouseMoveEvent"] = config.disableMouseMoveEvent;
+    root["mouse_move_throttle"] = config.mouse_move_throttle;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -209,8 +209,8 @@ int config_get(lua_State *L) {
         lua_pushboolean(L, config.showMountPrompt);
     else if (strcmp(name, "maxOpenPorts") == 0)
         lua_pushinteger(L, config.maxOpenPorts);
-    else if (strcmp(name, "disableMouseMoveEvent") == 0)
-        lua_pushboolean(L, config.disableMouseMoveEvent);
+    else if (strcmp(name, "mouse_move_throttle") == 0)
+        lua_pushboolean(L, config.mouse_move_throttle);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -307,8 +307,8 @@ int config_set(lua_State *L) {
         config.recordingFPS = luaL_checkinteger(L, 2);
     else if (strcmp(name, "maxOpenPorts") == 0)
         config.maxOpenPorts = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "disableMouseMoveEvent") == 0)
-        config.disableMouseMoveEvent = lua_toboolean(L, 2);
+    else if (strcmp(name, "mouse_move_throttle") == 0)
+        config.mouse_move_throttle = lua_toboolean(L, 2);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     config_save(false);
@@ -340,7 +340,7 @@ const char * configuration_keys[] = {
     "useHDFont",
     "showMountPrompt",
     "maxOpenPorts",
-    "disableMouseMoveEvent",
+    "mouse_move_throttle",
     NULL,
 };
 
@@ -362,7 +362,7 @@ int config_getType(lua_State *L) {
         name == "showFPS" || name == "ignoreHotkeys" || name == "isColor" ||
         name == "checkUpdates" || name == "romReadOnly" || 
         name == "configReadOnly" || name == "vanilla" || name == "useHDFont" || 
-        name == "showMountPrompt" || name == "disableMouseMoveEvent")
+        name == "showMountPrompt")
         lua_pushstring(L, "boolean");
     else if (name == "default_computer_settings")
         lua_pushstring(L, "string");
@@ -370,7 +370,7 @@ int config_getType(lua_State *L) {
              name == "maxNotesPerTick" || name == "clockSpeed" || 
              name == "abortTimeout" || name == "mount_mode" || 
              name == "initialComputer" || name == "maxRecordingTime" || 
-             name == "recordingFPS" || name == "maxOpenPorts")
+             name == "recordingFPS" || name == "maxOpenPorts" || name == "mouse_move_throttle")
         lua_pushstring(L, "number");
     else lua_pushnil(L);
     return 1;

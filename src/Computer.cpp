@@ -116,6 +116,8 @@ Computer::~Computer() {
 		std::lock_guard<std::mutex> lock(freedTimersMutex);
 		for (SDL_TimerID t : timerIDs) freedTimers.insert(t);
 	}
+    // Cancel the mouse_move debounce timer if active
+    if (mouseMoveDebounceTimer != 0) SDL_RemoveTimer(mouseMoveDebounceTimer);
     // Stop all open websockets
     while (openWebsockets.size() > 0) {
         void* it = *openWebsockets.begin();

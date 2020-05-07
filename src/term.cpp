@@ -607,6 +607,26 @@ std::string utf8_to_string(const char *utf8str, const std::locale& loc)
     return std::string(buf.data(), buf.size());
 }
 
+Uint32 mouseDebounce(Uint32 interval, void* param);
+
+const char * mouse_move(lua_State *L, void* param) {
+    Computer * computer = get_comp(L);
+    lua_pushinteger(L, 1);
+    lua_pushinteger(L, computer->nextMouseMove.x);
+    lua_pushinteger(L, computer->nextMouseMove.y);
+    computer->nextMouseMove = {0, 0, 0, 0};
+    computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
+    return "mouse_move";
+}
+
+Uint32 mouseDebounce(Uint32 interval, void* param) {
+    Computer * computer = (Computer*)param;
+    if (freedComputers.find(computer) != freedComputers.end()) return 0;
+    if (computer->nextMouseMove.event) termQueueProvider(computer, mouse_move, NULL);
+    else computer->mouseMoveDebounceTimer = 0;
+    return 0;
+}
+
 const char * termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
     computer->event_provider_queue_mutex.lock();
@@ -723,7 +743,7 @@ const char * termGetEvent(lua_State *L) {
                 lua_pushinteger(L, convertY(term, y));
             }
             return "mouse_scroll";
-        } else if (e.type == SDL_MOUSEMOTION && (!config.disableMouseMoveEvent || e.motion.state) && (computer->config.isColor || computer->isDebugger)) {
+        } else if (e.type == SDL_MOUSEMOTION && (config.mouse_move_throttle >= 0 || e.motion.state) && (computer->config.isColor || computer->isDebugger)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term);
             int x = 1, y = 1;
             if (selectedRenderer == 2)
@@ -732,6 +752,15 @@ const char * termGetEvent(lua_State *L) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == buttonConvert2(e.motion.state) && computer->lastMouse.event == 2) return NULL;
             computer->lastMouse = {x, y, (uint8_t)buttonConvert2(e.motion.state), 2};
+            if (!e.motion.state) {
+                if (computer->mouseMoveDebounceTimer == 0) {
+                    computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
+                    computer->nextMouseMove = {0, 0, 0, 0};
+                } else {
+                    computer->nextMouseMove = {x, y, 0, 1};
+                    return NULL;
+                }
+            }
             lua_pushinteger(L, buttonConvert2(e.motion.state));
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
@@ -766,6 +795,16 @@ const char * termGetEvent(lua_State *L) {
                     lua_pop(L, periphemu_lib.values[1](L) + 1);
                 }
             }
+        } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_LEAVE && config.mouse_move_throttle >= 0) {
+            if (computer->mouseMoveDebounceTimer != 0) {
+                SDL_RemoveTimer(computer->mouseMoveDebounceTimer);
+                computer->mouseMoveDebounceTimer = 0;
+                computer->nextMouseMove = {0, 0, 0, 0};
+            }
+            lua_pushinteger(L, 1);
+            lua_pushnil(L);
+            lua_pushnil(L);
+            return "mouse_move";
         }
     }
     return NULL;
@@ -1173,7 +1212,13 @@ int term_nativePaletteColor(lua_State *L) {
     return 3;
 }
 
-const char * term_keys[31] = {
+int term_showMouse(lua_State *L) {
+    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
+    SDL_ShowCursor(lua_toboolean(L, 1));
+    return 0;
+}
+
+const char * term_keys[32] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -1204,10 +1249,11 @@ const char * term_keys[31] = {
     "getPixel",
     "screenshot",
     "nativePaletteColor",
-    "drawPixels"
+    "drawPixels",
+    "showMouse"
 };
 
-lua_CFunction term_values[31] = {
+lua_CFunction term_values[32] = {
     term_write,
     term_scroll,
     term_setCursorPos,
@@ -1238,7 +1284,8 @@ lua_CFunction term_values[31] = {
     term_getPixel,
     term_screenshot,
     term_nativePaletteColor,
-    term_drawPixels
+    term_drawPixels,
+    term_showMouse
 };
 
-library_t term_lib = {"term", 31, term_keys, term_values, nullptr, nullptr};
+library_t term_lib = {"term", 32, term_keys, term_values, nullptr, nullptr};

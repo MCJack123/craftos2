@@ -45,7 +45,7 @@ struct configuration {
     int cliControlKeyMode; // 0: home = ctrl, s+home = home; 1: home = home, s+home = ctrl; 2: home = home, esc-c = control; 3: home = home, ctrl-c = control
     bool showMountPrompt;
     int maxOpenPorts;
-    bool disableMouseMoveEvent;
+    int mouse_move_throttle;
 };
 struct computer_configuration {
     std::string label;

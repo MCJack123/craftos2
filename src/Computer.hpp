@@ -87,6 +87,8 @@ struct Computer {
     std::unordered_set<int> usedDriveMounts;
     lua_State *coro;
     mouse_event_data lastMouse;
+    SDL_TimerID mouseMoveDebounceTimer = 0;
+    mouse_event_data nextMouseMove;
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
