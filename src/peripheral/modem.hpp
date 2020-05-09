@@ -15,6 +15,7 @@ class modem: public peripheral {
 private:
     friend const char * modem_message(lua_State *, void*);
     std::unordered_set<uint16_t> openPorts;
+    std::unordered_set<void*> modemMessages;
     Computer * comp;
     lua_State * eventQueue;
     std::mutex eventQueueMutex;

@@ -280,21 +280,24 @@ public:
 	~PointerProtector() { delete ptr; }
 };
 
+std::unordered_map<SDL_TimerID, struct timer_data_t*> runningTimerData;
+
 const char * timer_event(lua_State *L, void* param) {
     struct timer_data_t * data = (struct timer_data_t*)param;
     lua_pushinteger(L, data->timer);
+    runningTimerData.erase(data->timer);
     delete data;
     return "timer";
 }
 
 Uint32 notifyEvent(Uint32 interval, void* param) {
-    if (exiting) return 0;
 	struct timer_data_t * data = (struct timer_data_t*)param;
-    if (data->comp == NULL) {delete data; return 0;}
+    if (exiting || data->comp == NULL) {runningTimerData.erase(data->timer); delete data; return 0;}
 	{
 		std::lock_guard<std::mutex> lock(freedTimersMutex);
 		if (freedTimers.find(data->timer) != freedTimers.end()) { 
 			freedTimers.erase(data->timer);
+            runningTimerData.erase(data->timer);
             delete data;
 			return 0;
 		}
@@ -322,6 +325,7 @@ int os_startTimer(lua_State *L) {
         data->timer = SDL_AddTimer(lua_tonumber(L, 1) * 1000 + 3, notifyEvent, data);
         return NULL;
     }, data);
+    runningTimerData.insert(std::make_pair(data->timer, data));
     lua_pushinteger(L, data->timer);
 	computer->timerIDs.insert(data->timer);
     return 1;
@@ -329,11 +333,14 @@ int os_startTimer(lua_State *L) {
 
 int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    if (runningTimerData.find(lua_tointeger(L, 1)) == runningTimerData.end()) return 0;
 #ifdef __EMSCRIPTEN__
     queueTask([L](void*)->void*{SDL_RemoveTimer(lua_tointeger(L, 1)); return NULL;}, NULL);
 #else
     SDL_RemoveTimer(lua_tointeger(L, 1));
 #endif
+    delete runningTimerData[lua_tointeger(L, 1)];
+    runningTimerData.erase(lua_tointeger(L, 1));
     return 0;
 }
 

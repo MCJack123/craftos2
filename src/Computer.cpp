@@ -118,6 +118,7 @@ Computer::~Computer() {
 	}
     // Cancel the mouse_move debounce timer if active
     if (mouseMoveDebounceTimer != 0) SDL_RemoveTimer(mouseMoveDebounceTimer);
+    if (eventTimeout != 0) SDL_RemoveTimer(eventTimeout);
     // Stop all open websockets
     while (openWebsockets.size() > 0) {
         void* it = *openWebsockets.begin();

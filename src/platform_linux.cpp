@@ -248,6 +248,7 @@ void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext) {
 
 void setupCrashHandler() {
     struct sigaction sigact;
+    memset(&sigact, 0, sizeof(sigact));
     sigact.sa_sigaction = crit_err_hdlr;
     sigact.sa_flags = SA_RESTART | SA_SIGINFO;
     setSignalHandler(SIGSEGV);

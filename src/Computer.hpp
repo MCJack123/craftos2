@@ -86,9 +86,9 @@ struct Computer {
     int timeoutCheckCount = 0;
     std::unordered_set<int> usedDriveMounts;
     lua_State *coro;
-    mouse_event_data lastMouse;
+    mouse_event_data lastMouse = {-1, -1, 0, 16};
     SDL_TimerID mouseMoveDebounceTimer = 0;
-    mouse_event_data nextMouseMove;
+    mouse_event_data nextMouseMove = {0, 0, 0, 0};
 
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);

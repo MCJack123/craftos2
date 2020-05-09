@@ -138,11 +138,15 @@ extern "C" {
 
 const char * modem_message(lua_State *message, void* data) {
     struct modem_message_data * d = (struct modem_message_data*)data;
+    if (d->sender == NULL) {
+        fprintf(stderr, "Modem message event is missing sender, skipping event");
+        delete d;
+        return NULL;
+    }
     lua_pushstring(message, d->m->side.c_str());
     lua_pushinteger(message, d->port);
     lua_pushinteger(message, d->replyPort);
     std::lock_guard<std::mutex> lock(d->sender->eventQueueMutex);
-    _lua_lock(d->sender->eventQueue);
     lua_pushinteger(d->sender->eventQueue, d->id);
     lua_gettable(d->sender->eventQueue, 1);
     if (lua_isnil(d->sender->eventQueue, -1)) {
@@ -162,11 +166,11 @@ const char * modem_message(lua_State *message, void* data) {
     lua_getfield(d->sender->eventQueue, -1, "refcount");
     int * refc = (int*)lua_touserdata(d->sender->eventQueue, -1);
     lua_pop(d->sender->eventQueue, 2);
-    _lua_unlock(d->sender->eventQueue);
     if (!--(*refc)) {
         delete refc;
         d->sender->idsToDelete.insert(d->id);
     }
+    d->m->modemMessages.erase((void*)d);
     delete d;
     return "modem_message";
 };
@@ -178,6 +182,7 @@ void modem::receive(uint16_t port, uint16_t replyPort, int id, modem * sender) {
     d->replyPort = replyPort;
     d->m = this;
     d->sender = sender;
+    modemMessages.insert((void*)d);
     termQueueProvider(comp, modem_message, d);
 }
 
@@ -193,6 +198,15 @@ modem::modem(lua_State *L, const char * side) {
 
 modem::~modem() {
     for (std::list<modem*>::iterator it = network[netID].begin(); it != network[netID].end(); it++) {if (*it == this) {network[netID].erase(it); return;}}
+    std::lock_guard<std::mutex> lock(eventQueueMutex);
+    for (void* d : modemMessages) {
+        ((struct modem_message_data*)d)->sender = NULL;
+        lua_pushinteger(eventQueue, ((struct modem_message_data*)d)->id);
+        lua_gettable(eventQueue, 1);
+        lua_getfield(eventQueue, -1, "refcount");
+        delete (int*)lua_touserdata(eventQueue, -1);
+        lua_pop(eventQueue, 2);
+    }
     lua_pop(eventQueue, 1);
     for (int i = 1; i < lua_gettop(comp->L); i++) if (lua_type(comp->L, i) == LUA_TTHREAD && lua_tothread(comp->L, i) == eventQueue) lua_remove(comp->L, i--);
 }
