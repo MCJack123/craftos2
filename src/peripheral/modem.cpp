@@ -131,19 +131,25 @@ static void xcopy(lua_State *L, lua_State *T, int t) {
     }
 }
 
+extern "C" {
+    extern void _lua_lock(lua_State *L);
+    extern void _lua_unlock(lua_State *L);
+}
+
 const char * modem_message(lua_State *message, void* data) {
     struct modem_message_data * d = (struct modem_message_data*)data;
     lua_pushstring(message, d->m->side.c_str());
     lua_pushinteger(message, d->port);
     lua_pushinteger(message, d->replyPort);
     std::lock_guard<std::mutex> lock(d->sender->eventQueueMutex);
+    _lua_lock(d->sender->eventQueue);
     lua_pushinteger(d->sender->eventQueue, d->id);
     lua_gettable(d->sender->eventQueue, 1);
     if (lua_isnil(d->sender->eventQueue, -1)) {
         fprintf(stderr, "Missing event data for id %d\n", d->id);
         delete d;
         return NULL;
-    } 
+    }
     lua_getfield(d->sender->eventQueue, -1, "data");
     if (lua_type(d->sender->eventQueue, -1) == LUA_TNUMBER) lua_pushnumber(message, lua_tonumber(d->sender->eventQueue, -1));
     else if (lua_type(d->sender->eventQueue, -1) == LUA_TSTRING) lua_pushlstring(message, lua_tostring(d->sender->eventQueue, -1), lua_strlen(d->sender->eventQueue, -1));
@@ -156,6 +162,7 @@ const char * modem_message(lua_State *message, void* data) {
     lua_getfield(d->sender->eventQueue, -1, "refcount");
     int * refc = (int*)lua_touserdata(d->sender->eventQueue, -1);
     lua_pop(d->sender->eventQueue, 2);
+    _lua_unlock(d->sender->eventQueue);
     if (!--(*refc)) {
         delete refc;
         d->sender->idsToDelete.insert(d->id);
