@@ -292,6 +292,9 @@ const char * timer_event(lua_State *L, void* param) {
 
 Uint32 notifyEvent(Uint32 interval, void* param) {
 	struct timer_data_t * data = (struct timer_data_t*)param;
+    bool found = false;
+    for (auto i : runningTimerData) if (i.second == param) {found = true; break;}
+    if (!found) return 0;
     if (exiting || data->comp == NULL) {runningTimerData.erase(data->timer); delete data; return 0;}
 	{
 		std::lock_guard<std::mutex> lock(freedTimersMutex);

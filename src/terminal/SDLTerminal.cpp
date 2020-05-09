@@ -491,7 +491,7 @@ void SDLTerminal::stopRecording() {
         uint32_t* lp = ipixels;
         for (unsigned i = 2; i*4 < s.size(); i++) {
             uint32_t c = ((uint32_t*)&s[0])[i];
-            lp = memset_int(lp, c & 0xFFFFFF, ((c & 0xFF000000) >> 24) + 1);
+            lp = memset_int(lp, c & 0xFFFFFF, min(((c & 0xFF000000) >> 24) + 1, (unsigned int)((w*h) - (lp - ipixels))));
         }
         GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 100 / config.recordingFPS);
         delete[] ipixels;
