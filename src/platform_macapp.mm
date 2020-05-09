@@ -304,7 +304,7 @@ void handler(int sig) {
     // print out all the frames to stderr
     fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://github.com/MCJack123/craftos2/issues/new/choose. Paste the following text under the 'Screenshots' section:\nOS: Mac (Application)\n", strsignal(sig));
     backtrace_symbols_fd(array, size, STDERR_FILENO);
-    _Exit(1);
+    signal(sig, NULL);
 }
 
 void setupCrashHandler() {

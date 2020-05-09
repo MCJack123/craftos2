@@ -240,7 +240,7 @@ void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext) {
     for (i = 1; i < size && messages != NULL; ++i) 
         fprintf(stderr, "[bt]: (%d) %s\n", i, messages[i]);
     free(messages);
-    exit(EXIT_FAILURE);
+    signal(sig_num, NULL);
 }
 
 #define setSignalHandler(type) if (sigaction(type, &sigact, (struct sigaction *)NULL) != 0) \
