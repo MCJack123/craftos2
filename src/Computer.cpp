@@ -222,6 +222,9 @@ void Computer::run(std::string bios_name) {
         paramQueue = lua_newthread(L);
         while (!eventQueue.empty()) eventQueue.pop();
 
+        // Reinitialize any peripherals that were connected before rebooting
+        for (auto p : peripherals) p.second->reinitialize(L);
+
         // Push reference to this to the registry
         //lua_pushlightuserdata(L, &computer_key);
         lua_pushinteger(L, 1);

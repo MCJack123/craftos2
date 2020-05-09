@@ -67,6 +67,7 @@ public:
     void update(){}
     int call(lua_State *L, const char * method);
     library_t getMethods() {return methods;}
+    void reinitialize(lua_State *L);
 };
 
 #endif

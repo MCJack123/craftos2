@@ -39,4 +39,5 @@ public:
     ~modem();
     int call(lua_State *L, const char * method);
     void update() {}
+    void reinitialize(lua_State *L);
 };

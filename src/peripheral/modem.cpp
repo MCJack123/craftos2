@@ -196,6 +196,12 @@ modem::modem(lua_State *L, const char * side) {
     network[netID].push_back(this);
 }
 
+void modem::reinitialize(lua_State *L) {
+    // eventQueue should be freed and inaccessible since the Lua state was closed
+    eventQueue = lua_newthread(L);
+    lua_newtable(eventQueue);
+}
+
 modem::~modem() {
     for (std::list<modem*>::iterator it = network[netID].begin(); it != network[netID].end(); it++) {if (*it == this) {network[netID].erase(it); return;}}
     std::lock_guard<std::mutex> lock(eventQueueMutex);
