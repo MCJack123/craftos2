@@ -327,7 +327,7 @@ void SDLTerminal::render() {
     if (/*showFPS*/ false) {
         // later?
     }
-    if (shouldScreenshot) {
+    if (shouldScreenshot && !screenshotPath.empty()) {
         shouldScreenshot = false;
         if (gotResizeEvent) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
@@ -336,7 +336,8 @@ void SDLTerminal::render() {
             copyImage(temp);
         } else {
             png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
-            memcpy((void*)&pixbuf.get_bytes()[0], temp->pixels, temp->h * temp->pitch);
+            for (int i = 0; i < temp->h; i++)
+                memcpy((void*)&pixbuf.get_bytes()[i], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
             png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
             img.set_pixbuf(pixbuf);
             img.write(screenshotPath);
@@ -427,7 +428,6 @@ bool SDLTerminal::resize(int w, int h) {
 }
 
 void SDLTerminal::screenshot(std::string path) {
-    shouldScreenshot = true;
     if (path != "") screenshotPath = path;
     else {
         time_t now = time(0);
@@ -441,6 +441,7 @@ void SDLTerminal::screenshot(std::string path) {
         createDirectory(screenshotPath.c_str());
         char * tstr = new char[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
+        tstr[23] = '\0';
 #ifdef NO_PNG
         screenshotPath += std::string(tstr) + ".bmp";
 #else
@@ -448,6 +449,7 @@ void SDLTerminal::screenshot(std::string path) {
 #endif
         delete[] tstr;
     }
+    shouldScreenshot = true;
 }
 
 void SDLTerminal::record(std::string path) {
