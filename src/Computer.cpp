@@ -230,8 +230,14 @@ void Computer::run(std::string bios_name) {
         lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, this);
         lua_settable(L, LUA_REGISTRYINDEX);
-        lua_newtable(L);
-        lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+        if (::config.debug_enable) {
+            lua_newtable(L);
+            lua_newtable(L);
+            lua_pushstring(L, "v");
+            lua_setfield(L, -2, "__mode");
+            lua_setmetatable(L, -2);
+            lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+        }
 
         // Load libraries
         luaL_openlibs(coro);

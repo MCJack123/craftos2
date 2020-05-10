@@ -525,6 +525,13 @@ debugger::debugger(lua_State *L, const char * side) {
     lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
     lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
     lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+    for (int i = 1; i <= lua_objlen(L, -1); i++) {
+        lua_rawgeti(L, -1, i);
+        lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
 }
 
 void debugger::reinitialize(lua_State *L) {

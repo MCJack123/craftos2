@@ -219,6 +219,37 @@ int config_get(lua_State *L) {
     return 1;
 }
 
+// 0 = immediate, 1 = reboot, 2 = relaunch
+std::unordered_map<std::string, int> config_set_actions = {
+    {"http_enable", 1},
+    {"debug_enable", 1},
+    {"mount_mode", 0},
+    {"disable_lua51_features", 1},
+    {"default_computer_settings", 1},
+    {"logErrors", 0},
+    {"showFPS", 0},
+    {"computerSpaceLimit", 0},
+    {"maximumFilesOpen", 0},
+    {"abortTimeout", 0},
+    {"maxNotesPerTick", 2},
+    {"clockSpeed", 0},
+    {"ignoreHotkeys", 0},
+    {"checkUpdates", 2},
+    {"romReadOnly", 2},
+    {"useHDFont", 2},
+    {"configReadOnly", 0},
+    {"vanilla", 1},
+    {"initialComputer", 2},
+    {"maxRecordingTime", 0},
+    {"recordingFPS", 0},
+    {"showMountPrompt", 0},
+    {"maxOpenPorts", 0},
+    {"mouse_move_throttle", 0},
+    {"isColor", 0}
+};
+
+const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
+
 int config_set(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (config.configReadOnly) luaL_error(L, "Configuration is read-only");
@@ -311,8 +342,11 @@ int config_set(lua_State *L) {
         config.mouse_move_throttle = lua_toboolean(L, 2);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
+    else luaL_error(L, "Unknown configuration option");
     config_save(false);
-    return 0;
+    if (config_set_actions[std::string(name)]) lua_pushstring(L, config_set_action_names[config_set_actions[std::string(name)]]);
+    else lua_pushnil(L);
+    return 1;
 }
 
 const char * configuration_keys[] = {

@@ -386,6 +386,13 @@ void termHook(lua_State *L, lua_Debug *ar) {
     Computer * computer = get_comp(L);
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;
+        lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+        for (int i = 1; i <= lua_objlen(L, -1); i++) {
+            lua_rawgeti(L, -1, i);
+            lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
