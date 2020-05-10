@@ -265,8 +265,7 @@ int res_close(lua_State *L) {
         res->res->send().write(body.c_str(), body.size());
     } catch (std::exception &e) {
         *(bool*)lua_touserdata(L, lua_upvalueindex(2)) = true;
-        lua_pushfstring(L, "Could not send data: %s", e.what());
-        lua_error(L);
+        luaL_error(L, "Could not send data: %s", e.what());
     }
     *(bool*)lua_touserdata(L, lua_upvalueindex(2)) = true;
     return 0;

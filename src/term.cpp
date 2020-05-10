@@ -1031,10 +1031,7 @@ int term_blit(lua_State *L) {
     const char * str = lua_tolstring(L, 1, &str_sz);
     const char * fg = lua_tolstring(L, 2, &fg_sz);
     const char * bg = lua_tolstring(L, 3, &bg_sz);
-    if (str_sz != fg_sz || fg_sz != bg_sz) {
-        lua_pushstring(L, "Arguments must be the same length");
-        lua_error(L);
-    }
+    if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
     std::lock_guard<std::mutex> locked_g(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {if (term->blinkX >= 0) {
         if ((computer->config.isColor || computer->isDebugger) || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6) 
@@ -1173,7 +1170,7 @@ int term_drawPixels(lua_State *L) {
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
     int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
-    if (init_x < 0 || init_y < 0) {lua_pushstring(L, "Invalid initial position"); lua_error(L);}
+    if (init_x < 0 || init_y < 0) luaL_error(L, "Invalid initial position");
     for (unsigned y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < term->height * Terminal::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 

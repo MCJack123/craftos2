@@ -49,10 +49,7 @@
 extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
 
 void err(lua_State *L, int idx, const char * err) {
-    luaL_where(L, 1);
-    lua_pushfstring(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).c_str(), err);
-    lua_concat(L, 2);
-    lua_error(L);
+    luaL_error(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).c_str(), err);
 }
 
 std::string concat(std::vector<std::string> c, char sep) {
@@ -593,10 +590,8 @@ int fs_find(lua_State *L) {
     std::list<std::string> pathc;
     for (std::string s : elems) {
         if (s == "..") { 
-            if (pathc.size() < 1) {
-                lua_pushstring(L, "Not a directory");
-                lua_error(L);
-            } else pathc.pop_back(); 
+            if (pathc.size() < 1) luaL_error(L, "Not a directory");
+            else pathc.pop_back(); 
         }
         else if (s != "." && s != "") pathc.push_back(s);
     }

@@ -45,10 +45,7 @@ void load_library(Computer *comp, lua_State *L, library_t lib) {
 }
 
 void bad_argument(lua_State *L, const char * type, int pos) {
-    luaL_where(L, 2);
-    lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
-    lua_concat(L, 2);
-    lua_error(L);
+    luaL_error(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
 }
 
 std::string b64encode(std::string orig) {

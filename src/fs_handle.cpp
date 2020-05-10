@@ -432,10 +432,7 @@ int fs_handle_seek(lua_State *L) {
     if (strcmp(whence, "set") == 0) origin = SEEK_SET;
     else if (strcmp(whence, "cur") == 0) origin = SEEK_CUR;
     else if (strcmp(whence, "end") == 0) origin = SEEK_END;
-    else {
-        lua_pushfstring(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
-        lua_error(L);
-    }
+    else luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
     if (fseek(fp, offset, origin) != 0) {
         lua_pushnil(L);
         lua_pushstring(L, strerror(errno));
@@ -457,11 +454,7 @@ int fs_handle_istream_seek(lua_State *L) {
     if (strcmp(whence, "set") == 0) origin = std::ios::beg;
     else if (strcmp(whence, "cur") == 0) origin = std::ios::cur;
     else if (strcmp(whence, "end") == 0) origin = std::ios::end;
-    else {
-        lua_pushfstring(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
-        lua_error(L);
-        return 0;
-    }
+    else luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
     fp->seekg(offset, origin);
     if (fp->bad()) {
         lua_pushnil(L);

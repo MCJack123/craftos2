@@ -147,10 +147,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     }
     std::string ev;
     gettingEvent(computer);
-    if (!lua_checkstack(computer->paramQueue, 1)) {
-        lua_pushstring(L, "Could not allocate space for event");
-        lua_error(L);
-    }
+    if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param = lua_newthread(computer->paramQueue);
     do {
         while (termHasEvent(computer) && computer->eventQueue.size() < 25) {
@@ -247,10 +244,7 @@ int os_queueEvent(lua_State *L) {
     Computer * computer = get_comp(L);
     //if (paramQueue == NULL) paramQueue = lua_newthread(L);
     std::string name = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
-    if (!lua_checkstack(computer->paramQueue, 1)) {
-        lua_pushstring(L, "Could not allocate space for event");
-        lua_error(L);
-    }
+    if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param = lua_newthread(computer->paramQueue);
     lua_remove(L, 1);
     int count = lua_gettop(L);

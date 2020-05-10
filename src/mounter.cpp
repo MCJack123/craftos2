@@ -216,10 +216,8 @@ int mounter_unmount(lua_State *L) {
     std::list<std::string> pathc;
     for (std::string s : elems) {
         if (s == "..") { 
-            if (pathc.size() < 1) {
-                lua_pushstring(L, "Not a directory");
-                lua_error(L);
-            } else pathc.pop_back();
+            if (pathc.size() < 1) luaL_error(L, "Not a directory");
+            else pathc.pop_back();
         } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
@@ -280,8 +278,7 @@ int mounter_isReadOnly(lua_State *L) {
             return 1;
         }
     }
-    lua_pushfstring(L, "%s: Not mounted", comp_path);
-    lua_error(L);
+    luaL_error(L, "%s: Not mounted", comp_path);
     return 0; // redundant
 }
 

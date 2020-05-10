@@ -117,8 +117,7 @@ static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
 
 void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata) {
     lua_State *L = (lua_State*)userdata;
-    lua_pushfstring(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
-    lua_error(L);
+    luaL_error(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
 }
 #elif PRINT_TYPE == PRINT_TYPE_HTML
 std::string page_ext = ".html";
