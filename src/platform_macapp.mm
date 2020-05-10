@@ -224,7 +224,7 @@ void updateNow(std::string tag_name) {
                         return;
                     }
                     NSURL * path = [NSURL fileURLWithPath:@".install" relativeToURL:[NSURL fileURLWithPath:pathstr isDirectory:true]];
-                    if (![[NSFileManager defaultManager] isExecutableFileAtPath:[path path]]) {
+                    if (![[NSFileManager defaultManager] isReadableFileAtPath:[path path]]) {
                         [res retain];
                         [path retain];
                         queueTask([win, path, res, pathstr](void*)->void*{
@@ -246,7 +246,9 @@ void updateNow(std::string tag_name) {
                     int pid = fork();
                     if (pid < 0) printf("Could not fork: %d\n", pid);
                     else if (pid == 0) {
-                        system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str()); exit(0);
+                        if ([[NSFileManager defaultManager] isWritableFileAtPath:[NSBundle mainBundle].bundlePath]) system(("/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation])).c_str());
+                        else system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str());
+                        exit(0);
                     }
                     [win close];
                     exit(0);

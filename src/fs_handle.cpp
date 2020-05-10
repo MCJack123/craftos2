@@ -156,10 +156,12 @@ int fs_handle_readLine(lua_State *L) {
         return 1;
     }
 	char* retval = (char*)malloc(256);
-	for (unsigned i = 0; 1; i += 256) {
-		if (fgets(&retval[i], 256, fp) == NULL) break;
-		if (strlen(retval) < i + 255) break;
-		retval = (char*)realloc(retval, i + 512);
+	for (unsigned i = 0; 1; i += 255) {
+		if (fgets(&retval[i], 256, fp) == NULL || feof(fp)) break;
+        bool found = false;
+        for (unsigned j = 0; j < 256; j++) if (retval[i+j] == '\n') {found = true; break;}
+        if (found) break;
+		retval = (char*)realloc(retval, i + 511);
 	}
     int len = strlen(retval) - (retval[strlen(retval)-1] == '\n');
     if (retval[len-1] == '\r') retval[--len] = '\0';

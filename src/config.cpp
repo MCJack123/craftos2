@@ -210,7 +210,7 @@ int config_get(lua_State *L) {
     else if (strcmp(name, "maxOpenPorts") == 0)
         lua_pushinteger(L, config.maxOpenPorts);
     else if (strcmp(name, "mouse_move_throttle") == 0)
-        lua_pushboolean(L, config.mouse_move_throttle);
+        lua_pushnumber(L, config.mouse_move_throttle);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
