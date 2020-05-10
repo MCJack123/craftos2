@@ -454,7 +454,7 @@ int fs_handle_istream_seek(lua_State *L) {
     if (strcmp(whence, "set") == 0) origin = std::ios::beg;
     else if (strcmp(whence, "cur") == 0) origin = std::ios::cur;
     else if (strcmp(whence, "end") == 0) origin = std::ios::end;
-    else luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
+    else return luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
     fp->seekg(offset, origin);
     if (fp->bad()) {
         lua_pushnil(L);
