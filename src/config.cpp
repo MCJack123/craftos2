@@ -81,7 +81,7 @@ void config_init() {
         0,
         true,
         128,
-        50
+        -1
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -339,7 +339,7 @@ int config_set(lua_State *L) {
     else if (strcmp(name, "maxOpenPorts") == 0)
         config.maxOpenPorts = luaL_checkinteger(L, 2);
     else if (strcmp(name, "mouse_move_throttle") == 0)
-        config.mouse_move_throttle = lua_toboolean(L, 2);
+        config.mouse_move_throttle = lua_tonumber(L, 2);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");
