@@ -302,37 +302,43 @@ void Computer::run(std::string bios_name) {
                             lua_getfield(L, -1, "register_getLibrary");
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&getLibrary);
-                                lua_call(L, 1, 0);
+                                lua_pushstring(L, "getLibrary");
+                                lua_call(L, 2, 0);
                             } else lua_pop(L, 1);
                             
                             lua_getfield(L, -1, "register_registerPeripheral");
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&registerPeripheral);
-                                lua_call(L, 1, 0);
+                                lua_pushstring(L, "registerPeripheral");
+                                lua_call(L, 2, 0);
                             } else lua_pop(L, 1);
 
                             lua_getfield(L, -1, "register_addMount");
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&addMount);
-                                lua_call(L, 1, 0);
+                                lua_pushstring(L, "addMount");
+                                lua_call(L, 2, 0);
                             } else lua_pop(L, 1);
 
                             lua_getfield(L, -1, "register_termQueueProvider");
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&termQueueProvider);
-                                lua_call(L, 1, 0);
+                                lua_pushstring(L, "termQueueProvider");
+                                lua_call(L, 2, 0);
                             } else lua_pop(L, 1);
 
                             lua_getfield(L, -1, "register_startComputer");
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&startComputer);
-                                lua_call(L, 1, 0);
+                                lua_pushstring(L, "startComputer");
+                                lua_call(L, 2, 0);
                             } else lua_pop(L, 1);
 
                             lua_getfield(L, -1, "register_queueTask");
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&queueTask);
-                                lua_call(L, 1, 0);
+                                lua_pushstring(L, "queueTask");
+                                lua_call(L, 2, 0);
                             } else lua_pop(L, 1);
                         }
                         lua_pop(L, 1);
