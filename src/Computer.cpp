@@ -282,9 +282,14 @@ void Computer::run(std::string bios_name) {
                     } else {
                         lua_pushcfunction(L, info);
                         lua_pushstring(L, CRAFTOSPC_VERSION);
-                        lua_call(L, 1, 1);
-                        if (!lua_istable(L, -1)) {
-                            printf("The plugin \"%s\" returned invalid info. Use at your own risk.", api_name.c_str());
+                        int ok = lua_pcall(L, 2, 1, 0);
+                        if (!ok) {
+                            printf("The plugin \"%s\" ran into an error while initializing, and will not be loaded: %s\n", api_name.c_str(), lua_tostring(L, -1));
+                            pluginError(L, api_name.c_str(), lua_tostring(L, -1));
+                            lua_pop(L, 1);
+                            continue;
+                        } else if (!lua_istable(L, -1)) {
+                            printf("The plugin \"%s\" returned invalid info. Use at your own risk.\n", api_name.c_str());
                             pluginError(L, api_name.c_str(), "Invalid plugin info");
                         } else {
                             lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
