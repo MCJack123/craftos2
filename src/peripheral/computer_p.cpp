@@ -42,6 +42,12 @@ int computer::reboot(lua_State *L) {
     return 0;
 }
 
+int computer::getLabel(lua_State *L) {
+    if (freedComputers.find(comp) != freedComputers.end()) return 0;
+    lua_pushlstring(L, comp->config.label.c_str(), comp->config.label.length());
+    return 1;
+}
+
 computer::computer(lua_State *L, const char * side) {
     if (strlen(side) < 10 || std::string(side).substr(0, 9) != "computer_" || (strlen(side) > 9 && !std::all_of(side + 9, side + strlen(side), ::isdigit))) 
         throw std::invalid_argument("\"side\" parameter must be in the form of computer_[0-9]+");
@@ -72,15 +78,17 @@ int computer::call(lua_State *L, const char * method) {
     else if (m == "reboot") return reboot(L);
     else if (m == "getID") return getID(L);
     else if (m == "isOn") return isOn(L);
+    else if (m == "getLabel") return getLabel(L);
     else return 0;
 }
 
-const char * computer_keys[5] = {
+const char * computer_keys[6] = {
     "turnOn",
     "shutdown",
     "reboot",
     "getID",
-    "isOn"
+    "isOn",
+    "getLabel"
 };
 
-library_t computer::methods = {"computer", 5, computer_keys, NULL, nullptr, nullptr};
+library_t computer::methods = {"computer", 6, computer_keys, NULL, nullptr, nullptr};

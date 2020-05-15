@@ -281,7 +281,8 @@ void Computer::run(std::string bios_name) {
                         pluginError(L, api_name.c_str(), "Missing plugin info");
                     } else {
                         lua_pushcfunction(L, info);
-                        lua_call(L, 0, 1);
+                        lua_pushstring(L, CRAFTOSPC_VERSION);
+                        lua_call(L, 1, 1);
                         if (!lua_istable(L, -1)) {
                             printf("The plugin \"%s\" returned invalid info. Use at your own risk.", api_name.c_str());
                             pluginError(L, api_name.c_str(), "Invalid plugin info");
@@ -325,6 +326,12 @@ void Computer::run(std::string bios_name) {
                             lua_getfield(L, -1, "register_startComputer");
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&startComputer);
+                                lua_call(L, 1, 0);
+                            } else lua_pop(L, 1);
+
+                            lua_getfield(L, -1, "register_queueTask");
+                            if (lua_isfunction(L, -1)) {
+                                lua_pushlightuserdata(L, (void*)&queueTask);
                                 lua_call(L, 1, 0);
                             } else lua_pop(L, 1);
                         }

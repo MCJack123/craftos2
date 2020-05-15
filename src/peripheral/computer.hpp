@@ -23,6 +23,7 @@ private:
     int reboot(lua_State *L);
     int getID(lua_State *L);
     int isOn(lua_State *L);
+    int getLabel(lua_State *L);
 public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new computer(L, side);}
