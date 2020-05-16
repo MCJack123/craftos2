@@ -290,6 +290,7 @@ void SDLTerminal::render() {
         this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
         this->width = newWidth;
         this->height = newHeight;
+        
         changed = true;
     }
     if (!changed && !shouldScreenshot && !shouldRecord) return;
@@ -425,6 +426,13 @@ bool SDLTerminal::resize(int w, int h) {
     if (!gotResizeEvent) return false;
     while (gotResizeEvent) std::this_thread::yield();
     return true;
+}
+
+bool SDLTerminal::resizeWholeWindow(int w, int h) {
+    bool r = resize(w, h);
+    if (!r) return r;
+    queueTask([this](void*)->void*{SDL_SetWindowSize(win, width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale), height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)); return NULL;}, NULL);
+    return r;
 }
 
 void SDLTerminal::screenshot(std::string path) {

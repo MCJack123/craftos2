@@ -63,6 +63,7 @@ public:
     void showMessage(Uint32 flags, const char * title, const char * message) override;
     void toggleFullscreen();
     void setLabel(std::string label) override;
+    virtual bool resizeWholeWindow(int w, int h);
 
 #ifdef __EMSCRIPTEN__
     static SDL_Window *win;

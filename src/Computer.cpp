@@ -40,6 +40,7 @@ extern bool forceCheckTimeout;
 extern std::string script_args;
 extern std::string script_file;
 std::vector<Computer*> computers;
+std::mutex computers_mutex;
 std::unordered_set<Computer*> freedComputers; 
 std::unordered_set<SDL_TimerID> freedTimers;
 std::mutex freedTimersMutex;
@@ -93,6 +94,8 @@ extern void stopWebsocket(void*);
 
 // Destructor
 Computer::~Computer() {
+    // Deinitialize any plugins that registered a destructor
+    for (auto d : userdata_destructors) d.second(this, d.first, userdata[d.first]);
     // Destroy terminal
     if (term != NULL) delete term;
     // Save config
@@ -177,6 +180,12 @@ library_t * getLibrary(std::string name) {
     else if (name == "redstone" || name == "rs") return &rs_lib; 
     else if (name == "term") return &term_lib; 
     else return NULL;
+}
+
+Computer * getComputerById(int id) {
+    std::lock_guard<std::mutex> lock(computers_mutex);
+    for (Computer * c : computers) if (c->id == id) return c;
+    return NULL;
 }
 
 static void pluginError(lua_State *L, const char * name, const char * err) {
@@ -282,14 +291,14 @@ void Computer::run(std::string bios_name) {
                     } else {
                         lua_pushcfunction(L, info);
                         lua_pushstring(L, CRAFTOSPC_VERSION);
-                        int ok = lua_pcall(L, 2, 1, 0);
-                        if (!ok) {
+                        int ok = lua_pcall(L, 1, 1, 0);
+                        if (ok != 0) {
                             printf("The plugin \"%s\" ran into an error while initializing, and will not be loaded: %s\n", api_name.c_str(), lua_tostring(L, -1));
                             pluginError(L, api_name.c_str(), lua_tostring(L, -1));
                             lua_pop(L, 1);
                             continue;
                         } else if (!lua_istable(L, -1)) {
-                            printf("The plugin \"%s\" returned invalid info. Use at your own risk.\n", api_name.c_str());
+                            printf("The plugin \"%s\" returned invalid info (%s). Use at your own risk.\n", api_name.c_str(), lua_typename(L, lua_type(L, -1)));
                             pluginError(L, api_name.c_str(), "Invalid plugin info");
                         } else {
                             lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
@@ -343,6 +352,20 @@ void Computer::run(std::string bios_name) {
                             if (lua_isfunction(L, -1)) {
                                 lua_pushlightuserdata(L, (void*)&queueTask);
                                 lua_pushstring(L, "queueTask");
+                                lua_call(L, 2, 0);
+                            } else lua_pop(L, 1);
+
+                            lua_getfield(L, -1, "register_getComputerById");
+                            if (lua_isfunction(L, -1)) {
+                                lua_pushlightuserdata(L, (void*)&getComputerById);
+                                lua_pushstring(L, "getComputerById");
+                                lua_call(L, 2, 0);
+                            } else lua_pop(L, 1);
+
+                            lua_getfield(L, -1, "get_selectedRenderer");
+                            if (lua_isfunction(L, -1)) {
+                                lua_pushinteger(L, selectedRenderer);
+                                lua_pushstring(L, "selectedRenderer");
                                 lua_call(L, 2, 0);
                             } else lua_pop(L, 1);
                         }
@@ -540,11 +563,14 @@ void* computerThread(void* data) {
     comp->run("bios.lua");
 #endif
     freedComputers.insert(comp);
-    for (auto it = computers.begin(); it != computers.end(); it++) {
-        if (*it == comp) {
-            it = computers.erase(it);
-            queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
-            if (it == computers.end()) break;
+    {
+        std::lock_guard<std::mutex> lock(computers_mutex);
+        for (auto it = computers.begin(); it != computers.end(); it++) {
+            if (*it == comp) {
+                it = computers.erase(it);
+                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
+                if (it == computers.end()) break;
+            }
         }
     }
     if (selectedRenderer != 0 && selectedRenderer != 2 && !exiting) {
