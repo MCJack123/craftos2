@@ -35,7 +35,7 @@ extern std::string script_file;
 
 bool nothrow(std::function<void()> f) {try {f(); return true;} catch (std::exception &e) {return false;}}
 
-std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults) {
+std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
     std::vector<std::string> elems = split(path, '/');
     std::list<std::string> pathc;
     for (std::string s : elems) {
@@ -63,6 +63,7 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
             }
         }
         for (size_t i = 0; i < max_path.first; i++) pathc.pop_front();
+        if (isRoot != NULL) *isRoot = pathc.empty();
         if (exists) {
             bool found = false;
             for (std::string p : max_path.second) {

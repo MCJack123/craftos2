@@ -700,7 +700,15 @@ int fs_getCapacity(lua_State *L) {
     return 1;
 }
 
-const char * fs_keys[18] = {
+int fs_isDriveRoot(lua_State *L) {
+    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    bool res = false;
+    fixpath(get_comp(L), lua_tostring(L, 1), false, true, NULL, false, &res);
+    lua_pushboolean(L, res);
+    return 1;
+}
+
+const char * fs_keys[19] = {
     "list",
     "exists",
     "isDir",
@@ -718,10 +726,11 @@ const char * fs_keys[18] = {
     "find",
     "getDir",
     "getAttributes",
-    "getCapacity"
+    "getCapacity",
+    "isDriveRoot"
 };
 
-lua_CFunction fs_values[18] = {
+lua_CFunction fs_values[19] = {
     fs_list,
     fs_exists,
     fs_isDir,
@@ -739,7 +748,8 @@ lua_CFunction fs_values[18] = {
     fs_find,
     fs_getDir,
     fs_attributes,
-    fs_getCapacity
+    fs_getCapacity,
+    fs_isDriveRoot
 };
 
-library_t fs_lib = {"fs", 18, fs_keys, fs_values, nullptr, nullptr};
+library_t fs_lib = {"fs", 19, fs_keys, fs_values, nullptr, nullptr};
