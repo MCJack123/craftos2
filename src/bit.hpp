@@ -73,25 +73,86 @@ static int bit_blogic_rshift(lua_State *L) {
     return 1;
 }
 
-static const char * bit_keys[7] = {
+static int bit32_btest(lua_State *L) {
+    unsigned int num = luaL_checkinteger(L, 1);
+    for (int i = 2; i <= lua_gettop(L); i++) num &= luaL_checkinteger(L, i);
+    lua_pushboolean(L, num);
+    return 1;
+}
+
+static int bit32_extract(lua_State *L) {
+    unsigned int n = luaL_checkinteger(L, 1);
+    int field = luaL_checkinteger(L, 2);
+    if (field < 0 || field > 31) luaL_error(L, "bad argument #2 (field out of range)");
+    int width = luaL_optinteger(L, 3, 1);
+    if (width < 1 || field + width - 1 > 31) luaL_error(L, "bad argument #3 (width out of range)");
+    unsigned int mask = 0;
+    for (int i = field; i < field + width; i++) mask |= 2^i;
+    lua_pushinteger(L, n & mask);
+    return 1;
+}
+
+static int bit32_replace(lua_State *L) {
+    unsigned int n = luaL_checkinteger(L, 1);
+    unsigned int v = luaL_checkinteger(L, 2);
+    int field = luaL_checkinteger(L, 3);
+    if (field < 0 || field > 31) luaL_error(L, "bad argument #3 (field out of range)");
+    int width = luaL_optinteger(L, 4, 1);
+    if (width < 1 || field + width - 1 > 31) luaL_error(L, "bad argument #4 (width out of range)");
+    unsigned int mask = 0;
+    for (int i = field; i < field + width; i++) mask |= 2^i;
+    lua_pushinteger(L, (n & ~mask) | (v & mask));
+    return 1;
+}
+
+static unsigned int rotate_impl(bool right, unsigned int n, unsigned int disp) {
+    if (right) return ((n & ~((unsigned int)pow(2, disp) - 1)) >> disp) | ((n & ((unsigned int)pow(2, disp) - 1)) << (32 - disp));
+    else return ((n & ~(((unsigned int)pow(2, disp) - 1) << (32 - disp))) << disp) | (((n & ((unsigned int)pow(2, disp) - 1)) << (32 - disp)) >> (32 - disp));
+}
+
+static int bit32_rrotate(lua_State *L) {
+    unsigned int n = luaL_checkinteger(L, 1);
+    int disp = luaL_checkinteger(L, 2) % 32;
+    lua_pushinteger(L, rotate_impl(disp > 0, n, abs(disp)));
+    return 1;
+}
+
+static int bit32_lrotate(lua_State *L) {
+    unsigned int n = luaL_checkinteger(L, 1);
+    int disp = luaL_checkinteger(L, 2) % 32;
+    lua_pushinteger(L, rotate_impl(disp < 0, n, abs(disp)));
+    return 1;
+}
+
+static const char * bit_keys[12] = {
     "band",
     "bor",
     "bnot",
     "bxor",
-    "blshift",
-    "brshift",
-    "blogic_rshift"
+    "lshift",
+    "arshift",
+    "rshift",
+    "btest",
+    "extract",
+    "replace",
+    "rrotate",
+    "lrotate"
 };
 
-static lua_CFunction bit_values[7] = {
+static lua_CFunction bit_values[12] = {
     bit_band,
     bit_bor,
     bit_bnot,
     bit_bxor,
     bit_blshift,
     bit_brshift,
-    bit_blogic_rshift
+    bit_blogic_rshift,
+    bit32_btest,
+    bit32_extract,
+    bit32_replace,
+    bit32_rrotate,
+    bit32_lrotate
 };
 
-static library_t bit_lib = {"bit", 7, bit_keys, bit_values, nullptr, nullptr};
+static library_t bit_lib = {"bit32", 12, bit_keys, bit_values, nullptr, nullptr};
 #endif
