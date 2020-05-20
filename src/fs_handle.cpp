@@ -79,6 +79,19 @@ char checkChar(char c) {
 }
 */
 
+std::string makeASCIISafe(const char * retval, size_t len) {
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	std::wstring wstr;
+	try {wstr = converter.from_bytes(retval, retval + len);} 
+	catch (std::exception &e) {
+		fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
+		return std::string(retval, len);
+	}
+    std::string out;
+    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
+    return out;
+}
+
 int fs_handle_readAll(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
@@ -97,18 +110,8 @@ int fs_handle_readAll(lua_State *L) {
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = (char)c;
     }
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	std::wstring wstr;
-	try {wstr = converter.from_bytes(retval, retval + i - (i == size ? 0 : 1));} 
-	catch (std::exception &e) {
-		fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-		lua_pushlstring(L, retval, i - (i == size ? 0 : 1));
-		delete[] retval;
-		return 1;
-	}
+    std::string out = makeASCIISafe(retval, i - (i == size ? 0 : 1));
     delete[] retval;
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
@@ -131,18 +134,8 @@ int fs_handle_istream_readAll(lua_State *L) {
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = (char)c;
     }
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	std::wstring wstr;
-	try {wstr = converter.from_bytes(retval, retval + i - (i == size ? 0 : 1));} 
-	catch (std::exception &e) {
-		fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-		lua_pushlstring(L, retval, i - (i == size ? 0 : 1));
-		delete[] retval;
-		return 1;
-	}
+    std::string out = makeASCIISafe(retval, i - (i == size ? 0 : 1));
     delete[] retval;
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
@@ -163,20 +156,10 @@ int fs_handle_readLine(lua_State *L) {
         if (found) break;
 		retval = (char*)realloc(retval, i + 511);
 	}
-    int len = strlen(retval) - (retval[strlen(retval)-1] == '\n');
+    int len = strlen(retval) - (retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
     if (retval[len-1] == '\r') retval[--len] = '\0';
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	std::wstring wstr;
-	try {wstr = converter.from_bytes(retval, retval + len);}
-	catch (std::exception & e) {
-		fprintf(stderr, "fs_handle_readLine: Error decoding UTF-8: %s\n", e.what());
-		lua_pushlstring(L, retval, len);
-		free(retval);
-		return 1;
-	}
+    std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, len) : makeASCIISafe(retval, len);
     free(retval);
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
@@ -195,18 +178,9 @@ int fs_handle_istream_readLine(lua_State *L) {
         lua_pushnil(L);
         return 1;
     }
-    int len = retval.length() - (retval[retval.length()-1] == '\n');
-    if (retval[len-1] == '\r') retval[--len] = '\0';
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	std::wstring wstr;
-	try {wstr = converter.from_bytes(retval.c_str(), retval.c_str() + len);}
-	catch (std::exception & e) {
-		fprintf(stderr, "fs_handle_readLine: Error decoding UTF-8: %s\n", e.what());
-		lua_pushlstring(L, retval.c_str(), len);
-		return 1;
-	}
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
+    int len = retval.length() - (retval[retval.length()-1] == '\n' && !lua_toboolean(L, 1));
+    if (retval[len-1] == '\r') {if (lua_toboolean(L, 1)) {retval[len] = '\0'; retval[--len] = '\n';} else retval[--len] = '\0';}
+    std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, len) : makeASCIISafe(retval.c_str(), len);
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
