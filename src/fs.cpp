@@ -399,12 +399,12 @@ int fs_open(lua_State *L) {
         } else if (strcmp(mode, "rb") == 0) {
             lua_newtable(L);
             lua_pushstring(L, "close");
+            lua_pushlightuserdata(L, fp);
             lua_newtable(L);
             lua_pushstring(L, "__gc");
             lua_pushcclosure(L, fs_handle_istream_free, 0);
             lua_settable(L, -3);
             lua_setmetatable(L, -2);
-            lua_pushlightuserdata(L, fp);
             lua_pushcclosure(L, fs_handle_istream_close, 1);
             lua_settable(L, -3);
 
