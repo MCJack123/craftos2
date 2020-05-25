@@ -9,6 +9,7 @@ CraftOS-PC.app
 /Makefile - Copy
 /autom4te.cache
 /CraftOS-PC
+/CraftOS-PC-CCT-Edition
 /CraftOS-PC.xcodeproj
 /ccemux.*
 .vscode/c_cpp_properties.json
@@ -17,7 +18,7 @@ CraftOS-PC 2.code-workspace
 Makefile
 config.log
 config.status
-CraftOS-PC.dmg
+CraftOS-PC*.dmg
 .DS_Store
 example_peripheral.dylib
 craftos.html*
