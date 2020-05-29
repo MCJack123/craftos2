@@ -149,6 +149,7 @@ int fs_handle_readLine(lua_State *L) {
         return 1;
     }
 	char* retval = (char*)malloc(256);
+    retval[0] = 0;
 	for (unsigned i = 0; 1; i += 255) {
 		if (fgets(&retval[i], 256, fp) == NULL || feof(fp)) break;
         bool found = false;
