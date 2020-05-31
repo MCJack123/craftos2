@@ -139,9 +139,15 @@ int drive::insertDisk(lua_State *L, bool init) {
         if (path.substr(0, 9) == "treasure:") {
 #ifdef WIN32
             for (int i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
-            path = std::string(getROMPath()) + "\\treasure\\" + path.substr(9);
+            path = getROMPath() + "\\treasure\\" + path.substr(9);
 #else
-            path = std::string(getROMPath()) + "/treasure/" + path.substr(9);
+            path = getROMPath() + "/treasure/" + path.substr(9);
+#endif
+        } else if (path.substr(0, 7) == "record:") {
+#ifdef WIN32
+            path = getROMPath() + "\\sounds\\minecraft\\sounds\\records\\" + path.substr(7) + ".ogg";
+#else
+            path = getROMPath() + "/sounds/minecraft/sounds/records/" + path.substr(7) + ".ogg";
 #endif
         }
 #endif
