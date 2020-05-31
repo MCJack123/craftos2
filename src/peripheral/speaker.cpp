@@ -262,6 +262,9 @@ std::mt19937 RNG;
 Mix_Music * currentlyPlayingMusic = NULL;
 void musicFinished() {if (currentlyPlayingMusic != NULL) {Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL;}}
 
+void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
+void emptyEffect(int c, void* stream, int len, void* udata) {}
+
 bool playSoundEvent(std::string name, float volume, float speed) {
 	if (name.find(":") == std::string::npos) name = "minecraft:" + name;
 	if (soundEvents.find(name) == soundEvents.end()) return false;
@@ -273,7 +276,12 @@ bool playSoundEvent(std::string name, float volume, float speed) {
 		if ((i += f.pitch) > num) {
 			// play this event
 			if (f.isEvent) return playSoundEvent(f.name, min(volume * f.volume, 3.0f), min(speed * f.pitch, 2.0f));
+#ifdef WIN32
+			std::string path((getROMPath() + "\\sounds\\" + (f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + "\\sounds\\" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
+			for (int i = 0; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
+#else
 			std::string path((getROMPath() + "/sounds/" + (f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + "/sounds/" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
+#endif
 			if (f.isMusic) {
 				Mix_Music * chunk = Mix_LoadMUS((path + ".ogg").c_str());
 				if (chunk == NULL) {
@@ -310,10 +318,18 @@ bool playSoundEvent(std::string name, float volume, float speed) {
 						}
 					}
 				}
-				Mix_VolumeChunk(chunk, min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3));
-				int channel = Mix_PlayChannel(-1, chunk, 0);
+				CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false); // automatically frees chunk on scope exit
+				void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
+				memcpy(data, chunk->abuf, chunk->alen);
+				handler.modifyStreamPlaybackSpeed(0, data, max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
+				Mix_Chunk * newchunk = (Mix_Chunk*)SDL_malloc(sizeof(Mix_Chunk));
+				newchunk->abuf = (Uint8*)data;
+				newchunk->alen = chunk->alen / speed;
+				newchunk->allocated = true;
+				newchunk->volume = min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3);
+				int channel = Mix_PlayChannel(-1, newchunk, 0);
 				if (channel == -1) return false;
-				setupForNextPlayback(speed, chunk, channel, false);
+				Mix_ChannelFinished(channelFinished);
 				return true;
 			}
 		}
@@ -340,14 +356,22 @@ int speaker::playNote(lua_State *L) {
 	} else {
 		Mix_Chunk * chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(speaker_sounds[inst].first, speaker_sounds[inst].second), true);
 		if (chunk == NULL) luaL_error(L, "Fatal error while reading instrument sample");
-		Mix_VolumeChunk(chunk, volume * (MIX_MAX_VOLUME / 3));
 		float speed = pow(2.0, (pitch - 12.0) / 12.0);
-		int channel = Mix_PlayChannel(-1, chunk, 0);
+		CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false);
+		void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
+		memcpy(data, chunk->abuf, chunk->alen);
+		handler.modifyStreamPlaybackSpeed(0, data, chunk->alen);
+		Mix_Chunk * newchunk = (Mix_Chunk*)SDL_malloc(sizeof(Mix_Chunk));
+		newchunk->abuf = (Uint8*)data;
+		newchunk->alen = chunk->alen / speed;
+		newchunk->allocated = true;
+		newchunk->volume = volume * (MIX_MAX_VOLUME / 3);
+		int channel = Mix_PlayChannel(-1, newchunk, 0);
 		if (channel == -1) {
 			lua_pushboolean(L, false);
 			return 1;
 		}
-		setupForNextPlayback(speed, chunk, channel, false);
+		Mix_ChannelFinished(channelFinished);
 		lua_pushboolean(L, true);
 		return 1;
 	}
