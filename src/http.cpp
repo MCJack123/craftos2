@@ -161,8 +161,8 @@ void downloadThread(void* arg) {
     HTTPResponse * response = new HTTPResponse();
     session->setTimeout(Poco::Timespan(15, 0));
     //if (param->postData != NULL) request.setMethod("POST");
-    request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
-    request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
+    if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
+    if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
     for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
     if (param->postData != NULL) request.setContentLength(param->postDataSize);
     try {
