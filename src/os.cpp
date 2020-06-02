@@ -19,6 +19,7 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_set>
+#include <cassert>
 #include "os.hpp"
 #include "platform.hpp"
 #include "term.hpp"
@@ -148,8 +149,9 @@ int getNextEvent(lua_State *L, std::string filter) {
     std::string ev;
     gettingEvent(computer);
     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
-    lua_State *param = lua_newthread(computer->paramQueue);
+    lua_State *param;
     do {
+        param = lua_newthread(computer->paramQueue);
         while (termHasEvent(computer) && computer->eventQueue.size() < 25) {
             if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
             const char * name = termGetEvent(param);
@@ -193,9 +195,13 @@ int getNextEvent(lua_State *L, std::string filter) {
         }
         ev = computer->eventQueue.front();
         computer->eventQueue.pop();
+        if (!filter.empty() && ev != filter) lua_remove(computer->paramQueue, 1);
+        lua_pop(computer->paramQueue, 1);
         std::this_thread::yield();
     } while (!filter.empty() && ev != filter);
-    lua_pop(computer->paramQueue, 1);
+    if (lua_gettop(computer->paramQueue) != computer->eventQueue.size() + 1) {
+        printf("Warning: Queue sizes are incorrect! Expect misaligned event parameters.\n");
+    }
     param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) {
         printf("Queue item is not a thread for event \"%s\"!\n", ev.c_str()); 

@@ -526,7 +526,7 @@ void Computer::run(std::string bios_name) {
                 else lua_pushnil(coro);
                 lua_call(coro, 1, 0);
                 break;
-            }
+            } else running = 0;
         }
         
         // Shutdown threads
