@@ -20,7 +20,7 @@ extern "C" {
 #include <lauxlib.h>
 }
 
-#define CRAFTOSPC_VERSION "v2.3.2"
+#define CRAFTOSPC_VERSION "v2.3.3"
 #define CRAFTOSPC_INDEV   false
 
 struct Computer;
