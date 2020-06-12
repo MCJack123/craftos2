@@ -321,9 +321,9 @@ int fs_delete(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) luaL_error(L, "/%s: Access denied", fixpath(get_comp(L), lua_tostring(L, 1), false, false).c_str());
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1), true);
-	if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
+	if (path.empty()) return 0;
 	int res = removeDirectory(path);
-	if (res != 0) err(L, 1, "Failed to remove");
+	//if (res != 0) err(L, 1, "Failed to remove");
     return 0;
 }
 
