@@ -41,8 +41,8 @@ private:
     static library_t methods;
 public:
     struct profile_entry {
-        bool running = false;
-        unsigned long count = 0;
+        bool running;
+        unsigned long count;
         std::chrono::high_resolution_clock::time_point start;
         std::chrono::high_resolution_clock::duration time;
     };
