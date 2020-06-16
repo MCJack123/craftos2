@@ -56,13 +56,24 @@ int monitor::scroll(lua_State *L) {
     if (selectedRenderer == 4) printf("TS:%d;%ld\n", term->id, lua_tointeger(L, 1));
     int lines = lua_tointeger(L, 1);
     std::lock_guard<std::mutex> lock(term->locked);
-    for (int i = lines; i < term->height; i++) {
-        term->screen[i-lines] = term->screen[i];
-        term->colors[i-lines] = term->colors[i];
-    }
-    for (int i = term->height; i < term->height + lines; i++) {
-        term->screen[i-lines] = std::vector<unsigned char>(term->width, ' ');
-        term->colors[i-lines] = std::vector<unsigned char>(term->width, colors);
+    if (lines > 0) {
+        for (int i = lines; i < term->height; i++) {
+            term->screen[i - lines] = term->screen[i];
+            term->colors[i - lines] = term->colors[i];
+        }
+        for (int i = term->height; i < term->height + lines; i++) {
+            term->screen[i - lines] = std::vector<unsigned char>(term->width, ' ');
+            term->colors[i - lines] = std::vector<unsigned char>(term->width, colors);
+        }
+    } else if (lines < 0) {
+        for (int i = term->height - 1; i >= -lines; i--) {
+            term->screen[i] = term->screen[i + lines];
+            term->colors[i] = term->colors[i + lines];
+        }
+        for (int i = 0; i < -lines; i++) {
+            term->screen[i] = std::vector<unsigned char>(term->width, ' ');
+            term->colors[i] = std::vector<unsigned char>(term->width, colors);
+        }
     }
     term->changed = true;
     return 0;
