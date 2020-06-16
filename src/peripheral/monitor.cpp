@@ -102,8 +102,8 @@ int monitor::setCursorBlink(lua_State *L) {
 }
 
 int monitor::getCursorPos(lua_State *L) {
-    lua_pushinteger(L, term->blinkX + 1);
-    lua_pushinteger(L, term->blinkY + 1);
+    lua_pushinteger(L, (lua_Integer)term->blinkX + 1);
+    lua_pushinteger(L, (lua_Integer)term->blinkY + 1);
     return 2;
 }
 
@@ -165,12 +165,12 @@ int monitor::isColor(lua_State *L) {
 }
 
 int monitor::getTextColor(lua_State *L) {
-    lua_pushinteger(L, 1 << ((int)colors & 0x0f));
+    lua_pushinteger(L, (lua_Integer)1 << ((int)colors & 0x0f));
     return 1;
 }
 
 int monitor::getBackgroundColor(lua_State *L) {
-    lua_pushinteger(L, 1 << ((int)colors >> 4));
+    lua_pushinteger(L, (lua_Integer)1 << ((int)colors >> 4));
     return 1;
 }
 
@@ -217,7 +217,7 @@ int monitor::setPaletteColor(lua_State *L) {
     int color;
     if (term->mode == 2) color = lua_tointeger(L, 1);
     else color = log2i(lua_tointeger(L, 1));
-    if (color < 0 || color > 255) luaL_error(L, "bad argument #1 (invalid color %d)", color);
+    if (color < 0 || color > 255) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
     std::lock_guard<std::mutex> lock(term->locked);
     if (lua_isnoneornil(L, 3)) {
         unsigned int rgb = lua_tointeger(L, 2);
@@ -314,7 +314,7 @@ int monitor::drawPixels(lua_State *L) {
         if (lua_isstring(L, -1)) {
             size_t str_sz;
             const char * str = lua_tolstring(L, -1, &str_sz);
-            if (init_x + str_sz - 1 < term->width * Terminal::fontWidth)
+            if (init_x + str_sz - 1 < (size_t)term->width * Terminal::fontWidth)
                 memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
             for (unsigned x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < term->width * Terminal::fontWidth; x++) {

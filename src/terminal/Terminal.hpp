@@ -61,7 +61,7 @@ public:
         void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + max((int)v.size(), size), vec->begin() + ypos);}
         void operator=(row v) {std::copy(v.vec->begin() + v.ypos, v.vec->begin() + v.ypos + v.size, vec->begin() + ypos);}
     };
-    vector2d(int w, int h, T v): width(w), height(h), vec(w*h, v) {}
+    vector2d(int w, int h, T v): width(w), height(h), vec((size_t)w*h, v) {}
     row operator[](int idx) {
         if (idx >= height) throw std::out_of_range("Vector2D index out of range");
         return row(&vec, idx * width, width);
@@ -84,15 +84,15 @@ public:
 
 class Terminal {
 public:
-    int type;
-    unsigned id;
+    int type = -1;
+    unsigned id = 0;
     int width;
     int height;
     static const int fontWidth = 6;
     static const int fontHeight = 9;
     bool changed = true;
     bool gotResizeEvent = false;
-    int newWidth, newHeight;
+    int newWidth = 0, newHeight = 0;
     std::string title;
     static std::list<Terminal*> renderTargets;
     static std::mutex renderTargetsLock;

@@ -36,7 +36,6 @@
 #include <cassert>
 
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern void peripheral_update();
 extern int selectedRenderer;
 extern bool exiting;
 extern std::unordered_set<Computer*> freedComputers;
@@ -524,7 +523,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             lua_gettable(L, -2);
             if (lua_istable(L, -1)) {
                 lua_getfield(L, -1, "mask");
-                if (lua_tointeger(L, -1) & (1 << ar->event)) {
+                if (lua_tointeger(L, -1) & ((lua_Integer)1 << ar->event)) {
                     lua_pop(L, 1);
                     lua_getfield(L, -1, "func");
                     if (lua_isfunction(L, -1)) {
@@ -781,7 +780,7 @@ const char * termGetEvent(lua_State *L) {
                     h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
                 } else w = 51, h = 19;
             } else w = e.window.data1, h = e.window.data2;
-            if (e.window.windowID == computer->term->id && computer->term->resize(w, h)) {
+            if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) {
                 computer->lastResizeEvent = true;
                 return "term_resize";
             } else {
@@ -917,8 +916,8 @@ int term_getCursorPos(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    lua_pushinteger(L, term->blinkX + 1);
-    lua_pushinteger(L, term->blinkY + 1);
+    lua_pushinteger(L, (lua_Integer)term->blinkX + 1);
+    lua_pushinteger(L, (lua_Integer)term->blinkY + 1);
     return 2;
 }
 
@@ -968,7 +967,7 @@ int term_clearLine(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TL:%d;\n", get_comp(L)->term->id);
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    if (term->blinkY < 0) return 0;
+    if (term->blinkY < 0 || term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
     term->screen[term->blinkY] = std::vector<unsigned char>(term->width, ' ');
     term->colors[term->blinkY] = std::vector<unsigned char>(term->width, computer->colors);
@@ -1010,12 +1009,12 @@ int term_isColor(lua_State *L) {
 }
 
 int term_getTextColor(lua_State *L) {
-    lua_pushinteger(L, 1 << (get_comp(L)->colors & 0x0f));
+    lua_pushinteger(L, (lua_Integer)1 << (get_comp(L)->colors & 0x0f));
     return 1;
 }
 
 int term_getBackgroundColor(lua_State *L) {
-    lua_pushinteger(L, 1 << (get_comp(L)->colors >> 4));
+    lua_pushinteger(L, (lua_Integer)1 << (get_comp(L)->colors >> 4));
     return 1;
 }
 
@@ -1037,6 +1036,7 @@ int term_blit(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
+    if (term == NULL) return 0;
     if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
     size_t str_sz, fg_sz, bg_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
@@ -1098,7 +1098,7 @@ int term_setPaletteColor(lua_State *L) {
     int color;
     if (term->mode == 2) color = lua_tointeger(L, 1);
     else color = log2i(lua_tointeger(L, 1));
-    if (color < 0 || color > 255) luaL_error(L, "bad argument #1 (invalid color %d)", color);
+    if (color < 0 || color > 255) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
     std::lock_guard<std::mutex> lock(term->locked);
     if (lua_isnoneornil(L, 3)) {
         unsigned int rgb = lua_tointeger(L, 2);
@@ -1113,7 +1113,6 @@ int term_setPaletteColor(lua_State *L) {
     if (selectedRenderer == 4 && color < 16) 
         printf("TM:%d;%d,%f,%f,%f\n", term->id, color, term->palette[color].r / 255.0, term->palette[color].g / 255.0, term->palette[color].b / 255.0);
     term->changed = true;
-    //printf("%d -> %d, %d, %d\n", color, term->palette[color].r, term->palette[color].g, term->palette[color].b);
     return 0;
 }
 
@@ -1188,7 +1187,7 @@ int term_drawPixels(lua_State *L) {
         if (lua_isstring(L, -1)) {
             size_t str_sz;
             const char * str = lua_tolstring(L, -1, &str_sz);
-            if (init_x + str_sz - 1 < term->width * Terminal::fontWidth)
+            if (init_x + str_sz - 1 < (size_t)term->width * Terminal::fontWidth)
                 memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
             for (unsigned x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < term->width * Terminal::fontWidth; x++) {
