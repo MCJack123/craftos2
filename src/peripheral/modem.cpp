@@ -24,7 +24,7 @@ int modem::isOpen(lua_State *L) {
 
 int modem::open(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (openPorts.size() >= config.maxOpenPorts) luaL_error(L, "Too many open channels");
+    if (openPorts.size() >= (size_t)config.maxOpenPorts) luaL_error(L, "Too many open channels");
     openPorts.insert(lua_tointeger(L, 1));
     return 0;
 }

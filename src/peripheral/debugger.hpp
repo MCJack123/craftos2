@@ -44,7 +44,7 @@ public:
         bool running = false;
         unsigned long count = 0;
         std::chrono::high_resolution_clock::time_point start;
-        std::chrono::high_resolution_clock::duration time = std::chrono::high_resolution_clock::duration(0);
+        std::chrono::high_resolution_clock::duration time;
     };
     std::atomic_bool running;
     Computer * computer;

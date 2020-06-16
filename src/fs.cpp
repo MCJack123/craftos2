@@ -323,7 +323,7 @@ int fs_delete(lua_State *L) {
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1), true);
 	if (path.empty()) return 0;
 	int res = removeDirectory(path);
-	//if (res != 0) err(L, 1, "Failed to remove");
+	if (res != 0 && res != ENOENT) err(L, 1, "Failed to remove");
     return 0;
 }
 

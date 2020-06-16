@@ -231,7 +231,7 @@ void setupForNextPlayback(float& speed, Mix_Chunk* chunk, int channel, bool loop
 #pragma endregion
 #endif
 
-typedef struct {
+typedef struct sound_file {
     std::string name;
     float volume = 1.0;
     float pitch = 1.0;
