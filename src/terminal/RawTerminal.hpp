@@ -19,6 +19,7 @@ class RawTerminal: public Terminal {
 public:
     static void init();
     static void quit();
+    static void showGlobalMessage(uint32_t flags, const char * title, const char * message);
     RawTerminal(std::string title);
     ~RawTerminal() override;
     void render() override;

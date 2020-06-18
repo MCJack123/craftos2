@@ -624,7 +624,7 @@ int fs_find(lua_State *L) {
     lua_newtable(L);
     int i = 0;
     for (std::list<std::string>::iterator it = matches.begin(); it != matches.end(); it++, i++) {
-        lua_pushinteger(L, i + 1);
+        lua_pushinteger(L, (lua_Integer)i + 1);
         lua_pushstring(L, it->c_str());
         lua_settable(L, -3);
     }

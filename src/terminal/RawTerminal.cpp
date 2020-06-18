@@ -28,7 +28,7 @@
   0x04       4          Size (hex string)
   ===================== Base64 payload
   0x00       1          Frame type ID
-  0x01       1          ID
+  0x01       1          Window ID
 
 * Type 0: Terminal contents (server -> client)
 
@@ -299,7 +299,7 @@ void rawInputLoop() {
 			char size[5];
 			std::cin.read(size, 4);
 			long sizen = strtol(size, NULL, 16);
-			char * tmp = new char[sizen + 1];
+			char * tmp = new char[(size_t)sizen + 1];
 			tmp[sizen] = 0;
 			std::cin.read(tmp, sizen);
 			Poco::Checksum chk;
@@ -434,6 +434,16 @@ void RawTerminal::quit() {
 	inputThread->join();
 	delete inputThread;
     SDL_Quit();
+}
+
+void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const char * message) {
+	sendRawData(CCPC_RAW_MESSAGE_DATA, 0, [flags, title, message](std::ostream& output) {
+		output.write((char*)&flags, 4);
+		output.write(title, strlen(title));
+		output.put(0);
+		output.write(message, strlen(message));
+		output.put(0);
+	});
 }
 
 RawTerminal::RawTerminal(std::string title) : Terminal(51, 19) {

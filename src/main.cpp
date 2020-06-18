@@ -32,7 +32,7 @@
 #endif
 
 extern void config_init();
-extern void config_save(bool deinit);
+extern void config_save();
 extern void mainLoop();
 extern void awaitTasks();
 extern void http_server_stop();
@@ -130,7 +130,7 @@ int runRenderer() {
                 char size[5];
                 std::cin.read(size, 4);
                 long sizen = strtol(size, NULL, 16);
-                char * tmp = new char[sizen+1];
+                char * tmp = new char[(size_t)sizen+1];
                 tmp[sizen] = 0;
                 std::cin.read(tmp, sizen);
                 Poco::Checksum chk;
@@ -256,6 +256,7 @@ int runRenderer() {
                     while ((c = in.get())) title += c;
                     while ((c = in.get())) message += c;
                     if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
+                    else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
                 }}
             }
         }
@@ -278,17 +279,17 @@ int main(int argc, char*argv[]) {
     int id = 0;
     bool manualID = false;
     for (int i = 1; i < argc; i++) {
-		if (std::string(argv[i]) == "--headless") selectedRenderer = 1;
+        if (std::string(argv[i]) == "--headless") selectedRenderer = 1;
         else if (std::string(argv[i]) == "--gui" || std::string(argv[i]) == "--sdl") selectedRenderer = 0;
-		else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") selectedRenderer = 2;
+        else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") selectedRenderer = 2;
         else if (std::string(argv[i]) == "--raw") selectedRenderer = 3;
         else if (std::string(argv[i]) == "--raw-client") rawClient = true;
         else if (std::string(argv[i]) == "--tror") selectedRenderer = 4;
-		else if (std::string(argv[i]) == "--script") script_file = argv[++i];
-		else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
-		else if (std::string(argv[i]) == "--args") script_args = argv[++i];
-		else if (std::string(argv[i]) == "--directory" || std::string(argv[i]) == "-d") setBasePath(argv[++i]);
-		else if (std::string(argv[i]) == "--rom") setROMPath(argv[++i]);
+        else if (std::string(argv[i]) == "--script") script_file = argv[++i];
+        else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
+        else if (std::string(argv[i]) == "--args") script_args = argv[++i];
+        else if (std::string(argv[i]) == "--directory" || std::string(argv[i]) == "-d") setBasePath(argv[++i]);
+        else if (std::string(argv[i]) == "--rom") setROMPath(argv[++i]);
         else if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--id") {manualID = true; id = std::stoi(argv[++i]);}
         else if (std::string(argv[i]) == "-V" || std::string(argv[i]) == "--version") {
             std::cout << "CraftOS-PC " << CRAFTOSPC_VERSION;
@@ -378,7 +379,7 @@ int main(int argc, char*argv[]) {
 #endif
     driveQuit();
     http_server_stop();
-    config_save(true);
+    config_save();
     if (!updateAtQuit.empty()) {
         updateNow(updateAtQuit);
         awaitTasks();

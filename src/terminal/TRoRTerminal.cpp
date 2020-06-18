@@ -139,6 +139,11 @@ void TRoRTerminal::quit() {
     SDL_Quit();
 }
 
+void TRoRTerminal::showGlobalMessage(Uint32 flags, const char * title, const char * message) {
+    // This may be called before initialization, so we're always sending it
+    printf("TA:;\"%s\",\"%s\"\n", title, message);
+}
+
 TRoRTerminal::TRoRTerminal(std::string title): Terminal(51, 19) {
     this->title = title;
 	for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) 

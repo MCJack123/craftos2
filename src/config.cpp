@@ -13,6 +13,8 @@
 #include "platform.hpp"
 #include "os.hpp"
 #include "terminal/SDLTerminal.hpp"
+#include "terminal/RawTerminal.hpp"
+#include "terminal/TRoRTerminal.hpp"
 #include <string.h>
 #include <fstream>
 #include <string>
@@ -21,15 +23,25 @@
 #include <Poco/Base64Decoder.h>
 
 struct configuration config;
+extern int selectedRenderer;
 
 struct computer_configuration getComputerConfig(int id) {
-    struct computer_configuration cfg = {"", true};
+    struct computer_configuration cfg = {"", true, false};
     std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     if (!in.is_open()) return cfg; 
     if (in.peek() == std::ifstream::traits_type::eof()) {in.close(); return cfg;} // treat an empty file as if it didn't exist in the first place
     Value root;
     Poco::JSON::Object::Ptr p;
-    try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {throw std::runtime_error("Error parsing per-computer config: " + e.message());}
+    try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {
+        cfg.loadFailure = true;
+        std::string message = "An error occurred while parsing the per-computer configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
+        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else printf("%s\n", message.c_str());
+        in.close();
+        return cfg;
+    }
     in.close();
     cfg.isColor = root["isColor"].asBool();
     if (root.isMember("label")) {
@@ -40,6 +52,7 @@ struct computer_configuration getComputerConfig(int id) {
 }
 
 void setComputerConfig(int id, struct computer_configuration cfg) {
+    if (cfg.loadFailure) return;
     Value root;
     if (!cfg.label.empty()) root["label"] = b64encode(cfg.label);
     root["isColor"] = cfg.isColor;
@@ -50,6 +63,8 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
 }
 
 #define readConfigSetting(name, type) if (root.isMember(#name)) config.name = root[#name].as##type()
+
+bool configLoadError = false;
 
 void config_init() {
     createDirectory((std::string(getBasePath()) + "/config").c_str());
@@ -86,7 +101,19 @@ void config_init() {
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
     Value root;
-    Poco::JSON::Object::Ptr p = root.parse(in);
+    Poco::JSON::Object::Ptr p;
+    try {
+        p = root.parse(in);
+    } catch (Poco::JSON::JSONException &e) {
+        configLoadError = true;
+        std::string message = "An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
+        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else printf("%s\n", message.c_str());
+        in.close();
+        return;
+    }
     in.close();
     readConfigSetting(http_enable, Bool);
     readConfigSetting(debug_enable, Bool);
@@ -118,7 +145,8 @@ void config_init() {
     readConfigSetting(mouse_move_throttle, Int);
 }
 
-void config_save(bool deinit) {
+void config_save() {
+    if (configLoadError) return;
     Value root;
     root["http_enable"] = config.http_enable;
     root["debug_enable"] = config.debug_enable;
@@ -153,7 +181,7 @@ void config_save(bool deinit) {
     out.close();
 }
 
-void config_deinit(Computer *comp) { config_save(false); }
+void config_deinit(Computer *comp) { config_save(); }
 
 int config_get(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
@@ -343,7 +371,7 @@ int config_set(lua_State *L) {
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");
-    config_save(false);
+    config_save();
     if (config_set_actions[std::string(name)]) lua_pushstring(L, config_set_action_names[config_set_actions[std::string(name)]]);
     else lua_pushnil(L);
     return 1;

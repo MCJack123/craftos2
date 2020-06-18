@@ -18,6 +18,7 @@ class TRoRTerminal: public Terminal {
 public:
     static void init();
     static void quit();
+    static void showGlobalMessage(Uint32 flags, const char * title, const char * message);
     TRoRTerminal(std::string title);
     ~TRoRTerminal() override;
     void render() override {}
