@@ -434,14 +434,6 @@ int os_reboot(lua_State *L) {
     return 0;
 }
 
-int os_system(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!config.debug_enable) return 0;
-    lua_pushinteger(L, system(lua_tostring(L, 1)));
-    return 1;
-}
-
-
 int os_about(lua_State *L) {
     lua_pushstring(L, "CraftOS-PC " CRAFTOSPC_VERSION "\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
 \n\
@@ -472,7 +464,7 @@ Special thanks:\n\
     return 1;
 }
 
-const char * os_keys[18] = {
+const char * os_keys[17] = {
     "getComputerID",
     "computerID",
     "getComputerLabel",
@@ -489,11 +481,10 @@ const char * os_keys[18] = {
     "cancelAlarm",
     "shutdown",
     "reboot",
-    "system",
     "about"
 };
 
-lua_CFunction os_values[18] = {
+lua_CFunction os_values[17] = {
     os_getComputerID,
     os_getComputerID,
     os_getComputerLabel,
@@ -510,8 +501,7 @@ lua_CFunction os_values[18] = {
     os_cancelAlarm,
     os_shutdown,
     os_reboot,
-    os_system,
     os_about
 };
 
-library_t os_lib = {"os", 18, os_keys, os_values, nullptr, nullptr};
+library_t os_lib = {"os", 17, os_keys, os_values, nullptr, nullptr};

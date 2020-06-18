@@ -175,7 +175,7 @@ local function callLocal(name, f, ...)
 	return table.unpack(res)
 end
 
-testStart("bit")
+testStart "bit"
 	test("blshift", 96, 6, 4)
 	test("brshift", 0xFFFFF000, 0xFFFF0000, 4)
 	test("blogic_rshift", 0x0FFFF000, 0xFFFF0000, 4)
@@ -187,7 +187,7 @@ testStart("bit")
 	testValue("tonumb", nil)
 testEnd()
 
-testStart("colors")
+testStart "colors"
 	testValue("white", 0x1)
 	testValue("orange", 0x2)
 	testValue("magenta", 0x4)
@@ -209,7 +209,7 @@ testStart("colors")
 	test("test", true, 0x3, colors.white)
 testEnd()
 
-testStart("colours")
+testStart "colours"
 	testValue("white", 0x1)
 	testValue("black", 0x8000)
 	testValue("gray", nil)
@@ -218,7 +218,7 @@ testStart("colours")
 	testValue("lightGrey", 0x100)
 testEnd()
 
-testStart("coroutine")
+testStart "coroutine"
 	local coro
 	local function coro_func(v1, v2)
 		testLocal("variable 1", v1, "test")
@@ -238,7 +238,7 @@ testStart("coroutine")
 	-- TODO: add wrap tests
 testEnd()
 
-testStart("fs")
+testStart "fs"
 	test("list", {{"apis", "autorun", "help", "modules", "motd.txt", "programs", "startup.lua"}}, "/rom")
 	test("exists", true, "/rom/programs/shell.lua")
 	test("exists", true, "/rom/programs")
@@ -294,7 +294,7 @@ testStart("fs")
 	test("complete", {{"abel.lua", "ist.lua", "ua.lua"}}, "l", "/rom/programs")
 testEnd()
 
-testStart("help")
+testStart "help"
 	callLocal("fs.makeDir", fs.makeDir, "help")
 	file = callLocal("fs.open", fs.open, "help/test.txt", "w")
 	if file then
@@ -312,7 +312,7 @@ testStart("help")
 	callLocal("fs.delete", fs.delete, "help")
 testEnd()
 
-testStart("http")
+testStart "http"
 	local handle = call("get", "https://pastebin.com/raw/yY9StxvU")
 	if testLocal("handle", type(handle), "table") then
 		testLocal("handle.getResponseCode", callLocal("handle.getResponseCode", handle.getResponseCode), 200)
@@ -333,11 +333,11 @@ fs.delete("/install.lua")]])
 	test("checkURL", {false, "Domain not permitted"}, "http://192.168.1.1")
 testEnd()
 
-testStart("io")
+testStart "io"
 	-- TODO: test IO API
 testEnd()
 
-testStart("keys")
+testStart "keys"
 	testValue("a", 30)
 	testValue("z", 44)
 	testValue("zero", 11)
@@ -348,7 +348,7 @@ testStart("keys")
 	test("getName", "rightCtrl", 157)
 testEnd()
 
-testStart("math")
+testStart "math"
 	local function testF(name, expected, ...) return testLocal(api.."."..name, math.floor(call(name, ...) * 1000000) / 1000000, expected) end
 	test("abs", 7, -7)
 	test("acos", math.pi / 2, 0)
@@ -386,7 +386,7 @@ testStart("math")
 	test("tanh", 1, 1000000)
 testEnd()
 
-if multishell ~= nil then testStart("multishell")
+if multishell ~= nil then testStart "multishell"
 	test("getCurrent", 1)
 	test("getCount", 1)
 	call("setTitle", 1, "Title")
@@ -413,7 +413,7 @@ print("done")]])
 	callLocal("fs.delete", fs.delete, "multishell_test.lua")
 testEnd() end
 
-testStart("os")
+testStart "os"
 	testLocal("os.getComputerID", type(os.getComputerID()), "number")
 	testLocal("os.computerID", type(os.getComputerID()), "number")
 	call("setComputerLabel", "Computer")
@@ -451,7 +451,7 @@ if test then test("getComputerLabel", ({...})[1]) end]])
 	callLocal("fs.delete", fs.delete, "run_test.lua")
 testEnd()
 
-testStart("parallel")
+testStart "parallel"
 	test("waitForAny", 2, function() callLocal("sleep", sleep, 3) end, function() callLocal("sleep", sleep, 1) end, function() callLocal("sleep", sleep, 5) end)
 	local i = 0
 	local function getParallelFunc(n) return function()
@@ -462,13 +462,30 @@ testStart("parallel")
 	testLocal("i", i, 9)
 testEnd()
 
-testStart("settings")
+testStart "settings"
 	test("save", true, "old_settings.ltn")
 	call("clear")
 	call("set", "test", 3)
 	test("get", 3, "test")
 	call("set", "test2", "hello")
-	test("getNames", {{"test", "test2"}})
+	test("getNames", {{
+		"bios.use_cash",
+		"edit.autocomplete",
+		"edit.default_extension",
+		"list.show_hidden",
+		"lua.autocomplete",
+		"lua.function_args",
+		"lua.function_source",
+		"lua.warn_against_use_of_local",
+		"motd.enable",
+		"motd.path",
+		"paint.default_extension",
+		"shell.allow_disk_startup",
+		"shell.allow_startup",
+		"shell.autocomplete",
+		"test",
+		"test2"
+	}})
 	call("unset", "test")
 	test("get", "none", "test", "none")
 	test("save", true, "new_settings.ltn")
@@ -482,7 +499,7 @@ testStart("settings")
 	callLocal("fs.delete", fs.delete, "new_settings.ltn")
 testEnd()
 
-testStart("shell")
+testStart "shell"
 	local oldDir = call("dir")
 	call("setDir", "rom")
 	test("dir", "rom")
@@ -521,7 +538,7 @@ testEnd()
 
 -- might add string tests later, assuming it'll work since it's Lua standard
 
-testStart("table")
+testStart "table"
 	test("concat", "is:a", {"this", "is", "a", "test"}, ":", 2, 3)
 	test("concat", "", {"this", "is", "a", "test"}, ":", 4, 1)
 	local t = {"this", "is", "a", "test"}
@@ -544,7 +561,7 @@ testStart("table")
 	test("unpack", {"this", "is", "a", "test"}, {"this", "is", "a", "test"})
 testEnd()
 
-if not _HEADLESS then testStart("term")
+if not _HEADLESS then testStart "term"
 	test("getSize", {51, 19})
 	call("clear")
 	call("setCursorPos", 1, 1)
@@ -618,7 +635,7 @@ if not _HEADLESS then testStart("term")
 	testValue("restore", nil)
 testEnd() end
 
-testStart("textutils")
+testStart "textutils"
 	call("slowWrite", "This should write slowly: ")
 	call("slowPrint", "And even slower this time...", 10)
 	call("slowPrint", "Very slow...", 2)
@@ -649,7 +666,7 @@ Nunc non pulvinar magna, id tempus erat. Nunc eget magna non quam dapibus gravid
 	test("complete", {{"able.", "erm.", "extutils.", "onumber(", "ostring(", "ype("}}, "t", _ENV)
 testEnd()
 
-testStart("vector")
+testStart "vector"
 	local va = call("new", 1, 2, 3)
 	local vb = call("new", 10, 5, 3)
 	local vc = callLocal("vector:add", va.add, va, vb)
@@ -669,7 +686,7 @@ testStart("vector")
 	testLocal("vector:tostring", callLocal("vector:tostring", vb.tostring, vb), "10,5,3")
 testEnd()
 
-testStart("window")
+testStart "window"
 	local x, y = callLocal("term.getCursorPos", term.getCursorPos)
 	local win = call("create", term.current(), 5, 5, 12, 5)
 	testLocal("window.getPosition", {callLocal("window.getPosition", win.getPosition)}, {5, 5})
