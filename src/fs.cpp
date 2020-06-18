@@ -52,7 +52,7 @@ void err(lua_State *L, int idx, const char * err) {
     luaL_error(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).c_str(), err);
 }
 
-std::string concat(std::vector<std::string> c, char sep) {
+std::string concat(std::list<std::string> &c, char sep) {
     std::stringstream ss;
     bool started = false;
     for (std::string s : c) {
@@ -63,21 +63,32 @@ std::string concat(std::vector<std::string> c, char sep) {
     return ss.str();
 }
 
+std::list<std::string> split_list(std::string strToSplit, char delimeter) {
+    std::stringstream ss(strToSplit);
+    std::string item;
+    std::list<std::string> splittedStrings;
+    while (std::getline(ss, item, delimeter)) {
+        splittedStrings.push_back(item);
+    }
+    return splittedStrings;
+}
+
 std::string fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL) {
     if (md && fixpath_ro(comp, path.c_str())) return std::string();
-    std::vector<std::string> components = path.find("/") ? split(path, '/') : split(path, '\\');
+    std::list<std::string> components = path.find("/") != std::string::npos ? split_list(path, '/') : split_list(path, '\\');
+    while (components.size() > 0 && components.front().empty()) components.pop_front();
     if (components.empty()) return fixpath(comp, "", true);
     components.pop_back();
-    std::vector<std::string> append;
-    std::string maxPath = fixpath(comp, concat(components, PATH_SEPC).c_str(), false, true, mountPath);
+    std::list<std::string> append;
+    std::string maxPath = fixpath(comp, concat(components, '/').c_str(), false, true, mountPath);
     while (maxPath.empty()) {
         append.push_back(components.back());
         components.pop_back();
         if (components.empty()) return std::string();
-        maxPath = fixpath(comp, concat(components, PATH_SEPC).c_str(), false, true, mountPath);
+        maxPath = fixpath(comp, concat(components, '/').c_str(), false, true, mountPath);
     }
     if (!md) return maxPath;
-    if (createDirectory(maxPath + "/" + concat(append, PATH_SEPC)) != 0) return std::string();
+    if (createDirectory(maxPath + PATH_SEP + concat(append, PATH_SEPC)) != 0) return std::string();
     return fixpath(comp, path.c_str(), false, true, mountPath);
 }
 

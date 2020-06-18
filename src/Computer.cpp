@@ -67,9 +67,14 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     addMount(this, "rom:", "rom", true);
     if (debug) addMount(this, "debug:", "debug", true);
 #else
+#ifdef _WIN32
+    if (!addMount(this, (getROMPath() + "\\rom").c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
+    if (debug) if (!addMount(this, (getROMPath() + "\\debug").c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
+#else
     if (!addMount(this, (getROMPath() + "/rom").c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
     if (debug) if (!addMount(this, (getROMPath() + "/debug").c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
-#endif
+#endif // _WIN32
+#endif // STANDALONE_ROM
     mounter_initializing = false;
     // Create the root directory
 #ifdef _WIN32

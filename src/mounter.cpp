@@ -42,11 +42,12 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
         if (s == "..") { if (pathc.size() < 1) return std::string(); else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
+    while (pathc.size() > 0 && pathc.front().empty()) pathc.pop_front();
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua") 
 #ifdef STANDALONE_ROM
         return ":bios.lua";
 #else
-        return getROMPath() + "/bios.lua";
+        return getROMPath() + PATH_SEP + "bios.lua";
 #endif
     std::stringstream ss;
     if (addExt) {
