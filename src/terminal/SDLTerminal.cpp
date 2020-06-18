@@ -151,7 +151,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
     SDL_WINDOW_ALLOW_HIGHDPI |
 #endif
     SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == nullptr || win == NULL || win == (SDL_Window*)0) {
+    if (win == (SDL_Window*)0) {
         overridden = true;
         throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
     }
@@ -178,7 +178,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
     else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP((getROMPath() + "/hdfont.bmp").c_str());
 #endif
     else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
-    if (old_bmp == nullptr || old_bmp == NULL || old_bmp == (SDL_Surface*)0) {
+    if (old_bmp == (SDL_Surface*)0) {
 #ifndef __EMSCRIPTEN__
         SDL_DestroyWindow(win);
 #endif
@@ -186,7 +186,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
         throw window_exception("Failed to load font: " + std::string(SDL_GetError()));
     }
     bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
-    if (bmp == nullptr || bmp == NULL || bmp == (SDL_Surface*)0) {
+    if (bmp == (SDL_Surface*)0) {
 #ifndef __EMSCRIPTEN__
         SDL_DestroyWindow(win);
 #endif
@@ -475,8 +475,8 @@ void SDLTerminal::record(std::string path) {
         recordingPath += "/screenshots/";
 #endif
         createDirectory(recordingPath.c_str());
-        char * tstr = new char[20];
-        strftime(tstr, 24, "%F_%H.%M.%S", nowt);
+        char * tstr = new char[24];
+        strftime(tstr, 20, "%F_%H.%M.%S", nowt);
         recordingPath += std::string(tstr) + ".gif";
         delete[] tstr;
     }

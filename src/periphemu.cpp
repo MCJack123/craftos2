@@ -93,7 +93,7 @@ int periphemu_create(lua_State* L) {
 			return 1;
 		}
 		computer->peripherals_mutex.lock();
-		computer->peripherals[side] = p;
+		try { computer->peripherals[side] = p; } catch (...) {}
 		computer->peripherals_mutex.unlock();
 	} catch (std::exception &e) {
 		return luaL_error(L, "Error while creating peripheral: %s", e.what());

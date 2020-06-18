@@ -220,6 +220,7 @@ void copyImage(SDL_Surface* surf) {
     SDL_RWops * rw = SDL_RWFromMem(bmp, surf->w*surf->h*surf->format->BytesPerPixel + 128);
     SDL_SaveBMP_RW(surf, rw, false);
     HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, rw->seek(rw, 0, RW_SEEK_CUR) - sizeof(BITMAPFILEHEADER));
+    if (hMem == NULL) { delete[] bmp; return; }
     memcpy(GlobalLock(hMem), bmp + sizeof(BITMAPFILEHEADER), rw->seek(rw, 0, RW_SEEK_CUR) - sizeof(BITMAPFILEHEADER));
     GlobalUnlock(hMem);
     OpenClipboard(0);

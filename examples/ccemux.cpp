@@ -51,7 +51,7 @@ int ccemux_getVersion(lua_State *L) {
 
 int ccemux_openEmu(lua_State *L) {
     int id = 1;
-    if (lua_isnumber(L, 1)) id = lua_tointeger(L, 1);
+    if (lua_isnumber(L, 1)) id = (int)lua_tointeger(L, 1);
     else {
         library_t * plib = getLibrary("peripheral");
         for (; id < 256; id++) { // don't search forever

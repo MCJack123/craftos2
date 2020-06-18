@@ -140,6 +140,7 @@
     <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
     <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
     <RuntimeLibrary>MultiThreaded</RuntimeLibrary>

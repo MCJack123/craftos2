@@ -17,7 +17,7 @@
 #include "peripheral.hpp"
 #include "../mounter.hpp"
 
-enum disk_type {
+enum class disk_type {
     DISK_TYPE_NONE,
     DISK_TYPE_DISK,
     DISK_TYPE_AUDIO,
@@ -26,7 +26,7 @@ enum disk_type {
 
 class drive: public peripheral {
 private:
-    disk_type diskType = DISK_TYPE_NONE;
+    disk_type diskType = disk_type::DISK_TYPE_NONE;
     std::string mount_path;
     std::string path;
 #ifndef NO_MIXER

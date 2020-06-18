@@ -155,7 +155,12 @@ int fs_handle_readLine(lua_State *L) {
         bool found = false;
         for (unsigned j = 0; j < 256; j++) if (retval[i+j] == '\n') {found = true; break;}
         if (found) break;
-		retval = (char*)realloc(retval, i + 511);
+		char * retvaln = (char*)realloc(retval, i + 511);
+        if (retvaln == NULL) {
+            free(retval);
+            return luaL_error(L, "failed to allocate memory");
+        }
+        retval = retvaln;
 	}
     int len = strlen(retval) - (retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
     if (retval[len-1] == '\r') retval[--len] = '\0';
@@ -319,10 +324,16 @@ int fs_handle_readAllByte(lua_State *L) {
     if (feof(fp)) return 0;
     size_t size = 0;
     char * str = (char*)malloc(512);
+    if (str == NULL) return luaL_error(L, "failed to allocate memory");
     while (!feof(fp)) {
         size += fread(&str[size], 1, 512, fp);
         if (size % 512 != 0) break;
-        str = (char*)realloc(str, size + 512);
+        char * strn = (char*)realloc(str, size + 512);
+        if (strn == NULL) {
+            free(str);
+            return luaL_error(L, "failed to allocate memory");
+        }
+        str = strn;
     }
     lua_pushlstring(L, str, size);
     return 1;
@@ -335,10 +346,16 @@ int fs_handle_istream_readAllByte(lua_State *L) {
     if (fp->eof()) return 0;
     size_t size = 0;
     char * str = (char*)malloc(512);
+    if (str == NULL) return luaL_error(L, "failed to allocate memory");
     while (fp->eof()) {
         size += fp->readsome(&str[size], 512);
         if (size % 512 != 0) break;
-        str = (char*)realloc(str, size + 512);
+        char * strn = (char*)realloc(str, size + 512);
+        if (strn == NULL) {
+            free(str);
+            return luaL_error(L, "failed to allocate memory");
+        }
+        str = strn;
     }
     lua_pushlstring(L, str, size);
     return 1;

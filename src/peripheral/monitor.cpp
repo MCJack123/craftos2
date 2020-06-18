@@ -53,7 +53,7 @@ int monitor::write(lua_State *L) {
 
 int monitor::scroll(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (selectedRenderer == 4) printf("TS:%d;%ld\n", term->id, lua_tointeger(L, 1));
+    if (selectedRenderer == 4) printf("TS:%d;%d\n", term->id, (int)lua_tointeger(L, 1));
     int lines = lua_tointeger(L, 1);
     std::lock_guard<std::mutex> lock(term->locked);
     if (lines > 0) {
@@ -82,7 +82,7 @@ int monitor::scroll(lua_State *L) {
 int monitor::setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (selectedRenderer == 4) printf("TC:%d;%ld,%ld\n", term->id, lua_tointeger(L, 1), lua_tointeger(L, 2));
+    if (selectedRenderer == 4) printf("TC:%d;%d,%d\n", term->id, (int)lua_tointeger(L, 1), (int)lua_tointeger(L, 2));
     std::lock_guard<std::mutex> lock(term->locked);
     term->blinkX = lua_tointeger(L, 1) - 1;
     term->blinkY = lua_tointeger(L, 2) - 1;

@@ -17,13 +17,13 @@
 #include <dirent.h>
 
 int drive::isDiskPresent(lua_State *L) {
-    lua_pushboolean(L, diskType != DISK_TYPE_NONE);
+    lua_pushboolean(L, diskType != disk_type::DISK_TYPE_NONE);
     return 1;
 }
 
 int drive::getDiskLabel(lua_State *L) {
-    if (diskType == DISK_TYPE_AUDIO) return getAudioTitle(L);
-    else if (diskType == DISK_TYPE_MOUNT) {
+    if (diskType == disk_type::DISK_TYPE_AUDIO) return getAudioTitle(L);
+    else if (diskType == disk_type::DISK_TYPE_MOUNT) {
         lua_pushstring(L, path.substr((path.find_last_of('\\') == std::string::npos ? path.find_last_of('/') : path.find_last_of('\\')) + 1).c_str());
         return 1;
     }
@@ -36,23 +36,23 @@ int drive::setDiskLabel(lua_State *L) {
 }
 
 int drive::hasData(lua_State *L) {
-    lua_pushboolean(L, diskType == DISK_TYPE_MOUNT || diskType == DISK_TYPE_DISK);
+    lua_pushboolean(L, diskType == disk_type::DISK_TYPE_MOUNT || diskType == disk_type::DISK_TYPE_DISK);
     return 1;
 }
 
 int drive::getMountPath(lua_State *L) {
-    if (diskType == DISK_TYPE_NONE) return 0;
+    if (diskType == disk_type::DISK_TYPE_NONE) return 0;
     lua_pushstring(L, mount_path.c_str());
     return 1;
 }
 
 int drive::hasAudio(lua_State *L) {
-    lua_pushboolean(L, diskType == DISK_TYPE_AUDIO);
+    lua_pushboolean(L, diskType == disk_type::DISK_TYPE_AUDIO);
     return 1;
 }
 
 int drive::getAudioTitle(lua_State *L) {
-    if (diskType != DISK_TYPE_AUDIO) {
+    if (diskType != disk_type::DISK_TYPE_AUDIO) {
         lua_pushnil(L);
         return 1;
     }
@@ -64,7 +64,7 @@ int drive::getAudioTitle(lua_State *L) {
 
 int drive::playAudio(lua_State *L) {
 #ifndef NO_MIXER
-    if (diskType != DISK_TYPE_AUDIO) return 0;
+    if (diskType != disk_type::DISK_TYPE_AUDIO) return 0;
     if (music != NULL) stopAudio(L);
     music = Mix_LoadMUS(path.c_str());
     if (music == NULL) printf("Could not load audio: %s\n", Mix_GetError());
@@ -75,7 +75,7 @@ int drive::playAudio(lua_State *L) {
 
 int drive::stopAudio(lua_State *L) {
 #ifndef NO_MIXER
-    if (diskType != DISK_TYPE_AUDIO || music == NULL) return 0;
+    if (diskType != disk_type::DISK_TYPE_AUDIO || music == NULL) return 0;
     if (Mix_PlayingMusic()) Mix_HaltMusic();
     Mix_FreeMusic(music);
     music = NULL;
@@ -84,8 +84,8 @@ int drive::stopAudio(lua_State *L) {
 }
 
 int drive::ejectDisk(lua_State *L) {
-    if (diskType == DISK_TYPE_NONE) return 0;
-    else if (diskType == DISK_TYPE_AUDIO) stopAudio(L);
+    if (diskType == disk_type::DISK_TYPE_NONE) return 0;
+    else if (diskType == disk_type::DISK_TYPE_AUDIO) stopAudio(L);
     else {
         Computer * computer = get_comp(L);
         for (auto it = computer->mounts.begin(); it != computer->mounts.end(); it++) {
@@ -100,12 +100,12 @@ int drive::ejectDisk(lua_State *L) {
             }
         }
     }
-    diskType = DISK_TYPE_NONE;
+    diskType = disk_type::DISK_TYPE_NONE;
     return 0;
 }
 
 int drive::getDiskID(lua_State *L) {
-    if (diskType != DISK_TYPE_DISK) return 0;
+    if (diskType != disk_type::DISK_TYPE_DISK) return 0;
     lua_pushinteger(L, id);
     return 1;
 }
@@ -115,10 +115,10 @@ int drive::getDiskID(lua_State *L) {
 int drive::insertDisk(lua_State *L, bool init) {
     Computer * comp = get_comp(L);
     int arg = init * 2 + 1;
-    if (diskType != DISK_TYPE_NONE) lua_pop(L, ejectDisk(L));
+    if (diskType != disk_type::DISK_TYPE_NONE) lua_pop(L, ejectDisk(L));
     if (lua_isnumber(L, arg)) {
         id = lua_tointeger(L, arg);
-        diskType = DISK_TYPE_DISK;
+        diskType = disk_type::DISK_TYPE_DISK;
         int i;
         for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
         comp->usedDriveMounts.insert(i);
@@ -156,13 +156,13 @@ int drive::insertDisk(lua_State *L, bool init) {
             else luaL_error(L, "Could not mount: %s", strerror(errno));
         }
         if (S_ISDIR(st.st_mode)) {
-            diskType = DISK_TYPE_MOUNT;
+            diskType = disk_type::DISK_TYPE_MOUNT;
             int i;
             for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
             comp->usedDriveMounts.insert(i);
             mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
             if (!addMount(comp, path.c_str(), mount_path.c_str(), false)) {
-                diskType = DISK_TYPE_NONE;
+                diskType = disk_type::DISK_TYPE_NONE;
                 comp->usedDriveMounts.erase(i);
                 mount_path.clear();
                 if (init) throw std::runtime_error("Could not mount: Access denied");
@@ -171,7 +171,7 @@ int drive::insertDisk(lua_State *L, bool init) {
         }
 #ifndef NO_MIXER
         else {
-            diskType = DISK_TYPE_AUDIO;
+            diskType = disk_type::DISK_TYPE_AUDIO;
             mount_path.clear();
         }
 #else

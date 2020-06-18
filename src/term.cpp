@@ -847,7 +847,7 @@ int term_scroll(lua_State *L) {
     if (selectedRenderer == 1) {
         for (int i = 0; i < lua_tointeger(L, 1); i++) printf("\n");
         return 0;
-    } else if (selectedRenderer == 4) printf("TS:%d;%ld\n", get_comp(L)->term->id, lua_tointeger(L, 1));
+    } else if (selectedRenderer == 4) printf("TS:%d;%d\n", get_comp(L)->term->id, (int)lua_tointeger(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
@@ -886,7 +886,7 @@ int term_setCursorPos(lua_State *L) {
         headlessCursorY = lua_tointeger(L, 2);
         fflush(stdout);
         return 0;
-    } else if (selectedRenderer == 4) printf("TC:%d;%ld,%ld\n", get_comp(L)->term->id, lua_tointeger(L, 1), lua_tointeger(L, 2));
+    } else if (selectedRenderer == 4) printf("TC:%d;%d,%d\n", get_comp(L)->term->id, (int)lua_tointeger(L, 1), (int)lua_tointeger(L, 2));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);

@@ -478,9 +478,9 @@ int http_addListener(lua_State *L) {
     try {
         srv = new HTTPServer((HTTPRequestHandlerFactory*)new HTTPListener::Factory(get_comp(L), port), port, new HTTPServerParams);
     } catch (NetException &e) {
-        luaL_error(L, "Could not open server: %s\n", e.message().c_str());
+        return luaL_error(L, "Could not open server: %s\n", e.message().c_str());
     } catch (std::exception &e) {
-        luaL_error(L, "Could not open server: %s\n", e.what());
+        return luaL_error(L, "Could not open server: %s\n", e.what());
     }
     srv->start();
     listeners[port] = srv;

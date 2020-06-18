@@ -48,8 +48,8 @@
 
 extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
 
-void err(lua_State *L, int idx, const char * err) {
-    luaL_error(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).c_str(), err);
+int err(lua_State *L, int idx, const char * err) {
+    return luaL_error(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).c_str(), err);
 }
 
 std::string concat(std::list<std::string> &c, char sep) {
@@ -306,11 +306,11 @@ int fs_copy(lua_State *L) {
     } else {
 #endif
 	FILE * fromfp = fopen(fromPath.c_str(), "r");
-    if (fromfp == NULL) err(L, 1, "Cannot read file");
+    if (fromfp == NULL) return err(L, 1, "Cannot read file");
     FILE * tofp = fopen(toPath.c_str(), "w");
     if (tofp == NULL) {
         fclose(fromfp);
-        err(L, 2, "Cannot write file");
+        return err(L, 2, "Cannot write file");
     }
 
     char tmp[1024];
