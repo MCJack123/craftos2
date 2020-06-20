@@ -79,12 +79,12 @@ int ccemux_openDataDir(lua_State *L) {
     const char * basePath = lua_tostring(L, lua_upvalueindex(1));
     Computer *comp = get_comp(L);
 #ifdef WIN32
-    ShellExecuteA(NULL, "explore", (std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteA(NULL, "explore", comp->dataDir.c_str(), NULL, NULL, SW_SHOW);
 #elif defined(__APPLE__)
-    system(("open '" + std::string(basePath) + "/computer/" + std::to_string(comp->id) + "'").c_str());
+    system(("open '" + comp->dataDir + "'").c_str());
     lua_pushboolean(L, true);
 #elif defined(__linux__)
-    system(("xdg-open '" + std::string(basePath) + "/computer/" + std::to_string(comp->id) + "'").c_str());
+    system(("xdg-open '" + comp->dataDir + "'").c_str());
     lua_pushboolean(L, true);
 #else
     lua_pushboolean(L, false);

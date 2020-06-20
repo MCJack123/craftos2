@@ -125,11 +125,11 @@ int drive::insertDisk(lua_State *L, bool init) {
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
         comp->mounter_initializing = true;
 #ifdef WIN32
-        createDirectory((std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str());
-        addMount(comp, (std::string(getBasePath()) + "\\computer\\disk\\" + std::to_string(id)).c_str(), mount_path.c_str(), false);
+        createDirectory((computerDir + "\\disk\\" + std::to_string(id)).c_str());
+        addMount(comp, (computerDir + "\\disk\\" + std::to_string(id)).c_str(), mount_path.c_str(), false);
 #else
-        assert(createDirectory((std::string(getBasePath()) + "/computer/disk/" + std::to_string(id)).c_str()) == 0);
-        addMount(comp, (std::string(getBasePath()) + "/computer/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
+        assert(createDirectory((computerDir + "/disk/" + std::to_string(id)).c_str()) == 0);
+        addMount(comp, (computerDir + "/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
 #endif
         comp->mounter_initializing = false;
     } else if (lua_isstring(L, arg)) {

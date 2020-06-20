@@ -90,17 +90,23 @@ struct Computer {
     SDL_TimerID mouseMoveDebounceTimer = 0;
     mouse_event_data nextMouseMove = {0, 0, 0, 0};
     std::unordered_map<int, std::function<void(Computer*, int, void*)> > userdata_destructors;
+    std::string dataDir;
 
+    static std::unordered_map<int, std::string> customDataDirs;
+    static std::list<std::string> customPlugins;
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
     ~Computer();
     void run(std::string bios_name);
     bool getEvent(SDL_Event* e);
+private:
+    void loadPlugin(std::string path);
 };
 
 extern std::vector<Computer*> computers;
 extern std::unordered_set<SDL_TimerID> freedTimers;
 extern std::mutex freedTimersMutex;
+extern std::string computerDir;
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 

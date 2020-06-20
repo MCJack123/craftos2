@@ -278,20 +278,60 @@ int main(int argc, char*argv[]) {
 #endif
     int id = 0;
     bool manualID = false;
+    std::string base_path_storage;
+    std::string rom_path_storage;
+    std::string customDataDir;
     for (int i = 1; i < argc; i++) {
-        if (std::string(argv[i]) == "--headless") selectedRenderer = 1;
-        else if (std::string(argv[i]) == "--gui" || std::string(argv[i]) == "--sdl") selectedRenderer = 0;
-        else if (std::string(argv[i]) == "--cli" || std::string(argv[i]) == "-c") selectedRenderer = 2;
-        else if (std::string(argv[i]) == "--raw") selectedRenderer = 3;
-        else if (std::string(argv[i]) == "--raw-client") rawClient = true;
-        else if (std::string(argv[i]) == "--tror") selectedRenderer = 4;
-        else if (std::string(argv[i]) == "--script") script_file = argv[++i];
-        else if (std::string(argv[i]).substr(0, 9) == "--script=") script_file = std::string(argv[i]).substr(9);
-        else if (std::string(argv[i]) == "--args") script_args = argv[++i];
-        else if (std::string(argv[i]) == "--directory" || std::string(argv[i]) == "-d") setBasePath(argv[++i]);
-        else if (std::string(argv[i]) == "--rom") setROMPath(argv[++i]);
-        else if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--id") {manualID = true; id = std::stoi(argv[++i]);}
-        else if (std::string(argv[i]) == "-V" || std::string(argv[i]) == "--version") {
+        std::string arg(argv[i]);
+        if (arg == "--headless") selectedRenderer = 1;
+        else if (arg == "--gui" || arg == "--sdl") selectedRenderer = 0;
+        else if (arg == "--cli" || arg == "-c") selectedRenderer = 2;
+        else if (arg == "--raw") selectedRenderer = 3;
+        else if (arg == "--raw-client") rawClient = true;
+        else if (arg == "--tror") selectedRenderer = 4;
+        else if (arg == "--script") script_file = argv[++i];
+        else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
+        else if (arg == "--args") script_args = argv[++i];
+        else if (arg == "--plugin") Computer::customPlugins.push_back(argv[++i]);
+        else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
+        else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
+        else if (arg == "--computers-dir" || arg == "-C") computerDir = std::string(argv[++i]);
+        else if (arg.substr(0, 3) == "-C=") computerDir = arg.substr(3);
+        else if (arg == "--start-dir") customDataDir = std::string(argv[++i]);
+        else if (arg.substr(0, 3) == "-c=") customDataDir = arg.substr(3);
+        else if (arg == "--rom") setROMPath(argv[++i]);
+#ifdef _WIN32
+        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "\\assets\\computercraft\\lua").c_str());
+        else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "\\assets\\computercraft\\lua").c_str());
+#else
+        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "/assets/computercraft/lua").c_str());
+        else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
+#endif
+        else if (arg == "-i" || arg == "--id") {manualID = true; id = std::stoi(argv[++i]);}
+        else if (arg == "--renderer" || arg == "-r") {
+            if (++i == argc) {
+                std::cout << "Available renderering methods:\n SDL\n Headless\n "
+#ifndef NO_CLI
+                << "ncurses\n "
+#endif
+                << "Raw\n TRoR\n";
+                return 0;
+            } else {
+                arg = std::string(argv[i]);
+                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c);});
+                if (arg == "sdl" || arg == "awt") selectedRenderer = 0;
+                else if (arg == "headless") selectedRenderer = 1;
+#ifndef NO_CLI
+                else if (arg == "ncurses" || arg == "cli") selectedRenderer = 2;
+#endif
+                else if (arg == "raw") selectedRenderer = 3;
+                else if (arg == "tror") selectedRenderer = 4;
+                else {
+                    std::cerr << "Unknown renderer type " << arg << "\n";
+                    return 1;
+                }
+            }
+        } else if (arg == "-V" || arg == "--version") {
             std::cout << "CraftOS-PC " << CRAFTOSPC_VERSION;
 #if CRAFTOSPC_INDEV == true && defined(CRAFTOSPC_COMMIT)
             std::cout << " (commit " << CRAFTOSPC_COMMIT << ")";
@@ -318,25 +358,27 @@ int main(int argc, char*argv[]) {
 #endif
             std::cout << "\nCopyright (c) 2019-2020 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
-        } else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" || std::string(argv[i]) == "-?") {
+        } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             std::cout << "Usage: " << argv[0] << " [options...]\n\n"
                       << "General options:\n"
-                      << "  --directory <dir>       Sets the directory that stores user data\n"
-                      << "  --rom <dir>             Sets the directory that holds the ROM & BIOS\n"
-                      << "  -i|--id <id>            Sets the ID of the computer that will launch\n"
-                      << "  --script <file>         Sets a script to be run before starting the shell\n"
-                      << "  --args \"<args>\"         Sets arguments to be passed to the file in --script\n"
-                      << "  -h|-?|--help            Shows this help message\n"
-                      << "  -V|--version            Shows the current version\n\n"
+                      << "  -d|--directory|--data-dir <dir>  Sets the directory that stores user data\n"
+                      << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"
+                      << "  --start-dir <dir>                Sets the directory that holds the startup computer's files\n"
+                      << "  --rom <dir>                      Sets the directory that holds the ROM & BIOS\n"
+                      << "  -i|--id <id>                     Sets the ID of the computer that will launch\n"
+                      << "  --script <file>                  Sets a script to be run before starting the shell\n"
+                      << "  --args \"<args>\"                   Sets arguments to be passed to the file in --script\n"
+                      << "  -h|-?|--help                     Shows this help message\n"
+                      << "  -V|--version                     Shows the current version\n\n"
                       << "Renderer options:\n"
-                      << "  --gui                   Default: Outputs to a GUI terminal\n"
+                      << "  --gui                            Default: Outputs to a GUI terminal\n"
 #ifndef NO_CLI
-                      << "  -c|--cli                Outputs using an ncurses-based interface\n"
+                      << "  -c|--cli                         Outputs using an ncurses-based interface\n"
 #endif
-                      << "  --headless              Outputs only text straight to stdout\n"
-                      << "  --raw                   Outputs terminal contents using a binary format\n"
-                      << "  --raw-client            Renders raw output from another terminal\n"
-                      << "  --tror                  Outputs TRoR (terminal redirect over Rednet) packets\n";
+                      << "  --headless                       Outputs only text straight to stdout\n"
+                      << "  --raw                            Outputs terminal contents using a binary format\n"
+                      << "  --raw-client                     Renders raw output from another terminal\n"
+                      << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n";
             return 0;
         }
     }
@@ -346,6 +388,12 @@ int main(int argc, char*argv[]) {
         selectedRenderer = 0;
     }
 #endif
+#ifdef _WIN32
+    if (computerDir.empty()) computerDir = getBasePath() + "\\computer";
+#else
+    if (computerDir.empty()) computerDir = getBasePath() + "/computer";
+#endif
+    if (!customDataDir.empty()) Computer::customDataDirs[id] = customDataDir;
     setupCrashHandler();
     migrateData();
     config_init();

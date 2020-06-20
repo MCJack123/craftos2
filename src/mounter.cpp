@@ -51,7 +51,7 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
 #endif
     std::stringstream ss;
     if (addExt) {
-        std::pair<size_t, std::vector<std::string> > max_path = std::make_pair(0, std::vector<std::string>(1, getBasePath() + PATH_SEP + "computer" + PATH_SEP + std::to_string(comp->id)));
+        std::pair<size_t, std::vector<std::string> > max_path = std::make_pair(0, std::vector<std::string>(1, comp->dataDir));
         std::list<std::string> * mount_list = NULL;
         for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++) {
             if (pathc.size() >= std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin())) {
