@@ -244,8 +244,7 @@ int fs_getSize(lua_State *L) {
 #endif
     struct stat st;
     if (stat(path.c_str(), &st) != 0) err(L, 1, "No such file");
-    else if (S_ISDIR(st.st_mode)) err(L, 1, "Is a directory");
-    lua_pushinteger(L, st.st_size);
+    lua_pushinteger(L, S_ISDIR(st.st_mode) ? 0 : st.st_size);
 #ifdef STANDALONE_ROM
     }
 #endif
