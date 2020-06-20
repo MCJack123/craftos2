@@ -348,10 +348,12 @@ int os_cancelTimer(lua_State *L) {
 }
 
 int os_time(lua_State *L) {
-    const char * type = "ingame";
-    if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
-    std::string tmp(type);
+    std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [ ](unsigned char c){return std::tolower(c);});
+    if (tmp == "ingame") {
+        lua_pushnumber(L, ((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0);
+        return 1;
+    } else if (tmp != "utc" && tmp != "local") luaL_error(L, "Unsupported operation");
     time_t t = time(NULL);
     struct tm rightNow;
     if (tmp == "utc") rightNow = *gmtime(&t);
@@ -365,9 +367,7 @@ int os_time(lua_State *L) {
 }
 
 int os_epoch(lua_State *L) {
-    const char * type = "ingame";
-    if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
-    std::string tmp(type);
+    std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     if (tmp == "utc") {
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
@@ -375,30 +375,23 @@ int os_epoch(lua_State *L) {
         time_t t = time(NULL);
         long long off = (long long)mktime(localtime(&t)) - t;
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000));
-    } else {
-        time_t t = time(NULL);
-        struct tm rightNow = *localtime(&t);
-        int hour = rightNow.tm_hour;
-        int minute = rightNow.tm_min;
-        int second = rightNow.tm_sec;
-        double m_time = (double)hour + ((double)minute/60.0) + ((double)second/3600.0);
-        double m_day = rightNow.tm_yday;
+    } else if (tmp == "ingame") {
+        double m_time = ((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
+        double m_day = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1;
         lua_pushinteger(L, m_day * 86400000 + (int) (m_time * 3600000.0f));
-    }
+    } else luaL_error(L, "Unsupported operation");
     return 1;
 }
 
 int os_day(lua_State *L) {
-    const char * type = "ingame";
-    if (lua_isstring(L, 1)) type = lua_tostring(L, 1);
-    std::string tmp(type);
+    std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     time_t t = time(NULL);
     if (tmp == "ingame") {
-        struct tm rightNow = *localtime(&t);
-        lua_pushinteger(L, rightNow.tm_yday);
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1);
         return 1;
     } else if (tmp == "local") t = mktime(localtime(&t));
+    else if (tmp != "utc") luaL_error(L, "Unsupported operation");
     lua_pushinteger(L, t/(60*60*24));
     return 1;
 }
