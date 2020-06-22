@@ -359,6 +359,7 @@ int speaker::playNote(lua_State *L) {
 		float speed = pow(2.0, (pitch - 12.0) / 12.0);
 		CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false);
 		void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
+		memset(data, 0, max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
 		memcpy(data, chunk->abuf, chunk->alen);
 		handler.modifyStreamPlaybackSpeed(0, data, chunk->alen);
 		Mix_Chunk * newchunk = (Mix_Chunk*)SDL_malloc(sizeof(Mix_Chunk));
