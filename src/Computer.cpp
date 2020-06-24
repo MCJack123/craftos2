@@ -473,9 +473,9 @@ void Computer::run(std::string bios_name) {
         lua_pushboolean(L, ::config.disable_lua51_features);
         lua_setglobal(L, "_CC_DISABLE_LUA51_FEATURES");
 #if CRAFTOSPC_INDEV == true && defined(CRAFTOSPC_COMMIT)
-        lua_pushstring(L, "ComputerCraft 1.89.0 (CraftOS-PC " CRAFTOSPC_COMMIT ")");
+        lua_pushstring(L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION "@" CRAFTOSPC_COMMIT ")");
 #else
-        lua_pushstring(L, "ComputerCraft 1.89.0 (CraftOS-PC " CRAFTOSPC_VERSION ")");
+        lua_pushstring(L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION ")");
 #endif
         lua_setglobal(L, "_HOST");
         if (selectedRenderer == 1) {

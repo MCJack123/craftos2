@@ -161,7 +161,7 @@ void downloadThread(void* arg) {
     HTTPResponse * response = new HTTPResponse();
     session->setTimeout(Poco::Timespan(15, 0));
     for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
-    if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
+    if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
     if (param->postData != NULL) request.setContentLength(param->postDataSize);
     try {
@@ -239,7 +239,7 @@ void HTTPDownload(std::string url, std::function<void(std::istream&)> callback) 
     Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
     Poco::Net::HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
-    request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
+    request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " Poco/1.9.3");
     session.sendRequest(request);
     std::istream& stream = session.receiveResponse(response);
     if (response.getStatus() / 100 == 3 && response.has("Location")) 
