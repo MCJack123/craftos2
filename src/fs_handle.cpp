@@ -364,7 +364,8 @@ int fs_handle_istream_readAllByte(lua_State *L) {
 int fs_handle_writeString(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (lua_isnoneornil(L, 1)) return 0;
+    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "string", 1);
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     std::wstring wstr;
@@ -378,7 +379,8 @@ int fs_handle_writeString(lua_State *L) {
 int fs_handle_writeLine(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    if (lua_isnoneornil(L, 1)) return 0;
+    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "string", 1);
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     std::wstring wstr;
