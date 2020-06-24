@@ -347,7 +347,42 @@ int os_cancelTimer(lua_State *L) {
     return 0;
 }
 
+static int getfield(lua_State *L, const char *key, int d) {
+    int res;
+    lua_getfield(L, -1, key);
+    if (lua_isnumber(L, -1))
+        res = (int)lua_tointeger(L, -1);
+    else {
+        if (d < 0)
+            return luaL_error(L, "field " LUA_QS " missing in date table", key);
+        res = d;
+    }
+    lua_pop(L, 1);
+    return res;
+}
+
+static int getboolfield(lua_State *L, const char *key) {
+    int res;
+    lua_getfield(L, -1, key);
+    res = lua_isnil(L, -1) ? -1 : lua_toboolean(L, -1);
+    lua_pop(L, 1);
+    return res;
+}
+
 int os_time(lua_State *L) {
+    if (lua_istable(L, 1)) {
+        struct tm ts;
+        lua_settop(L, 1);  /* make sure table is at the top */
+        ts.tm_sec = getfield(L, "sec", 0);
+        ts.tm_min = getfield(L, "min", 0);
+        ts.tm_hour = getfield(L, "hour", 12);
+        ts.tm_mday = getfield(L, "day", -1);
+        ts.tm_mon = getfield(L, "month", -1) - 1;
+        ts.tm_year = getfield(L, "year", -1) - 1900;
+        ts.tm_isdst = getboolfield(L, "isdst");
+        lua_pushinteger(L, mktime(&ts));
+        return 1;
+    }
     std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [ ](unsigned char c){return std::tolower(c);});
     if (tmp == "ingame") {
