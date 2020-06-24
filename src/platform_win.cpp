@@ -235,10 +235,14 @@ LONG WINAPI exceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+// Do nothing. We definitely don't want to crash when there's only an invalid parameter, and I assume functions affected will return some value that won't cause problems. (I know strftime, used in os.date, will be fine.)
+void invalidParameterHandler(const wchar_t * expression, const wchar_t * function, const wchar_t * file, unsigned int line, uintptr_t pReserved) {}
+
 // We're relying on WER to automatically generate a minidump here.
 // Hopefully the user can figure out how to use the File Explorer to go to a folder...
 void setupCrashHandler() {
     SetUnhandledExceptionFilter(exceptionHandler);
+    _set_invalid_parameter_handler(invalidParameterHandler);
 }
 
 #endif
