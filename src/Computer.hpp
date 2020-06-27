@@ -94,6 +94,7 @@ struct Computer {
 
     static std::unordered_map<int, std::string> customDataDirs;
     static std::list<std::string> customPlugins;
+    static std::list<std::tuple<std::string, std::string, int> > customMounts;
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
     ~Computer();

@@ -57,7 +57,7 @@ void update_thread() {
         Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", Poco::Net::HTTPMessage::HTTP_1_1);
         Poco::Net::HTTPResponse response;
         session.setTimeout(Poco::Timespan(5000000));
-        request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
+        request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
         session.sendRequest(request);
         Poco::JSON::Parser parser;
         parser.parse(session.receiveResponse(response));
@@ -291,6 +291,7 @@ int main(int argc, char*argv[]) {
         else if (arg == "--tror") selectedRenderer = 4;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
+        else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
         else if (arg == "--args") script_args = argv[++i];
         else if (arg == "--plugin") Computer::customPlugins.push_back(argv[++i]);
         else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
@@ -308,7 +309,14 @@ int main(int argc, char*argv[]) {
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
 #endif
         else if (arg == "-i" || arg == "--id") {manualID = true; id = std::stoi(argv[++i]);}
-        else if (arg == "--renderer" || arg == "-r") {
+        else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
+            std::string mount_path = argv[++i];
+            if (mount_path.find('=') == std::string::npos) {
+                std::cerr << "Could not parse mount path string\n";
+                return 1;
+            }
+            Computer::customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
+        } else if (arg == "--renderer" || arg == "-r") {
             if (++i == argc) {
                 std::cout << "Available renderering methods:\n SDL\n Headless\n "
 #ifndef NO_CLI
@@ -361,13 +369,17 @@ int main(int argc, char*argv[]) {
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             std::cout << "Usage: " << argv[0] << " [options...]\n\n"
                       << "General options:\n"
-                      << "  -d|--directory|--data-dir <dir>  Sets the directory that stores user data\n"
-                      << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"
-                      << "  --start-dir <dir>                Sets the directory that holds the startup computer's files\n"
+                      << "  -d|--directory <dir>             Sets the directory that stores user data\n"
                       << "  --rom <dir>                      Sets the directory that holds the ROM & BIOS\n"
                       << "  -i|--id <id>                     Sets the ID of the computer that will launch\n"
                       << "  --script <file>                  Sets a script to be run before starting the shell\n"
+                      << "  --exec <code>                    Sets Lua code to be run before starting the shell\n"
                       << "  --args \"<args>\"                   Sets arguments to be passed to the file in --script\n"
+                      << "  --mount[-ro|-rw] <path>=<dir>    Automatically mounts a directory at startup\n"
+                      << "    Variants:\n"
+                      << "      --mount      Uses default mount_mode in config\n"
+                      << "      --mount-ro   Forces mount to be read-only\n"
+                      << "      --mount-rw   Forces mount to be read-write\n"
                       << "  -h|-?|--help                     Shows this help message\n"
                       << "  -V|--version                     Shows the current version\n\n"
                       << "Renderer options:\n"
@@ -377,8 +389,15 @@ int main(int argc, char*argv[]) {
 #endif
                       << "  --headless                       Outputs only text straight to stdout\n"
                       << "  --raw                            Outputs terminal contents using a binary format\n"
-                      << "  --raw-client                     Renders raw output from another terminal\n"
-                      << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n";
+                      << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
+                      << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n\n"
+                      << "CCEmuX compatibility options:\n"
+                      << "  -a|--assets-dir <dir>            Sets the CC:T directory that holds the ROM & BIOS\n"
+                      << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"
+                      << "  -c=|--start-dir <dir>            Sets the directory that holds the startup computer's files\n"
+                      << "  -d|--data-dir <dir>              Sets the directory that stores user data\n"
+                      << "  --plugin <file>                  Adds an additional plugin to the load list\n"
+                      << "  -r|--renderer [renderer]         Lists all available renderers, or selects the renderer\n";
             return 0;
         }
     }

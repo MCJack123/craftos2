@@ -73,3 +73,28 @@ jobs:
         make
     - name: Run CraftOSTest
       run: make test
+
+  build-cct-test:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM & CC:T
+      run: |
+        sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
+        git clone https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        echo '_G.failed_tests = actual_count - test_status.pass' >> ../CC-Tweaked/src/test/resources/test-rom/mcfly.lua
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
+    - name: Build Lua
+      run: |
+        git submodule update --init --recursive
+        make -C craftos2-lua linux
+    - name: Build CraftOS-PC
+      run: |
+        CFLAGS=-Wall ./configure
+        make
+    - name: Run CC:T McFly Tests
+      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script CCT-Test-Bootstrap.lua

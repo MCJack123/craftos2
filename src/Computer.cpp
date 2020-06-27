@@ -47,6 +47,7 @@ std::mutex freedTimersMutex;
 std::string computerDir;
 std::unordered_map<int, std::string> Computer::customDataDirs;
 std::list<std::string> Computer::customPlugins;
+std::list<std::tuple<std::string, std::string, int> > Computer::customMounts;
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
@@ -78,6 +79,14 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     if (debug) if (!addMount(this, (getROMPath() + "/debug").c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
 #endif // _WIN32
 #endif // STANDALONE_ROM
+    // Mount custom directories from the command line
+    for (auto m : customMounts) {
+        switch (std::get<2>(m)) {
+            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) addMount(this, std::get<1>(m).c_str(), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
+            case 0: addMount(this, std::get<1>(m).c_str(), std::get<0>(m).c_str(), true); break; // force RO
+            default: addMount(this, std::get<1>(m).c_str(), std::get<0>(m).c_str(), false); break; // force RW
+        }
+    }
     mounter_initializing = false;
     // Get the computer's data directory
     if (customDataDirs.find(id) != customDataDirs.end()) dataDir = customDataDirs[id];
@@ -483,15 +492,18 @@ void Computer::run(std::string bios_name) {
             lua_setglobal(L, "_HEADLESS");
         }
         if (!script_file.empty()) {
-            FILE* in = fopen(script_file.c_str(), "r");
             std::string script;
-            char tmp[4096];
-            while (!feof(in)) {
-                size_t read = fread(tmp, 1, 4096, in);
-                if (read == 0) break;
-                script += std::string(tmp, read);
+            if (script_file[0] == '\x1b') script = script_file.substr(1);
+            else {
+                FILE* in = fopen(script_file.c_str(), "r");
+                char tmp[4096];
+                while (!feof(in)) {
+                    size_t read = fread(tmp, 1, 4096, in);
+                    if (read == 0) break;
+                    script += std::string(tmp, read);
+                }
+                fclose(in);
             }
-            fclose(in);
             lua_pushlstring(L, script.c_str(), script.size());
             lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
         }
