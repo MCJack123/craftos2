@@ -82,7 +82,8 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.15.2-1.89.1 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        rm -r ../CC-Tweaked/src/test/resources/test-rom/spec/programs/turtle ../CC-Tweaked/src/test/resources/test-rom/spec/programs/command ../CC-Tweaked/src/test/resources/test-rom/spec/programs/pocket ../CC-Tweaked/src/test/resources/test-rom/spec/apis/redstone_spec.lua ../CC-Tweaked/src/test/resources/test-rom/spec/apis/gps_spec.lua ../CC-Tweaked/src/test/resources/test-rom/spec/programs/redstone_spec.lua ../CC-Tweaked/src/test/resources/test-rom/spec/programs/gps_spec.lua 
         echo '_G.failed_tests = actual_count - test_status.pass' >> ../CC-Tweaked/src/test/resources/test-rom/mcfly.lua
     - name: Install dependencies
       run: |
