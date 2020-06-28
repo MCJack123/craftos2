@@ -24,10 +24,12 @@ jobs:
         CFLAGS=-Wall ./configure
         make
     - name: Run CraftOSTest
-      run: make test
+      run: make test || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
-      run: cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+      run: |
+        cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+        if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
     
   build-basic:
 
@@ -49,10 +51,12 @@ jobs:
         CFLAGS=-Wall ./configure --without-ncurses --without-png --without-sdl_mixer --with-html
         make
     - name: Run CraftOSTest
-      run: make test
+      run: make test || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
-      run: cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+      run: |
+        cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+        if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-standalone:
 
@@ -78,10 +82,12 @@ jobs:
         CFLAGS=-Wall ./configure --with-standalone-rom=craftos2-rom/fs_standalone.cpp
         make
     - name: Run CraftOSTest
-      run: make test
+      run: make test || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
-      run: cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+      run: |
+        cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+        if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-cct-test:
 
@@ -112,7 +118,10 @@ jobs:
         CFLAGS=-Wall ./configure
         make
     - name: Run CC:T McFly Tests
-      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script CCT-Test-Bootstrap.lua
+      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script CCT-Test-Bootstrap.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
-      run: cat ~/.local/share/craftos-pc/computer/0/test-log.txt
+      run: |
+        cat ~/.local/share/craftos-pc/computer/0/test-log.txt
+        if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
+      
