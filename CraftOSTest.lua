@@ -470,6 +470,7 @@ testStart "settings"
 	call("set", "test2", "hello")
 	test("getNames", {{
 		"bios.use_cash",
+		"bios.use_multishell",
 		"edit.autocomplete",
 		"edit.default_extension",
 		"list.show_hidden",
