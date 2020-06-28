@@ -265,10 +265,9 @@ int fs_makeDir(lua_State *L) {
     if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) err(L, 1, "Access denied");
     std::string path = fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
     if (path.empty()) err(L, 1, "Could not create directory");
-    // redundant as of v2.3?
     struct stat st;
     if (stat(path.c_str(), &st) == 0 && !S_ISDIR(st.st_mode)) err(L, 1, "File exists");
-    if (createDirectory(path) != 0 && errno != EEXIST) err(L,1, strerror(errno));
+    if (createDirectory(path) != 0 && errno != EEXIST) err(L, 1, strerror(errno));
     return 0;
 }
 
