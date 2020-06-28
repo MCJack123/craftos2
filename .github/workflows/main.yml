@@ -25,9 +25,9 @@ jobs:
         make
     - name: Run CraftOSTest
       run: make test
-      post: |
-        echo ------------------------------------------------------------------------------
-        cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+      continue-on-error: true
+    - name: Show logs
+      run: cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
     
   build-basic:
 
@@ -50,9 +50,9 @@ jobs:
         make
     - name: Run CraftOSTest
       run: make test
-      post: |
-        echo ------------------------------------------------------------------------------
-        cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+      continue-on-error: true
+    - name: Show logs
+      run: cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
 
   build-standalone:
 
@@ -79,9 +79,9 @@ jobs:
         make
     - name: Run CraftOSTest
       run: make test
-      post: |
-        echo ------------------------------------------------------------------------------
-        cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
+      continue-on-error: true
+    - name: Show logs
+      run: cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
 
   build-cct-test:
 
@@ -113,6 +113,6 @@ jobs:
         make
     - name: Run CC:T McFly Tests
       run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script CCT-Test-Bootstrap.lua
-      post: |
-        echo ------------------------------------------------------------------------------
-        cat ~/.local/share/craftos-pc/computer/0/test-log.txt
+      continue-on-error: true
+    - name: Show logs
+      run: cat ~/.local/share/craftos-pc/computer/0/test-log.txt
