@@ -103,4 +103,9 @@ jobs:
         CFLAGS=-Wall ./configure
         make
     - name: Run CC:T McFly Tests
-      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script CCT-Test-Bootstrap.lua
+      run: |
+        ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script CCT-Test-Bootstrap.lua
+        RETVAL=$?
+        echo ------------------------------------------------------------------------------
+        cat ~/.local/share/craftos-pc/computer/0/test-log.txt
+        exit $RETVAL

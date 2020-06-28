@@ -153,7 +153,7 @@ void updateNow(std::string tag_name) {
     
 }
 
-int recursiveCopy(std::string fromDir, std::string toDir) {
+int recursiveCopyPlatform(std::string fromDir, std::string toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -166,7 +166,7 @@ int recursiveCopy(std::string fromDir, std::string toDir) {
                 while (!r && (p=readdir(d))) {
                     /* Skip the names "." and ".." as we don't want to recurse on them. */
                     if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-                    r = recursiveCopy(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
+                    r = recursiveCopyPlatform(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
                 }
                 closedir(d);
             }
@@ -184,7 +184,7 @@ void migrateData() {
     for (unsigned i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
     wordfree(&p);
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
-        recursiveCopy(oldpath, getBasePath());
+        recursiveCopyPlatform(oldpath, getBasePath());
 }
 
 std::unordered_map<std::string, void*> dylibs;

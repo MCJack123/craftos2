@@ -3,6 +3,8 @@ if not debug then
     os.reboot()
 end
 for _,v in ipairs(fs.list("/")) do if not fs.isReadOnly(v) then fs.delete(v) end end
-shell.setDir("/test-rom")
-shell.run("mcfly")
+local logfile = io.open("test-log.txt", "w")
+io.output(logfile)
+shell.run("/test-rom/mcfly /test-rom/spec")
+logfile:close()
 os.shutdown(_G.failed_tests)
