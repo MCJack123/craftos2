@@ -38,7 +38,7 @@ EM_JS(void, syncfs, (), {
 
 int fs_handle_close(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
-        return 0;
+        return luaL_error(L, "attempt to use a closed file");
     fclose((FILE*)lua_touserdata(L, lua_upvalueindex(1)));
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));

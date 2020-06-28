@@ -983,7 +983,7 @@ int term_setTextColor(lua_State *L) {
     unsigned int c = log2i(lua_tointeger(L, 1));
     if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6) {
         computer->colors = (computer->colors & 0xf0) | c;
-        if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = c;
+        if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = c;
     }
     return 0;
 }
@@ -1001,7 +1001,7 @@ int term_setBackgroundColor(lua_State *L) {
 
 int term_isColor(lua_State *L) {
     if (selectedRenderer == 1) {
-        lua_pushboolean(L, false);
+        lua_pushboolean(L, true);
         return 1;
     }
     lua_pushboolean(L, (get_comp(L)->config.isColor || get_comp(L)->isDebugger));

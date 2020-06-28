@@ -63,6 +63,8 @@ void setThreadName(std::thread &t, std::string name) {
 }
 
 int createDirectory(std::string path) {
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
 	if (CreateDirectoryExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL) == 0) {
 		if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && path != "\\" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('\\', path.size() - 2)))) return 1;

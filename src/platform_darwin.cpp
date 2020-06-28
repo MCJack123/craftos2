@@ -86,6 +86,8 @@ std::string getPlugInPath() { return std::string(rom_path) + "/plugins/"; }
 void setThreadName(std::thread &t, std::string name) {}
 
 int createDirectory(std::string path) {
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
     if (mkdir(path.c_str(), 0777) != 0) {
         if (errno == ENOENT && path != "/" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
