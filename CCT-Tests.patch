@@ -58,7 +58,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/io_spec.lua
              expect.error(io.lines, false):eq("bad argument #1 (expected string, got boolean)")
          end)
  
-@@ -197,7 +197,7
+@@ -197,7 +197,7 @@
          it("cannot be written to", function()
              write_file(file, "")
              io.input(file)
