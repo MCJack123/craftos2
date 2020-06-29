@@ -287,7 +287,7 @@ int mounter_isReadOnly(lua_State *L) {
 extern std::string fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL);
 
 extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
-    if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+'))) 
+    if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0'))) 
         luaL_error(L, "Unsupported mode");
     if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
     struct stat st;

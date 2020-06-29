@@ -54,7 +54,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/io_spec.lua
          it("validates arguments", function()
              io.lines(nil)
 -            expect.error(io.lines, ""):eq("/: No such file")
-+            expect.error(io.lines, ""):eq("bad argument #1 to 'lines' (: Is a directory)")
++            expect.error(io.lines, ""):eq("bad argument #1 to '?' (: Is a directory)")
              expect.error(io.lines, false):eq("bad argument #1 (expected string, got boolean)")
          end)
  
