@@ -46,6 +46,8 @@
 #define W_OK 2
 #endif
 
+int isFSCaseSensitive = -1;
+
 extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
 
 int err(lua_State *L, int idx, const char * err) {
@@ -347,6 +349,14 @@ int fs_copy(lua_State *L) {
         } catch (std::exception &e) {err(L, 1, "No such file");}
     } else {
 #endif
+    if (isFSCaseSensitive == -1) {
+        struct stat st;
+        char* name = tmpnam(NULL);
+        fclose(fopen(name, "w"));
+        std::transform(name, name + strlen(name), name, [](char c)->char{return isupper(c) ? tolower(c) : toupper(c);});
+        isFSCaseSensitive = stat(name, &st);
+        remove(name);
+    }
     std::vector<std::string> fromElems = split(lua_tostring(L, 1), '/'), toElems = split(lua_tostring(L, 2), '/');
     while (fromElems.size() > 0 && fromElems.front().empty()) fromElems.erase(fromElems.begin());
     while (toElems.size() > 0 && toElems.front().empty()) toElems.erase(toElems.begin());
@@ -354,11 +364,16 @@ int fs_copy(lua_State *L) {
     while (toElems.size() > 0 && toElems.back().empty()) toElems.pop_back();
     bool equal = true;
     for (int i = 0; i < toElems.size() && equal; i++) {
-        if (i >= fromElems.size()) err(L, 2, "Can't copy a directory inside itself");
-        else if (fromElems[i] != toElems[i]) equal = false;
-        else if ((i == fromElems.size() - 1 && i == toElems.size() - 1)) err(L, 2, "Can't copy a directory inside itself");
+        if (i >= fromElems.size()) err(L, 1, "Can't copy a directory inside itself");
+        std::string lstrfrom = fromElems[i], lstrto = toElems[i];
+        if (!isFSCaseSensitive) {
+            std::transform(lstrfrom.begin(), lstrfrom.end(), lstrfrom.begin(), [](unsigned char c) {return std::tolower(c);});
+            std::transform(lstrto.begin(), lstrto.end(), lstrto.begin(), [](unsigned char c) {return std::tolower(c);});
+        }
+        if (lstrfrom != lstrto) equal = false;
+        else if ((i == fromElems.size() - 1 && i == toElems.size() - 1)) err(L, 1, "Can't copy a directory inside itself");
     }
-    if (equal) err(L, 2, "Can't copy a directory inside itself");
+    if (equal) err(L, 1, "Can't copy a directory inside itself");
     auto retval = recursiveCopy(fromPath, toPath);
     if (retval.first != 0) err(L, retval.first, retval.second.c_str());
 #ifdef STANDALONE_ROM
@@ -394,7 +409,7 @@ int fs_open(lua_State *L) {
     const char * mode = lua_tostring(L, 2);
     std::string path = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
     if (path.empty()) {
-        if (fixpath_ro(computer, lua_tostring(L, 1))) {
+        if (mode[0] != 'r' && fixpath_ro(computer, lua_tostring(L, 1))) {
             lua_pushnil(L);
             lua_pushfstring(L, "/%s: Access denied", fixpath(computer, lua_tostring(L, 1), false, false).c_str());
             return 2;
@@ -721,10 +736,7 @@ int fs_getDir(lua_State *L) {
 int fs_attributes(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     std::string path = fixpath(get_comp(L), lua_tostring(L, 1), true);
-    if (path.empty()) {
-        lua_pushnil(L);
-        return 1;
-    }
+    if (path.empty()) err(L, 1, "No such file");
 #ifdef STANDALONE_ROM
     if (path.substr(0, 4) == "rom:" || path.substr(0, 6) == "debug:") {
         try {
