@@ -58,6 +58,15 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/io_spec.lua
              expect.error(io.lines, false):eq("bad argument #1 (expected string, got boolean)")
          end)
  
+@@ -197,7 +197,7
+         it("cannot be written to", function()
+             write_file(file, "")
+             io.input(file)
+-            expect { io.input():write("xuxu") }:same { nil, "file is not writable" }
++            expect { io.input():write("xuxu") }:same { nil, "No such file or directory", 2 }
+             io.input(io.stdin)
+         end)
+ 
 diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/redstone_spec.lua b/src/test/resources/test-rom/spec/apis/redstone_spec.lua
 --- a/src/test/resources/test-rom/spec/apis/redstone_spec.lua	2020-06-29 02:52:34.000000000 -0400
 +++ b/src/test/resources/test-rom/spec/apis/redstone_spec.lua	1969-12-31 19:00:00.000000000 -0500

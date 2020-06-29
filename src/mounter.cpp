@@ -287,10 +287,21 @@ int mounter_isReadOnly(lua_State *L) {
 extern std::string fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL);
 
 extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
-    if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (mode[1] != '\0' && !(mode[1] == 'b' && mode[2] == '\0'))) luaL_error(L, "Unsupported mode");
+    if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+'))) 
+        luaL_error(L, "Unsupported mode");
     if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
+    struct stat st;
     std::string newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
-    FILE* retval = fopen(newpath.c_str(), mode);
+    if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename)) 
+        { errno = EACCES; return NULL; }
+    if (stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
+    FILE* retval;
+    if (mode[1] == 'b' && mode[2] == '+') retval = fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
+    else if (mode[1] == '+') {
+        std::string mstr = mode;
+        mstr.erase(mstr.begin() + 1);
+        retval = fopen(newpath.c_str(), mstr.c_str());
+    } else retval = fopen(newpath.c_str(), mode);
     if (retval != NULL) get_comp(L)->files_open++;
     return retval;
 }
