@@ -105,7 +105,9 @@ jobs:
         sed 's/hdd/test-rom/' ../CC-Tweaked/src/test/resources/test-rom/spec/programs/drive_spec.lua > ../CC-Tweaked/src/test/resources/test-rom/spec/programs/drive_spec.lua
         sed 's/wget run <url>/wget run <url> \[args...\]/' ../CC-Tweaked/src/test/resources/test-rom/spec/programs/http/wget_spec.lua > ../CC-Tweaked/src/test/resources/test-rom/spec/programs/http/wget_spec.lua
         sed 's/startup\.lua/test-files\/out\.txt/' ../CC-Tweaked/src/test/resources/test-rom/spec/apis/fs_spec.lua > ../CC-Tweaked/src/test/resources/test-rom/spec/apis/fs_spec.lua
-        sed 's/expect\.error\(io\.lines, ""\)\:eq\("\/\: No such file"\)/expect\.error\(io\.lines, ""\):eq\("bad argument \#1 to 'lines' \(\: Is a directory\)"\)/' ../CC-Tweaked/src/test/resources/test-rom/spec/apis/io_spec.lua | tee ../CC-Tweaked/src/test/resources/test-rom/spec/apis/io_spec.lua
+        echo This is IO:
+        sed 's/expect\.error\(io\.lines, ""\)\:eq\("\/\: No such file"\)/expect\.error\(io\.lines, ""\):eq\("bad argument \#1 to 'lines' \(\: Is a directory\)"\)/' ../CC-Tweaked/src/test/resources/test-rom/spec/apis/io_spec.lua
+        echo Done printing IO
         echo '_G.failed_tests = actual_count - test_status.pass' >> ../CC-Tweaked/src/test/resources/test-rom/mcfly.lua
     - name: Install dependencies
       run: |
