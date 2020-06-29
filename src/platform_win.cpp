@@ -25,7 +25,6 @@
 #include "http.hpp"
 
 const char * base_path = "%appdata%\\CraftOS-PC";
-const char * rom_path = "%ProgramFiles%\\CraftOS-PC";
 std::string base_path_expanded;
 std::string rom_path_expanded;
 char expand_tmp[32767];
@@ -36,7 +35,6 @@ void setBasePath(const char * path) {
 }
 
 void setROMPath(const char * path) {
-	rom_path = path;
 	rom_path_expanded = path;
 }
 
@@ -49,8 +47,8 @@ std::string getBasePath() {
 
 std::string getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
-    DWORD size = ExpandEnvironmentStringsA(rom_path, expand_tmp, 32767);
-    rom_path_expanded = expand_tmp;
+    GetModuleFileNameA(NULL, expand_tmp, 32767);
+    rom_path_expanded = dirname(expand_tmp);
     return rom_path_expanded;
 }
 
