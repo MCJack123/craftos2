@@ -96,7 +96,8 @@ void config_init() {
         0,
         true,
         128,
-        -1
+        -1,
+        false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -143,6 +144,7 @@ void config_init() {
     readConfigSetting(showMountPrompt, Bool);
     readConfigSetting(maxOpenPorts, Int);
     readConfigSetting(mouse_move_throttle, Int);
+    readConfigSetting(monitorsUseMouseEvents, Bool);
 }
 
 void config_save() {
@@ -176,6 +178,7 @@ void config_save() {
     root["showMountPrompt"] = config.showMountPrompt;
     root["maxOpenPorts"] = config.maxOpenPorts;
     root["mouse_move_throttle"] = config.mouse_move_throttle;
+    root["monitorsUseMouseEvents"] = config.monitorsUseMouseEvents;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -239,6 +242,8 @@ int config_get(lua_State *L) {
         lua_pushinteger(L, config.maxOpenPorts);
     else if (strcmp(name, "mouse_move_throttle") == 0)
         lua_pushnumber(L, config.mouse_move_throttle);
+    else if (strcmp(name, "monitorsUseMouseEvents") == 0)
+        lua_pushboolean(L, config.monitorsUseMouseEvents);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -273,6 +278,7 @@ std::unordered_map<std::string, int> config_set_actions = {
     {"showMountPrompt", 0},
     {"maxOpenPorts", 0},
     {"mouse_move_throttle", 0},
+    {"monitorsUseMouseEvents", 0},
     {"isColor", 0}
 };
 
@@ -308,7 +314,7 @@ int config_set(lua_State *L) {
             buttons[1].text = "Allow";
             data.buttons = buttons;
             data.colorScheme = NULL;
-            queueTask([data](void*selected)->void*{SDL_ShowMessageBox(&data, (int*)selected); return NULL;}, &selected);
+            queueTask([data](void*selected)->void* {SDL_ShowMessageBox(&data, (int*)selected); return NULL; }, &selected);
             delete message;
         }
         if (selected) {
@@ -322,10 +328,9 @@ int config_set(lua_State *L) {
                 else luaL_error(L, "Unknown mount mode '%s'", mode);
             }
         } else luaL_error(L, "Configuration option 'mount_mode' is protected");
-    }
-    else if (strcmp(name, "disable_lua51_features") == 0)
+    } else if (strcmp(name, "disable_lua51_features") == 0)
         config.disable_lua51_features = lua_toboolean(L, 2);
-    else if (strcmp(name, "default_computer_settings") == 0) 
+    else if (strcmp(name, "default_computer_settings") == 0)
         config.default_computer_settings = std::string(luaL_checkstring(L, 2), lua_strlen(L, 2));
     else if (strcmp(name, "logErrors") == 0)
         config.logErrors = lua_toboolean(L, 2);
@@ -368,6 +373,8 @@ int config_set(lua_State *L) {
         config.maxOpenPorts = luaL_checkinteger(L, 2);
     else if (strcmp(name, "mouse_move_throttle") == 0)
         config.mouse_move_throttle = lua_tonumber(L, 2);
+    else if (strcmp(name, "monitorsUseMouseEvents") == 0)
+        config.monitorsUseMouseEvents = lua_toboolean(L, 2);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");
@@ -403,6 +410,7 @@ const char * configuration_keys[] = {
     "showMountPrompt",
     "maxOpenPorts",
     "mouse_move_throttle",
+    "monitorsUseMouseEvents",
     NULL,
 };
 
@@ -424,7 +432,7 @@ int config_getType(lua_State *L) {
         name == "showFPS" || name == "ignoreHotkeys" || name == "isColor" ||
         name == "checkUpdates" || name == "romReadOnly" || 
         name == "configReadOnly" || name == "vanilla" || name == "useHDFont" || 
-        name == "showMountPrompt")
+        name == "showMountPrompt" || name == "monitorsUseMouseEvents")
         lua_pushstring(L, "boolean");
     else if (name == "default_computer_settings")
         lua_pushstring(L, "string");
