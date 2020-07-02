@@ -374,7 +374,7 @@ int main(int argc, char*argv[]) {
                       << "  -i|--id <id>                     Sets the ID of the computer that will launch\n"
                       << "  --script <file>                  Sets a script to be run before starting the shell\n"
                       << "  --exec <code>                    Sets Lua code to be run before starting the shell\n"
-                      << "  --args \"<args>\"                   Sets arguments to be passed to the file in --script\n"
+                      << "  --args \"<args>\"                  Sets arguments to be passed to the file in --script\n"
                       << "  --mount[-ro|-rw] <path>=<dir>    Automatically mounts a directory at startup\n"
                       << "    Variants:\n"
                       << "      --mount      Uses default mount_mode in config\n"

@@ -34,7 +34,7 @@ struct computer_configuration getComputerConfig(int id) {
     Poco::JSON::Object::Ptr p;
     try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {
         cfg.loadFailure = true;
-        std::string message = "An error occurred while parsing the per-computer configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
+        std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
         if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
