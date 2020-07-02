@@ -87,9 +87,9 @@ struct Computer {
     int timeoutCheckCount = 0;
     std::unordered_set<int> usedDriveMounts;
     lua_State *coro;
-    mouse_event_data lastMouse = {-1, -1, 0, 16, ""};
+    mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()};
     SDL_TimerID mouseMoveDebounceTimer = 0;
-    mouse_event_data nextMouseMove = {0, 0, 0, 0, ""};
+    mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()};
     std::unordered_map<int, std::function<void(Computer*, int, void*)> > userdata_destructors;
     std::string dataDir;
 
