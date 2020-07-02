@@ -116,7 +116,7 @@ void onWindowCreate(int id, const char * title) {EM_ASM({if (Module.windowEventL
 void onWindowDestroy(int id) {EM_ASM({if (Module.windowEventListener !== undefined) Module.windowEventListener.onWindowDestroy($0);}, id);}
 #endif
 
-SDLTerminal::SDLTerminal(std::string title): Terminal(51, 19) {
+SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, config.defaultHeight) {
     this->title = title;
 #ifdef __EMSCRIPTEN__
     dpiScale = emscripten_get_device_pixel_ratio();

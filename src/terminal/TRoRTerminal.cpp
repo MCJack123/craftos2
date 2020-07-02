@@ -144,7 +144,7 @@ void TRoRTerminal::showGlobalMessage(Uint32 flags, const char * title, const cha
     printf("TA:;\"%s\",\"%s\"\n", title, message);
 }
 
-TRoRTerminal::TRoRTerminal(std::string title): Terminal(51, 19) {
+TRoRTerminal::TRoRTerminal(std::string title): Terminal(config.defaultWidth, config.defaultHeight) {
     this->title = title;
 	for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) 
         ;
