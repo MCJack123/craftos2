@@ -36,12 +36,12 @@ extern "C" {
 
 typedef const char * (*event_provider)(lua_State *L, void* data);
 
-struct mouse_event_data {
+extern "C" struct mouse_event_data {
     int x;
     int y;
     uint8_t button;
     uint8_t event;
-    std::string side = "";
+    std::string side;
 };
 
 struct Computer {
