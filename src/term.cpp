@@ -621,7 +621,7 @@ const char * mouse_move(lua_State *L, void* param) {
     lua_pushinteger(L, computer->nextMouseMove.x);
     lua_pushinteger(L, computer->nextMouseMove.y);
     if (!computer->nextMouseMove.side.empty()) lua_pushstring(L, computer->nextMouseMove.side.c_str());
-    computer->nextMouseMove = {0, 0, 0, 0};
+    computer->nextMouseMove = {0, 0, 0, 0, ""};
     computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
     return "mouse_move";
 }
@@ -766,7 +766,7 @@ const char * termGetEvent(lua_State *L) {
             if (!e.motion.state) {
                 if (computer->mouseMoveDebounceTimer == 0) {
                     computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
-                    computer->nextMouseMove = {0, 0, 0, 0};
+                    computer->nextMouseMove = {0, 0, 0, 0, ""};
                 } else {
                     computer->nextMouseMove = {x, y, 0, 1, (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) ? tmpstrval : ""};
                     return NULL;
@@ -811,7 +811,7 @@ const char * termGetEvent(lua_State *L) {
             if (computer->mouseMoveDebounceTimer != 0) {
                 SDL_RemoveTimer(computer->mouseMoveDebounceTimer);
                 computer->mouseMoveDebounceTimer = 0;
-                computer->nextMouseMove = {0, 0, 0, 0};
+                computer->nextMouseMove = {0, 0, 0, 0, ""};
             }
             lua_pushinteger(L, 1);
             lua_pushnil(L);
