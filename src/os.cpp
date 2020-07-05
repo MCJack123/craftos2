@@ -27,6 +27,7 @@
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
+#include "terminal/LegacyTerminal.hpp"
 #include "peripheral/monitor.hpp"
 #ifndef NO_CLI
 #include <signal.h>
@@ -61,12 +62,12 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
         myID = nextTaskID++;
         taskQueue.push(std::make_tuple(myID, func, arg, async));
     }
-    if (selectedRenderer == 0 && !exiting) {
+    if ((selectedRenderer == 0 || selectedRenderer == 5) && !exiting) {
         SDL_Event ev;
         ev.type = task_event_type;
         SDL_PushEvent(&ev);
     }
-    if (selectedRenderer != 0 && selectedRenderer != 2) {
+    if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5) {
         {std::lock_guard<std::mutex> lock(taskQueueMutex);}
         while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         taskQueueReady = true;
@@ -104,6 +105,7 @@ void mainLoop() {
 #ifndef NO_CLI
 		else if (selectedRenderer == 2) /*res =*/ CLITerminal::pollEvents();
 #endif
+        else if (selectedRenderer == 5) LegacyTerminal::pollEvents();
         else {
             std::unique_lock<std::mutex> lock(taskQueueMutex);
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));

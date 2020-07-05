@@ -15,6 +15,7 @@
 #include "../terminal/CLITerminal.hpp"
 #include "../terminal/RawTerminal.hpp"
 #include "../terminal/TRoRTerminal.hpp"
+#include "../terminal/LegacyTerminal.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
@@ -30,6 +31,10 @@ monitor::monitor(lua_State *L, const char * side) {
 	else if (selectedRenderer == 0) {
         term = (SDLTerminal*)queueTask([ ](void* side)->void* {
             return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
+        }, (void*)side);
+    } else if (selectedRenderer == 5) {
+        term = (LegacyTerminal*)queueTask([ ](void* side)->void* {
+            return new LegacyTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);
     } else throw std::invalid_argument("Monitors are not available in headless mode");
     term->canBlink = false;

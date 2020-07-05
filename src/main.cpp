@@ -18,6 +18,7 @@
 #include "terminal/RawTerminal.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
+#include "terminal/LegacyTerminal.hpp"
 #include <functional>
 #include <thread>
 #include <iomanip>
@@ -289,6 +290,7 @@ int main(int argc, char*argv[]) {
         else if (arg == "--raw") selectedRenderer = 3;
         else if (arg == "--raw-client") rawClient = true;
         else if (arg == "--tror") selectedRenderer = 4;
+        else if (arg == "--legacy") selectedRenderer = 5;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
@@ -424,13 +426,14 @@ int main(int argc, char*argv[]) {
     if (selectedRenderer == 3) RawTerminal::init();
     else if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 4) TRoRTerminal::init();
+    else if (selectedRenderer == 5) LegacyTerminal::init();
     else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
     driveInit();
 #ifndef NO_MIXER
     speakerInit();
 #endif
 #if !defined(__EMSCRIPTEN__) && !defined(STANDALONE_ROM)
-    if (!CRAFTOSPC_INDEV && selectedRenderer == 0 && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
+    if (!CRAFTOSPC_INDEV && (selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
     startComputer(manualID ? id : config.initialComputer);
@@ -458,6 +461,7 @@ int main(int argc, char*argv[]) {
     if (selectedRenderer == 3) RawTerminal::quit();
     else if (selectedRenderer == 0) SDLTerminal::quit();
     else if (selectedRenderer == 4) TRoRTerminal::quit();
+    else if (selectedRenderer == 5) LegacyTerminal::quit();
     else SDL_Quit();
     return returnValue;
 }

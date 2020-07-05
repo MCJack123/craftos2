@@ -569,9 +569,9 @@ void termRenderLoop() {
             SDL_Event ev;
             ev.type = render_event_type;
             SDL_PushEvent(&ev);
-            long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-            //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
-            long t = (1000/config.clockSpeed) - count;
+            long long count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+            printf("Render took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
+            long t = (1000/config.clockSpeed) - count / 1000;
             if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
         } else {
             int time = 1000/config.clockSpeed;
@@ -653,7 +653,7 @@ const char * termGetEvent(lua_State *L) {
     if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) 
             return "die";
-        else if (e.type == SDL_KEYDOWN && (selectedRenderer != 0 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
+        else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && e.key.keysym.mod == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
@@ -694,14 +694,14 @@ const char * termGetEvent(lua_State *L) {
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
-            if (selectedRenderer != 0) lua_pushinteger(L, e.key.keysym.scancode); 
+            if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.scancode); 
             else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
             lua_pushboolean(L, false);
             return "key";
         } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
-                if (selectedRenderer != 0) lua_pushinteger(L, e.key.keysym.scancode); 
+                if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.scancode); 
                 else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 return "key_up";
             }
@@ -1205,7 +1205,7 @@ int term_drawPixels(lua_State *L) {
 }
 
 int term_screenshot(lua_State *L) {
-    if (selectedRenderer != 0) return 0;
+    if (selectedRenderer != 0 && selectedRenderer != 5) return 0;
     Computer * computer = get_comp(L);
     SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
     if (term == NULL) return 0;

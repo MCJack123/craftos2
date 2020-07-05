@@ -26,6 +26,7 @@
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
+#include "terminal/LegacyTerminal.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
@@ -107,6 +108,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif
     else if (selectedRenderer == 3) term = new RawTerminal(term_title);
     else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
+    else if (selectedRenderer == 5) term = new LegacyTerminal(term_title);
     else term = new SDLTerminal(term_title);
 }
 
@@ -604,7 +606,7 @@ void* computerThread(void* data) {
             }
         }
     }
-    if (selectedRenderer != 0 && selectedRenderer != 2 && !exiting) {
+    if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
         {std::lock_guard<std::mutex> lock(taskQueueMutex);}
         while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         taskQueueReady = true;
