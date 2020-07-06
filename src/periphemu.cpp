@@ -108,17 +108,21 @@ int periphemu_remove(lua_State* L) {
 	if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
 	Computer * computer = get_comp(L);
 	std::string side = lua_tostring(L, 1);
-    std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
-	if (computer->peripherals.find(side) == computer->peripherals.end()) {
-		lua_pushboolean(L, false);
-		return 1;
+	peripheral * p;
+	{
+		std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+		if (computer->peripherals.find(side) == computer->peripherals.end()) {
+			lua_pushboolean(L, false);
+			return 1;
+		}
+		if (std::string(computer->peripherals[side]->getMethods().name) == "drive")
+			computer->peripherals[side]->call(L, "ejectDisk");
+		else if (std::string(computer->peripherals[side]->getMethods().name) == "debugger")
+			computer->peripherals[side]->call(L, "deinit");
+		p = computer->peripherals[side];
+		computer->peripherals.erase(side);
 	}
-    if (std::string(computer->peripherals[side]->getMethods().name) == "drive")
-        computer->peripherals[side]->call(L, "ejectDisk");
-    else if (std::string(computer->peripherals[side]->getMethods().name) == "debugger")
-		computer->peripherals[side]->call(L, "deinit");
-	queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, computer->peripherals[side]);
-	computer->peripherals.erase(side);
+	queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, p);
 	lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
     termQueueProvider(computer, peripheral_detach, sidearg);

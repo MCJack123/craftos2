@@ -96,7 +96,10 @@ void config_init() {
         0,
         true,
         128,
-        -1
+        -1,
+        false,
+        51,
+        19
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -143,6 +146,9 @@ void config_init() {
     readConfigSetting(showMountPrompt, Bool);
     readConfigSetting(maxOpenPorts, Int);
     readConfigSetting(mouse_move_throttle, Int);
+    readConfigSetting(monitorsUseMouseEvents, Bool);
+    readConfigSetting(defaultWidth, Int);
+    readConfigSetting(defaultHeight, Int);
 }
 
 void config_save() {
@@ -176,6 +182,9 @@ void config_save() {
     root["showMountPrompt"] = config.showMountPrompt;
     root["maxOpenPorts"] = config.maxOpenPorts;
     root["mouse_move_throttle"] = config.mouse_move_throttle;
+    root["monitorsUseMouseEvents"] = config.monitorsUseMouseEvents;
+    root["defaultWidth"] = config.defaultWidth;
+    root["defaultHeight"] = config.defaultHeight;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -183,62 +192,44 @@ void config_save() {
 
 void config_deinit(Computer *comp) { config_save(); }
 
+#define getConfigSetting(n, type) else if (strcmp(name, #n) == 0) lua_push##type(L, config.n)
+
 int config_get(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * computer = get_comp(L);
     const char * name = lua_tostring(L, 1);
     if (strcmp(name, "http_enable") == 0)
         lua_pushboolean(L, config.http_enable);
-    else if (strcmp(name, "debug_enable") == 0)
-        lua_pushboolean(L, config.debug_enable);
-    else if (strcmp(name, "mount_mode") == 0)
-        lua_pushinteger(L, config.mount_mode);
-    else if (strcmp(name, "disable_lua51_features") == 0)
-        lua_pushboolean(L, config.disable_lua51_features);
+    getConfigSetting(debug_enable, boolean);
+    getConfigSetting(mount_mode, integer);
+    getConfigSetting(disable_lua51_features, boolean);
     else if (strcmp(name, "default_computer_settings") == 0)
         lua_pushstring(L, config.default_computer_settings.c_str());
-    else if (strcmp(name, "logErrors") == 0)
-        lua_pushboolean(L, config.logErrors);
-    else if (strcmp(name, "computerSpaceLimit") == 0)
-        lua_pushinteger(L, config.computerSpaceLimit);
-    else if (strcmp(name, "maximumFilesOpen") == 0)
-        lua_pushinteger(L, config.maximumFilesOpen);
-    else if (strcmp(name, "maxNotesPerTick") == 0)
-        lua_pushinteger(L, config.maxNotesPerTick);
-    else if (strcmp(name, "clockSpeed") == 0)
-        lua_pushinteger(L, config.clockSpeed);
+    getConfigSetting(logErrors, boolean);
+    getConfigSetting(computerSpaceLimit, integer);
+    getConfigSetting(maximumFilesOpen, integer);
+    getConfigSetting(maxNotesPerTick, integer);
+    getConfigSetting(clockSpeed, integer);
     /*else if (strcmp(name, "http_whitelist") == 0)
         lua_push(L, config.http_whitelist);
     else if (strcmp(name, "http_blacklist") == 0)
         lua_push(L, config.http_blacklist);*/
-    else if (strcmp(name, "showFPS") == 0)
-        lua_pushboolean(L, config.showFPS);
-    else if (strcmp(name, "abortTimeout") == 0)
-        lua_pushinteger(L, config.abortTimeout);
-    else if (strcmp(name, "ignoreHotkeys") == 0)
-        lua_pushboolean(L, config.ignoreHotkeys);
+    getConfigSetting(showFPS, boolean);
+    getConfigSetting(abortTimeout, integer);
+    getConfigSetting(ignoreHotkeys, boolean);
     else if (strcmp(name, "isColor") == 0)
         lua_pushboolean(L, computer->config.isColor);
-    else if (strcmp(name, "checkUpdates") == 0)
-        lua_pushboolean(L, config.checkUpdates);
-    else if (strcmp(name, "romReadOnly") == 0)
-        lua_pushboolean(L, config.romReadOnly);
-    else if (strcmp(name, "configReadOnly") == 0)
-        lua_pushboolean(L, config.configReadOnly);
-    else if (strcmp(name, "vanilla") == 0)
-        lua_pushboolean(L, config.vanilla);
-    else if (strcmp(name, "initialComputer") == 0)
-        lua_pushinteger(L, config.initialComputer);
-    else if (strcmp(name, "maxRecordingTime") == 0)
-        lua_pushinteger(L, config.maxRecordingTime);
-    else if (strcmp(name, "recordingFPS") == 0)
-        lua_pushinteger(L, config.recordingFPS);
-    else if (strcmp(name, "showMountPrompt") == 0)
-        lua_pushboolean(L, config.showMountPrompt);
-    else if (strcmp(name, "maxOpenPorts") == 0)
-        lua_pushinteger(L, config.maxOpenPorts);
-    else if (strcmp(name, "mouse_move_throttle") == 0)
-        lua_pushnumber(L, config.mouse_move_throttle);
+    getConfigSetting(checkUpdates, boolean);
+    getConfigSetting(romReadOnly, boolean);
+    getConfigSetting(configReadOnly, boolean);
+    getConfigSetting(vanilla, boolean);
+    getConfigSetting(initialComputer, integer);
+    getConfigSetting(maxRecordingTime, integer);
+    getConfigSetting(recordingFPS, integer);
+    getConfigSetting(showMountPrompt, boolean);
+    getConfigSetting(maxOpenPorts, integer);
+    getConfigSetting(mouse_move_throttle, number);
+    getConfigSetting(monitorsUseMouseEvents, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -247,36 +238,43 @@ int config_get(lua_State *L) {
     return 1;
 }
 
-// 0 = immediate, 1 = reboot, 2 = relaunch
-std::unordered_map<std::string, int> config_set_actions = {
-    {"http_enable", 1},
-    {"debug_enable", 1},
-    {"mount_mode", 0},
-    {"disable_lua51_features", 1},
-    {"default_computer_settings", 1},
-    {"logErrors", 0},
-    {"showFPS", 0},
-    {"computerSpaceLimit", 0},
-    {"maximumFilesOpen", 0},
-    {"abortTimeout", 0},
-    {"maxNotesPerTick", 2},
-    {"clockSpeed", 0},
-    {"ignoreHotkeys", 0},
-    {"checkUpdates", 2},
-    {"romReadOnly", 2},
-    {"useHDFont", 2},
-    {"configReadOnly", 0},
-    {"vanilla", 1},
-    {"initialComputer", 2},
-    {"maxRecordingTime", 0},
-    {"recordingFPS", 0},
-    {"showMountPrompt", 0},
-    {"maxOpenPorts", 0},
-    {"mouse_move_throttle", 0},
-    {"isColor", 0}
+// first: 0 = immediate, 1 = reboot, 2 = relaunch
+// second: 0 = boolean, 1 = number, 2 = string
+std::unordered_map<std::string, std::pair<int, int> > configSettings = {
+    {"http_enable", {1, 0}},
+    {"debug_enable", {1, 0}},
+    {"mount_mode", {0, 1}},
+    {"disable_lua51_features", {1, 0}},
+    {"default_computer_settings", {1, 2}},
+    {"logErrors", {0, 0}},
+    {"showFPS", {0, 0}},
+    {"computerSpaceLimit", {0, 1}},
+    {"maximumFilesOpen", {0, 1}},
+    {"abortTimeout", {0, 1}},
+    {"maxNotesPerTick", {2, 1}},
+    {"clockSpeed", {0, 1}},
+    {"ignoreHotkeys", {0, 0}},
+    {"checkUpdates", {2, 0}},
+    {"romReadOnly", {2, 0}},
+    {"useHDFont", {2, 0}},
+    {"configReadOnly", {0, 0}},
+    {"vanilla", {1, 0}},
+    {"initialComputer", {2, 1}},
+    {"maxRecordingTime", {0, 1}},
+    {"recordingFPS", {0, 1}},
+    {"showMountPrompt", {0, 0}},
+    {"maxOpenPorts", {0, 1}},
+    {"mouse_move_throttle", {0, 1}},
+    {"monitorsUseMouseEvents", {0, 0}},
+    {"defaultWidth", {0, 1}},
+    {"defaultHeight", {0, 1}},
+    {"isColor", {0, 0}}
 };
 
 const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
+
+#define setConfigSetting(n, type) else if (strcmp(name, #n) == 0) config.n = lua_to##type(L, 2)
+#define setConfigSettingI(n) else if (strcmp(name, #n) == 0) config.n = luaL_checkinteger(L, 2)
 
 int config_set(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
@@ -285,8 +283,7 @@ int config_set(lua_State *L) {
     const char * name = lua_tostring(L, 1);
     if (strcmp(name, "http_enable") == 0)
         config.http_enable = lua_toboolean(L, 2);
-    else if (strcmp(name, "debug_enable") == 0)
-        config.debug_enable = lua_toboolean(L, 2);
+    setConfigSetting(debug_enable, boolean);
     else if (strcmp(name, "mount_mode") == 0) {
         if (!lua_isnumber(L, 2) && !lua_isstring(L, 2)) return 0;
         int selected = 0;
@@ -308,7 +305,7 @@ int config_set(lua_State *L) {
             buttons[1].text = "Allow";
             data.buttons = buttons;
             data.colorScheme = NULL;
-            queueTask([data](void*selected)->void*{SDL_ShowMessageBox(&data, (int*)selected); return NULL;}, &selected);
+            queueTask([data](void*selected)->void* {SDL_ShowMessageBox(&data, (int*)selected); return NULL; }, &selected);
             delete message;
         }
         if (selected) {
@@ -322,95 +319,48 @@ int config_set(lua_State *L) {
                 else luaL_error(L, "Unknown mount mode '%s'", mode);
             }
         } else luaL_error(L, "Configuration option 'mount_mode' is protected");
-    }
-    else if (strcmp(name, "disable_lua51_features") == 0)
-        config.disable_lua51_features = lua_toboolean(L, 2);
-    else if (strcmp(name, "default_computer_settings") == 0) 
+    } setConfigSetting(disable_lua51_features, boolean);
+    else if (strcmp(name, "default_computer_settings") == 0)
         config.default_computer_settings = std::string(luaL_checkstring(L, 2), lua_strlen(L, 2));
-    else if (strcmp(name, "logErrors") == 0)
-        config.logErrors = lua_toboolean(L, 2);
-    else if (strcmp(name, "computerSpaceLimit") == 0)
-        config.computerSpaceLimit = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "maximumFilesOpen") == 0)
-        config.maximumFilesOpen = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "maxNotesPerTick") == 0)
-        config.maxNotesPerTick = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "clockSpeed") == 0)
-        config.clockSpeed = luaL_checkinteger(L, 2);
+    setConfigSetting(logErrors, boolean);
+    setConfigSettingI(computerSpaceLimit);
+    setConfigSettingI(maximumFilesOpen);
+    setConfigSettingI(maxNotesPerTick);
+    setConfigSettingI(clockSpeed);
     /*else if (strcmp(name, "http_whitelist") == 0)
         config.http_whitelist = lua_to(L, 2);
     else if (strcmp(name, "http_blacklist") == 0)
         config.http_blacklist = lua_to(L, 2);*/
-    else if (strcmp(name, "showFPS") == 0)
-        config.showFPS = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "abortTimeout") == 0)
-        config.abortTimeout = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "ignoreHotkeys") == 0)
-        config.ignoreHotkeys = lua_toboolean(L, 2);
+    setConfigSettingI(showFPS);
+    setConfigSettingI(abortTimeout);
+    setConfigSetting(ignoreHotkeys, boolean);
     else if (strcmp(name, "isColor") == 0) {
         computer->config.isColor = lua_toboolean(L, 2);
         setComputerConfig(computer->id, computer->config);
-    } else if (strcmp(name, "checkUpdates") == 0)
-        config.checkUpdates = lua_toboolean(L, 2);
-    else if (strcmp(name, "romReadOnly") == 0)
-        config.romReadOnly = lua_toboolean(L, 2);
-    else if (strcmp(name, "configReadOnly") == 0)
-        config.configReadOnly = lua_toboolean(L, 2);
-    else if (strcmp(name, "vanilla") == 0)
-        config.vanilla = lua_toboolean(L, 2);
-    else if (strcmp(name, "initialComputer") == 0)
-        config.initialComputer = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "maxRecordingTime") == 0)
-        config.maxRecordingTime = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "recordingFPS") == 0)
-        config.recordingFPS = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "maxOpenPorts") == 0)
-        config.maxOpenPorts = luaL_checkinteger(L, 2);
-    else if (strcmp(name, "mouse_move_throttle") == 0)
-        config.mouse_move_throttle = lua_tonumber(L, 2);
+    } setConfigSetting(checkUpdates, boolean);
+    setConfigSetting(romReadOnly, boolean);
+    setConfigSetting(vanilla, boolean);
+    setConfigSettingI(initialComputer);
+    setConfigSettingI(maxRecordingTime);
+    setConfigSettingI(recordingFPS);
+    setConfigSettingI(maxOpenPorts);
+    setConfigSetting(mouse_move_throttle, number);
+    setConfigSetting(monitorsUseMouseEvents, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");
     config_save();
-    if (config_set_actions[std::string(name)]) lua_pushstring(L, config_set_action_names[config_set_actions[std::string(name)]]);
+    if (configSettings[std::string(name)].first) lua_pushstring(L, config_set_action_names[configSettings[std::string(name)].first]);
     else lua_pushnil(L);
     return 1;
 }
 
-const char * configuration_keys[] = {
-    "http_enable",
-    "debug_enable",
-    "mount_mode",
-    "disable_lua51_features",
-    "default_computer_settings",
-    "logErrors",
-    "computerSpaceLimit",
-    "maximumFilesOpen",
-    "maxNotesPerTick",
-    "clockSpeed",
-    "showFPS",
-    "abortTimeout",
-    "ignoreHotkeys",
-    "isColor",
-    "checkUpdates",
-    "romReadOnly",
-    "configReadOnly",
-    "vanilla",
-    "initialComputer",
-    "maxRecordingTime",
-    "recordingFPS",
-    "useHDFont",
-    "showMountPrompt",
-    "maxOpenPorts",
-    "mouse_move_throttle",
-    NULL,
-};
-
 int config_list(lua_State *L) {
     lua_newtable(L);
-    for (int i = 1; configuration_keys[i] != NULL; i++) {
+    int i = 1;
+    for (auto it = configSettings.begin(); it != configSettings.end(); it++, i++) {
         lua_pushnumber(L, i);
-        lua_pushstring(L, configuration_keys[i]);
+        lua_pushstring(L, it->first.c_str());
         lua_settable(L, -3);
     }
     return 1;
@@ -419,22 +369,15 @@ int config_list(lua_State *L) {
 int config_getType(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     std::string name = lua_tostring(L, 1);
-    if (name == "http_enable" || name == "debug_enable" ||
-        name == "disable_lua51_features" || name == "logErrors" || 
-        name == "showFPS" || name == "ignoreHotkeys" || name == "isColor" ||
-        name == "checkUpdates" || name == "romReadOnly" || 
-        name == "configReadOnly" || name == "vanilla" || name == "useHDFont" || 
-        name == "showMountPrompt")
-        lua_pushstring(L, "boolean");
-    else if (name == "default_computer_settings")
-        lua_pushstring(L, "string");
-    else if (name == "computerSpaceLimit" || name == "maximumFilesOpen" || 
-             name == "maxNotesPerTick" || name == "clockSpeed" || 
-             name == "abortTimeout" || name == "mount_mode" || 
-             name == "initialComputer" || name == "maxRecordingTime" || 
-             name == "recordingFPS" || name == "maxOpenPorts" || name == "mouse_move_throttle")
-        lua_pushstring(L, "number");
-    else lua_pushnil(L);
+    if (configSettings.find(name) == configSettings.end()) lua_pushnil(L);
+    else {
+        switch (configSettings[name].second) {
+            case 0: lua_pushstring(L, "boolean"); break;
+            case 1: lua_pushstring(L, "number"); break;
+            case 2: lua_pushstring(L, "string"); break;
+            default: lua_pushnil(L);
+        }
+    }
     return 1;
 }
 

@@ -46,6 +46,9 @@ struct configuration {
     bool showMountPrompt;
     int maxOpenPorts;
     int mouse_move_throttle;
+    bool monitorsUseMouseEvents;
+    int defaultWidth;
+    int defaultHeight;
 };
 struct computer_configuration {
     std::string label;

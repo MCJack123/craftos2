@@ -446,7 +446,7 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
 	});
 }
 
-RawTerminal::RawTerminal(std::string title) : Terminal(51, 19) {
+RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, config.defaultHeight) {
 	this->title = title;
 	for (id = 0; currentIDs.find(id) != currentIDs.end(); id++);
 	sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this](std::ostream& output) {

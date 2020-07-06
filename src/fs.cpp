@@ -363,7 +363,7 @@ int fs_copy(lua_State *L) {
     while (fromElems.size() > 0 && fromElems.back().empty()) fromElems.pop_back();
     while (toElems.size() > 0 && toElems.back().empty()) toElems.pop_back();
     bool equal = true;
-    for (int i = 0; i < toElems.size() && equal; i++) {
+    for (unsigned i = 0; i < toElems.size() && equal; i++) {
         if (i >= fromElems.size()) err(L, 1, "Can't copy a directory inside itself");
         std::string lstrfrom = fromElems[i], lstrto = toElems[i];
         //if (!isFSCaseSensitive) {
