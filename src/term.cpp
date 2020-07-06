@@ -563,6 +563,7 @@ void termRenderLoop() {
             }
             pushEvent = pushEvent || term->changed;
             term->render();
+            term->framecount++;
         }
         Terminal::renderTargetsLock.unlock();
         if (pushEvent) {
@@ -570,7 +571,7 @@ void termRenderLoop() {
             ev.type = render_event_type;
             SDL_PushEvent(&ev);
             long long count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
-            printf("Render took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
+            printf("Render thread took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
             long t = (1000/config.clockSpeed) - count / 1000;
             if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
         } else {
@@ -1238,7 +1239,13 @@ int term_showMouse(lua_State *L) {
     return 0;
 }
 
-const char * term_keys[32] = {
+int term_benchmark(lua_State *L) {
+    lua_pushinteger(L, get_comp(L)->term->framecount);
+    get_comp(L)->term->framecount = 0;
+    return 1;
+}
+
+const char * term_keys[33] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -1270,10 +1277,11 @@ const char * term_keys[32] = {
     "screenshot",
     "nativePaletteColor",
     "drawPixels",
-    "showMouse"
+    "showMouse",
+    "benchmark"
 };
 
-lua_CFunction term_values[32] = {
+lua_CFunction term_values[33] = {
     term_write,
     term_scroll,
     term_setCursorPos,
@@ -1305,7 +1313,8 @@ lua_CFunction term_values[32] = {
     term_screenshot,
     term_nativePaletteColor,
     term_drawPixels,
-    term_showMouse
+    term_showMouse,
+    term_benchmark
 };
 
-library_t term_lib = {"term", 32, term_keys, term_values, nullptr, nullptr};
+library_t term_lib = {"term", 33, term_keys, term_values, nullptr, nullptr};

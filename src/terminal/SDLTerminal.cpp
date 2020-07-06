@@ -591,6 +591,7 @@ bool SDLTerminal::pollEvents() {
 				term->surf = NULL;
 			}
 #else
+            std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 			for (Terminal* term : Terminal::renderTargets) {
 				SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
 				if (sdlterm != NULL) {
@@ -598,13 +599,13 @@ bool SDLTerminal::pollEvents() {
 					if (sdlterm->surf != NULL) {
 						SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
 						SDL_UpdateWindowSurface(sdlterm->win);
-						SDL_FreeSurface(sdlterm->surf);
+                        SDL_FreeSurface(sdlterm->surf);
 						sdlterm->surf = NULL;
 					}
 				}
 			}
+            printf("Drawing thread took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
 #endif
-            printf("Drawing took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
 		} else {
             if (rawClient) {
                 sendRawEvent(e);
