@@ -757,11 +757,12 @@ const char * termGetEvent(lua_State *L) {
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && (config.mouse_move_throttle >= 0 || e.motion.state) && (computer->config.isColor || computer->isDebugger) && (e.motion.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.motion.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.motion.windowID, tmpstrval)->term);
+            if (term == NULL) return NULL;
             int x = 1, y = 1;
             if (selectedRenderer == 2)
                 x = e.motion.x, y = e.motion.y;
-            else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
-                x = convertX(dynamic_cast<SDLTerminal*>(term), e.motion.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
+            else if (term != NULL)
+                x = convertX(term, e.motion.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
             if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == buttonConvert2(e.motion.state) && computer->lastMouse.event == 2) return NULL;
             computer->lastMouse = {x, y, (uint8_t)buttonConvert2(e.motion.state), 2};
             if (!e.motion.state) {

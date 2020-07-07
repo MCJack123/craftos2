@@ -32,6 +32,7 @@ protected:
     int frameWait = 0;
     std::vector<std::string> recording;
     std::mutex recorderMutex;
+    std::mutex renderlock;
     bool overridden = false;
 public:
     static int fontScale;
@@ -70,7 +71,7 @@ public:
 #else
     SDL_Window *win;
 #endif
-private:
+protected:
     SDL_Surface *surf = NULL;
     SDL_Surface *bmp;
 
