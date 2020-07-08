@@ -84,6 +84,7 @@ void trorInputLoop() {
             memset(&e, 0, sizeof(SDL_Event));
             e.type = SDL_QUIT;
             for (Computer * c : computers) {
+                std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                 c->termEventQueue.push(e);
                 c->event_lock.notify_all();
             }
@@ -115,6 +116,7 @@ void trorInputLoop() {
             e.window.windowID = id;
             for (Computer * c : computers) {
                 if (checkWindowID(c, id)) {
+                    std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                     c->termEventQueue.push(e);
                     c->event_lock.notify_all();
                 }
@@ -127,6 +129,7 @@ void TRoRTerminal::init() {
     SDL_Init(SDL_INIT_TIMER);
     renderThread = new std::thread(termRenderLoop);
 	inputThread = new std::thread(trorInputLoop);
+    setThreadName(*renderThread, "Render Thread");
     printf("SP:;-ccpcTerm-\n");
 }
 

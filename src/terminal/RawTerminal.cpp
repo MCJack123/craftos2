@@ -328,6 +328,7 @@ void rawInputLoop() {
 					e.text.text[1] = '\0';
 					for (Computer * c : computers) {
 						if (checkWindowID(c, e.key.windowID)) {
+							std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 							e.text.windowID = c->term->id;
 							c->termEventQueue.push(e);
 							c->event_lock.notify_all();
@@ -339,6 +340,7 @@ void rawInputLoop() {
 					if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
 					for (Computer * c : computers) {
 						if (checkWindowID(c, e.key.windowID)) {
+							std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 							e.key.windowID = c->term->id;
 							c->termEventQueue.push(e);
 							c->event_lock.notify_all();
@@ -350,6 +352,7 @@ void rawInputLoop() {
 					if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
 					for (Computer * c : computers) {
 						if (checkWindowID(c, e.key.windowID)) {
+							std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 							e.key.windowID = c->term->id;
 							c->termEventQueue.push(e);
 							c->event_lock.notify_all();
@@ -386,6 +389,7 @@ void rawInputLoop() {
 					e.window.event = SDL_WINDOWEVENT_CLOSE;
 					for (Computer * c : computers) {
 						if (checkWindowID(c, e.window.windowID)) {
+							std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 							e.window.windowID = c->term->id;
 							c->termEventQueue.push(e);
 							c->event_lock.notify_all();
@@ -394,6 +398,7 @@ void rawInputLoop() {
 				} else if (isClosing == 2) {
 					e.type = SDL_QUIT;
 					for (Computer * c : computers) {
+						std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 						c->termEventQueue.push(e);
 						c->event_lock.notify_all();
 					}
@@ -408,6 +413,7 @@ void rawInputLoop() {
 					e.window.data2 = h;
 					for (Computer * c : computers) {
 						if (checkWindowID(c, e.window.windowID)) {
+							std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 							c->termEventQueue.push(e);
 							c->event_lock.notify_all();
 						}
@@ -422,6 +428,7 @@ void RawTerminal::init() {
     SDL_Init(SDL_INIT_TIMER);
     renderThread = new std::thread(termRenderLoop);
 	inputThread = new std::thread(rawInputLoop);
+	setThreadName(*renderThread, "Render Thread");
 }
 
 void RawTerminal::quit() {

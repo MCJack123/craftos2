@@ -28,6 +28,11 @@ private:
     int closeAll(lua_State *L);
     int transmit(lua_State *L);
     int isWireless(lua_State *L);
+    int getNamesRemote(lua_State *L);
+    int getTypeRemote(lua_State *L);
+    int isPresentRemote(lua_State *L);
+    int getMethodsRemote(lua_State *L);
+    int callRemote(lua_State *L);
     void receive(uint16_t port, uint16_t replyPort, int id, modem * sender);
 public:
     static library_t methods;

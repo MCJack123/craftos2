@@ -498,6 +498,7 @@ void SDLTerminal::record(std::string path) {
         recordingPath += std::string(tstr) + ".gif";
         delete[] tstr;
     }
+    changed = true;
 }
 
 uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
@@ -528,6 +529,7 @@ void SDLTerminal::stopRecording() {
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif
+    changed = true;
 }
 
 void SDLTerminal::showMessage(Uint32 flags, const char * title, const char * message) {SDL_ShowSimpleMessageBox(flags, title, message, win);}
@@ -557,6 +559,7 @@ void SDLTerminal::init() {
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
+    setThreadName(*renderThread, "Render Thread");
 }
 
 void SDLTerminal::quit() {
@@ -636,6 +639,7 @@ bool SDLTerminal::pollEvents() {
                         (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
                         (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
                         e.type == SDL_QUIT) {
+                        std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
                     }

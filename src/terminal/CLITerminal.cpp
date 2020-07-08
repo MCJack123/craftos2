@@ -184,6 +184,7 @@ void pressControl(int sig) {
 	e.key.keysym.scancode = (SDL_Scancode)29;
 	for (Computer * c : computers) {
 		if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+            std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 			e.key.windowID = c->term->id;
 			c->termEventQueue.push(e);
 			e.type = SDL_KEYUP;
@@ -200,6 +201,7 @@ void pressAlt(int sig) {
 	e.key.keysym.scancode = (SDL_Scancode)56;
 	for (Computer * c : computers) {
 		if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+            std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 			e.key.windowID = c->term->id;
 			c->termEventQueue.push(e);
 			e.type = SDL_KEYUP;
@@ -252,6 +254,7 @@ void CLITerminal::init() {
 		signal(SIGQUIT, pressAlt);
 	}
     renderThread = new std::thread(termRenderLoop);
+    setThreadName(*renderThread, "Render Thread");
 }
 
 void CLITerminal::quit() {
@@ -284,6 +287,7 @@ extern void sendRawEvent(SDL_Event e);
 #define sendEventToTermQueue(e, TYPE) \
 	if (rawClient) {e.TYPE.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}\
 	else {for (Computer * c : computers) {if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
+        std::lock_guard<std::mutex> lock(c->termEventQueueMutex);\
 		e.TYPE.windowID = c->term->id;\
 		c->termEventQueue.push(e);\
 		c->event_lock.notify_all();\
@@ -319,6 +323,7 @@ bool CLITerminal::pollEvents() {
 		e.type = SDL_WINDOWEVENT;
 		e.window.event = SDL_WINDOWEVENT_RESIZED;
 		for (Computer * c : computers) {
+            std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 			e.window.data1 = COLS;
 			e.window.data2 = LINES - 1;
 			e.window.windowID = c->term->id;
@@ -349,6 +354,7 @@ bool CLITerminal::pollEvents() {
 					else {
 						for (Computer * c : computers) {
 							if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
+                                std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
 								e.button.windowID = *CLITerminal::selectedWindow;
 								c->termEventQueue.push(e);
 								c->event_lock.notify_all();
