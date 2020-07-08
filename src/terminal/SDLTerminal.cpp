@@ -541,6 +541,7 @@ void SDLTerminal::init() {
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
+    setThreadName(*renderThread, "Render Thread");
 }
 
 void SDLTerminal::quit() {

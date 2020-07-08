@@ -422,6 +422,7 @@ void RawTerminal::init() {
     SDL_Init(SDL_INIT_TIMER);
     renderThread = new std::thread(termRenderLoop);
 	inputThread = new std::thread(rawInputLoop);
+	setThreadName(*renderThread, "Render Thread");
 }
 
 void RawTerminal::quit() {

@@ -127,6 +127,7 @@ void TRoRTerminal::init() {
     SDL_Init(SDL_INIT_TIMER);
     renderThread = new std::thread(termRenderLoop);
 	inputThread = new std::thread(trorInputLoop);
+    setThreadName(*renderThread, "Render Thread");
     printf("SP:;-ccpcTerm-\n");
 }
 

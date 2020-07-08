@@ -252,6 +252,7 @@ void CLITerminal::init() {
 		signal(SIGQUIT, pressAlt);
 	}
     renderThread = new std::thread(termRenderLoop);
+    setThreadName(*renderThread, "Render Thread");
 }
 
 void CLITerminal::quit() {

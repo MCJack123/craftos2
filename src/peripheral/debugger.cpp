@@ -506,6 +506,7 @@ debugger::debugger(lua_State *L, const char * side) {
     didBreak = false;
     running = true;
     computer = get_comp(L);
+    if (computer->debugger != NULL) throw std::runtime_error("A debugger is already attached to this computer");
     debugger_param * p = new debugger_param;
     p->id = computer->id;
     monitor = (Computer*)queueTask([](void*computer)->void*{try {return new Computer(((debugger_param*)computer)->id, true);} catch (std::exception &e) {((debugger_param*)computer)->err = e.what(); return NULL;}}, p);
@@ -520,7 +521,7 @@ debugger::debugger(lua_State *L, const char * side) {
     compThread = new std::thread(debuggerThread, monitor, this, std::string(side));
     setThreadName(*compThread, std::string("Computer " + std::to_string(computer->id) + " Thread (Debugger)").c_str());
     computerThreads.push_back(compThread);
-    if (computer->debugger != NULL) throw std::bad_exception();
+    computer->shouldDeinitDebugger = false;
     computer->debugger = this;
     lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
     lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
