@@ -137,7 +137,8 @@ void LegacyTerminal::render() {
         changed = false;
     }
     std::lock_guard<std::mutex> rlock(renderlock);
-    if (SDL_SetRenderDrawColor(ren, palette[15].r, palette[15].g, palette[15].b, 0xFF) != 0) return;
+    Color bgcolor = newmode == 0 ? newpalette[15] : defaultPalette[15];
+    if (SDL_SetRenderDrawColor(ren, bgcolor.r, bgcolor.g, bgcolor.b, 0xFF) != 0) return;
     if (SDL_RenderClear(ren) != 0) return;
     if (pixtex != NULL) {
         SDL_DestroyTexture(pixtex);
@@ -206,12 +207,19 @@ void LegacyTerminal::render() {
         if (gotResizeEvent) return;
         if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
-        png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
-        if (gotResizeEvent) return;
-        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) return;
-        png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
-        img.set_pixbuf(pixbuf);
-        img.write(screenshotPath);
+        if (screenshotPath == "clipboard") {
+            SDL_Surface * temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 24, SDL_PIXELFORMAT_RGB24);
+            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, temp->pixels, temp->pitch) != 0) return;
+            copyImage(temp);
+            SDL_FreeSurface(temp);
+        } else {
+            png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
+            if (gotResizeEvent) return;
+            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) return;
+            png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
+            img.set_pixbuf(pixbuf);
+            img.write(screenshotPath);
+        }
 #else
         SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
         if (gotResizeEvent) return;

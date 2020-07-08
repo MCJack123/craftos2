@@ -10,7 +10,7 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
-    <LocalDebuggerCommandArguments>--legacy --rom C:\Users\jackb_000\Downloads\ComputerCraft\CraftOS-PC-ROM</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>--rom C:\Users\jackb_000\Downloads\ComputerCraft\CraftOS-PC-ROM</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>
