@@ -619,6 +619,7 @@ bool SDLTerminal::pollEvents() {
                         (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
                         (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
                         e.type == SDL_QUIT) {
+                        std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
                     }

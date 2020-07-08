@@ -571,8 +571,11 @@ void Computer::run(std::string bios_name) {
 
 // Gets the next event for the given computer
 bool Computer::getEvent(SDL_Event* e) {
+    std::lock_guard<std::mutex> lock(termEventQueueMutex);
     if (termEventQueue.size() == 0) return false;
-    memcpy(e, &termEventQueue.front(), sizeof(SDL_Event));
+    SDL_Event& front = termEventQueue.front();
+    if (&front == NULL || e == NULL) return false;
+    memcpy(e, &front, sizeof(SDL_Event));
     termEventQueue.pop();
     return true;
 }

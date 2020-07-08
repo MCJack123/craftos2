@@ -92,6 +92,7 @@ struct Computer {
     mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()};
     std::unordered_map<int, std::function<void(Computer*, int, void*)> > userdata_destructors;
     std::string dataDir;
+    std::mutex termEventQueueMutex;
 
     static std::unordered_map<int, std::string> customDataDirs;
     static std::list<std::string> customPlugins;
