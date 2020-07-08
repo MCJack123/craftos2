@@ -78,8 +78,46 @@ int modem::transmit(lua_State *L) {
 }
 
 int modem::isWireless(lua_State *L) {
-    lua_pushboolean(L, true);
+    lua_pushboolean(L, false);
     return 1;
+}
+
+int modem::getNamesRemote(lua_State *L) {
+    lua_newtable(L);
+    int i = 1;
+    std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
+    for (auto p : comp->peripherals) {
+        if (p.first != "top" && p.first != "bottom" && p.first != "left" && p.first != "right" && p.first != "front" && p.first != "back") {
+            lua_pushinteger(L, i++);
+            lua_pushstring(L, p.first.c_str());
+            lua_settable(L, -3);
+        }
+    }
+    return 1;
+}
+
+int modem::getTypeRemote(lua_State *L) {
+    if (strcmp(peripheral_lib.keys[1], "getType") == 0) return peripheral_lib.values[1](L);
+    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "getType") == 0) return peripheral_lib.values[i](L);
+    return luaL_error(L, "Internal error");
+}
+
+int modem::isPresentRemote(lua_State *L) {
+    if (strcmp(peripheral_lib.keys[0], "isPresent") == 0) return peripheral_lib.values[0](L);
+    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "isPresent") == 0) return peripheral_lib.values[i](L);
+    return luaL_error(L, "Internal error");
+}
+
+int modem::getMethodsRemote(lua_State *L) {
+    if (strcmp(peripheral_lib.keys[2], "getMethods") == 0) return peripheral_lib.values[2](L);
+    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "getMethods") == 0) return peripheral_lib.values[i](L);
+    return luaL_error(L, "Internal error");
+}
+
+int modem::callRemote(lua_State *L) {
+    if (strcmp(peripheral_lib.keys[3], "call") == 0) return peripheral_lib.values[3](L);
+    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "call") == 0) return peripheral_lib.values[i](L);
+    return luaL_error(L, "Internal error");
 }
 
 struct modem_message_data {
@@ -225,16 +263,26 @@ int modem::call(lua_State *L, const char * method) {
     else if (m == "closeAll") return closeAll(L);
     else if (m == "transmit") return transmit(L);
     else if (m == "isWireless") return isWireless(L);
+    else if (m == "getNamesRemote") return getNamesRemote(L);
+    else if (m == "getTypeRemote") return getTypeRemote(L);
+    else if (m == "isPresentRemote") return isPresentRemote(L);
+    else if (m == "getMethodsRemote") return getMethodsRemote(L);
+    else if (m == "callRemote") return callRemote(L);
     else return 0;
 }
 
-const char * modem_keys[6] = {
+const char * modem_keys[11] = {
     "isOpen",
     "open",
     "close",
     "closeAll",
     "transmit",
-    "isWireless"
+    "isWireless",
+    "getNamesRemote",
+    "getTypeRemote",
+    "isPresentRemote",
+    "getMethodsRemote",
+    "callRemote"
 };
 
-library_t modem::methods = {"modem", 6, modem_keys, NULL, nullptr, nullptr};
+library_t modem::methods = {"modem", 11, modem_keys, NULL, nullptr, nullptr};

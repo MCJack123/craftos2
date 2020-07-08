@@ -43,7 +43,7 @@ int peripheral_getMethods(lua_State *L) {
     library_t methods = computer->peripherals[side]->getMethods();
     lua_newtable(L);
     for (int i = 0; i < methods.count; i++) {
-        lua_pushnumber(L, i+1);
+        lua_pushinteger(L, i+1);
         lua_pushstring(L, methods.keys[i]);
         lua_settable(L, -3);
     }

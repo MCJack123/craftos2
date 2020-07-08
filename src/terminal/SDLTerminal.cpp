@@ -480,6 +480,7 @@ void SDLTerminal::record(std::string path) {
         recordingPath += std::string(tstr) + ".gif";
         delete[] tstr;
     }
+    changed = true;
 }
 
 uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
@@ -510,6 +511,7 @@ void SDLTerminal::stopRecording() {
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif
+    changed = true;
 }
 
 void SDLTerminal::showMessage(Uint32 flags, const char * title, const char * message) {SDL_ShowSimpleMessageBox(flags, title, message, win);}
