@@ -1,3 +1,13 @@
+/*
+ * gif.hpp
+ * CraftOS-PC 2
+ *
+ * This file defines some functions from gif.cpp for external use.
+ *
+ * This code is licensed in the public domain.
+ * Copyright (c) 2019-2020 JackMacWindows, Charlie Tangora.
+ */
+
 #ifndef gif_h
 #define gif_h
 

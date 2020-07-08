@@ -5,9 +5,10 @@
  * This file implements the LegacyTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "LegacyTerminal.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
@@ -30,12 +31,15 @@ extern "C" {
         unsigned char	 pixel_data[128 * 175 * 2 + 1];
     };
     extern struct font_image font_image;
+#ifdef __EMSCRIPTEN__
+    extern void syncfs();
+#endif
 }
 
 extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);
 
 LegacyTerminal::LegacyTerminal(std::string title): SDLTerminal(title) {
-    std::lock_guard<std::mutex> lock(renderlock); // try to prevent race condition (see explanation in render())
+    std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
 #else
@@ -50,7 +54,7 @@ LegacyTerminal::LegacyTerminal(std::string title): SDLTerminal(title) {
     if (font == nullptr || font == NULL || font == (SDL_Texture*)0) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
-        throw window_exception("Failed to load texture from font");
+        throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
     }
 }
 
@@ -229,9 +233,12 @@ void LegacyTerminal::render() {
         SDL_SaveBMP(conv, screenshotPath.c_str());
         SDL_FreeSurface(conv);
 #endif
+#ifdef __EMSCRIPTEN__
+        queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
+#endif
     }
     if (shouldRecord) {
-        if (recordedFrames >= 150) stopRecording();
+        if (recordedFrames >= config.maxRecordingTime * config.recordingFPS) stopRecording();
         else if (--frameWait < 1) {
             std::lock_guard<std::mutex> lock(recorderMutex);
             int w, h;
@@ -255,7 +262,8 @@ void LegacyTerminal::render() {
             SDL_FreeSurface(sshot);
             recording.push_back(rle);
             recordedFrames++;
-            frameWait = config.clockSpeed / 10;
+            frameWait = config.clockSpeed / config.recordingFPS;
+            if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
         if (circle == NULL) { printf("Error: %s\n", SDL_GetError()); assert(false); }
@@ -299,6 +307,7 @@ void LegacyTerminal::init() {
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
+    setThreadName(*renderThread, "Render Thread");
 }
 
 void LegacyTerminal::quit() {
