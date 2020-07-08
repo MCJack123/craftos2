@@ -35,7 +35,8 @@ extern "C" {
 extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);
 
 LegacyTerminal::LegacyTerminal(std::string title): SDLTerminal(title) {
-    std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
+    std::lock_guard<std::mutex> lock(renderlock); // try to prevent race condition (see explanation in render())
+    SDL_SetWindowResizable(win, SDL_FALSE);
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
 #else
