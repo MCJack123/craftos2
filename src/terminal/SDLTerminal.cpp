@@ -356,7 +356,7 @@ void SDLTerminal::render() {
         } else {
             png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
             for (int i = 0; i < temp->h; i++)
-                memcpy((void*)&pixbuf.get_bytes()[i], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
+                memcpy((void*)&pixbuf.get_bytes()[i * temp->w * 3], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
             png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
             img.set_pixbuf(pixbuf);
             img.write(screenshotPath);
