@@ -107,7 +107,7 @@ static int bit32_replace(lua_State *L) {
 
 static unsigned int rotate_impl(bool right, unsigned int n, unsigned int disp) {
     if (right) return ((n & ~((unsigned int)pow(2, disp) - 1)) >> disp) | ((n & ((unsigned int)pow(2, disp) - 1)) << (32 - disp));
-    else return ((n & ~(((unsigned int)pow(2, disp) - 1) << (32 - disp))) << disp) | (((n & ((unsigned int)pow(2, disp) - 1)) << (32 - disp)) >> (32 - disp));
+    else return ((n & ~(((unsigned int)pow(2, disp) - 1) << (32 - disp))) << disp) | (((n & ((unsigned int)pow(2, disp) - 1) << (32 - disp))) >> (32 - disp));
 }
 
 static int bit32_rrotate(lua_State *L) {
