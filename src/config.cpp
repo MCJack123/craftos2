@@ -26,7 +26,7 @@ struct configuration config;
 extern int selectedRenderer;
 
 struct computer_configuration getComputerConfig(int id) {
-    struct computer_configuration cfg = {"", true, false};
+    struct computer_configuration cfg = {"", true, false, false};
     std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     if (!in.is_open()) return cfg; 
     if (in.peek() == std::ifstream::traits_type::eof()) {in.close(); return cfg;} // treat an empty file as if it didn't exist in the first place
@@ -48,6 +48,7 @@ struct computer_configuration getComputerConfig(int id) {
         if (root.isMember("base64")) cfg.label = b64decode(root["label"].asString());
         else cfg.label = std::string(root["label"].asString());
     }
+    if (root.isMember("startFullscreen")) cfg.startFullscreen = root["startFullscreen"].asBool();
     return cfg;
 }
 
@@ -57,6 +58,7 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
     if (!cfg.label.empty()) root["label"] = b64encode(cfg.label);
     root["isColor"] = cfg.isColor;
     root["base64"] = true;
+    root["startFullscreen"] = cfg.startFullscreen;
     std::ofstream out(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     out << root;
     out.close();
@@ -219,6 +221,8 @@ int config_get(lua_State *L) {
     getConfigSetting(ignoreHotkeys, boolean);
     else if (strcmp(name, "isColor") == 0)
         lua_pushboolean(L, computer->config.isColor);
+    else if (strcmp(name, "startFullscreen") == 0)
+        lua_pushboolean(L, computer->config.startFullscreen);
     getConfigSetting(checkUpdates, boolean);
     getConfigSetting(romReadOnly, boolean);
     getConfigSetting(configReadOnly, boolean);
@@ -268,7 +272,8 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"monitorsUseMouseEvents", {0, 0}},
     {"defaultWidth", {0, 1}},
     {"defaultHeight", {0, 1}},
-    {"isColor", {0, 0}}
+    {"isColor", {0, 0}},
+    {"startFullscreen", {2, 0}}
 };
 
 const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
@@ -337,7 +342,11 @@ int config_set(lua_State *L) {
     else if (strcmp(name, "isColor") == 0) {
         computer->config.isColor = lua_toboolean(L, 2);
         setComputerConfig(computer->id, computer->config);
-    } setConfigSetting(checkUpdates, boolean);
+    } else if (strcmp(name, "startFullscreen") == 0) {
+        computer->config.startFullscreen = lua_toboolean(L, 2);
+        setComputerConfig(computer->id, computer->config);
+    }
+    setConfigSetting(checkUpdates, boolean);
     setConfigSetting(romReadOnly, boolean);
     setConfigSetting(vanilla, boolean);
     setConfigSettingI(initialComputer);

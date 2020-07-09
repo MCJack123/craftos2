@@ -328,6 +328,7 @@ void Computer::loadPlugin(std::string path) {
 
 // Main computer loop
 void Computer::run(std::string bios_name) {
+    if (config.startFullscreen && dynamic_cast<SDLTerminal*>(term) != NULL) ((SDLTerminal*)term)->toggleFullscreen();
     running = 1;
     if (L != NULL) lua_close(L);
     setjmp(on_panic);

@@ -54,6 +54,7 @@ struct computer_configuration {
     std::string label;
     bool isColor;
     bool loadFailure;
+    bool startFullscreen;
 };
 #include "lib.hpp"
 extern library_t config_lib;
