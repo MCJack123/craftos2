@@ -101,7 +101,8 @@ void config_init() {
         -1,
         false,
         51,
-        19
+        19,
+        false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
     if (!in.is_open()) {return;}
@@ -151,6 +152,8 @@ void config_init() {
     readConfigSetting(monitorsUseMouseEvents, Bool);
     readConfigSetting(defaultWidth, Int);
     readConfigSetting(defaultHeight, Int);
+    readConfigSetting(standardsMode, Bool);
+    if (config.standardsMode) config.abortTimeout = 7000;
 }
 
 void config_save() {
@@ -187,6 +190,7 @@ void config_save() {
     root["monitorsUseMouseEvents"] = config.monitorsUseMouseEvents;
     root["defaultWidth"] = config.defaultWidth;
     root["defaultHeight"] = config.defaultHeight;
+    root["standardsMode"] = config.standardsMode;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -234,6 +238,9 @@ int config_get(lua_State *L) {
     getConfigSetting(maxOpenPorts, integer);
     getConfigSetting(mouse_move_throttle, number);
     getConfigSetting(monitorsUseMouseEvents, boolean);
+    getConfigSetting(defaultWidth, integer);
+    getConfigSetting(defaultHeight, integer);
+    getConfigSetting(standardsMode, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -270,8 +277,9 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"maxOpenPorts", {0, 1}},
     {"mouse_move_throttle", {0, 1}},
     {"monitorsUseMouseEvents", {0, 0}},
-    {"defaultWidth", {0, 1}},
-    {"defaultHeight", {0, 1}},
+    {"defaultWidth", {2, 1}},
+    {"defaultHeight", {2, 1}},
+    {"standardsMode", {0, 0}},
     {"isColor", {0, 0}},
     {"startFullscreen", {2, 0}}
 };
@@ -355,6 +363,9 @@ int config_set(lua_State *L) {
     setConfigSettingI(maxOpenPorts);
     setConfigSetting(mouse_move_throttle, number);
     setConfigSetting(monitorsUseMouseEvents, boolean);
+    setConfigSettingI(defaultWidth);
+    setConfigSettingI(defaultHeight);
+    setConfigSetting(standardsMode, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");
