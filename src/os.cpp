@@ -327,7 +327,9 @@ int os_startTimer(lua_State *L) {
 	data->comp = computer;
     queueTask([L](void*a)->void*{
         struct timer_data_t * data = (struct timer_data_t*)a;
-        data->timer = SDL_AddTimer(lua_tonumber(L, 1) * 1000 + 3, notifyEvent, data);
+        Uint32 time = lua_tonumber(L, 1) * 1000;
+        if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
+        data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
         return NULL;
     }, data);
     runningTimerData.insert(std::make_pair(data->timer, data));
@@ -388,7 +390,7 @@ int os_time(lua_State *L) {
     std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [ ](unsigned char c){return std::tolower(c);});
     if (tmp == "ingame") {
-        lua_pushnumber(L, ((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0);
+        lua_pushnumber(L, floor(((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50.0) / 1000.0);
         return 1;
     } else if (tmp != "utc" && tmp != "local") luaL_error(L, "Unsupported operation");
     time_t t = time(NULL);
@@ -415,7 +417,9 @@ int os_epoch(lua_State *L) {
     } else if (tmp == "ingame") {
         double m_time = ((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
         double m_day = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1;
-        lua_pushinteger(L, m_day * 86400000 + (int) (m_time * 3600000.0f));
+        lua_Integer epoch = m_day * 86400000 + (int) (m_time * 3600000.0f);
+        if (config.standardsMode) epoch = (lua_Integer)floor(epoch / 200) * 200;
+        lua_pushinteger(L, epoch);
     } else luaL_error(L, "Unsupported operation");
     return 1;
 }

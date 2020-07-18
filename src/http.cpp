@@ -643,7 +643,7 @@ public:
             data->reason = e.message();
             termQueueProvider(comp, websocket_failure, data);
             if (ws != NULL) delete ws;
-            if (srv != NULL) { srv->stop(); delete srv; }
+            if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
             return;
         }
         struct ws_handle * wsh = new struct ws_handle;
@@ -678,8 +678,8 @@ public:
                 termQueueProvider(comp, websocket_message, message);
             }
         }
-        ws->shutdown();
-        if (srv != NULL) { srv->stop(); delete srv; }
+        try {ws->shutdown();} catch (...) {}
+        if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
     }
     class Factory: public HTTPRequestHandlerFactory {
     public:

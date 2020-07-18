@@ -49,6 +49,7 @@ struct configuration {
     bool monitorsUseMouseEvents;
     int defaultWidth;
     int defaultHeight;
+    bool standardsMode;
 };
 struct computer_configuration {
     std::string label;
