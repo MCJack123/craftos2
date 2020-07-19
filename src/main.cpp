@@ -39,7 +39,6 @@ extern void http_server_stop();
 extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
-extern std::mutex taskQueueMutex;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
 int selectedRenderer = 0; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw

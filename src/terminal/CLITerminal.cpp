@@ -272,8 +272,7 @@ void CLITerminal::quit() {
 }
 
 extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
-extern std::unordered_map<int, void*> taskQueueReturns;
-extern std::mutex taskQueueReturnsMutex;
+extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
 #ifdef __EMSCRIPTEN__
@@ -336,8 +335,8 @@ bool CLITerminal::pollEvents() {
 		auto v = taskQueue.front();
 		void* retval = std::get<1>(v)(std::get<2>(v));
 		if (!std::get<3>(v)) {
-            std::lock_guard<std::mutex> lock2(taskQueueReturnsMutex);
-            taskQueueReturns[std::get<0>(v)] = retval;
+            LockGuard lock2(taskQueueReturns);
+            (*taskQueueReturns)[std::get<0>(v)] = retval;
         }
 		taskQueue.pop();
 	}

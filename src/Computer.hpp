@@ -107,8 +107,7 @@ private:
 };
 
 extern std::vector<Computer*> computers;
-extern std::unordered_set<SDL_TimerID> freedTimers;
-extern std::mutex freedTimersMutex;
+extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
 extern std::string computerDir;
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);

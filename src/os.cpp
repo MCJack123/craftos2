@@ -37,11 +37,9 @@ void gotEvent(Computer *comp);
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
 int nextTaskID = 0;
-std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
-std::unordered_map<int, void*> taskQueueReturns;
-std::mutex taskQueueReturnsMutex;
+ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
+ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 std::condition_variable taskQueueNotify;
-std::mutex taskQueueMutex;
 bool exiting = false;
 bool forceCheckTimeout = false;
 extern int selectedRenderer;
@@ -57,9 +55,9 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
     int myID;
     {
-        std::lock_guard<std::mutex> lock(taskQueueMutex);
+        LockGuard lock(taskQueue);
         myID = nextTaskID++;
-        taskQueue.push(std::make_tuple(myID, func, arg, async));
+        taskQueue->push(std::make_tuple(myID, func, arg, async));
     }
     if (selectedRenderer == 0 && !exiting) {
         SDL_Event ev;
@@ -67,27 +65,27 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
         SDL_PushEvent(&ev);
     }
     if (selectedRenderer != 0 && selectedRenderer != 2) {
-        {std::lock_guard<std::mutex> lock(taskQueueMutex);}
+        {LockGuard lock(taskQueue);}
         while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         taskQueueReady = true;
         taskQueueNotify.notify_all();
         while (taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     }
     if (async) return NULL;
-    while (([]()->bool{taskQueueReturnsMutex.lock(); return true;})() && taskQueueReturns.find(myID) == taskQueueReturns.end() && !exiting) {taskQueueReturnsMutex.unlock(); std::this_thread::yield();}
-    void* retval = taskQueueReturns[myID];
-    taskQueueReturns.erase(myID);
-    taskQueueReturnsMutex.unlock();
+    while (([]()->bool{taskQueueReturns.lock(); return true;})() && taskQueueReturns->find(myID) == taskQueueReturns->end() && !exiting) {taskQueueReturns.unlock(); std::this_thread::yield();}
+    void* retval = (*taskQueueReturns)[myID];
+    taskQueueReturns->erase(myID);
+    taskQueueReturns.unlock();
     return retval;
 }
 
 void awaitTasks() {
     while (true) {
-        if (taskQueue.size() > 0) {
-            auto v = taskQueue.front();
+        if (taskQueue->size() > 0) {
+            auto v = taskQueue->front();
             void* retval = std::get<1>(v)(std::get<2>(v));
-            taskQueueReturns[std::get<0>(v)] = retval;
-            taskQueue.pop();
+            (*taskQueueReturns)[std::get<0>(v)] = retval;
+            taskQueue->pop();
         }
         SDL_PumpEvents();
         std::this_thread::yield();
@@ -105,16 +103,16 @@ void mainLoop() {
 		else if (selectedRenderer == 2) /*res =*/ CLITerminal::pollEvents();
 #endif
         else {
-            std::unique_lock<std::mutex> lock(taskQueueMutex);
+            std::unique_lock<std::mutex> lock(taskQueue.getMutex());
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
-            while (taskQueue.size() > 0) {
-                auto v = taskQueue.front();
+            while (taskQueue->size() > 0) {
+                auto v = taskQueue->front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
                 if (!std::get<3>(v)) {
-                    std::lock_guard<std::mutex> lock2(taskQueueReturnsMutex);
-                    taskQueueReturns[std::get<0>(v)] = retval;
+                    LockGuard lock2(taskQueueReturns);
+                    (*taskQueueReturns)[std::get<0>(v)] = retval;
                 }
-                taskQueue.pop();
+                taskQueue->pop();
             }
             taskQueueReady = false;
         }
@@ -281,17 +279,16 @@ public:
 	~PointerProtector() { delete ptr; }
 };
 
-std::unordered_map<SDL_TimerID, struct timer_data_t*> runningTimerData;
-std::mutex runningTimerDataMutex;
+ProtectedObject<std::unordered_map<SDL_TimerID, struct timer_data_t*> > runningTimerData;
 
 const char * timer_event(lua_State *L, void* param) {
     struct timer_data_t * data = (struct timer_data_t*)param;
     bool found = false;
-    for (auto i : runningTimerData) if (i.second == param) { found = true; break; }
+    for (auto i : *runningTimerData) if (i.second == param) { found = true; break; }
     if (!found) return NULL;
     data->lock->lock();
     lua_pushinteger(L, data->timer);
-    runningTimerData.erase(data->timer);
+    runningTimerData->erase(data->timer);
     data->lock->unlock();
     delete data->lock;
     delete data;
@@ -301,21 +298,21 @@ const char * timer_event(lua_State *L, void* param) {
 Uint32 notifyEvent(Uint32 interval, void* param) {
 	struct timer_data_t * data = (struct timer_data_t*)param;
     bool found = false;
-    for (auto i : runningTimerData) if (i.second == param) {found = true; break;}
+    for (auto i : *runningTimerData) if (i.second == param) {found = true; break;}
     if (!found) return 0;
     data->lock->lock();
     if (exiting || data->comp == NULL) {
-        runningTimerData.erase(data->timer);
+        runningTimerData->erase(data->timer);
         data->lock->unlock();
         delete data->lock;
         delete data;
         return 0;
     }
 	{
-		std::lock_guard<std::mutex> lock(freedTimersMutex);
-		if (freedTimers.find(data->timer) != freedTimers.end()) { 
-			freedTimers.erase(data->timer);
-            runningTimerData.erase(data->timer);
+		LockGuard lock(freedTimers);
+		if (freedTimers->find(data->timer) != freedTimers->end()) { 
+			freedTimers->erase(data->timer);
+            runningTimerData->erase(data->timer);
             data->lock->unlock();
             delete data->lock;
             delete data;
@@ -349,7 +346,7 @@ int os_startTimer(lua_State *L) {
         data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
         return NULL;
     }, data);
-    runningTimerData.insert(std::make_pair(data->timer, data));
+    runningTimerData->insert(std::make_pair(data->timer, data));
     lua_pushinteger(L, data->timer);
 	computer->timerIDs.insert(data->timer);
     return 1;
@@ -358,18 +355,18 @@ int os_startTimer(lua_State *L) {
 int os_cancelTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     SDL_TimerID id = lua_tointeger(L, 1);
-    if (runningTimerData.find(id) == runningTimerData.end()) return 0;
-    runningTimerData.erase(id);
-    runningTimerData[id]->lock->lock();
-    if (runningTimerData.find(id) == runningTimerData.end()) return 0;
+    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+    timer_data_t * data = (*runningTimerData)[id];
+    runningTimerData->erase(id);
+    data->lock->lock();
 #ifdef __EMSCRIPTEN__
     queueTask([id](void*)->void*{SDL_RemoveTimer(id); return NULL;}, NULL);
 #else
     SDL_RemoveTimer(id);
 #endif
-    runningTimerData[id]->lock->unlock();
-    delete runningTimerData[id]->lock;
-    delete runningTimerData[id];    
+    data->lock->unlock();
+    delete data->lock;
+    delete data;
     return 0;
 }
 
