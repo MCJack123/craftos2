@@ -36,8 +36,10 @@
 #define PLUGIN_VERSION 2
 
 extern std::string asciify(std::string);
+extern int term_benchmark(lua_State *L);
 extern int selectedRenderer;
 extern bool forceCheckTimeout;
+extern bool benchmark;
 extern std::string script_args;
 extern std::string script_file;
 std::vector<Computer*> computers;
@@ -512,6 +514,12 @@ void Computer::run(std::string bios_name) {
         if (!script_args.empty()) {
             lua_pushlstring(L, script_args.c_str(), script_args.length());
             lua_setglobal(L, "_CCPC_STARTUP_ARGS");
+        }
+        if (benchmark) {
+            lua_getglobal(L, "term");
+            lua_pushcfunction(L, term_benchmark);
+            lua_setfield(L, -2, "benchmark");
+            lua_pop(L, 1);
         }
 
         /* Load the file containing the script we are going to run */

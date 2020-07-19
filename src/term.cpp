@@ -1241,12 +1241,13 @@ int term_showMouse(lua_State *L) {
 }
 
 int term_benchmark(lua_State *L) {
+    if (get_comp(L)->term == NULL) return 0;
     lua_pushinteger(L, get_comp(L)->term->framecount);
     get_comp(L)->term->framecount = 0;
     return 1;
 }
 
-const char * term_keys[33] = {
+const char * term_keys[32] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -1278,11 +1279,10 @@ const char * term_keys[33] = {
     "screenshot",
     "nativePaletteColor",
     "drawPixels",
-    "showMouse",
-    "benchmark"
+    "showMouse"
 };
 
-lua_CFunction term_values[33] = {
+lua_CFunction term_values[32] = {
     term_write,
     term_scroll,
     term_setCursorPos,
@@ -1314,8 +1314,7 @@ lua_CFunction term_values[33] = {
     term_screenshot,
     term_nativePaletteColor,
     term_drawPixels,
-    term_showMouse,
-    term_benchmark
+    term_showMouse
 };
 
-library_t term_lib = {"term", 33, term_keys, term_values, nullptr, nullptr};
+library_t term_lib = {"term", 32, term_keys, term_values, nullptr, nullptr};
