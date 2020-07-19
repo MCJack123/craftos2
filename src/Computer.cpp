@@ -35,6 +35,7 @@
 #define PLUGIN_VERSION 2
 
 extern std::string asciify(std::string);
+extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
 extern int selectedRenderer;
 extern bool forceCheckTimeout;
 extern std::string script_args;
@@ -544,6 +545,7 @@ void Computer::run(std::string bios_name) {
         status = LUA_YIELD;
         int narg = 0;
         running = 1;
+        eventTimeout = SDL_AddTimer(::config.abortTimeout, eventTimeoutEvent, this);
         while (status == LUA_YIELD && running == 1) {
             status = lua_resume(coro, narg);
             if (status == LUA_YIELD) {
