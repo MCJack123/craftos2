@@ -146,7 +146,7 @@
     <ClInclude Include="src\fs_standalone.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\terminal\LegacyTerminal.hpp">
+    <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -247,10 +247,10 @@
     <ClCompile Include="src\fs_standalone.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\terminal\LegacyTerminal.cpp">
+    <ClCompile Include="src\gif.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\gif.cpp">
+    <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

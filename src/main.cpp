@@ -18,7 +18,7 @@
 #include "terminal/RawTerminal.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
-#include "terminal/LegacyTerminal.hpp"
+#include "terminal/HardwareSDLTerminal.hpp"
 #include <functional>
 #include <thread>
 #include <iomanip>
@@ -285,12 +285,12 @@ int main(int argc, char*argv[]) {
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
         if (arg == "--headless") selectedRenderer = 1;
-        else if (arg == "--gui" || arg == "--sdl") selectedRenderer = 0;
+        else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
         else if (arg == "--cli" || arg == "-c") selectedRenderer = 2;
         else if (arg == "--raw") selectedRenderer = 3;
         else if (arg == "--raw-client") rawClient = true;
         else if (arg == "--tror") selectedRenderer = 4;
-        else if (arg == "--legacy") selectedRenderer = 5;
+        else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
@@ -325,11 +325,11 @@ int main(int argc, char*argv[]) {
 #ifndef NO_CLI
                 << "ncurses\n "
 #endif
-                << "Raw\n TRoR\n";
+                << "Raw\n TRoR\n Hardware-SDL";
                 return 0;
             } else {
                 arg = std::string(argv[i]);
-                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c);});
+                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c); });
                 if (arg == "sdl" || arg == "awt") selectedRenderer = 0;
                 else if (arg == "headless") selectedRenderer = 1;
 #ifndef NO_CLI
@@ -337,6 +337,7 @@ int main(int argc, char*argv[]) {
 #endif
                 else if (arg == "raw") selectedRenderer = 3;
                 else if (arg == "tror") selectedRenderer = 4;
+                else if (arg == "hardware-sdl" || arg == "jfx") selectedRenderer = 5;
                 else {
                     std::cerr << "Unknown renderer type " << arg << "\n";
                     return 1;
@@ -427,7 +428,7 @@ int main(int argc, char*argv[]) {
     if (selectedRenderer == 3) RawTerminal::init();
     else if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 4) TRoRTerminal::init();
-    else if (selectedRenderer == 5) LegacyTerminal::init();
+    else if (selectedRenderer == 5) HardwareSDLTerminal::init();
     else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
     driveInit();
 #ifndef NO_MIXER
@@ -462,7 +463,7 @@ int main(int argc, char*argv[]) {
     if (selectedRenderer == 3) RawTerminal::quit();
     else if (selectedRenderer == 0) SDLTerminal::quit();
     else if (selectedRenderer == 4) TRoRTerminal::quit();
-    else if (selectedRenderer == 5) LegacyTerminal::quit();
+    else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
     return returnValue;
 }

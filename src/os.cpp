@@ -27,7 +27,7 @@
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
-#include "terminal/LegacyTerminal.hpp"
+#include "terminal/HardwareSDLTerminal.hpp"
 #include "peripheral/monitor.hpp"
 #ifndef NO_CLI
 #include <signal.h>
@@ -103,7 +103,7 @@ void mainLoop() {
 #ifndef NO_CLI
 		else if (selectedRenderer == 2) /*res =*/ CLITerminal::pollEvents();
 #endif
-        else if (selectedRenderer == 5) LegacyTerminal::pollEvents();
+        else if (selectedRenderer == 5) HardwareSDLTerminal::pollEvents();
         else {
             std::unique_lock<std::mutex> lock(taskQueue.getMutex());
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));

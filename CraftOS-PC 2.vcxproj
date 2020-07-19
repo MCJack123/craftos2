@@ -347,7 +347,7 @@
     <ClInclude Include="src\redstone.hpp" />
     <ClInclude Include="src\term.hpp" />
     <ClInclude Include="src\terminal\CLITerminal.hpp" />
-    <ClInclude Include="src\terminal\LegacyTerminal.hpp" />
+    <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp" />
     <ClInclude Include="src\terminal\RawTerminal.hpp" />
     <ClInclude Include="src\terminal\SDLTerminal.hpp" />
     <ClInclude Include="src\terminal\Terminal.hpp" />
@@ -433,7 +433,7 @@
     </ClCompile>
     <ClCompile Include="src\term.cpp" />
     <ClCompile Include="src\terminal\CLITerminal.cpp" />
-    <ClCompile Include="src\terminal\LegacyTerminal.cpp" />
+    <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp" />
     <ClCompile Include="src\terminal\RawTerminal.cpp" />
     <ClCompile Include="src\terminal\SDLTerminal.cpp" />
     <ClCompile Include="src\terminal\TRoRTerminal.cpp" />

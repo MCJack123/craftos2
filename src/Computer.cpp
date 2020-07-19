@@ -26,7 +26,7 @@
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
-#include "terminal/LegacyTerminal.hpp"
+#include "terminal/HardwareSDLTerminal.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
@@ -109,7 +109,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif
     else if (selectedRenderer == 3) term = new RawTerminal(term_title);
     else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
-    else if (selectedRenderer == 5) term = new LegacyTerminal(term_title);
+    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
     else term = new SDLTerminal(term_title);
 }
 

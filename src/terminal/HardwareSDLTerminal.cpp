@@ -1,15 +1,15 @@
 /*
- * LegacyTerminal.cpp
+ * HardwareSDLTerminal.cpp
  * CraftOS-PC 2
  * 
- * This file implements the LegacyTerminal class.
+ * This file implements the HardwareSDLTerminal class.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "LegacyTerminal.hpp"
+#include "HardwareSDLTerminal.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
@@ -38,7 +38,7 @@ extern "C" {
 
 extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);
 
-LegacyTerminal::LegacyTerminal(std::string title): SDLTerminal(title) {
+HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
@@ -58,7 +58,7 @@ LegacyTerminal::LegacyTerminal(std::string title): SDLTerminal(title) {
     }
 }
 
-LegacyTerminal::~LegacyTerminal() {
+HardwareSDLTerminal::~HardwareSDLTerminal() {
     if (!overridden) {
         if (pixtex != NULL) SDL_DestroyTexture(pixtex);
         SDL_DestroyTexture(font);
@@ -68,7 +68,7 @@ LegacyTerminal::~LegacyTerminal() {
 
 extern bool operator!=(Color lhs, Color rhs);
 
-bool LegacyTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = SDLTerminal::getCharacterRect(c);
     SDL_Rect destrect = {
         x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
@@ -106,7 +106,7 @@ static unsigned char circlePix[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-void LegacyTerminal::render() {
+void HardwareSDLTerminal::render() {
     // copy the screen data so we can let Lua keep going without waiting for the mutex
     std::unique_ptr<vector2d<unsigned char> > newscreen;
     std::unique_ptr<vector2d<unsigned char> > newcolors;
@@ -116,7 +116,7 @@ void LegacyTerminal::render() {
     bool newblink;
     {
         std::lock_guard<std::mutex> locked_g(locked);
-        if (ren == NULL || font == NULL) return; // race condition since LegacyTerminal() is called after SDLTerminal(), which adds the terminal to the render targets
+        if (ren == NULL || font == NULL) return; // race condition since HardwareSDLTerminal() is called after SDLTerminal(), which adds the terminal to the render targets
                                                  // wait until the renderer and font are initialized before doing any rendering
         if (gotResizeEvent) {
             gotResizeEvent = false;
@@ -275,7 +275,7 @@ void LegacyTerminal::render() {
 
 extern void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y);
 
-bool LegacyTerminal::resize(int w, int h) {
+bool HardwareSDLTerminal::resize(int w, int h) {
     SDL_DestroyRenderer(ren);
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -297,7 +297,7 @@ extern Uint32 task_event_type, render_event_type;
 extern std::thread * renderThread;
 extern void termRenderLoop();
 
-void LegacyTerminal::init() {
+void HardwareSDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
@@ -310,7 +310,7 @@ void LegacyTerminal::init() {
     setThreadName(*renderThread, "Render Thread");
 }
 
-void LegacyTerminal::quit() {
+void HardwareSDLTerminal::quit() {
     renderThread->join();
     delete renderThread;
     SDL_Quit();
@@ -324,12 +324,12 @@ extern bool rawClient;
 extern void sendRawEvent(SDL_Event e);
 
 #ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *LegacyTerminal::renderTarget || findMonitorFromWindowID(c, (*LegacyTerminal::renderTarget)->id, tmps) != NULL)
+#define checkWindowID(c, wid) (c->term == *HardwareSDLTerminal::renderTarget || findMonitorFromWindowID(c, (*HardwareSDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
 #define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
 #endif
 
-bool LegacyTerminal::pollEvents() {
+bool HardwareSDLTerminal::pollEvents() {
 	SDL_Event e;
 	std::string tmps;
 #ifdef __EMSCRIPTEN__
@@ -350,17 +350,17 @@ bool LegacyTerminal::pollEvents() {
 		} else if (e.type == render_event_type) {
             std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 #ifdef __EMSCRIPTEN__
-			LegacyTerminal* term = dynamic_cast<LegacyTerminal*>(*LegacyTerminal::renderTarget);
+			HardwareSDLTerminal* term = dynamic_cast<HardwareSDLTerminal*>(*HardwareSDLTerminal::renderTarget);
 			std::lock_guard<std::mutex> lock(term->locked);
 			if (term->surf != NULL) {
-				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(LegacyTerminal::win), NULL);
-				SDL_UpdateWindowSurface(LegacyTerminal::win);
+				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(HardwareSDLTerminal::win), NULL);
+				SDL_UpdateWindowSurface(HardwareSDLTerminal::win);
 				SDL_FreeSurface(term->surf);
 				term->surf = NULL;
 			}
 #else
 			for (Terminal* term : Terminal::renderTargets) {
-				LegacyTerminal * sdlterm = dynamic_cast<LegacyTerminal*>(term);
+				HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
 				if (sdlterm != NULL) {
 					std::lock_guard<std::mutex> lock(sdlterm->renderlock);
 					SDL_RenderPresent(sdlterm->ren);
