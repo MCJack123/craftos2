@@ -14,6 +14,7 @@
 #include <functional>
 #include <vector>
 #include <string>
+#include <mutex>
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -21,8 +22,8 @@ extern "C" {
 }
 
 #define CRAFTOSPC_VERSION    "v2.3.4"
-#define CRAFTOSPC_CC_VERSION "1.89.2"
-#define CRAFTOSPC_INDEV      false
+#define CRAFTOSPC_CC_VERSION "1.90.1"
+#define CRAFTOSPC_INDEV      true
 
 struct Computer;
 typedef struct library {
@@ -39,6 +40,26 @@ template<typename T>
 inline T min(T a, T b) { return a < b ? a : b; }
 template<typename T>
 inline T max(T a, T b) { return a > b ? a : b; }
+
+template<typename T>
+class ProtectedObject {
+    friend class LockGuard;
+    T obj;
+    std::mutex mutex;
+public:
+    void lock() { mutex.lock(); }
+    void unlock() { mutex.unlock(); }
+    std::mutex& getMutex() { return mutex; }
+    T& operator*() { return obj; }
+    T* operator->() { return &obj; }
+};
+
+class LockGuard : public std::lock_guard<std::mutex> {
+public:
+    template<typename T>
+    LockGuard(ProtectedObject<T> &obj) : std::lock_guard<std::mutex>(obj.mutex) {}
+    LockGuard(std::mutex mtx) : std::lock_guard<std::mutex>(mtx) {}
+};
 
 #include "Computer.hpp"
 

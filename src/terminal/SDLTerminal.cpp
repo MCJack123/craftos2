@@ -568,9 +568,8 @@ void SDLTerminal::quit() {
     SDL_Quit();
 }
 
-extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
-extern std::unordered_map<int, void*> taskQueueReturns;
-extern std::mutex taskQueueReturnsMutex;
+extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
+extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 
 extern bool rawClient;
@@ -591,14 +590,14 @@ bool SDLTerminal::pollEvents() {
 	if (SDL_WaitEvent(&e)) {
 #endif
 		if (e.type == task_event_type) {
-			while (taskQueue.size() > 0) {
-				auto v = taskQueue.front();
+			while (taskQueue->size() > 0) {
+				auto v = taskQueue->front();
 				void* retval = std::get<1>(v)(std::get<2>(v));
 				if (!std::get<3>(v)) {
-                    std::lock_guard<std::mutex> lock2(taskQueueReturnsMutex);
-                    taskQueueReturns[std::get<0>(v)] = retval;
+                    LockGuard lock2(taskQueueReturns);
+                    (*taskQueueReturns)[std::get<0>(v)] = retval;
                 }
-				taskQueue.pop();
+				taskQueue->pop();
 			}
 		} else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__

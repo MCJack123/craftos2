@@ -43,8 +43,7 @@ extern std::string script_file;
 std::vector<Computer*> computers;
 std::mutex computers_mutex;
 std::unordered_set<Computer*> freedComputers; 
-std::unordered_set<SDL_TimerID> freedTimers;
-std::mutex freedTimersMutex;
+ProtectedObject<std::unordered_set<SDL_TimerID>> freedTimers;
 std::string computerDir;
 std::unordered_map<int, std::string> Computer::customDataDirs;
 std::list<std::string> Computer::customPlugins;
@@ -138,8 +137,8 @@ Computer::~Computer() {
     }
 	// Mark all currently running timers as invalid
 	{
-		std::lock_guard<std::mutex> lock(freedTimersMutex);
-		for (SDL_TimerID t : timerIDs) freedTimers.insert(t);
+		LockGuard lock(freedTimers);
+		for (SDL_TimerID t : timerIDs) freedTimers->insert(t);
 	}
     // Cancel the mouse_move debounce timer if active
     if (mouseMoveDebounceTimer != 0) SDL_RemoveTimer(mouseMoveDebounceTimer);
@@ -583,7 +582,7 @@ bool Computer::getEvent(SDL_Event* e) {
     return true;
 }
 
-extern std::mutex taskQueueMutex;
+extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
 extern bool exiting;
@@ -611,7 +610,7 @@ void* computerThread(void* data) {
         }
     }
     if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
-        {std::lock_guard<std::mutex> lock(taskQueueMutex);}
+        {LockGuard lock(taskQueue);}
         while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         taskQueueReady = true;
         taskQueueNotify.notify_all();

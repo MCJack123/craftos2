@@ -177,6 +177,18 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/base_spec.lua b/
          end)
  
          it("loads a file with the global environment", function()
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua b/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua
+--- a/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua	2020-06-28 00:31:42.000000000 -0400
+@@ -55,7 +55,7 @@
+ 
+         it("fails on missing files", function()
+             expect({ nft.load("/test-files/not_a_file.nft") })
+-                :same { nil, "/test-files/not_a_file.nft: No such file" }
++                :same { nil, "/test-files/not_a_file.nft: No such file or directory" }
+         end)
+     end)
+ 
 diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/clear_spec.lua b/src/test/resources/test-rom/spec/programs/clear_spec.lua
 --- a/src/test/resources/test-rom/spec/programs/clear_spec.lua	2020-06-29 02:52:34.000000000 -0400
 +++ b/src/test/resources/test-rom/spec/programs/clear_spec.lua	2020-06-28 01:14:14.000000000 -0400
