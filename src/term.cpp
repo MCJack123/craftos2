@@ -1238,7 +1238,7 @@ int term_showMouse(lua_State *L) {
     return 0;
 }
 
-const char * term_keys[32] = {
+const char * term_keys[33] = {
     "write",
     "scroll",
     "setCursorPos",
@@ -1269,11 +1269,12 @@ const char * term_keys[32] = {
     "getPixel",
     "screenshot",
     "nativePaletteColor",
+    "nativePaletteColour",
     "drawPixels",
     "showMouse"
 };
 
-lua_CFunction term_values[32] = {
+lua_CFunction term_values[33] = {
     term_write,
     term_scroll,
     term_setCursorPos,
@@ -1303,6 +1304,7 @@ lua_CFunction term_values[32] = {
     term_setPixel,
     term_getPixel,
     term_screenshot,
+    term_nativePaletteColor,
     term_nativePaletteColor,
     term_drawPixels,
     term_showMouse
