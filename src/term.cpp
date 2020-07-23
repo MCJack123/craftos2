@@ -1310,4 +1310,4 @@ lua_CFunction term_values[33] = {
     term_showMouse
 };
 
-library_t term_lib = {"term", 32, term_keys, term_values, nullptr, nullptr};
+library_t term_lib = {"term", 33, term_keys, term_values, nullptr, nullptr};
