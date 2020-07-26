@@ -35,3 +35,4 @@ index.html
 raw_frame_reader
 src/fs_standalone.cpp
 *.vcxproj.user
+*.aps

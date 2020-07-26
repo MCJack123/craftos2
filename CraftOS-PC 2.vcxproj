@@ -303,13 +303,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include=".github\workflows\main.yml" />
+    <None Include=".gitignore" />
+    <None Include=".install" />
     <None Include=".travis.yml" />
+    <None Include="CCEmuXConverter.java" />
+    <None Include="CCT-Tests.patch" />
+    <None Include="configure.ac" />
     <None Include="CraftOSTest.lua" />
     <None Include="DOCUMENTATION.md" />
     <None Include="Info.plist" />
     <None Include="LICENSE" />
     <None Include="Makefile.in" />
     <None Include="packages.config" />
+    <None Include="packStandaloneROM.js" />
     <None Include="README.md" />
     <None Include="src\platform_macapp.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -320,7 +326,6 @@
     <Image Include="image1.bmp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="resource.h" />
     <ClInclude Include="src\bit.hpp" />
     <ClInclude Include="src\Computer.hpp" />
     <ClInclude Include="src\config.hpp" />
@@ -351,6 +356,7 @@
     <ClInclude Include="src\terminal\SDLTerminal.hpp" />
     <ClInclude Include="src\terminal\Terminal.hpp" />
     <ClInclude Include="src\terminal\TRoRTerminal.hpp" />
+    <ClInclude Include="src\windows\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="examples\raw_frame_reader.cpp">
@@ -436,7 +442,7 @@
     <ClCompile Include="src\terminal\TRoRTerminal.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="CraftOS-PC 2.rc" />
+    <ResourceCompile Include="src\windows\CraftOS-PC 2.rc" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="CraftOS-PC.exe.manifest" />
