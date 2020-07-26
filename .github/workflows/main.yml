@@ -71,7 +71,7 @@ jobs:
       run: |
         git clone https://github.com/MCJack123/craftos2-rom
         cd craftos2-rom
-        node ../packStandaloneROM.js
+        node ../resources/packStandaloneROM.js
         cd ..
     - name: Build Lua
       run: |
@@ -98,7 +98,7 @@ jobs:
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
         git clone --branch v1.15.2-1.90.2 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
-        patch -p1 -d ../CC-Tweaked < CCT-Tests.patch
+        patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
         sudo apt update
@@ -112,7 +112,7 @@ jobs:
         CFLAGS=-Wall ./configure
         make
     - name: Run CC:T McFly Tests
-      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script CCT-Test-Bootstrap.lua || echo $? > ~/.retval
+      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |

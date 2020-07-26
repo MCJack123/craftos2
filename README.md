@@ -1,13 +1,13 @@
 # CraftOS-PC 2 [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
-A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and the original Lua API, as well as SDL for drawing.
+A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and a modified version of PUC Lua, as well as SDL for drawing.
 
-![Screenfetch](image1.png)
+![Screenfetch](resources/image1.png)
 
 ## Requirements for released builds
 * Supported operating systems:
   * Windows Vista x64 or later
   * macOS 10.9+
-  * Ubuntu 18.04, 19.04, 19.10
+  * Ubuntu 18.04, 19.10, 20.04
   * Arch Linux with AUR helper
 * Administrator privileges
 * 20 MB free space
@@ -41,7 +41,7 @@ $ craftos
 ### Arch Linux
 Install the `craftos-pc` package using your chosen AUR helper (e.g. `yay -S craftos-pc`).
 
-## v2.2: Where are my files?
+### v2.2: Where are my files?
 CraftOS-PC v2.2 moves the save directory to be more appropriate for each platform. Your files are not gone; they're automatically moved over before launching if the old folder is still present. You can find the computer data files at these locations:
 * Windows: `%appdata%\CraftOS-PC` (`C:\Users\<user>\AppData\Roaming\CraftOS-PC`)
 * Mac: `~/Library/Application Support/CraftOS-PC`
@@ -89,7 +89,7 @@ You can get all of these dependencies with:
   * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
 
 ### Windows Nightly Builds
-Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-pc.cc/nightly/). These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. New builds are posted at midnight EST, unless there were no changes since the last build. The download page lists the three latest builds, but older builds are available by direct link. Note that these files are just the raw executable; if there were changes to the ROM you must pull them in manually.
+Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-pc.cc/nightly/). These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. New builds are posted at midnight EST, unless there were no changes since the last build. Note that these files are just the raw executable. You must drop the file into a pre-existing CraftOS-PC install directory for it to work properly. Depending on changes made in the latest version, you may also have to download the latest [ROM](https://github.com/MCJack123/craftos2-rom).
 
 ### Instructions
 #### Windows
@@ -116,7 +116,7 @@ Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-
 10. Copy the ROM package inside
 11. Run CraftOS-PC.app
 
-#### Linux
+#### Linux (or Mac as non-app binary)
 1. Open a new terminal
 2. `cd` to the cloned repository
 3. `git submodule update --init --recursive`

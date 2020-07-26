@@ -22,9 +22,6 @@
     <None Include="src\platform_macapp.mm">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="Info.plist">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include=".travis.yml">
       <Filter>Other Files</Filter>
     </None>
@@ -49,20 +46,29 @@
     <None Include=".gitignore">
       <Filter>Other Files</Filter>
     </None>
-    <None Include=".install">
-      <Filter>Other Files</Filter>
-    </None>
-    <None Include="CCEmuXConverter.java">
-      <Filter>Other Files</Filter>
-    </None>
-    <None Include="CCT-Tests.patch">
-      <Filter>Other Files</Filter>
-    </None>
     <None Include="configure.ac">
       <Filter>Other Files</Filter>
     </None>
-    <None Include="packStandaloneROM.js">
+    <None Include="resources\.install">
       <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CCEmuXConverter.java">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CCT-Test-Bootstrap.lua">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CCT-Tests.patch">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CraftOSTest.lua">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\packStandaloneROM.js">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\Info.plist">
+      <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -272,7 +278,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="CraftOS-PC.exe.manifest">
+    <Manifest Include="resources\CraftOS-PC.exe.manifest">
       <Filter>Resource Files</Filter>
     </Manifest>
   </ItemGroup>

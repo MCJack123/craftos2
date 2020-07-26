@@ -53,7 +53,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "C:\\Users\\jackb_000\\Downloads\\Ccblink.ico"
+IDI_ICON1               ICON                    "..\\..\\resources\\Ccblink.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -61,7 +61,7 @@ IDI_ICON1               ICON                    "C:\\Users\\jackb_000\\Downloads
 // RT_MANIFEST
 //
 
-MANIFEST                RT_MANIFEST             "CraftOS-PC.exe.manifest"
+MANIFEST                RT_MANIFEST             "..\\..\\resources\\CraftOS-PC.exe.manifest"
 
 
 /////////////////////////////////////////////////////////////////////////////

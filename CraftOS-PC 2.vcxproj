@@ -304,19 +304,21 @@
   <ItemGroup>
     <None Include=".github\workflows\main.yml" />
     <None Include=".gitignore" />
-    <None Include=".install" />
     <None Include=".travis.yml" />
-    <None Include="CCEmuXConverter.java" />
-    <None Include="CCT-Tests.patch" />
     <None Include="configure.ac" />
     <None Include="CraftOSTest.lua" />
     <None Include="DOCUMENTATION.md" />
-    <None Include="Info.plist" />
     <None Include="LICENSE" />
     <None Include="Makefile.in" />
     <None Include="packages.config" />
-    <None Include="packStandaloneROM.js" />
     <None Include="README.md" />
+    <None Include="resources\.install" />
+    <None Include="resources\CCEmuXConverter.java" />
+    <None Include="resources\CCT-Test-Bootstrap.lua" />
+    <None Include="resources\CCT-Tests.patch" />
+    <None Include="resources\CraftOSTest.lua" />
+    <None Include="resources\Info.plist" />
+    <None Include="resources\packStandaloneROM.js" />
     <None Include="src\platform_macapp.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
@@ -445,7 +447,7 @@
     <ResourceCompile Include="src\windows\CraftOS-PC 2.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="CraftOS-PC.exe.manifest" />
+    <Manifest Include="resources\CraftOS-PC.exe.manifest" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
