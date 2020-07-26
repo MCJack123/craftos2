@@ -70,6 +70,12 @@
     <None Include="resources\Info.plist">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="resources\BenchmarkRenderers.lua">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\BenchmarkRenderers.sh.bat">
+      <Filter>Other Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\Ccblink.ico">

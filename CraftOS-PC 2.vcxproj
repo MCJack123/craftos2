@@ -313,6 +313,8 @@
     <None Include="packages.config" />
     <None Include="README.md" />
     <None Include="resources\.install" />
+    <None Include="resources\BenchmarkRenderers.lua" />
+    <None Include="resources\BenchmarkRenderers.sh.bat" />
     <None Include="resources\CCEmuXConverter.java" />
     <None Include="resources\CCT-Test-Bootstrap.lua" />
     <None Include="resources\CCT-Tests.patch" />
