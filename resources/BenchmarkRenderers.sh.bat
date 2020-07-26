@@ -5,6 +5,11 @@ rem This script can be run on Windows, Mac, and Linux systems without modificati
 
 @echo off
 cls
+if not exist BenchmarkRenderers.lua (
+	echo "Error: Run this script in the same directory as it's stored in."
+	pause
+	exit 1
+)
 set EXEPATH=C:\Program Files\CraftOS-PC\CraftOS-PC.exe
 echo This script will compare the software and hardware renderers to see which is better for your system. It is recommended you close all applications before running this (especially programs that use large amounts of CPU or GPU time).
 :getpath
@@ -22,6 +27,11 @@ goto:eof
 
 END BATCH
 
+if [ ! -e BenchmarkRenderers.lua ]; then
+	echo "Error: Run this script in the same directory as it's stored in."
+	read -e
+	exit 1
+fi
 if [ $(uname -s) == "Darwin" ]; then EXEPATH=/Applications/CraftOS-PC.app/Contents/MacOS/craftos
 elif [ $(uname -s) == "Linux" ]; then 
 	if [ -e /usr/local/bin/craftos ]; then EXEPATH=/usr/local/bin/craftos
