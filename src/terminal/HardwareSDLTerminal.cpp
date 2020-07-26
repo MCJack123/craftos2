@@ -348,16 +348,14 @@ bool HardwareSDLTerminal::pollEvents() {
 				taskQueue->pop();
 			}
 		} else if (e.type == render_event_type) {
-            std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+            //std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 #ifdef __EMSCRIPTEN__
 			HardwareSDLTerminal* term = dynamic_cast<HardwareSDLTerminal*>(*HardwareSDLTerminal::renderTarget);
-			std::lock_guard<std::mutex> lock(term->locked);
-			if (term->surf != NULL) {
-				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(HardwareSDLTerminal::win), NULL);
-				SDL_UpdateWindowSurface(HardwareSDLTerminal::win);
-				SDL_FreeSurface(term->surf);
-				term->surf = NULL;
-			}
+            if (term != NULL) {
+                std::lock_guard<std::mutex> lock(term->renderlock);
+                SDL_RenderPresent(sdlterm->ren);
+                SDL_UpdateWindowSurface(sdlterm->win);
+            }
 #else
 			for (Terminal* term : Terminal::renderTargets) {
 				HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
@@ -368,7 +366,7 @@ bool HardwareSDLTerminal::pollEvents() {
 				}
 			}
 #endif
-            printf("Drawing took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
+            //printf("Drawing took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
 		} else {
             if (rawClient) {
                 sendRawEvent(e);

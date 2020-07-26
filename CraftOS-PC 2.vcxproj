@@ -135,22 +135,25 @@
     <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
     <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
     <TargetName>CraftOS-PC</TargetName>
-    <CodeAnalysisRuleSet>analysis.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
     <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
     <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
     <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
     <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

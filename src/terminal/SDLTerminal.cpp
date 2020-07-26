@@ -587,30 +587,32 @@ bool SDLTerminal::pollEvents() {
 #ifdef __EMSCRIPTEN__
 	if (SDL_PollEvent(&e)) {
 #else
-	if (SDL_WaitEvent(&e)) {
+    if (SDL_WaitEvent(&e)) {
 #endif
-		if (e.type == task_event_type) {
-			while (taskQueue->size() > 0) {
-				auto v = taskQueue->front();
-				void* retval = std::get<1>(v)(std::get<2>(v));
-				if (!std::get<3>(v)) {
+        if (e.type == task_event_type) {
+            while (taskQueue->size() > 0) {
+                auto v = taskQueue->front();
+                void* retval = std::get<1>(v)(std::get<2>(v));
+                if (!std::get<3>(v)) {
                     LockGuard lock2(taskQueueReturns);
                     (*taskQueueReturns)[std::get<0>(v)] = retval;
                 }
-				taskQueue->pop();
-			}
-		} else if (e.type == render_event_type) {
+                taskQueue->pop();
+            }
+        } else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
-			SDLTerminal* term = dynamic_cast<SDLTerminal*>(*SDLTerminal::renderTarget);
-			std::lock_guard<std::mutex> lock(term->locked);
-			if (term->surf != NULL) {
-				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
-				SDL_UpdateWindowSurface(SDLTerminal::win);
-				SDL_FreeSurface(term->surf);
-				term->surf = NULL;
-			}
+            SDLTerminal* term = dynamic_cast<SDLTerminal*>(*SDLTerminal::renderTarget);
+            if (term != NULL) {
+                std::lock_guard<std::mutex> lock(term->locked);
+                if (term->surf != NULL) {
+                    SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
+                    SDL_UpdateWindowSurface(SDLTerminal::win);
+                    SDL_FreeSurface(term->surf);
+                    term->surf = NULL;
+                }
+            }
 #else
-            std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+            //std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 			for (Terminal* term : Terminal::renderTargets) {
 				SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
 				if (sdlterm != NULL) {
@@ -623,7 +625,7 @@ bool SDLTerminal::pollEvents() {
 					}
 				}
 			}
-            printf("Drawing thread took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
+            //printf("Drawing thread took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
 #endif
 		} else {
             if (rawClient) {
