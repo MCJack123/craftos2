@@ -662,20 +662,20 @@ const char * termGetEvent(lua_State *L) {
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
-            else if (e.key.keysym.scancode == SDL_SCANCODE_T && (e.key.keysym.mod & KMOD_CTRL)) {
+            else if ((selectedRenderer == 0 ? e.key.keysym.scancode == SDL_SCANCODE_T : e.key.keysym.scancode == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 1) {
                     computer->waitingForTerminate |= 2;
                     computer->waitingForTerminate &= ~1;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 3) == 0) computer->waitingForTerminate |= 1;
-            } else if (e.key.keysym.scancode == SDL_SCANCODE_S && (e.key.keysym.mod & KMOD_CTRL)) {
+            } else if ((selectedRenderer == 0 ? e.key.keysym.scancode == SDL_SCANCODE_S : e.key.keysym.scancode == 31) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 4) {
                     computer->waitingForTerminate |= 8;
                     computer->waitingForTerminate &= ~4;
                     computer->running = 0;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 12) == 0) computer->waitingForTerminate |= 4;
-            } else if (e.key.keysym.scancode == SDL_SCANCODE_R && (e.key.keysym.mod & KMOD_CTRL)) {
+            } else if ((selectedRenderer == 0 ? e.key.keysym.scancode == SDL_SCANCODE_R : e.key.keysym.scancode == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 16) {
                     computer->waitingForTerminate |= 32;
                     computer->waitingForTerminate &= ~16;

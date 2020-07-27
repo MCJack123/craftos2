@@ -324,6 +324,7 @@ void rawInputLoop() {
 				uint8_t flags = in.get();
 				if (flags & 8) {
 					e.type = SDL_TEXTINPUT;
+					e.text.windowID = id;
 					e.text.text[0] = key;
 					e.text.text[1] = '\0';
 					for (Computer * c : computers) {
@@ -336,6 +337,7 @@ void rawInputLoop() {
 					}
 				} else if ((flags & 9) == 1) {
 					e.type = SDL_KEYUP;
+					e.key.windowID = id;
 					e.key.keysym.scancode = (SDL_Scancode)key;
 					if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
 					for (Computer * c : computers) {
@@ -348,6 +350,7 @@ void rawInputLoop() {
 					}
 				} else {
 					e.type = SDL_KEYDOWN;
+					e.key.windowID = id;
 					e.key.keysym.scancode = (SDL_Scancode)key;
 					if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
 					for (Computer * c : computers) {
@@ -408,6 +411,7 @@ void rawInputLoop() {
 					in.read((char*)&w, 2);
 					in.read((char*)&h, 2);
 					e.type = SDL_WINDOWEVENT;
+					e.window.windowID = id;
 					e.window.event = SDL_WINDOWEVENT_RESIZED;
 					e.window.data1 = w;
 					e.window.data2 = h;
