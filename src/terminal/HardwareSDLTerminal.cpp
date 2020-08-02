@@ -107,6 +107,7 @@ static unsigned char circlePix[] = {
 };
 
 void HardwareSDLTerminal::render() {
+    if (width == 0 || height == 0) return; // don't render if we don't have a valid screen size
     // copy the screen data so we can let Lua keep going without waiting for the mutex
     std::unique_ptr<vector2d<unsigned char> > newscreen;
     std::unique_ptr<vector2d<unsigned char> > newcolors;

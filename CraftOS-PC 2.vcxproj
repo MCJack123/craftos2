@@ -309,7 +309,6 @@
     <None Include=".gitignore" />
     <None Include=".travis.yml" />
     <None Include="configure.ac" />
-    <None Include="CraftOSTest.lua" />
     <None Include="DOCUMENTATION.md" />
     <None Include="LICENSE" />
     <None Include="Makefile.in" />

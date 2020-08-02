@@ -25,9 +25,6 @@
     <None Include=".travis.yml">
       <Filter>Other Files</Filter>
     </None>
-    <None Include="CraftOSTest.lua">
-      <Filter>Other Files</Filter>
-    </None>
     <None Include="DOCUMENTATION.md">
       <Filter>Other Files</Filter>
     </None>

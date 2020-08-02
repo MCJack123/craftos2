@@ -153,6 +153,7 @@ void config_init() {
     readConfigSetting(defaultWidth, Int);
     readConfigSetting(defaultHeight, Int);
     readConfigSetting(standardsMode, Bool);
+    readConfigSetting(useHardwareRenderer, Bool);
     if (config.standardsMode) config.abortTimeout = 7000;
 }
 
@@ -191,6 +192,7 @@ void config_save() {
     root["defaultWidth"] = config.defaultWidth;
     root["defaultHeight"] = config.defaultHeight;
     root["standardsMode"] = config.standardsMode;
+    root["useHardwareRenderer"] = config.useHardwareRenderer;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -241,6 +243,7 @@ int config_get(lua_State *L) {
     getConfigSetting(defaultWidth, integer);
     getConfigSetting(defaultHeight, integer);
     getConfigSetting(standardsMode, boolean);
+    getConfigSetting(useHardwareRenderer, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -281,7 +284,8 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"defaultHeight", {2, 1}},
     {"standardsMode", {0, 0}},
     {"isColor", {0, 0}},
-    {"startFullscreen", {2, 0}}
+    {"startFullscreen", {2, 0}},
+    {"useHardwareRenderer", {2, 0}}
 };
 
 const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
@@ -366,6 +370,7 @@ int config_set(lua_State *L) {
     setConfigSettingI(defaultWidth);
     setConfigSettingI(defaultHeight);
     setConfigSetting(standardsMode, boolean);
+    setConfigSetting(useHardwareRenderer, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");

@@ -77,7 +77,8 @@ elseif mode == "hardware" then
     print("Hardware renderer: " .. score)
     term.setTextColor(colors.lightBlue)
     print("It is recommended that you use the " .. (swscore > score and "software" or "hardware") .. " renderer.")
-    print("Press return to exit.")
-    read()
+    write("Would you like to set CraftOS-PC to use this renderer by default? (y/N) ");
+    local answer = read()
+    if answer:sub(1, 1):upper() == "Y" then config.set("useHardwareRenderer", swscore < score) end
     os.shutdown()
 else printError("This script must be used with the BenchmarkRenderers shell/batch script.") end

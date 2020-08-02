@@ -30,6 +30,8 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread (Debugger)").c_str());
 #endif
+    // in case the allocator decides to reuse pointers
+    if (freedComputers.find(comp) != freedComputers.end()) freedComputers.erase(comp);
 #ifdef STANDALONE_ROM
     comp->run(standaloneDebug["bios.lua"].data);
 #else

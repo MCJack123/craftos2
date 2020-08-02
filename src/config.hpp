@@ -50,6 +50,7 @@ struct configuration {
     int defaultWidth;
     int defaultHeight;
     bool standardsMode;
+    bool useHardwareRenderer;
 };
 struct computer_configuration {
     std::string label;

@@ -42,7 +42,7 @@ extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
-int selectedRenderer = 0; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
+int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
 bool benchmark = false;
 std::map<uint8_t, Terminal*> rawClientTerminals;
@@ -420,6 +420,7 @@ int main(int argc, char*argv[]) {
     setupCrashHandler();
     migrateData();
     config_init();
+    if (selectedRenderer == -1) selectedRenderer = config.useHardwareRenderer ? 5 : 0;
     if (rawClient) return runRenderer();
 #ifndef NO_CLI
     if (selectedRenderer == 2) CLITerminal::init();
