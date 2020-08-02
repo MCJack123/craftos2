@@ -716,7 +716,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config.isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 1, y = 1;
-            if (selectedRenderer == 2)
+            if (selectedRenderer >= 2 && selectedRenderer <= 4)
                 x = e.button.x, y = e.button.y;
             else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
@@ -731,7 +731,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config.isColor || computer->isDebugger) && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 1, y = 1;
-            if (selectedRenderer == 2)
+            if (selectedRenderer >= 2 && selectedRenderer <= 4)
                 x = e.button.x, y = e.button.y;
             else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
@@ -759,7 +759,7 @@ const char * termGetEvent(lua_State *L) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.motion.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.motion.windowID, tmpstrval)->term);
             if (term == NULL) return NULL;
             int x = 1, y = 1;
-            if (selectedRenderer == 2)
+            if (selectedRenderer >= 2 && selectedRenderer <= 4)
                 x = e.motion.x, y = e.motion.y;
             else if (term != NULL)
                 x = convertX(term, e.motion.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
@@ -781,7 +781,7 @@ const char * termGetEvent(lua_State *L) {
             return e.motion.state ? "mouse_drag" : "mouse_move";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             unsigned w, h;
-            if (selectedRenderer == 0) {
+            if (selectedRenderer == 0 || selectedRenderer == 5) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
                 if (sdlterm != NULL) {
                     w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;

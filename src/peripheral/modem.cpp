@@ -210,6 +210,7 @@ const char * modem_message(lua_State *message, void* data) {
     }
     d->m->modemMessages.erase((void*)d);
     delete d;
+    lua_pushinteger(message, 0);
     return "modem_message";
 };
 
