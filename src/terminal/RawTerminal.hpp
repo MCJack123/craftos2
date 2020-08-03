@@ -15,7 +15,7 @@
 #include <set>
 
 class RawTerminal: public Terminal {
-	static std::set<unsigned> currentIDs;
+    static std::set<unsigned> currentIDs;
 public:
     static void init();
     static void quit();

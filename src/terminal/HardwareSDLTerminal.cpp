@@ -39,7 +39,7 @@ extern std::string overrideHardwareDriver;
 
 HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
-    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
+    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
     if (ren == nullptr || ren == NULL || ren == (SDL_Renderer*)0) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
@@ -166,10 +166,10 @@ void HardwareSDLTerminal::render() {
                 if (!drawChar((*newscreen)[y][x], x, y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
             }
         }
-		if (newblinkX >= width) newblinkX = width - 1;
-		if (newblinkY >= height) newblinkY = height - 1;
-		if (newblinkX < 0) newblinkX = 0;
-		if (newblinkY < 0) newblinkY = 0;
+        if (newblinkX >= width) newblinkX = width - 1;
+        if (newblinkY >= height) newblinkY = height - 1;
+        if (newblinkX < 0) newblinkX = 0;
+        if (newblinkY < 0) newblinkY = 0;
         if (gotResizeEvent) return;
         if (newblink) if (!drawChar('_', newblinkX, newblinkY, newpalette[0], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
     }
@@ -306,42 +306,42 @@ extern void sendRawEvent(SDL_Event e);
 #endif
 
 bool HardwareSDLTerminal::pollEvents() {
-	SDL_Event e;
-	std::string tmps;
+    SDL_Event e;
+    std::string tmps;
 #ifdef __EMSCRIPTEN__
-	if (SDL_PollEvent(&e)) {
+    if (SDL_PollEvent(&e)) {
 #else
-	if (SDL_WaitEvent(&e)) {
+    if (SDL_WaitEvent(&e)) {
 #endif
-		if (e.type == task_event_type) {
-			while (taskQueue->size() > 0) {
-				auto v = taskQueue->front();
-				void* retval = std::get<1>(v)(std::get<2>(v));
-				if (!std::get<3>(v)) {
+        if (e.type == task_event_type) {
+            while (taskQueue->size() > 0) {
+                auto v = taskQueue->front();
+                void* retval = std::get<1>(v)(std::get<2>(v));
+                if (!std::get<3>(v)) {
                     LockGuard lock2(taskQueueReturns);
                     (*taskQueueReturns)[std::get<0>(v)] = retval;
                 }
-				taskQueue->pop();
-			}
-		} else if (e.type == render_event_type) {
+                taskQueue->pop();
+            }
+        } else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
-			HardwareSDLTerminal* term = dynamic_cast<HardwareSDLTerminal*>(*HardwareSDLTerminal::renderTarget);
+            HardwareSDLTerminal* term = dynamic_cast<HardwareSDLTerminal*>(*HardwareSDLTerminal::renderTarget);
             if (term != NULL) {
                 std::lock_guard<std::mutex> lock(term->renderlock);
                 SDL_RenderPresent(sdlterm->ren);
                 SDL_UpdateWindowSurface(sdlterm->win);
             }
 #else
-			for (Terminal* term : Terminal::renderTargets) {
-				HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
-				if (sdlterm != NULL) {
-					std::lock_guard<std::mutex> lock(sdlterm->renderlock);
-					SDL_RenderPresent(sdlterm->ren);
+            for (Terminal* term : Terminal::renderTargets) {
+                HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
+                if (sdlterm != NULL) {
+                    std::lock_guard<std::mutex> lock(sdlterm->renderlock);
+                    SDL_RenderPresent(sdlterm->ren);
                     SDL_UpdateWindowSurface(sdlterm->win);
-				}
-			}
+                }
+            }
 #endif
-		} else {
+        } else {
             if (rawClient) {
                 sendRawEvent(e);
             } else {
@@ -359,8 +359,8 @@ bool HardwareSDLTerminal::pollEvents() {
                     }
                 }
             }
-			if (e.type == SDL_QUIT) return true;
-		}
-	}
-	return false;
+            if (e.type == SDL_QUIT) return true;
+        }
+    }
+    return false;
 }

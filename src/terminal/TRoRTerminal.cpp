@@ -128,7 +128,7 @@ void trorInputLoop() {
 void TRoRTerminal::init() {
     SDL_Init(SDL_INIT_TIMER);
     renderThread = new std::thread(termRenderLoop);
-	inputThread = new std::thread(trorInputLoop);
+    inputThread = new std::thread(trorInputLoop);
     setThreadName(*renderThread, "Render Thread");
     printf("SP:;-ccpcTerm-\n");
 }
@@ -138,7 +138,7 @@ void TRoRTerminal::quit() {
     renderThread->join();
     delete renderThread;
     inputThread->join();
-	delete inputThread;
+    delete inputThread;
     SDL_Quit();
 }
 
@@ -149,7 +149,7 @@ void TRoRTerminal::showGlobalMessage(Uint32 flags, const char * title, const cha
 
 TRoRTerminal::TRoRTerminal(std::string title): Terminal(config.defaultWidth, config.defaultHeight) {
     this->title = title;
-	for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) 
+    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) 
         ;
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TN:%d;%s\n", id, title.c_str());
     renderTargets.push_back(this);
@@ -158,7 +158,7 @@ TRoRTerminal::TRoRTerminal(std::string title): Terminal(config.defaultWidth, con
 TRoRTerminal::~TRoRTerminal() {
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TQ:%d;\n", id);
     auto pos = currentIDs.find(id);
-	if (pos != currentIDs.end()) currentIDs.erase(pos);
+    if (pos != currentIDs.end()) currentIDs.erase(pos);
     Terminal::renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {

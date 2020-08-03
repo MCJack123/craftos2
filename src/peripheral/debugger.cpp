@@ -209,14 +209,14 @@ int debugger_lib_run(lua_State *L) {
     luaL_loadstring(dbg->thread, lua_tostring(L, 1)); // ..., func
     luaL_loadstring(dbg->thread, "return setmetatable({_echo = function(...) return ... end, getfenv = getfenv, locals = ..., _ENV = getfenv(2)}, {__index = getfenv(2)})"); // ..., func, getenv
     //lua_newtable(dbg->thread); // ..., func, getenv, table
-	if (lua_getstack(dbg->thread, 1, &ar)) { // ..., func, getenv, table
-		lua_getinfo(L, "S", &ar);
-		if (ar.what != NULL && (std::string(ar.what) == "Lua" || std::string(ar.what) == "main")) {
-			lua_pushcfunction(dbg->thread, debugger_lib_getLocals);
-			lua_call(dbg->thread, 0, 1);
+    if (lua_getstack(dbg->thread, 1, &ar)) { // ..., func, getenv, table
+        lua_getinfo(L, "S", &ar);
+        if (ar.what != NULL && (std::string(ar.what) == "Lua" || std::string(ar.what) == "main")) {
+            lua_pushcfunction(dbg->thread, debugger_lib_getLocals);
+            lua_call(dbg->thread, 0, 1);
             assert(!lua_isnil(L, -1));
-		} else lua_pushnil(dbg->thread);
-	} else lua_pushnil(dbg->thread);
+        } else lua_pushnil(dbg->thread);
+    } else lua_pushnil(dbg->thread);
     lua_call(dbg->thread, 1, 1); // ..., func, env
     lua_setfenv(dbg->thread, -2); // ..., func
     lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0)); // ..., results...
@@ -294,45 +294,45 @@ int debugger_lib_getReason(lua_State *L) {
 }
 
 int debugger_lib_local_index(lua_State *L) {
-	if (lua_istable(L, 1)) lua_remove(L, 1);
-	lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
-	debugger * dbg = (debugger*)lua_touserdata(L, -1);
-	lua_State *thread = (dbg == NULL) ? L : dbg->thread;
-	lua_Debug ar;
-	if (lua_isnumber(L, 1)) {
-		if (!lua_getstack(thread, lua_tointeger(L, 1), &ar)) { lua_pushnil(L); return 1; }
-		const char * name;
-		lua_newtable(L);
-		for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
-			if (std::string(name) == "(*temporary)") {
-				lua_pop(thread, 1);
-				continue;
-			}
-			lua_pushstring(L, name);
-			lua_xmove(thread, L, 1);
-			lua_settable(L, -3);
-		}
-		return 1;
-	} else if (lua_isstring(L, 1)) {
-		const char * name, *search = lua_tostring(L, 1);
-		for (int i = 0; lua_getstack(thread, i, &ar); i++) {
-			for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
-				if (strcmp(search, name) == 0) return 1;
-				else lua_pop(L, 1);
-			}
-		}
-		lua_pushnil(L);
-		return 1;
-	} else {
-		lua_pushnil(L);
-		return 1;
-	}
+    if (lua_istable(L, 1)) lua_remove(L, 1);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_Debug ar;
+    if (lua_isnumber(L, 1)) {
+        if (!lua_getstack(thread, lua_tointeger(L, 1), &ar)) { lua_pushnil(L); return 1; }
+        const char * name;
+        lua_newtable(L);
+        for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
+            if (std::string(name) == "(*temporary)") {
+                lua_pop(thread, 1);
+                continue;
+            }
+            lua_pushstring(L, name);
+            lua_xmove(thread, L, 1);
+            lua_settable(L, -3);
+        }
+        return 1;
+    } else if (lua_isstring(L, 1)) {
+        const char * name, *search = lua_tostring(L, 1);
+        for (int i = 0; lua_getstack(thread, i, &ar); i++) {
+            for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
+                if (strcmp(search, name) == 0) return 1;
+                else lua_pop(L, 1);
+            }
+        }
+        lua_pushnil(L);
+        return 1;
+    } else {
+        lua_pushnil(L);
+        return 1;
+    }
 }
 
 int debugger_lib_getLocals(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-	lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
     lua_Debug ar;
     lua_getstack(thread, 2, &ar);
     lua_newtable(L);
@@ -343,14 +343,14 @@ int debugger_lib_getLocals(lua_State *L) {
             continue;
         }
         lua_pushstring(L, name);
-		if (thread != L) lua_xmove(thread, L, 1);
-		else { lua_pushvalue(L, -2); lua_remove(L, -3); }
+        if (thread != L) lua_xmove(thread, L, 1);
+        else { lua_pushvalue(L, -2); lua_remove(L, -3); }
         lua_settable(L, -3);
     }
-	lua_newtable(L);
-	lua_pushcfunction(L, debugger_lib_local_index);
-	lua_setfield(L, -2, "__index");
-	lua_setmetatable(L, -2);
+    lua_newtable(L);
+    lua_pushcfunction(L, debugger_lib_local_index);
+    lua_setfield(L, -2, "__index");
+    lua_setmetatable(L, -2);
     return 1;
 }
 

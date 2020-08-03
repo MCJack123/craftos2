@@ -138,11 +138,11 @@ Computer::~Computer() {
         }
         if (c == referencers.end()) break;
     }
-	// Mark all currently running timers as invalid
-	{
-		LockGuard lock(freedTimers);
-		for (SDL_TimerID t : timerIDs) freedTimers->insert(t);
-	}
+    // Mark all currently running timers as invalid
+    {
+        LockGuard lock(freedTimers);
+        for (SDL_TimerID t : timerIDs) freedTimers->insert(t);
+    }
     // Cancel the mouse_move debounce timer if active
     if (mouseMoveDebounceTimer != 0) SDL_RemoveTimer(mouseMoveDebounceTimer);
     if (eventTimeout != 0) SDL_RemoveTimer(eventTimeout);

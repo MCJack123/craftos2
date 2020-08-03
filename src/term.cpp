@@ -444,7 +444,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
                 if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
                     noDebuggerBreak(L, computer, ar);
-					break;
+                    break;
                 }
             }
         } else if (computer->debugger != NULL && !computer->isDebugger) {
@@ -455,12 +455,12 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     else dbg->stepCount--;
                 } else if (computer->breakpoints.size() > 0) {
                     lua_getinfo(L, "Sl", ar);
-					for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
-						if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
-							if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
-							break;
-						}
-					}
+                    for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
+                        if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
+                            if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
+                            break;
+                        }
+                    }
                 }
             }
         }

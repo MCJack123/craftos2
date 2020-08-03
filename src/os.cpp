@@ -98,10 +98,10 @@ void mainLoop() {
 #ifndef __EMSCRIPTEN__
     while (rawClient ? !exiting : computers.size() > 0) {
 #endif
-		//bool res = false; // I forgot what this is for
-		if (selectedRenderer == 0) /*res =*/ SDLTerminal::pollEvents();
+        //bool res = false; // I forgot what this is for
+        if (selectedRenderer == 0) /*res =*/ SDLTerminal::pollEvents();
 #ifndef NO_CLI
-		else if (selectedRenderer == 2) /*res =*/ CLITerminal::pollEvents();
+        else if (selectedRenderer == 2) /*res =*/ CLITerminal::pollEvents();
 #endif
         else if (selectedRenderer == 5) HardwareSDLTerminal::pollEvents();
         else {
@@ -121,7 +121,7 @@ void mainLoop() {
 
         std::this_thread::yield();
 #ifdef __EMSCRIPTEN__
-		if (!rawClient && computers.size() == 0) exiting = true;
+        if (!rawClient && computers.size() == 0) exiting = true;
 #else
     }
     exiting = true;
@@ -160,7 +160,7 @@ int getNextEvent(lua_State *L, std::string filter) {
                 param = lua_newthread(computer->paramQueue);
             }
         }
-		if (computer->running != 1) return 0;
+        if (computer->running != 1) return 0;
         while (computer->eventQueue.size() == 0) {
             if (computer->alarms.size() == 0) {
                 std::mutex m;
@@ -265,17 +265,17 @@ int os_clock(lua_State *L) {
 }
 
 struct timer_data_t {
-	Computer * comp;
-	SDL_TimerID timer;
+    Computer * comp;
+    SDL_TimerID timer;
     std::mutex * lock;
 };
 
 template<typename T>
 class PointerProtector {
-	T* ptr;
+    T* ptr;
 public:
-	PointerProtector(T* p) : ptr(p) {}
-	~PointerProtector() { delete ptr; }
+    PointerProtector(T* p) : ptr(p) {}
+    ~PointerProtector() { delete ptr; }
 };
 
 ProtectedObject<std::unordered_map<SDL_TimerID, struct timer_data_t*> > runningTimerData;
@@ -295,7 +295,7 @@ const char * timer_event(lua_State *L, void* param) {
 }
 
 Uint32 notifyEvent(Uint32 interval, void* param) {
-	struct timer_data_t * data = (struct timer_data_t*)param;
+    struct timer_data_t * data = (struct timer_data_t*)param;
     bool found = false;
     for (auto i : *runningTimerData) if (i.second == param) {found = true; break;}
     if (!found) return 0;
@@ -307,18 +307,18 @@ Uint32 notifyEvent(Uint32 interval, void* param) {
         delete data;
         return 0;
     }
-	{
-		LockGuard lock(freedTimers);
-		if (freedTimers->find(data->timer) != freedTimers->end()) { 
-			freedTimers->erase(data->timer);
+    {
+        LockGuard lock(freedTimers);
+        if (freedTimers->find(data->timer) != freedTimers->end()) { 
+            freedTimers->erase(data->timer);
             runningTimerData->erase(data->timer);
             data->lock->unlock();
             delete data->lock;
             delete data;
-			return 0;
-		}
-	}
-	if (data->comp->timerIDs.find(data->timer) != data->comp->timerIDs.end()) data->comp->timerIDs.erase(data->timer);
+            return 0;
+        }
+    }
+    if (data->comp->timerIDs.find(data->timer) != data->comp->timerIDs.end()) data->comp->timerIDs.erase(data->timer);
     data->comp->event_lock.notify_all();
     data->lock->unlock();
     termQueueProvider(data->comp, timer_event, data);
@@ -335,8 +335,8 @@ int os_startTimer(lua_State *L) {
         lua_pushinteger(L, *id);
         return 1;
     }
-	struct timer_data_t * data = new struct timer_data_t;
-	data->comp = computer;
+    struct timer_data_t * data = new struct timer_data_t;
+    data->comp = computer;
     data->lock = new std::mutex;
     queueTask([L](void*a)->void*{
         struct timer_data_t * data = (struct timer_data_t*)a;
@@ -347,7 +347,7 @@ int os_startTimer(lua_State *L) {
     }, data);
     runningTimerData->insert(std::make_pair(data->timer, data));
     lua_pushinteger(L, data->timer);
-	computer->timerIDs.insert(data->timer);
+    computer->timerIDs.insert(data->timer);
     return 1;
 }
 

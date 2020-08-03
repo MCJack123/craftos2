@@ -102,6 +102,9 @@ void config_init() {
         false,
         51,
         19,
+        false,
+        false,
+        "",
         false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
@@ -155,6 +158,7 @@ void config_init() {
     readConfigSetting(standardsMode, Bool);
     readConfigSetting(useHardwareRenderer, Bool);
     readConfigSetting(preferredHardwareDriver, String);
+    readConfigSetting(useVsync, Bool);
     if (config.standardsMode) config.abortTimeout = 7000;
 }
 
@@ -195,6 +199,7 @@ void config_save() {
     root["standardsMode"] = config.standardsMode;
     root["useHardwareRenderer"] = config.useHardwareRenderer;
     root["preferredHardwareDriver"] = config.preferredHardwareDriver;
+    root["useVsync"] = config.useVsync;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -248,6 +253,7 @@ int config_get(lua_State *L) {
     getConfigSetting(useHardwareRenderer, boolean);
     else if (strcmp(name, "preferredHardwareDriver") == 0)
         lua_pushstring(L, config.preferredHardwareDriver.c_str());
+    getConfigSetting(useVsync, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -290,7 +296,8 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"isColor", {0, 0}},
     {"startFullscreen", {2, 0}},
     {"useHardwareRenderer", {2, 0}},
-    {"preferredHardwareDriver", {2, 2}}
+    {"preferredHardwareDriver", {2, 2}},
+    {"useVsync", {2, 0}}
 };
 
 const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
@@ -378,6 +385,7 @@ int config_set(lua_State *L) {
     setConfigSetting(useHardwareRenderer, boolean);
     else if (strcmp(name, "preferredHardwareDriver") == 0)
         config.preferredHardwareDriver = std::string(luaL_checkstring(L, 2), lua_strlen(L, 2));
+    setConfigSetting(useVsync, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");

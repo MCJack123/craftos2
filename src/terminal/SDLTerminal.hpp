@@ -48,7 +48,7 @@ public:
 
     static void init();
     static void quit();
-	static bool pollEvents();
+    static bool pollEvents();
     SDLTerminal(std::string title);
     ~SDLTerminal() override;
     void setPalette(Color * p);

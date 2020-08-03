@@ -16,7 +16,7 @@ class HardwareSDLTerminal : public SDLTerminal {
 public:
     static void init();
     static void quit();
-	static bool pollEvents();
+    static bool pollEvents();
     HardwareSDLTerminal(std::string title);
     ~HardwareSDLTerminal() override;
     bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);

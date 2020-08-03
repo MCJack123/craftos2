@@ -581,10 +581,10 @@ extern void sendRawEvent(SDL_Event e);
 #endif
 
 bool SDLTerminal::pollEvents() {
-	SDL_Event e;
-	std::string tmps;
+    SDL_Event e;
+    std::string tmps;
 #ifdef __EMSCRIPTEN__
-	if (SDL_PollEvent(&e)) {
+    if (SDL_PollEvent(&e)) {
 #else
     if (SDL_WaitEvent(&e)) {
 #endif
@@ -611,20 +611,20 @@ bool SDLTerminal::pollEvents() {
                 }
             }
 #else
-			for (Terminal* term : Terminal::renderTargets) {
-				SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
-				if (sdlterm != NULL) {
-					std::lock_guard<std::mutex> lock(sdlterm->renderlock);
-					if (sdlterm->surf != NULL) {
-						SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
-						SDL_UpdateWindowSurface(sdlterm->win);
+            for (Terminal* term : Terminal::renderTargets) {
+                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+                if (sdlterm != NULL) {
+                    std::lock_guard<std::mutex> lock(sdlterm->renderlock);
+                    if (sdlterm->surf != NULL) {
+                        SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
+                        SDL_UpdateWindowSurface(sdlterm->win);
                         SDL_FreeSurface(sdlterm->surf);
-						sdlterm->surf = NULL;
-					}
-				}
-			}
+                        sdlterm->surf = NULL;
+                    }
+                }
+            }
 #endif
-		} else {
+        } else {
             if (rawClient) {
                 sendRawEvent(e);
             } else {
@@ -643,8 +643,8 @@ bool SDLTerminal::pollEvents() {
                     }
                 }
             }
-			if (e.type == SDL_QUIT) return true;
-		}
-	}
-	return false;
+            if (e.type == SDL_QUIT) return true;
+        }
+    }
+    return false;
 }

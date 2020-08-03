@@ -54,6 +54,7 @@ struct configuration {
     bool standardsMode;
     bool useHardwareRenderer;
     std::string preferredHardwareDriver;
+    bool useVsync;
 };
 struct computer_configuration {
     std::string label;

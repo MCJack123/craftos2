@@ -738,7 +738,7 @@ bool GifBegin( GifWriter* writer, const char* filename, uint32_t width, uint32_t
 {
     (void)bitDepth; (void)dither; // Mute "Unused argument" warnings
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
-	writer->f = 0;
+    writer->f = 0;
     fopen_s(&writer->f, filename, "wb");
 #else
     writer->f = fopen(filename, "wb");
