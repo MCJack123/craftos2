@@ -120,10 +120,6 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     this->title = title;
 #ifdef __EMSCRIPTEN__
     dpiScale = emscripten_get_device_pixel_ratio();
-#else
-    float dpi, defaultDpi;
-    MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
-    dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
 #endif
     if (config.customFontPath == "hdfont") {
         fontScale = 1;
@@ -143,8 +139,6 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     }
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
     if (win == NULL)
-#else
-    dpiScale = 1;
 #endif
     win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale), height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale), SDL_WINDOW_SHOWN | 
 #if !(defined(__EMSCRIPTEN__) && defined(NO_EMSCRIPTEN_HIDPI))

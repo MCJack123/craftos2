@@ -1,5 +1,6 @@
 local function runTests()
     -- Test characters
+    term.redirect(term.native())
     local w, h = term.getSize()
     local canBenchmark = term.benchmark ~= nil
     local count = 0
@@ -77,7 +78,9 @@ elseif mode == "hardware" then
     print("Hardware renderer: " .. score)
     term.setTextColor(colors.lightBlue)
     print("It is recommended that you use the " .. (swscore > score and "software" or "hardware") .. " renderer.")
-    write("Would you like to set CraftOS-PC to use this renderer by default? (y/N) ");
+    term.setTextColor(colors.yellow)
+    write("Would you like to set CraftOS-PC to use this renderer by default? (y/N) ")
+    term.setTextColor(colors.white)
     local answer = read()
     if answer:sub(1, 1):upper() == "Y" then config.set("useHardwareRenderer", swscore < score) end
     os.shutdown()

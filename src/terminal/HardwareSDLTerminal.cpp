@@ -39,6 +39,9 @@ extern std::string overrideHardwareDriver;
 
 HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
+    float dpi, defaultDpi;
+    MySDL_GetDisplayDPI(0, &dpi, &defaultDpi);
+    dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
     if (ren == nullptr || ren == NULL || ren == (SDL_Renderer*)0) {
         SDL_DestroyWindow(win);
@@ -49,6 +52,7 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
     if ((!overrideHardwareDriver.empty() && std::string(info.name) != overrideHardwareDriver) || 
         (overrideHardwareDriver.empty() && !config.preferredHardwareDriver.empty() && std::string(info.name) != config.preferredHardwareDriver))
         printf("Warning: Preferred driver %s not available, using %s instead.\n", (overrideHardwareDriver.empty() ? config.preferredHardwareDriver.c_str() : overrideHardwareDriver.c_str()), info.name);
+    if (std::string(info.name) == "software") dpiScale = 1;
     font = SDL_CreateTextureFromSurface(ren, bmp);
     if (font == nullptr || font == NULL || font == (SDL_Texture*)0) {
         SDL_DestroyRenderer(ren);
@@ -153,19 +157,19 @@ void HardwareSDLTerminal::render() {
     }
     SDL_Rect rect;
     if (newmode != 0) {
-        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, width * charWidth, height * charHeight, 24, SDL_PIXELFORMAT_RGB888);
-        for (int y = 0; y < height * charHeight; y+=(2/fontScale)*charScale) {
-            for (int x = 0; x < width * charWidth; x+=(2/fontScale)*charScale) {
-                unsigned char c = (*newpixels)[y / (2/fontScale) / charScale][x / (2/fontScale) / charScale];
+        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, width * charWidth * dpiScale, height * charHeight * dpiScale, 24, SDL_PIXELFORMAT_RGB888);
+        for (int y = 0; y < height * charHeight * dpiScale; y+=(2/fontScale)*charScale*dpiScale) {
+            for (int x = 0; x < width * charWidth * dpiScale; x+=(2/fontScale)*charScale*dpiScale) {
+                unsigned char c = (*newpixels)[y / (2/fontScale) / charScale / dpiScale][x / (2/fontScale) / charScale / dpiScale];
                 /*if (SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF) != 0) return;
                 if (SDL_RenderFillRect(ren, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2 / fontScale) * charScale, (2 / fontScale) * charScale)) != 0) return;*/
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, x, y, (2 / fontScale) * charScale, (2 / fontScale) * charScale), rgb(newpalette[(int)c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, x, y, (2 / fontScale) * charScale * dpiScale, (2 / fontScale) * charScale * dpiScale), rgb(newpalette[(int)c])) != 0) return;
             }
         }
         pixtex = SDL_CreateTextureFromSurface(ren, surf);
         SDL_FreeSurface(surf);
-        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (2 * (2 / fontScale) * charScale), (2 * (2 / fontScale) * charScale), width * charWidth, height * charHeight));
+        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (2 * (2 / fontScale) * charScale * dpiScale), (2 * (2 / fontScale) * charScale * dpiScale), width * charWidth * dpiScale, height * charHeight * dpiScale));
     } else {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -261,7 +265,7 @@ extern void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int 
 
 bool HardwareSDLTerminal::resize(int w, int h) {
     SDL_DestroyRenderer(ren);
-    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);}, win);
     font = SDL_CreateTextureFromSurface(ren, bmp);
     newWidth = w;
     newHeight = h;
