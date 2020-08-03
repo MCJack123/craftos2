@@ -26,6 +26,7 @@
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
+#include "terminal/HardwareSDLTerminal.hpp"
 #include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
@@ -36,8 +37,10 @@
 
 extern std::string asciify(std::string);
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
+extern int term_benchmark(lua_State *L);
 extern int selectedRenderer;
 extern bool forceCheckTimeout;
+extern bool benchmark;
 extern std::string script_args;
 extern std::string script_file;
 std::vector<Computer*> computers;
@@ -107,6 +110,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif
     else if (selectedRenderer == 3) term = new RawTerminal(term_title);
     else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
+    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
     else term = new SDLTerminal(term_title);
 }
 
@@ -134,11 +138,11 @@ Computer::~Computer() {
         }
         if (c == referencers.end()) break;
     }
-	// Mark all currently running timers as invalid
-	{
-		LockGuard lock(freedTimers);
-		for (SDL_TimerID t : timerIDs) freedTimers->insert(t);
-	}
+    // Mark all currently running timers as invalid
+    {
+        LockGuard lock(freedTimers);
+        for (SDL_TimerID t : timerIDs) freedTimers->insert(t);
+    }
     // Cancel the mouse_move debounce timer if active
     if (mouseMoveDebounceTimer != 0) SDL_RemoveTimer(mouseMoveDebounceTimer);
     if (eventTimeout != 0) SDL_RemoveTimer(eventTimeout);
@@ -361,7 +365,6 @@ void Computer::run(std::string bios_name) {
         for (auto p : peripherals) p.second->reinitialize(L);
 
         // Push reference to this to the registry
-        //lua_pushlightuserdata(L, &computer_key);
         lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, this);
         lua_settable(L, LUA_REGISTRYINDEX);
@@ -412,7 +415,7 @@ void Computer::run(std::string bios_name) {
                     loadPlugin(plugin_path + "/" + dir->d_name);
                 }
                 closedir(d);
-            } //else printf("Could not open plugins from %s\n", plugin_path.c_str());
+            }
             for (std::string path : customPlugins) loadPlugin(path);
         }
 #endif
@@ -512,6 +515,12 @@ void Computer::run(std::string bios_name) {
             lua_pushlstring(L, script_args.c_str(), script_args.length());
             lua_setglobal(L, "_CCPC_STARTUP_ARGS");
         }
+        if (benchmark) {
+            lua_getglobal(L, "term");
+            lua_pushcfunction(L, term_benchmark);
+            lua_setfield(L, -2, "benchmark");
+            lua_pop(L, 1);
+        }
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
@@ -593,6 +602,9 @@ void* computerThread(void* data) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
 #endif
+    // in case the allocator decides to reuse pointers
+    if (freedComputers.find(comp) != freedComputers.end())
+        freedComputers.erase(comp);
 #ifdef STANDALONE_ROM
     comp->run(standaloneBIOS);
 #else
@@ -609,7 +621,7 @@ void* computerThread(void* data) {
             }
         }
     }
-    if (selectedRenderer != 0 && selectedRenderer != 2 && !exiting) {
+    if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
         {LockGuard lock(taskQueue);}
         while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         taskQueueReady = true;

@@ -18,6 +18,7 @@
 #include "terminal/RawTerminal.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
+#include "terminal/HardwareSDLTerminal.hpp"
 #include <functional>
 #include <thread>
 #include <iomanip>
@@ -41,8 +42,10 @@ extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
-int selectedRenderer = 0; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
+int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
+bool benchmark = false;
+std::string overrideHardwareDriver;
 std::map<uint8_t, Terminal*> rawClientTerminals;
 std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 std::string script_file;
@@ -283,11 +286,12 @@ int main(int argc, char*argv[]) {
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
         if (arg == "--headless") selectedRenderer = 1;
-        else if (arg == "--gui" || arg == "--sdl") selectedRenderer = 0;
+        else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
         else if (arg == "--cli" || arg == "-c") selectedRenderer = 2;
         else if (arg == "--raw") selectedRenderer = 3;
         else if (arg == "--raw-client") rawClient = true;
         else if (arg == "--tror") selectedRenderer = 4;
+        else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
@@ -307,7 +311,8 @@ int main(int argc, char*argv[]) {
         else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "/assets/computercraft/lua").c_str());
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
 #endif
-        else if (arg == "-i" || arg == "--id") {manualID = true; id = std::stoi(argv[++i]);}
+        else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
+        else if (arg == "--addBenchmarkFunction") benchmark = true;
         else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
             std::string mount_path = argv[++i];
             if (mount_path.find('=') == std::string::npos) {
@@ -317,15 +322,20 @@ int main(int argc, char*argv[]) {
             Computer::customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
         } else if (arg == "--renderer" || arg == "-r") {
             if (++i == argc) {
-                std::cout << "Available renderering methods:\n SDL\n Headless\n "
+                std::cout << "Available renderering methods:\n sdl\n headless\n "
 #ifndef NO_CLI
                 << "ncurses\n "
 #endif
-                << "Raw\n TRoR\n";
+                << "raw\n tror\n hardware-sdl\n";
+                for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
+                    SDL_RendererInfo rendererInfo;
+                    SDL_GetRenderDriverInfo(i, &rendererInfo);
+                    printf(" %s\n", rendererInfo.name);
+                }
                 return 0;
             } else {
                 arg = std::string(argv[i]);
-                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c);});
+                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c); });
                 if (arg == "sdl" || arg == "awt") selectedRenderer = 0;
                 else if (arg == "headless") selectedRenderer = 1;
 #ifndef NO_CLI
@@ -333,7 +343,11 @@ int main(int argc, char*argv[]) {
 #endif
                 else if (arg == "raw") selectedRenderer = 3;
                 else if (arg == "tror") selectedRenderer = 4;
-                else {
+                else if (arg == "hardware-sdl" || arg == "jfx") selectedRenderer = 5;
+                else if (arg == "direct3d" || arg == "direct3d11" || arg == "directfb" || arg == "metal" || arg == "opengl" || arg == "opengles" || arg == "opengles2" || arg == "software") {
+                    selectedRenderer = 5;
+                    overrideHardwareDriver = arg;
+                } else {
                     std::cerr << "Unknown renderer type " << arg << "\n";
                     return 1;
                 }
@@ -389,7 +403,8 @@ int main(int argc, char*argv[]) {
                       << "  --headless                       Outputs only text straight to stdout\n"
                       << "  --raw                            Outputs terminal contents using a binary format\n"
                       << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
-                      << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n\n"
+                      << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n"
+                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n\n"
                       << "CCEmuX compatibility options:\n"
                       << "  -a|--assets-dir <dir>            Sets the CC:T directory that holds the ROM & BIOS\n"
                       << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"
@@ -415,6 +430,7 @@ int main(int argc, char*argv[]) {
     setupCrashHandler();
     migrateData();
     config_init();
+    if (selectedRenderer == -1) selectedRenderer = config.useHardwareRenderer ? 5 : 0;
     if (rawClient) return runRenderer();
 #ifndef NO_CLI
     if (selectedRenderer == 2) CLITerminal::init();
@@ -423,13 +439,14 @@ int main(int argc, char*argv[]) {
     if (selectedRenderer == 3) RawTerminal::init();
     else if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 4) TRoRTerminal::init();
+    else if (selectedRenderer == 5) HardwareSDLTerminal::init();
     else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
     driveInit();
 #ifndef NO_MIXER
     speakerInit();
 #endif
 #if !defined(__EMSCRIPTEN__) && !defined(STANDALONE_ROM)
-    if (!CRAFTOSPC_INDEV && selectedRenderer == 0 && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
+    if (!CRAFTOSPC_INDEV && (selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
     startComputer(manualID ? id : config.initialComputer);
@@ -457,6 +474,7 @@ int main(int argc, char*argv[]) {
     if (selectedRenderer == 3) RawTerminal::quit();
     else if (selectedRenderer == 0) SDLTerminal::quit();
     else if (selectedRenderer == 4) TRoRTerminal::quit();
+    else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
     return returnValue;
 }

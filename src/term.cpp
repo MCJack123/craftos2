@@ -432,7 +432,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     return NULL;
                 }, NULL) != NULL) longjmp(computer->on_panic, 0);
             }
-            //computer->last_event = std::chrono::high_resolution_clock::now();
             luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
             lua_concat(L, 2);
@@ -445,7 +444,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
                 if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
                     noDebuggerBreak(L, computer, ar);
-					break;
+                    break;
                 }
             }
         } else if (computer->debugger != NULL && !computer->isDebugger) {
@@ -456,12 +455,12 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     else dbg->stepCount--;
                 } else if (computer->breakpoints.size() > 0) {
                     lua_getinfo(L, "Sl", ar);
-					for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
-						if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
-							if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
-							break;
-						}
-					}
+                    for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
+                        if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
+                            if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -496,7 +495,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
                 else {
                     if (dbg->profile[ar->source][ar->name].running) {
-                        //printf("Function %s:%s skipped return for %d ms\n", ar->source, ar->name, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start).count());
                         dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
                         dbg->profile[ar->source][ar->name].running = false;
                     }
@@ -563,15 +561,16 @@ void termRenderLoop() {
             }
             pushEvent = pushEvent || term->changed;
             term->render();
+            term->framecount++;
         }
         Terminal::renderTargetsLock.unlock();
         if (pushEvent) {
             SDL_Event ev;
             ev.type = render_event_type;
             SDL_PushEvent(&ev);
-            long long count = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-            //printf("Render took %lld ms (%lld fps)\n", count, count == 0 ? 1000 : 1000 / count);
-            long t = (1000/config.clockSpeed) - count;
+            long long count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+            //printf("Render thread took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
+            long t = (1000/config.clockSpeed) - count / 1000;
             if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
         } else {
             int time = 1000/config.clockSpeed;
@@ -654,27 +653,27 @@ const char * termGetEvent(lua_State *L) {
     if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) 
             return "die";
-        else if (e.type == SDL_KEYDOWN && (selectedRenderer != 0 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
+        else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
-            else if ((selectedRenderer == 0 ? e.key.keysym.scancode == SDL_SCANCODE_T : e.key.keysym.scancode == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
+            else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.scancode == SDL_SCANCODE_T : e.key.keysym.scancode == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 1) {
                     computer->waitingForTerminate |= 2;
                     computer->waitingForTerminate &= ~1;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 3) == 0) computer->waitingForTerminate |= 1;
-            } else if ((selectedRenderer == 0 ? e.key.keysym.scancode == SDL_SCANCODE_S : e.key.keysym.scancode == 31) && (e.key.keysym.mod & KMOD_CTRL)) {
+            } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.scancode == SDL_SCANCODE_S : e.key.keysym.scancode == 31) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 4) {
                     computer->waitingForTerminate |= 8;
                     computer->waitingForTerminate &= ~4;
                     computer->running = 0;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 12) == 0) computer->waitingForTerminate |= 4;
-            } else if ((selectedRenderer == 0 ? e.key.keysym.scancode == SDL_SCANCODE_R : e.key.keysym.scancode == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
+            } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.scancode == SDL_SCANCODE_R : e.key.keysym.scancode == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 16) {
                     computer->waitingForTerminate |= 32;
                     computer->waitingForTerminate &= ~16;
@@ -695,14 +694,14 @@ const char * termGetEvent(lua_State *L) {
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
-            if (selectedRenderer != 0) lua_pushinteger(L, e.key.keysym.scancode); 
+            if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.scancode); 
             else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
             lua_pushboolean(L, e.key.repeat);
             return "key";
         } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
             if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
-                if (selectedRenderer != 0) lua_pushinteger(L, e.key.keysym.scancode); 
+                if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.scancode); 
                 else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
                 return "key_up";
             }
@@ -715,7 +714,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config.isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 1, y = 1;
-            if (selectedRenderer == 2)
+            if (selectedRenderer >= 2 && selectedRenderer <= 4)
                 x = e.button.x, y = e.button.y;
             else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
@@ -730,7 +729,7 @@ const char * termGetEvent(lua_State *L) {
         } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config.isColor || computer->isDebugger) && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 1, y = 1;
-            if (selectedRenderer == 2)
+            if (selectedRenderer >= 2 && selectedRenderer <= 4)
                 x = e.button.x, y = e.button.y;
             else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
@@ -756,11 +755,12 @@ const char * termGetEvent(lua_State *L) {
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && (config.mouse_move_throttle >= 0 || e.motion.state) && (computer->config.isColor || computer->isDebugger) && (e.motion.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.motion.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.motion.windowID, tmpstrval)->term);
+            if (term == NULL) return NULL;
             int x = 1, y = 1;
-            if (selectedRenderer == 2)
+            if (selectedRenderer >= 2 && selectedRenderer <= 4)
                 x = e.motion.x, y = e.motion.y;
-            else if (dynamic_cast<SDLTerminal*>(term) != NULL) 
-                x = convertX(dynamic_cast<SDLTerminal*>(term), e.motion.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
+            else if (term != NULL)
+                x = convertX(term, e.motion.x), y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
             if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == buttonConvert2(e.motion.state) && computer->lastMouse.event == 2) return NULL;
             computer->lastMouse = {x, y, (uint8_t)buttonConvert2(e.motion.state), 2};
             if (!e.motion.state) {
@@ -779,7 +779,7 @@ const char * termGetEvent(lua_State *L) {
             return e.motion.state ? "mouse_drag" : "mouse_move";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             unsigned w, h;
-            if (selectedRenderer == 0) {
+            if (selectedRenderer == 0 || selectedRenderer == 5) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
                 if (sdlterm != NULL) {
                     w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
@@ -1156,7 +1156,6 @@ int term_setPixel(lua_State *L) {
     if (term->mode == 1) term->pixels[y][x] = log2i(lua_tointeger(L, 3));
     else if (term->mode == 2) term->pixels[y][x] = lua_tointeger(L, 3);
     term->changed = true;
-    //printf("Wrote pixel %ld = %d\n", lua_tointeger(L, 3), term->pixels[y][x]);
     return 0;
 }
 
@@ -1211,7 +1210,7 @@ int term_drawPixels(lua_State *L) {
 }
 
 int term_screenshot(lua_State *L) {
-    if (selectedRenderer != 0) return 0;
+    if (selectedRenderer != 0 && selectedRenderer != 5) return 0;
     Computer * computer = get_comp(L);
     SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
     if (term == NULL) return 0;
@@ -1236,6 +1235,13 @@ int term_showMouse(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
     SDL_ShowCursor(lua_toboolean(L, 1));
     return 0;
+}
+
+int term_benchmark(lua_State *L) {
+    if (get_comp(L)->term == NULL) return 0;
+    lua_pushinteger(L, get_comp(L)->term->framecount);
+    get_comp(L)->term->framecount = 0;
+    return 1;
 }
 
 const char * term_keys[33] = {

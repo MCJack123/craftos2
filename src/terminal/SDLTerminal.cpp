@@ -63,7 +63,7 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
     const float kSysDefaultDpi =
 #ifdef __APPLE__
-        72.0f;
+        144.0f;
 #elif defined(_WIN32)
         96.0f;
 #else
@@ -247,9 +247,16 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         fontWidth * 2/fontScale * charScale * dpiScale, 
         fontHeight * 2/fontScale * charScale * dpiScale
     };
+    SDL_Rect bgdestrect = destrect;
+    if (config.standardsMode) {
+        if (x == 0) bgdestrect.x -= 2 * charScale * 2 / fontScale * dpiScale;
+        if (y == 0) bgdestrect.y -= 2 * charScale * 2 / fontScale * dpiScale;
+        if (x == 0 || x == width - 1) bgdestrect.w += 2 * charScale * 2 / fontScale * dpiScale;
+        if (y == 0 || y == height - 1) bgdestrect.h += 2 * charScale * 2 / fontScale * dpiScale;
+    }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
-        if (SDL_FillRect(surf, &destrect, rgb(bg)) != 0) return false;
+        if (SDL_FillRect(surf, &bgdestrect, rgb(bg)) != 0) return false;
     }
     if (c != ' ' && c != '\0') {
         if (gotResizeEvent) return false;
@@ -282,19 +289,37 @@ static unsigned char circlePix[] = {
 };
 
 void SDLTerminal::render() {
-    std::lock_guard<std::mutex> locked_g(locked);
-    if (gotResizeEvent) {
-        gotResizeEvent = false;
-        this->screen.resize(newWidth, newHeight, ' ');
-        this->colors.resize(newWidth, newHeight, 0xF0);
-        this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
-        this->width = newWidth;
-        this->height = newHeight;
-        
-        changed = true;
+    // copy the screen data so we can let Lua keep going without waiting for the mutex
+    std::unique_ptr<vector2d<unsigned char> > newscreen;
+    std::unique_ptr<vector2d<unsigned char> > newcolors;
+    std::unique_ptr<vector2d<unsigned char> > newpixels;
+    Color newpalette[256];
+    int newblinkX, newblinkY, newmode;
+    bool newblink;
+    unsigned char newcursorColor;
+    {
+        std::lock_guard<std::mutex> locked_g(locked);
+        if (gotResizeEvent) {
+            gotResizeEvent = false;
+            this->screen.resize(newWidth, newHeight, ' ');
+            this->colors.resize(newWidth, newHeight, 0xF0);
+            this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+            this->width = newWidth;
+            this->height = newHeight;
+
+            changed = true;
+        }
+        if (!changed && !shouldScreenshot && !shouldRecord) return;
+        newscreen = std::unique_ptr<vector2d<unsigned char> >(new vector2d<unsigned char>(screen));
+        newcolors = std::unique_ptr<vector2d<unsigned char> >(new vector2d<unsigned char>(colors));
+        newpixels = std::unique_ptr<vector2d<unsigned char> >(new vector2d<unsigned char>(pixels));
+        memcpy(newpalette, palette, sizeof(newpalette));
+        newblinkX = blinkX, newblinkY = blinkY, newmode = mode;
+        newblink = blink;
+        newcursorColor = cursorColor;
+        changed = false;
     }
-    if (!changed && !shouldScreenshot && !shouldRecord) return;
-    changed = false;
+    std::lock_guard<std::mutex> rlock(renderlock);
     int ww = 0, wh = 0;
     SDL_GetWindowSize(win, &ww, &wh);
     if (surf != NULL) SDL_FreeSurface(surf);
@@ -304,20 +329,20 @@ void SDLTerminal::render() {
         return;
     }
     SDL_Rect rect;
-    if (gotResizeEvent || SDL_FillRect(surf, NULL, mode == 0 ? rgb(palette[15]) : rgb(defaultPalette[15])) != 0) return;
-    if (mode != 0) {
+    if (gotResizeEvent || SDL_FillRect(surf, NULL, mode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
+    if (newmode != 0) {
         for (int y = 0; y < height * charHeight; y+=(2/fontScale)*charScale) {
             for (int x = 0; x < width * charWidth; x+=(2/fontScale)*charScale) {
-                unsigned char c = pixels[y / (2/fontScale) / charScale][x / (2/fontScale) / charScale];
+                unsigned char c = (*newpixels)[y / (2/fontScale) / charScale][x / (2/fontScale) / charScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2/fontScale) * charScale, (2/fontScale) * charScale), rgb(palette[(int)c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2/fontScale) * charScale, (2/fontScale) * charScale), rgb(newpalette[(int)c])) != 0) return;
             }
         }
     } else {
         for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) 
-            if (gotResizeEvent || !drawChar(screen[y][x], x, y, palette[colors[y][x] & 0x0F], palette[colors[y][x] >> 4])) return;
+            if (gotResizeEvent || !drawChar((*newscreen)[y][x], x, y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
         if (gotResizeEvent) return;
-        if (blink && blinkX >= 0 && blinkY >= 0 && blinkX < width && blinkY < height) if (!drawChar('_', blinkX, blinkY, palette[cursorColor], palette[colors[blinkY][blinkX] >> 4], true)) return;
+        if (newblink && newblinkX >= 0 && newblinkY >= 0 && newblinkX < width && newblinkY < height) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -407,7 +432,6 @@ void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {
 
 void SDLTerminal::getMouse(int *x, int *y) {
     SDL_GetMouseState(x, y);
-    //convert_to_renderer_coordinates(ren, x, y);
 }
 
 SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
@@ -564,48 +588,50 @@ extern void sendRawEvent(SDL_Event e);
 #endif
 
 bool SDLTerminal::pollEvents() {
-	SDL_Event e;
-	std::string tmps;
+    SDL_Event e;
+    std::string tmps;
 #ifdef __EMSCRIPTEN__
-	if (SDL_PollEvent(&e)) {
+    if (SDL_PollEvent(&e)) {
 #else
-	if (SDL_WaitEvent(&e)) {
+    if (SDL_WaitEvent(&e)) {
 #endif
-		if (e.type == task_event_type) {
-			while (taskQueue->size() > 0) {
-				auto v = taskQueue->front();
-				void* retval = std::get<1>(v)(std::get<2>(v));
-				if (!std::get<3>(v)) {
+        if (e.type == task_event_type) {
+            while (taskQueue->size() > 0) {
+                auto v = taskQueue->front();
+                void* retval = std::get<1>(v)(std::get<2>(v));
+                if (!std::get<3>(v)) {
                     LockGuard lock2(taskQueueReturns);
                     (*taskQueueReturns)[std::get<0>(v)] = retval;
                 }
-				taskQueue->pop();
-			}
-		} else if (e.type == render_event_type) {
+                taskQueue->pop();
+            }
+        } else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
-			SDLTerminal* term = dynamic_cast<SDLTerminal*>(*SDLTerminal::renderTarget);
-			std::lock_guard<std::mutex> lock(term->locked);
-			if (term->surf != NULL) {
-				SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
-				SDL_UpdateWindowSurface(SDLTerminal::win);
-				SDL_FreeSurface(term->surf);
-				term->surf = NULL;
-			}
+            SDLTerminal* term = dynamic_cast<SDLTerminal*>(*SDLTerminal::renderTarget);
+            if (term != NULL) {
+                std::lock_guard<std::mutex> lock(term->locked);
+                if (term->surf != NULL) {
+                    SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
+                    SDL_UpdateWindowSurface(SDLTerminal::win);
+                    SDL_FreeSurface(term->surf);
+                    term->surf = NULL;
+                }
+            }
 #else
-			for (Terminal* term : Terminal::renderTargets) {
-				SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
-				if (sdlterm != NULL) {
-					std::lock_guard<std::mutex> lock(sdlterm->locked);
-					if (sdlterm->surf != NULL) {
-						SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
-						SDL_UpdateWindowSurface(sdlterm->win);
-						SDL_FreeSurface(sdlterm->surf);
-						sdlterm->surf = NULL;
-					}
-				}
-			}
+            for (Terminal* term : Terminal::renderTargets) {
+                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+                if (sdlterm != NULL) {
+                    std::lock_guard<std::mutex> lock(sdlterm->renderlock);
+                    if (sdlterm->surf != NULL) {
+                        SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
+                        SDL_UpdateWindowSurface(sdlterm->win);
+                        SDL_FreeSurface(sdlterm->surf);
+                        sdlterm->surf = NULL;
+                    }
+                }
+            }
 #endif
-		} else {
+        } else {
             if (rawClient) {
                 sendRawEvent(e);
             } else {
@@ -624,8 +650,8 @@ bool SDLTerminal::pollEvents() {
                     }
                 }
             }
-			if (e.type == SDL_QUIT) return true;
-		}
-	}
-	return false;
+            if (e.type == SDL_QUIT) return true;
+        }
+    }
+    return false;
 }

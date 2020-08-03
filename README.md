@@ -1,6 +1,8 @@
 # CraftOS-PC 2 [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and a modified version of PUC Lua, as well as SDL for drawing.
 
+Visit the website at https://www.craftos-pc.cc/ for more information, including documentation.
+
 ![Screenfetch](resources/image1.png)
 
 ## Requirements for released builds
@@ -55,9 +57,8 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
 * SDL 2.0.8+ (may work on older versions on non-Linux)
-* OpenSSL 1.0.x
-* Windows: dirent.h
-* POCO NetSSL + JSON libraries + dependencies
+* OpenSSL 1.1 (for POCO)
+* POCO NetSSL & JSON libraries + dependencies
   * Foundation
   * Util
   * Crypto
@@ -65,6 +66,8 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * JSON
   * Net
   * NetSSL
+* Windows: dirent.h (install with NuGet OR vcpkg)
+* Windows: [vcpkg](https://github.com/microsoft/vcpkg)
 
 #### Optional
 * libpng 1.6 & png++ 0.2.7+
@@ -83,10 +86,10 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * The latest packed ROM can be downloaded as an artifact from the latest CI build, found by following the top link [here](https://github.com/MCJack123/craftos2-rom/actions).
 
 You can get all of these dependencies with:
-  * Windows: The VS solution includes all packages required except POCO and png (build yourself)
+  * Windows: `vcpkg install sdl2:x64-windows sdl2-mixer:x64-windows libpng:x64-windows libharu:x64-windows poco:x64-windows dirent:x64-windows` (install png++ manually)
   * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
   * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
-  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
+  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer png++ libharu poco ncurses`
 
 ### Windows Nightly Builds
 Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-pc.cc/nightly/). These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. New builds are posted at midnight EST, unless there were no changes since the last build. Note that these files are just the raw executable. You must drop the file into a pre-existing CraftOS-PC install directory for it to work properly. Depending on changes made in the latest version, you may also have to download the latest [ROM](https://github.com/MCJack123/craftos2-rom).
@@ -94,14 +97,17 @@ Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-
 ### Instructions
 #### Windows
 1. Download [Visual Studio 2019](https://visualstudio.microsoft.com/) if not already installed
-2. [Build Poco from source](https://pocoproject.org/download.html#visualstudio)
-3. Open a new Explorer window in %ProgramFiles% (Win-R, %ProgramFiles%)
-4. Create a directory named `CraftOS-PC`
-5. Copy the contents of the CraftOS ROM into the directory
-6. Open `CraftOS-PC 2.sln` with VS
-7. Ensure all NuGet packages are installed
-8. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the poco/lib directory
-9. Build & Run
+2. `git submodule update --init --recursive`
+3. Open `CraftOS-PC 2.sln` with VS
+4. Build solution
+5. Copy all files from the ROM into the same directory as the new executable (ex. `craftos2\x64\Release`)
+6. Run solution
+
+The solution has a few different build configurations:
+* Debug: for debugging, no optimization
+* Release: standard Windows application build with optimization (same as installed `CraftOS-PC.exe`)
+* ReleaseC: same as Release but with console support (same as installed `CraftOS-PC_console.exe`)
+* ReleaseStandalone: same as Release but builds a standalone build; requires `fs_standalone.cpp` to be present in `src`
 
 #### Mac
 1. Open a new Terminal window

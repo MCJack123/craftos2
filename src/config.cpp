@@ -35,7 +35,7 @@ struct computer_configuration getComputerConfig(int id) {
     try {p = root.parse(in);} catch (Poco::JSON::JSONException &e) {
         cfg.loadFailure = true;
         std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else printf("%s\n", message.c_str());
@@ -102,6 +102,9 @@ void config_init() {
         false,
         51,
         19,
+        false,
+        false,
+        "",
         false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
@@ -113,7 +116,7 @@ void config_init() {
     } catch (Poco::JSON::JSONException &e) {
         configLoadError = true;
         std::string message = "An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else printf("%s\n", message.c_str());
@@ -153,6 +156,9 @@ void config_init() {
     readConfigSetting(defaultWidth, Int);
     readConfigSetting(defaultHeight, Int);
     readConfigSetting(standardsMode, Bool);
+    readConfigSetting(useHardwareRenderer, Bool);
+    readConfigSetting(preferredHardwareDriver, String);
+    readConfigSetting(useVsync, Bool);
     if (config.standardsMode) config.abortTimeout = 7000;
 }
 
@@ -191,6 +197,9 @@ void config_save() {
     root["defaultWidth"] = config.defaultWidth;
     root["defaultHeight"] = config.defaultHeight;
     root["standardsMode"] = config.standardsMode;
+    root["useHardwareRenderer"] = config.useHardwareRenderer;
+    root["preferredHardwareDriver"] = config.preferredHardwareDriver;
+    root["useVsync"] = config.useVsync;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
@@ -241,6 +250,10 @@ int config_get(lua_State *L) {
     getConfigSetting(defaultWidth, integer);
     getConfigSetting(defaultHeight, integer);
     getConfigSetting(standardsMode, boolean);
+    getConfigSetting(useHardwareRenderer, boolean);
+    else if (strcmp(name, "preferredHardwareDriver") == 0)
+        lua_pushstring(L, config.preferredHardwareDriver.c_str());
+    getConfigSetting(useVsync, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -281,7 +294,10 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"defaultHeight", {2, 1}},
     {"standardsMode", {0, 0}},
     {"isColor", {0, 0}},
-    {"startFullscreen", {2, 0}}
+    {"startFullscreen", {2, 0}},
+    {"useHardwareRenderer", {2, 0}},
+    {"preferredHardwareDriver", {2, 2}},
+    {"useVsync", {2, 0}}
 };
 
 const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
@@ -366,6 +382,10 @@ int config_set(lua_State *L) {
     setConfigSettingI(defaultWidth);
     setConfigSettingI(defaultHeight);
     setConfigSetting(standardsMode, boolean);
+    setConfigSetting(useHardwareRenderer, boolean);
+    else if (strcmp(name, "preferredHardwareDriver") == 0)
+        config.preferredHardwareDriver = std::string(luaL_checkstring(L, 2), lua_strlen(L, 2));
+    setConfigSetting(useVsync, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option");

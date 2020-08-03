@@ -25,9 +25,6 @@
     <None Include=".travis.yml">
       <Filter>Other Files</Filter>
     </None>
-    <None Include="CraftOSTest.lua">
-      <Filter>Other Files</Filter>
-    </None>
     <None Include="DOCUMENTATION.md">
       <Filter>Other Files</Filter>
     </None>
@@ -69,6 +66,12 @@
     </None>
     <None Include="resources\Info.plist">
       <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\BenchmarkRenderers.lua">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\BenchmarkRenderers.sh.bat">
+      <Filter>Other Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -170,6 +173,9 @@
     <ClInclude Include="src\fs_standalone.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\windows\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -266,6 +272,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\fs_standalone.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gif.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="examples\raw_frame_reader.cpp">

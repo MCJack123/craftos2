@@ -15,6 +15,7 @@
 #include "../terminal/CLITerminal.hpp"
 #include "../terminal/RawTerminal.hpp"
 #include "../terminal/TRoRTerminal.hpp"
+#include "../terminal/HardwareSDLTerminal.hpp"
 
 extern int log2i(int);
 extern unsigned char htoi(char c);
@@ -22,14 +23,18 @@ extern int selectedRenderer;
 
 monitor::monitor(lua_State *L, const char * side) {
 #ifndef NO_CLI
-	if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
-	else
+    if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
+    else
 #endif
     if (selectedRenderer == 3) term = new RawTerminal("CraftOS Terminal: Monitor " + std::string(side));
     else if (selectedRenderer == 4) term = new TRoRTerminal("CraftOS Terminal: Monitor " + std::string(side));
-	else if (selectedRenderer == 0) {
+    else if (selectedRenderer == 0) {
         term = (SDLTerminal*)queueTask([ ](void* side)->void* {
             return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
+        }, (void*)side);
+    } else if (selectedRenderer == 5) {
+        term = (HardwareSDLTerminal*)queueTask([ ](void* side)->void* {
+            return new HardwareSDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
         }, (void*)side);
     } else throw std::invalid_argument("Monitors are not available in headless mode");
     term->canBlink = false;

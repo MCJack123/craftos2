@@ -48,7 +48,7 @@ typedef struct {
     Computer *comp;
     char * url;
     char * postData;
-	size_t postDataSize;
+    size_t postDataSize;
     std::unordered_map<std::string, std::string> headers;
     std::string method;
     char * old_url;
@@ -280,7 +280,7 @@ int http_request(lua_State *L) {
     param->isBinary = false;
     if (lua_isstring(L, 2)) {
         param->postData = new char[lua_strlen(L, 2) + 1];
-		param->postDataSize = lua_strlen(L, 2);
+        param->postDataSize = lua_strlen(L, 2);
         memcpy(param->postData, lua_tostring(L, 2), lua_strlen(L, 2));
     }
     if (lua_istable(L, 3)) {

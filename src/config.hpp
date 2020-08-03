@@ -19,8 +19,10 @@ struct configuration {
     bool http_enable;
     bool debug_enable;
     int mount_mode;
-    //String[] http_whitelist;
-    //String[] http_blacklist;
+    //std::vector<std::string> http_whitelist;
+    //std::vector<std::string> http_blacklist;
+    //std::vector<std::string> mounter_whitelist;
+    //std::vector<std::string> mounter_blacklist;
     bool disable_lua51_features;
     std::string default_computer_settings;
     bool logErrors;
@@ -50,6 +52,9 @@ struct configuration {
     int defaultWidth;
     int defaultHeight;
     bool standardsMode;
+    bool useHardwareRenderer;
+    std::string preferredHardwareDriver;
+    bool useVsync;
 };
 struct computer_configuration {
     std::string label;

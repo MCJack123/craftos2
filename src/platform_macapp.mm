@@ -52,7 +52,7 @@ void setBasePath(const char * path) {
 }
 
 void setROMPath(const char * path) {
-	rom_path_expanded = path;
+    rom_path_expanded = path;
 }
 
 std::string getBasePath() {
@@ -67,22 +67,22 @@ std::string getBasePath() {
 }
 
 std::string getROMPath() {
-	if (!rom_path_expanded.empty()) return rom_path_expanded;
-	NSString * path = [NSBundle mainBundle].resourcePath;
+    if (!rom_path_expanded.empty()) return rom_path_expanded;
+    NSString * path = [NSBundle mainBundle].resourcePath;
     char * retval = new char[path.length + 1];
     [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
-	rom_path_expanded = retval;
+    rom_path_expanded = retval;
     delete[] retval;
     return rom_path_expanded;
 }
 
 std::string getPlugInPath() {
-	NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
-	char * retval = new char[path.length + 1];
+    NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
+    char * retval = new char[path.length + 1];
     [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
-	std::string s((const char*)retval);
-	delete[] retval;
-	return s;
+    std::string s((const char*)retval);
+    delete[] retval;
+    return s;
 }
 
 void setThreadName(std::thread &t, std::string name) {}
@@ -120,7 +120,7 @@ int removeDirectory(std::string path) {
 }
 
 unsigned long long getFreeSpace(std::string path) {
-	NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
+    NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
@@ -129,7 +129,7 @@ unsigned long long getFreeSpace(std::string path) {
 }
 
 unsigned long long getCapacity(std::string path) {
-	NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
+    NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getCapacity(path.substr(0, path.find_last_of("/")-1));

@@ -111,6 +111,7 @@ public:
     bool blink = true;
     bool canBlink = true;
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
+    int framecount;
 protected:
     Terminal(int w, int h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
         memcpy(palette, defaultPalette, sizeof(defaultPalette));

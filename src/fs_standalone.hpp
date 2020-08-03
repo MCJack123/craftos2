@@ -19,10 +19,8 @@
 struct FileEntry {
     bool isDir;
     bool error = false;
-    //union {
-        std::string data;
-        std::map<std::string, FileEntry> dir;
-    //};
+    std::string data;
+    std::map<std::string, FileEntry> dir;
     FileEntry(std::string d): isDir(false), data(d) {}
     FileEntry(const char * d): isDir(false), data(d) {}
     FileEntry(std::map<std::string, FileEntry> d): isDir(true), dir(d) {}
@@ -38,7 +36,6 @@ struct FileEntry {
         while (std::getline(ss, item, '/')) if (!item.empty() && item != "rom:" && item != "debug:") retval = &(*retval)[item];
         return *retval;
     }
-    //~FileEntry() {if (isDir) dir.~map(); else data.~basic_string();}
 };
 
 #ifdef STANDALONE_ROM

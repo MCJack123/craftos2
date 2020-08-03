@@ -57,7 +57,6 @@ int fs_handle_istream_free(lua_State *L) {
 int fs_handle_istream_close(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         return 0;
-    //delete (std::istream*)lua_touserdata(L, lua_upvalueindex(1));
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));
     get_comp(L)->files_open--;
@@ -68,25 +67,15 @@ int fs_handle_istream_close(lua_State *L) {
 }
 
 #define checkChar(c) c
-/*
-char checkChar(char c) {
-	if ((c >= 32 && c < 127) || c == '\n' || c == '\t' || c == '\r') return c;
-	else if (c == EOF) return '\0';
-	else {
-		//printf("Unknown char %d\n", c);
-		return '?';
-	}
-}
-*/
 
 std::string makeASCIISafe(const char * retval, size_t len) {
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	std::wstring wstr;
-	try {wstr = converter.from_bytes(retval, retval + len);} 
-	catch (std::exception &e) {
-		fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-		return std::string(retval, len);
-	}
+    std::wstring wstr;
+    try {wstr = converter.from_bytes(retval, retval + len);} 
+    catch (std::exception &e) {
+        fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
+        return std::string(retval, len);
+    }
     std::string out;
     for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     return out;
@@ -106,7 +95,7 @@ int fs_handle_readAll(lua_State *L) {
     int i;
     for (i = 0; !feof(fp) && i < size; i++) {
         int c = fgetc(fp);
-		if (c == EOF && feof(fp)) c = '\n';
+        if (c == EOF && feof(fp)) c = '\n';
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = (char)c;
     }
@@ -130,7 +119,7 @@ int fs_handle_istream_readAll(lua_State *L) {
     int i;
     for (i = 0; !fp->eof() && i < size; i++) {
         int c = fp->get();
-		if (c == EOF && fp->eof()) c = '\n';
+        if (c == EOF && fp->eof()) c = '\n';
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = (char)c;
     }
@@ -148,20 +137,20 @@ int fs_handle_readLine(lua_State *L) {
         lua_pushnil(L);
         return 1;
     }
-	char* retval = (char*)malloc(256);
+    char* retval = (char*)malloc(256);
     retval[0] = 0;
-	for (unsigned i = 0; 1; i += 255) {
-		if (fgets(&retval[i], 256, fp) == NULL || feof(fp)) break;
+    for (unsigned i = 0; 1; i += 255) {
+        if (fgets(&retval[i], 256, fp) == NULL || feof(fp)) break;
         bool found = false;
         for (unsigned j = 0; j < 256; j++) if (retval[i+j] == '\n') {found = true; break;}
         if (found) break;
-		char * retvaln = (char*)realloc(retval, i + 511);
+        char * retvaln = (char*)realloc(retval, i + 511);
         if (retvaln == NULL) {
             free(retval);
             return luaL_error(L, "failed to allocate memory");
         }
         retval = retvaln;
-	}
+    }
     int len = strlen(retval) - (retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
     if (retval[len-1] == '\r') retval[--len] = '\0';
     std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, len) : makeASCIISafe(retval, len);

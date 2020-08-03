@@ -46,8 +46,6 @@
 #define W_OK 2
 #endif
 
-//int isFSCaseSensitive = -1;
-
 extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
 
 int err(lua_State *L, int idx, const char * err) {
@@ -366,10 +364,8 @@ int fs_copy(lua_State *L) {
     for (unsigned i = 0; i < toElems.size() && equal; i++) {
         if (i >= fromElems.size()) err(L, 1, "Can't copy a directory inside itself");
         std::string lstrfrom = fromElems[i], lstrto = toElems[i];
-        //if (!isFSCaseSensitive) {
-            std::transform(lstrfrom.begin(), lstrfrom.end(), lstrfrom.begin(), [](unsigned char c) {return std::tolower(c);});
-            std::transform(lstrto.begin(), lstrto.end(), lstrto.begin(), [](unsigned char c) {return std::tolower(c);});
-        //}
+        std::transform(lstrfrom.begin(), lstrfrom.end(), lstrfrom.begin(), [](unsigned char c) {return std::tolower(c);});
+        std::transform(lstrto.begin(), lstrto.end(), lstrto.begin(), [](unsigned char c) {return std::tolower(c);});
         if (lstrfrom != lstrto) equal = false;
         else if ((i == fromElems.size() - 1 && i == toElems.size() - 1)) err(L, 1, "Can't copy a directory inside itself");
     }

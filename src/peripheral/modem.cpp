@@ -139,13 +139,6 @@ static void xcopy1(lua_State *L, lua_State *T, int n) {
     case LUA_TSTRING:
         lua_pushlstring(T, lua_tostring(L, n), lua_strlen(L, n));
         break;
-    //case LUA_TLIGHTUSERDATA:
-    //    lua_pushlightuserdata(T, (void *)lua_touserdata(L, n));
-    //    break;
-    //case LUA_TFUNCTION:
-    //    if (lua_iscfunction(L, n)) lua_pushcfunction(T, lua_tocfunction(L, n));
-    //    else lua_pushnil(T);
-    //    break;
     default:
         lua_pushnil(T);
         break;
@@ -210,6 +203,7 @@ const char * modem_message(lua_State *message, void* data) {
     }
     d->m->modemMessages.erase((void*)d);
     delete d;
+    lua_pushinteger(message, 0);
     return "modem_message";
 };
 
