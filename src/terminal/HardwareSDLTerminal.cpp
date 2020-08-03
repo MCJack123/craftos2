@@ -40,6 +40,15 @@ extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 
 HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    if (!config.preferredHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, config.preferredHardwareDriver.c_str());
+    printf("Available renderers: ");
+    for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
+        SDL_RendererInfo rendererInfo;
+        SDL_GetRenderDriverInfo(i, &rendererInfo);
+        printf("%s ", rendererInfo.name);
+    }
+    printf("\n");
 #ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
 #else
@@ -50,6 +59,9 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
     }
+    SDL_RendererInfo info;
+    SDL_GetRendererInfo(ren, &info);
+    printf("Using %s renderer\n", info.name);
     font = SDL_CreateTextureFromSurface(ren, bmp);
     if (font == nullptr || font == NULL || font == (SDL_Texture*)0) {
         SDL_DestroyRenderer(ren);
@@ -126,10 +138,10 @@ void HardwareSDLTerminal::render() {
             this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
             this->width = newWidth;
             this->height = newHeight;
-            SDL_DestroyRenderer(ren);
+            //SDL_DestroyRenderer(ren);
             //ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
-            ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-            font = SDL_CreateTextureFromSurface(ren, bmp);
+            //ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+            //font = SDL_CreateTextureFromSurface(ren, bmp);
             changed = true;
         }
         if (!changed && !shouldScreenshot && !shouldRecord) return;
@@ -284,8 +296,8 @@ bool HardwareSDLTerminal::resize(int w, int h) {
     ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
 #endif
     font = SDL_CreateTextureFromSurface(ren, bmp);
-    newWidth = (w - 4*fontScale*charScale) / charWidth;
-    newHeight = (h - 4*fontScale*charScale) / charHeight;
+    newWidth = w;
+    newHeight = h;
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
     while (gotResizeEvent) std::this_thread::yield();

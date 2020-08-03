@@ -51,6 +51,7 @@ struct configuration {
     int defaultHeight;
     bool standardsMode;
     bool useHardwareRenderer;
+    std::string preferredHardwareDriver;
 };
 struct computer_configuration {
     std::string label;
