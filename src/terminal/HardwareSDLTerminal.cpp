@@ -75,11 +75,18 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         fontWidth * 2/fontScale * charScale * dpiScale, 
         fontHeight * 2/fontScale * charScale * dpiScale
     };
+    SDL_Rect bgdestrect = destrect;
+    if (config.standardsMode) {
+        if (x == 0) bgdestrect.x -= 2 * charScale * 2 / fontScale * dpiScale;
+        if (y == 0) bgdestrect.y -= 2 * charScale * 2 / fontScale * dpiScale;
+        if (x == 0 || x == width - 1) bgdestrect.w += 2 * charScale * 2 / fontScale * dpiScale;
+        if (y == 0 || y == height - 1) bgdestrect.h += 2 * charScale * 2 / fontScale * dpiScale;
+    }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
         if (SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF) != 0) return false;
         if (gotResizeEvent) return false;
-        if (SDL_RenderFillRect(ren, &destrect) != 0) return false;
+        if (SDL_RenderFillRect(ren, &bgdestrect) != 0) return false;
     }
     if (c != ' ' && c != '\0') {
         if (gotResizeEvent) return false;
