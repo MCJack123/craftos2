@@ -45,6 +45,7 @@ extern std::condition_variable taskQueueNotify;
 int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
 bool benchmark = false;
+std::string overrideHardwareDriver;
 std::map<uint8_t, Terminal*> rawClientTerminals;
 std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 std::string script_file;
@@ -321,11 +322,16 @@ int main(int argc, char*argv[]) {
             Computer::customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
         } else if (arg == "--renderer" || arg == "-r") {
             if (++i == argc) {
-                std::cout << "Available renderering methods:\n SDL\n Headless\n "
+                std::cout << "Available renderering methods:\n sdl\n headless\n "
 #ifndef NO_CLI
                 << "ncurses\n "
 #endif
-                << "Raw\n TRoR\n Hardware-SDL";
+                << "raw\n tror\n hardware-sdl\n";
+                for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
+                    SDL_RendererInfo rendererInfo;
+                    SDL_GetRenderDriverInfo(i, &rendererInfo);
+                    printf(" %s\n", rendererInfo.name);
+                }
                 return 0;
             } else {
                 arg = std::string(argv[i]);
@@ -338,7 +344,10 @@ int main(int argc, char*argv[]) {
                 else if (arg == "raw") selectedRenderer = 3;
                 else if (arg == "tror") selectedRenderer = 4;
                 else if (arg == "hardware-sdl" || arg == "jfx") selectedRenderer = 5;
-                else {
+                else if (arg == "direct3d" || arg == "direct3d11" || arg == "directfb" || arg == "metal" || arg == "opengl" || arg == "opengles" || arg == "opengles2" || arg == "software") {
+                    selectedRenderer = 5;
+                    overrideHardwareDriver = arg;
+                } else {
                     std::cerr << "Unknown renderer type " << arg << "\n";
                     return 1;
                 }
@@ -394,7 +403,8 @@ int main(int argc, char*argv[]) {
                       << "  --headless                       Outputs only text straight to stdout\n"
                       << "  --raw                            Outputs terminal contents using a binary format\n"
                       << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
-                      << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n\n"
+                      << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n"
+                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n\n"
                       << "CCEmuX compatibility options:\n"
                       << "  -a|--assets-dir <dir>            Sets the CC:T directory that holds the ROM & BIOS\n"
                       << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"

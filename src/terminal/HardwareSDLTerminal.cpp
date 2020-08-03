@@ -21,8 +21,6 @@
 #include "../peripheral/monitor.hpp"
 #define rgb(color) ((color.r << 16) | (color.g << 8) | color.b)
 
-#define HARDWARE_RENDERER
-
 extern "C" {
     struct font_image {
         unsigned int 	 width;
@@ -37,31 +35,20 @@ extern "C" {
 }
 
 extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);
+extern std::string overrideHardwareDriver;
 
 HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-    if (!config.preferredHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, config.preferredHardwareDriver.c_str());
-    printf("Available renderers: ");
-    for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
-        SDL_RendererInfo rendererInfo;
-        SDL_GetRenderDriverInfo(i, &rendererInfo);
-        printf("%s ", rendererInfo.name);
-    }
-    printf("\n");
-#ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
-#else
-    ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
-    dpiScale = 1;
-#endif
     if (ren == nullptr || ren == NULL || ren == (SDL_Renderer*)0) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
     }
     SDL_RendererInfo info;
     SDL_GetRendererInfo(ren, &info);
-    printf("Using %s renderer\n", info.name);
+    if ((!overrideHardwareDriver.empty() && std::string(info.name) != overrideHardwareDriver) || 
+        (overrideHardwareDriver.empty() && !config.preferredHardwareDriver.empty() && std::string(info.name) != config.preferredHardwareDriver))
+        printf("Warning: Preferred driver %s not available, using %s instead.\n", (overrideHardwareDriver.empty() ? config.preferredHardwareDriver.c_str() : overrideHardwareDriver.c_str()), info.name);
     font = SDL_CreateTextureFromSurface(ren, bmp);
     if (font == nullptr || font == NULL || font == (SDL_Texture*)0) {
         SDL_DestroyRenderer(ren);
@@ -138,10 +125,6 @@ void HardwareSDLTerminal::render() {
             this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
             this->width = newWidth;
             this->height = newHeight;
-            //SDL_DestroyRenderer(ren);
-            //ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
-            //ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-            //font = SDL_CreateTextureFromSurface(ren, bmp);
             changed = true;
         }
         if (!changed && !shouldScreenshot && !shouldRecord) return;
@@ -179,25 +162,6 @@ void HardwareSDLTerminal::render() {
     } else {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                /*
-                SDL_SetRenderDrawColor(ren, palette[colors[y][x] >> 4].r, palette[colors[y][x] >> 4].g, palette[colors[y][x] >> 4].b, 0xFF);
-                if (x == 0)
-                    SDL_RenderFillRect(ren, setRect(&rect, 0, y * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, charHeight));
-                if (y == 0)
-                    SDL_RenderFillRect(ren, setRect(&rect, x * charWidth + (2 * fontScale * charScale), 0, charWidth, 2 * fontScale * charScale));
-                if (x + 1 == width)
-                    SDL_RenderFillRect(ren, setRect(&rect, (x + 1) * charWidth + (2 * fontScale * charScale), y * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, charHeight));
-                if (y + 1 == height)
-                    SDL_RenderFillRect(ren, setRect(&rect, x * charWidth + (2 * fontScale * charScale), (y + 1) * charHeight + (2 * fontScale * charScale), charWidth, 2 * fontScale * charScale));
-                if (x == 0 && y == 0)
-                    SDL_RenderFillRect(ren, setRect(&rect, 0, 0, 2 * fontScale * charScale, 2 * fontScale * charScale));
-                if (x == 0 && y + 1 == height)
-                    SDL_RenderFillRect(ren, setRect(&rect, 0, (y + 1) * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, 2 * fontScale * charScale));
-                if (x + 1 == width && y == 0)
-                    SDL_RenderFillRect(ren, setRect(&rect, (x + 1) * charWidth + (2 * fontScale * charScale), 0, 2 * fontScale * charScale, 2 * fontScale * charScale));
-                if (x + 1 == width && y + 1 == height)
-                    SDL_RenderFillRect(ren, setRect(&rect, (x + 1) * charWidth + (2 * fontScale * charScale), (y + 1) * charHeight + (2 * fontScale * charScale), 2 * fontScale * charScale, 2 * fontScale * charScale));
-                */
                 if (gotResizeEvent) return;
                 if (!drawChar((*newscreen)[y][x], x, y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
             }
@@ -290,11 +254,7 @@ extern void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int 
 
 bool HardwareSDLTerminal::resize(int w, int h) {
     SDL_DestroyRenderer(ren);
-#ifdef HARDWARE_RENDERER
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-#else
-    ren = SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(win));
-#endif
     font = SDL_CreateTextureFromSurface(ren, bmp);
     newWidth = w;
     newHeight = h;
@@ -317,6 +277,9 @@ void HardwareSDLTerminal::init() {
 #if SDL_VERSION_ATLEAST(2, 0, 8)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    if (!overrideHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, overrideHardwareDriver.c_str());
+    else if (!config.preferredHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, config.preferredHardwareDriver.c_str());
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
@@ -361,7 +324,6 @@ bool HardwareSDLTerminal::pollEvents() {
 				taskQueue->pop();
 			}
 		} else if (e.type == render_event_type) {
-            //std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 #ifdef __EMSCRIPTEN__
 			HardwareSDLTerminal* term = dynamic_cast<HardwareSDLTerminal*>(*HardwareSDLTerminal::renderTarget);
             if (term != NULL) {
@@ -379,7 +341,6 @@ bool HardwareSDLTerminal::pollEvents() {
 				}
 			}
 #endif
-            //printf("Drawing took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
 		} else {
             if (rawClient) {
                 sendRawEvent(e);

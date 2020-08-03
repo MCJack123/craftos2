@@ -57,7 +57,6 @@ int fs_handle_istream_free(lua_State *L) {
 int fs_handle_istream_close(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         return 0;
-    //delete (std::istream*)lua_touserdata(L, lua_upvalueindex(1));
     lua_pushnil(L);
     lua_replace(L, lua_upvalueindex(1));
     get_comp(L)->files_open--;
@@ -68,16 +67,6 @@ int fs_handle_istream_close(lua_State *L) {
 }
 
 #define checkChar(c) c
-/*
-char checkChar(char c) {
-	if ((c >= 32 && c < 127) || c == '\n' || c == '\t' || c == '\r') return c;
-	else if (c == EOF) return '\0';
-	else {
-		//printf("Unknown char %d\n", c);
-		return '?';
-	}
-}
-*/
 
 std::string makeASCIISafe(const char * retval, size_t len) {
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;

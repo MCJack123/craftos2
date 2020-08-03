@@ -35,7 +35,7 @@ void setBasePath(const char * path) {
 }
 
 void setROMPath(const char * path) {
-	rom_path_expanded = path;
+    rom_path_expanded = path;
 }
 
 std::string getBasePath() {
@@ -64,58 +64,57 @@ void setThreadName(std::thread &t, std::string name) {
 int createDirectory(std::string path) {
     struct stat st;
     if (stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
-	if (CreateDirectoryExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL) == 0) {
-		if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && path != "\\" && !path.empty()) {
+    if (CreateDirectoryExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL) == 0) {
+        if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && path != "\\" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('\\', path.size() - 2)))) return 1;
-			CreateDirectoryExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL);
-		}
+            CreateDirectoryExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL);
+        }
         else if (GetLastError() != ERROR_ALREADY_EXISTS) return 1;
-	}
-	return 0;
+    }
+    return 0;
 }
 
 char* basename(char* path) {
-	char* filename = strrchr(path, '/');
-	if (filename == NULL)
-		filename = path;
-	else
-		filename++;
-	//strcpy(path, filename);
-	return filename;
+    char* filename = strrchr(path, '/');
+    if (filename == NULL)
+        filename = path;
+    else
+        filename++;
+    return filename;
 }
 
 char* dirname(char* path) {
-	if (path[0] == '/') strcpy(path, &path[1]);
+    if (path[0] == '/') strcpy(path, &path[1]);
     char tch;
     if (strrchr(path, '/') != NULL) tch = '/';
     else if (strrchr(path, '\\') != NULL) tch = '\\';
     else return path;
     path[strrchr(path, tch) - path] = '\0';
-	return path;
+    return path;
 }
 
 unsigned long long getFreeSpace(std::string path) {
-	ULARGE_INTEGER retval;
-	if (GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
+    ULARGE_INTEGER retval;
+    if (GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
         if (path.substr(0, path.find_last_of("\\")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("\\")-1));
     }
-	return retval.QuadPart;
+    return retval.QuadPart;
 }
 
 unsigned long long getCapacity(std::string path) {
-	ULARGE_INTEGER retval;
-	if (GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
+    ULARGE_INTEGER retval;
+    if (GetDiskFreeSpaceExA(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
         if (path.substr(0, path.find_last_of("\\")-1).empty()) return 0;
         else return getCapacity(path.substr(0, path.find_last_of("\\")-1));
     }
-	return retval.QuadPart;
+    return retval.QuadPart;
 }
 
 int removeDirectory(std::string path) {
-	DWORD attr = GetFileAttributesA(path.c_str());
+    DWORD attr = GetFileAttributesA(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
-	if (attr & FILE_ATTRIBUTE_DIRECTORY) {
+    if (attr & FILE_ATTRIBUTE_DIRECTORY) {
         WIN32_FIND_DATA find;
         std::string s = path;
         if (path[path.size() - 1] != '\\') s += "\\";
@@ -137,7 +136,7 @@ int removeDirectory(std::string path) {
             FindClose(h);
         }
         return RemoveDirectoryA(path.c_str()) ? 0 : GetLastError();
-	} else return DeleteFileA(path.c_str()) ? 0 : GetLastError();
+    } else return DeleteFileA(path.c_str()) ? 0 : GetLastError();
 }
 
 void updateNow(std::string tagname) {
@@ -146,8 +145,6 @@ void updateNow(std::string tagname) {
         GetTempPathA(261, str);
         std::string path = std::string(str) + "\\setup.exe";
         std::ofstream out(path, std::ios::binary);
-        //char c = in.get();
-        //while (in.good()) {out.put(c); c = in.get();}
         out << in.rdbuf();
         out.close();
         STARTUPINFOA info;
@@ -164,9 +161,9 @@ void updateNow(std::string tagname) {
 std::vector<std::string> failedCopy;
 
 int recursiveCopy(std::string path, std::string toPath) {
-	DWORD attr = GetFileAttributesA(path.c_str());
+    DWORD attr = GetFileAttributesA(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
-	if (attr & FILE_ATTRIBUTE_DIRECTORY) {
+    if (attr & FILE_ATTRIBUTE_DIRECTORY) {
         if (CreateDirectoryExA(toPath.substr(0, toPath.find_last_of('\\', toPath.size() - 2)).c_str(), toPath.c_str(), NULL) == 0) return GetLastError();
         WIN32_FIND_DATA find;
         std::string s = path;
@@ -180,17 +177,13 @@ int recursiveCopy(std::string path, std::string toPath) {
                     if (path[path.size() - 1] != '\\') newpath += "\\";
                     newpath += find.cFileName;
                     int res = recursiveCopy(newpath, toPath + "\\" + std::string(find.cFileName));
-                    if (res) {
-                        //FindClose(h);
-                        //return res;
-                        failedCopy.push_back(toPath + "\\" + std::string(find.cFileName));
-                    }
+                    if (res) failedCopy.push_back(toPath + "\\" + std::string(find.cFileName));
                 }
             } while (FindNextFileA(h, &find));
             FindClose(h);
         }
         return RemoveDirectoryA(path.c_str()) ? 0 : GetLastError();
-	} else return MoveFileA(path.c_str(), toPath.c_str()) ? 0 : GetLastError();
+    } else return MoveFileA(path.c_str(), toPath.c_str()) ? 0 : GetLastError();
 }
 
 void migrateData() {

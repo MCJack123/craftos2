@@ -425,7 +425,6 @@ void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {
 
 void SDLTerminal::getMouse(int *x, int *y) {
     SDL_GetMouseState(x, y);
-    //convert_to_renderer_coordinates(ren, x, y);
 }
 
 SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
@@ -612,7 +611,6 @@ bool SDLTerminal::pollEvents() {
                 }
             }
 #else
-            //std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 			for (Terminal* term : Terminal::renderTargets) {
 				SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
 				if (sdlterm != NULL) {
@@ -625,7 +623,6 @@ bool SDLTerminal::pollEvents() {
 					}
 				}
 			}
-            //printf("Drawing thread took %lld us\n", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count());
 #endif
 		} else {
             if (rawClient) {

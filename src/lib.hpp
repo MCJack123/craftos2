@@ -122,7 +122,6 @@ extern Computer * _get_comp(lua_State *L);
 #define get_comp(L) (*(void**)(((ptrdiff_t)L) + sizeof(int) + sizeof(void*)*3 + 4) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
 #else
 inline Computer * get_comp(lua_State *L) {
-    //lua_pushlightuserdata(L, &computer_key);
     lua_pushinteger(L, 1);
     lua_gettable(L, LUA_REGISTRYINDEX);
     void * retval = lua_touserdata(L, -1);

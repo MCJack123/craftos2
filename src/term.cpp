@@ -432,7 +432,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     return NULL;
                 }, NULL) != NULL) longjmp(computer->on_panic, 0);
             }
-            //computer->last_event = std::chrono::high_resolution_clock::now();
             luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
             lua_concat(L, 2);
@@ -496,7 +495,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
                 else {
                     if (dbg->profile[ar->source][ar->name].running) {
-                        //printf("Function %s:%s skipped return for %d ms\n", ar->source, ar->name, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start).count());
                         dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
                         dbg->profile[ar->source][ar->name].running = false;
                     }
@@ -1158,7 +1156,6 @@ int term_setPixel(lua_State *L) {
     if (term->mode == 1) term->pixels[y][x] = log2i(lua_tointeger(L, 3));
     else if (term->mode == 2) term->pixels[y][x] = lua_tointeger(L, 3);
     term->changed = true;
-    //printf("Wrote pixel %ld = %d\n", lua_tointeger(L, 3), term->pixels[y][x]);
     return 0;
 }
 

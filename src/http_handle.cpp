@@ -53,7 +53,6 @@ int http_handle_close(lua_State *L) {
     return 0;
 }
 
-//extern char checkChar(char c);
 #define checkChar(c) c
 
 int http_handle_readAll(lua_State *L) {

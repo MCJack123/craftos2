@@ -365,7 +365,6 @@ void Computer::run(std::string bios_name) {
         for (auto p : peripherals) p.second->reinitialize(L);
 
         // Push reference to this to the registry
-        //lua_pushlightuserdata(L, &computer_key);
         lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, this);
         lua_settable(L, LUA_REGISTRYINDEX);
@@ -416,7 +415,7 @@ void Computer::run(std::string bios_name) {
                     loadPlugin(plugin_path + "/" + dir->d_name);
                 }
                 closedir(d);
-            } //else printf("Could not open plugins from %s\n", plugin_path.c_str());
+            }
             for (std::string path : customPlugins) loadPlugin(path);
         }
 #endif

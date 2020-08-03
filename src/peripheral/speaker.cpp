@@ -488,7 +488,6 @@ void speakerInit() {
 		if (!(loadedFormats & MIX_INIT_MID)) fprintf(stderr, "mid ");
 		fprintf(stderr, "\n");
 	}
-    //Mix_QuerySpec(&AudioSpec::frequency, &AudioSpec::format, &AudioSpec::channelCount);
     AudioSpec::allocatedMixChannelsCount = Mix_AllocateChannels(config.maxNotesPerTick);
 #ifndef STANDALONE_ROM
     DIR * d = opendir((getROMPath() + "/sounds").c_str());

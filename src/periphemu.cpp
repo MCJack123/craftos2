@@ -82,7 +82,6 @@ int periphemu_create(lua_State* L) {
 		return 1;
 	}
 	computer->peripherals_mutex.unlock();
-	//lua_pop(L, 2);
 	try {
 		peripheral * p;
 		if (type == std::string("debugger") && config.debug_enable) p = new debugger(L, side.c_str());

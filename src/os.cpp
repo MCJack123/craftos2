@@ -129,7 +129,6 @@ void mainLoop() {
 }
 
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
-    //Computer * comp = (Computer*)param;
     forceCheckTimeout = true;
     return 1000;
 }
@@ -217,7 +216,6 @@ int getNextEvent(lua_State *L, std::string filter) {
     lua_pushstring(L, ev.c_str());
     lua_xmove(param, L, count);
     lua_remove(computer->paramQueue, 1);
-    //lua_close(param);
     gotEvent(computer);
     computer->eventTimeout = SDL_AddTimer(config.abortTimeout, eventTimeoutEvent, computer);
     return count + 1;
@@ -248,7 +246,6 @@ int os_setComputerLabel(lua_State *L) {
 int os_queueEvent(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     Computer * computer = get_comp(L);
-    //if (paramQueue == NULL) paramQueue = lua_newthread(L);
     std::string name = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param = lua_newthread(computer->paramQueue);
