@@ -546,12 +546,14 @@ void termRenderLoop() {
     pthread_setname_np("Render Thread");
 #endif
     while (!exiting) {
+renderTop:
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         bool pushEvent = false;
         Terminal::renderTargetsLock.lock();
         #ifndef NO_CLI
         bool willForceRender = CLITerminal::forceRender;
         #endif
+        bool errored = false;
         for (Terminal* term : Terminal::renderTargets) {
             if (!term->canBlink) term->blink = false;
             else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
@@ -559,11 +561,49 @@ void termRenderLoop() {
                 term->last_blink = std::chrono::high_resolution_clock::now();
                 term->changed = true;
             }
-            pushEvent = pushEvent || term->changed;
-            term->render();
-            term->framecount++;
+            bool changed = term->changed;
+            bool error = false;
+            try {
+                term->render();
+            } catch (std::exception &e) {
+                fprintf(stderr, "Warning: Render on term %d threw an error: %s (%d)\n", term->id, e.what(), term->errorcount);
+                error = true;
+                if (term->errorcount++ > 10) {
+                    term->errorcount = 0;
+                    term->showMessage(SDL_MESSAGEBOX_ERROR, "Error rendering terminal", std::string(std::string("An error repeatedly occurred while attempting to render the terminal: ") + e.what() + ". This is likely a bug in CraftOS-PC. Please go to https://github.com/MCJack123/craftos2/issues/new and report this issue. The window will now close. Please note that CraftOS-PC may be left in an invalid state - you should restart the emulator.").c_str());
+                    SDL_Event e;
+                    e.type = SDL_WINDOWEVENT;
+                    e.window.event = SDL_WINDOWEVENT_CLOSE;
+                    e.window.windowID = term->id;
+                    SDL_PushEvent(&e);
+                    /*bool found = false;
+                    for (Computer * c : computers) {
+                        if (c->term == term) {
+                            found = true;
+                            delete c;
+                            break;
+                        }
+                        std::string s;
+                        monitor * m = findMonitorFromWindowID(c, term->id, s);
+                        if (m != NULL) {
+
+                        }
+                    }
+
+                    if (!found) delete term; // this will probably break things if not found*/
+                    errored = true;
+                    break;
+                }
+                continue;
+            }
+            if (!error) {
+                if (changed) term->errorcount = 0;
+                pushEvent = pushEvent || changed;
+                term->framecount++;
+            }
         }
         Terminal::renderTargetsLock.unlock();
+        if (errored) continue;
         if (pushEvent) {
             SDL_Event ev;
             ev.type = render_event_type;

@@ -400,8 +400,8 @@ void Computer::run(std::string bios_name) {
         lua_setglobal(L, "os_date");
 
         // Load any plugins available
-#ifndef STANDALONE_ROM
         if (!::config.vanilla) {
+#ifndef STANDALONE_ROM
             lua_newtable(L);
             lua_setfield(L, LUA_REGISTRYINDEX, "plugin_info");
             struct dirent *dir;
@@ -416,9 +416,9 @@ void Computer::run(std::string bios_name) {
                 }
                 closedir(d);
             }
+#endif
             for (std::string path : customPlugins) loadPlugin(path);
         }
-#endif
 
         // Delete unwanted globals
         lua_pushnil(L);

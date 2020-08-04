@@ -288,7 +288,7 @@ void SDLTerminal::render() {
     std::unique_ptr<vector2d<unsigned char> > newcolors;
     std::unique_ptr<vector2d<unsigned char> > newpixels;
     Color newpalette[256];
-    int newblinkX, newblinkY, newmode;
+    int newblinkX, newblinkY, newmode, newwidth, newheight, newcharWidth, newcharHeight, newfontScale, newcharScale;
     bool newblink;
     unsigned char newcursorColor;
     {
@@ -300,7 +300,6 @@ void SDLTerminal::render() {
             this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
             this->width = newWidth;
             this->height = newHeight;
-
             changed = true;
         }
         if (!changed && !shouldScreenshot && !shouldRecord) return;
@@ -311,6 +310,7 @@ void SDLTerminal::render() {
         newblinkX = blinkX, newblinkY = blinkY, newmode = mode;
         newblink = blink;
         newcursorColor = cursorColor;
+        newwidth = width, newheight = height, newcharWidth = charWidth, newcharHeight = charHeight, newfontScale = fontScale, newcharScale = charScale;
         changed = false;
     }
     std::lock_guard<std::mutex> rlock(renderlock);
@@ -323,20 +323,20 @@ void SDLTerminal::render() {
         return;
     }
     SDL_Rect rect;
-    if (gotResizeEvent || SDL_FillRect(surf, NULL, mode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
+    if (gotResizeEvent || SDL_FillRect(surf, NULL, newmode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
     if (newmode != 0) {
-        for (int y = 0; y < height * charHeight; y+=(2/fontScale)*charScale) {
-            for (int x = 0; x < width * charWidth; x+=(2/fontScale)*charScale) {
-                unsigned char c = (*newpixels)[y / (2/fontScale) / charScale][x / (2/fontScale) / charScale];
+        for (int y = 0; y < newheight * newcharHeight; y+=(2/ newfontScale)* newcharScale) {
+            for (int x = 0; x < newwidth * newcharWidth; x+=(2/ newfontScale)* newcharScale) {
+                unsigned char c = (*newpixels)[y / (2/newfontScale) / newcharScale][x / (2/ newfontScale) / newcharScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2/fontScale) * charScale, (2/fontScale) * charScale), rgb(newpalette[(int)c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, x + (2 * (2/ newfontScale) * newcharScale), y + (2 * (2/ newfontScale) * newcharScale), (2/ newfontScale) * newcharScale, (2/ newfontScale) * newcharScale), rgb(newpalette[(int)c])) != 0) return;
             }
         }
     } else {
-        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) 
+        for (int y = 0; y < newheight; y++) for (int x = 0; x < newwidth; x++) 
             if (gotResizeEvent || !drawChar((*newscreen)[y][x], x, y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
         if (gotResizeEvent) return;
-        if (newblink && newblinkX >= 0 && newblinkY >= 0 && newblinkX < width && newblinkY < height) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
+        if (newblink && newblinkX >= 0 && newblinkY >= 0 && newblinkX < newwidth && newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -401,18 +401,9 @@ void SDLTerminal::render() {
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
         if (circle == NULL) { printf("Error: %s\n", SDL_GetError()); assert(false); }
         if (gotResizeEvent) return;
-        if (SDL_BlitSurface(circle, NULL, surf, setRect(&rect, (width * charWidth * dpiScale + 2 * charScale * (2/fontScale) * dpiScale) - 10, 2 * charScale * (2/fontScale) * dpiScale, 10, 10)) != 0) return;
+        if (SDL_BlitSurface(circle, NULL, surf, setRect(&rect, (newwidth * newcharWidth * dpiScale + 2 * newcharScale * (2/ newfontScale) * dpiScale) - 10, 2 * newcharScale * (2/ newfontScale) * dpiScale, 10, 10)) != 0) return;
         SDL_FreeSurface(circle);
     }
-    /*if (gotResizeEvent) return;
-#ifdef __linux__
-    queueTask([ ](void* arg)->void*{SDL_UpdateWindowSurface((SDL_Window*)arg); return NULL;}, win);
-#else
-    if (SDL_UpdateWindowSurface(win) != 0) {
-        printf("Error rendering: %s\n", SDL_GetError());
-        surf = SDL_GetWindowSurface(win);
-    }
-#endif*/
 }
 
 void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {

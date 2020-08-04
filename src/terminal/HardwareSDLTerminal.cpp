@@ -123,7 +123,7 @@ void HardwareSDLTerminal::render() {
     std::unique_ptr<vector2d<unsigned char> > newcolors;
     std::unique_ptr<vector2d<unsigned char> > newpixels;
     Color newpalette[256];
-    int newblinkX, newblinkY, newmode;
+    int newblinkX, newblinkY, newmode, newwidth, newheight, newcharWidth, newcharHeight, newfontScale, newcharScale;
     bool newblink;
     {
         std::lock_guard<std::mutex> locked_g(locked);
@@ -145,6 +145,7 @@ void HardwareSDLTerminal::render() {
         memcpy(newpalette, palette, sizeof(newpalette));
         newblinkX = blinkX, newblinkY = blinkY, newmode = mode;
         newblink = blink;
+        newwidth = width, newheight = height, newcharWidth = charWidth, newcharHeight = charHeight, newfontScale = fontScale, newcharScale = charScale;
         changed = false;
     }
     std::lock_guard<std::mutex> rlock(renderlock);
@@ -157,28 +158,26 @@ void HardwareSDLTerminal::render() {
     }
     SDL_Rect rect;
     if (newmode != 0) {
-        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, width * charWidth * dpiScale, height * charHeight * dpiScale, 24, SDL_PIXELFORMAT_RGB888);
-        for (int y = 0; y < height * charHeight * dpiScale; y+=(2/fontScale)*charScale*dpiScale) {
-            for (int x = 0; x < width * charWidth * dpiScale; x+=(2/fontScale)*charScale*dpiScale) {
-                unsigned char c = (*newpixels)[y / (2/fontScale) / charScale / dpiScale][x / (2/fontScale) / charScale / dpiScale];
-                /*if (SDL_SetRenderDrawColor(ren, palette[c].r, palette[c].g, palette[c].b, 0xFF) != 0) return;
-                if (SDL_RenderFillRect(ren, setRect(&rect, x + (2 * (2/fontScale) * charScale), y + (2 * (2/fontScale) * charScale), (2 / fontScale) * charScale, (2 / fontScale) * charScale)) != 0) return;*/
+        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, newwidth * newcharWidth * dpiScale, newheight * newcharHeight * dpiScale, 24, SDL_PIXELFORMAT_RGB888);
+        for (int y = 0; y < newheight * newcharHeight * dpiScale; y+=(2/ newfontScale)* newcharScale*dpiScale) {
+            for (int x = 0; x < newwidth * newcharWidth * dpiScale; x+=(2/ newfontScale)* newcharScale*dpiScale) {
+                unsigned char c = (*newpixels)[y / (2/ newfontScale) / newcharScale / dpiScale][x / (2/ newfontScale) / newcharScale / dpiScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, x, y, (2 / fontScale) * charScale * dpiScale, (2 / fontScale) * charScale * dpiScale), rgb(newpalette[(int)c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, x, y, (2 / newfontScale) * newcharScale * dpiScale, (2 / newfontScale) * newcharScale * dpiScale), rgb(newpalette[(int)c])) != 0) return;
             }
         }
         pixtex = SDL_CreateTextureFromSurface(ren, surf);
         SDL_FreeSurface(surf);
-        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (2 * (2 / fontScale) * charScale * dpiScale), (2 * (2 / fontScale) * charScale * dpiScale), width * charWidth * dpiScale, height * charHeight * dpiScale));
+        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (2 * (2 / newfontScale) * newcharScale * dpiScale), (2 * (2 / newfontScale) * newcharScale * dpiScale), newwidth * newcharWidth * dpiScale, newheight * newcharHeight * dpiScale));
     } else {
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+        for (int y = 0; y < newheight; y++) {
+            for (int x = 0; x < newwidth; x++) {
                 if (gotResizeEvent) return;
                 if (!drawChar((*newscreen)[y][x], x, y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
             }
         }
-        if (newblinkX >= width) newblinkX = width - 1;
-        if (newblinkY >= height) newblinkY = height - 1;
+        if (newblinkX >= newwidth) newblinkX = newwidth - 1;
+        if (newblinkY >= newheight) newblinkY = newheight - 1;
         if (newblinkX < 0) newblinkX = 0;
         if (newblinkY < 0) newblinkY = 0;
         if (gotResizeEvent) return;
