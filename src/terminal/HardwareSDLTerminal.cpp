@@ -51,7 +51,7 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
     SDL_GetRendererInfo(ren, &info);
     if ((!overrideHardwareDriver.empty() && std::string(info.name) != overrideHardwareDriver) || 
         (overrideHardwareDriver.empty() && !config.preferredHardwareDriver.empty() && std::string(info.name) != config.preferredHardwareDriver))
-        printf("Warning: Preferred driver %s not available, using %s instead.\n", (overrideHardwareDriver.empty() ? config.preferredHardwareDriver.c_str() : overrideHardwareDriver.c_str()), info.name);
+        fprintf(stderr, "Warning: Preferred driver %s not available, using %s instead.\n", (overrideHardwareDriver.empty() ? config.preferredHardwareDriver.c_str() : overrideHardwareDriver.c_str()), info.name);
     if (std::string(info.name) == "software") dpiScale = 1;
     font = SDL_CreateTextureFromSurface(ren, bmp);
     if (font == nullptr || font == NULL || font == (SDL_Texture*)0) {
