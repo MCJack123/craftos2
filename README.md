@@ -86,7 +86,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * The latest packed ROM can be downloaded as an artifact from the latest CI build, found by following the top link [here](https://github.com/MCJack123/craftos2-rom/actions).
 
 You can get all of these dependencies with:
-  * Windows: `vcpkg install sdl2:x64-windows sdl2-mixer:x64-windows libpng:x64-windows libharu:x64-windows poco:x64-windows dirent:x64-windows` (install png++ manually)
+  * Windows: `vcpkg install sdl2:x64-windows sdl2-mixer:x64-windows pngpp:x64-windows libharu:x64-windows poco:x64-windows dirent:x64-windows`
   * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
   * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
   * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer png++ libharu poco ncurses`
