@@ -15,7 +15,6 @@
 #endif
 #include <sstream>
 #include <assert.h>
-#include "../favicon.h"
 #include "../config.hpp"
 #include "../gif.hpp"
 #include "../os.hpp"
@@ -37,6 +36,13 @@ extern "C" {
         unsigned char	 pixel_data[128 * 175 * 2 + 1];
     };
     extern struct font_image font_image;
+    struct favicon {
+        unsigned int 	 width;
+        unsigned int 	 height;
+        unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
+        unsigned char	 pixel_data[32 * 32 * 4 + 1];
+    };
+    extern struct favicon favicon;
 }
 
 // from Terminal.hpp
@@ -156,14 +162,9 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     onWindowCreate(id, title.c_str());
 #endif
 #if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
-    char * icon_pixels = new char[favicon_width * favicon_height * 4];
-    memset(icon_pixels, 0xFF, favicon_width * favicon_height * 4);
-    const char * icon_data = header_data;
-    for (unsigned i = 0; i < favicon_width * favicon_height; i++) HEADER_PIXEL(icon_data, (&icon_pixels[i*4]));
-    SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(icon_pixels, favicon_width, favicon_height, 32, favicon_width * 4, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+    SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(favicon.pixel_data, favicon.width, favicon.height, favicon.bytes_per_pixel * 8, favicon.width * favicon.bytes_per_pixel, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
     SDL_SetWindowIcon(win, icon);
     SDL_FreeSurface(icon);
-    delete[] icon_pixels;
 #endif
     SDL_Surface* old_bmp;
     if (config.customFontPath.empty()) 

@@ -333,14 +333,13 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\Ccblink.ico" />
     <Image Include="image1.bmp" />
+    <Image Include="resources\CraftOS-PC.ico" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit.hpp" />
     <ClInclude Include="src\Computer.hpp" />
     <ClInclude Include="src\config.hpp" />
-    <ClInclude Include="src\favicon.h" />
     <ClInclude Include="src\fs.hpp" />
     <ClInclude Include="src\fs_handle.hpp" />
     <ClInclude Include="src\fs_standalone.hpp" />
@@ -382,6 +381,7 @@
     </ClCompile>
     <ClCompile Include="src\Computer.cpp" />
     <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\favicon.c" />
     <ClCompile Include="src\font.c" />
     <ClCompile Include="src\fs.cpp" />
     <ClCompile Include="src\fs_handle.cpp" />

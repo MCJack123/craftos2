@@ -14,7 +14,6 @@
 #include <png++/png.hpp>
 #endif
 #include <assert.h>
-#include "../favicon.h"
 #include "../config.hpp"
 #include "../gif.hpp"
 #include "../os.hpp"

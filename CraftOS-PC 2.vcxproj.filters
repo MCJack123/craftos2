@@ -75,11 +75,11 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\Ccblink.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="image1.bmp">
       <Filter>Other Files</Filter>
+    </Image>
+    <Image Include="resources\CraftOS-PC.ico">
+      <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
@@ -105,9 +105,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\config.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\favicon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\fs.hpp">
@@ -282,6 +279,9 @@
     </ClCompile>
     <ClCompile Include="examples\raw_frame_reader.cpp">
       <Filter>Other Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\favicon.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
