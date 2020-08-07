@@ -20,7 +20,7 @@ CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)/share/craftos\"
 endif
 SDIR=@srcdir@/src
 ODIR=obj
-_OBJ=Computer.o config.o font.o fs_handle.o fs.o gif.o @HTTP_TARGET@ lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o speaker_sounds.o \
+_OBJ=Computer.o config.o favicon.o font.o fs_handle.o fs.o gif.o @HTTP_TARGET@ lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o speaker_sounds.o \
 	 peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o peripheral_speaker.o \
 	 terminal_SDLTerminal.o terminal_CLITerminal.o terminal_RawTerminal.o terminal_TRoRTerminal.o terminal_HardwareSDLTerminal.o @OBJS@
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
