@@ -24,6 +24,7 @@
 
 struct configuration config;
 extern int selectedRenderer;
+int onboardingMode = 0;
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false};
@@ -108,7 +109,7 @@ void config_init() {
         false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
-    if (!in.is_open()) {return;}
+    if (!in.is_open()) { onboardingMode = 1;  return; }
     Value root;
     Poco::JSON::Object::Ptr p;
     try {
@@ -159,6 +160,7 @@ void config_init() {
     readConfigSetting(useHardwareRenderer, Bool);
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
+    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString() != CRAFTOSPC_VERSION)) onboardingMode = 2;
     if (config.standardsMode) config.abortTimeout = 7000;
 }
 
@@ -200,6 +202,7 @@ void config_save() {
     root["useHardwareRenderer"] = config.useHardwareRenderer;
     root["preferredHardwareDriver"] = config.preferredHardwareDriver;
     root["useVsync"] = config.useVsync;
+    root["lastVersion"] = CRAFTOSPC_VERSION;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();

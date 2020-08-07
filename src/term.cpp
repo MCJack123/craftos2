@@ -576,21 +576,6 @@ renderTop:
                     e.window.event = SDL_WINDOWEVENT_CLOSE;
                     e.window.windowID = term->id;
                     SDL_PushEvent(&e);
-                    /*bool found = false;
-                    for (Computer * c : computers) {
-                        if (c->term == term) {
-                            found = true;
-                            delete c;
-                            break;
-                        }
-                        std::string s;
-                        monitor * m = findMonitorFromWindowID(c, term->id, s);
-                        if (m != NULL) {
-
-                        }
-                    }
-
-                    if (!found) delete term; // this will probably break things if not found*/
                     errored = true;
                     break;
                 }

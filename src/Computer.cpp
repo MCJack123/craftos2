@@ -39,6 +39,7 @@ extern std::string asciify(std::string);
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
 extern int term_benchmark(lua_State *L);
 extern int selectedRenderer;
+extern int onboardingMode;
 extern bool forceCheckTimeout;
 extern bool benchmark;
 extern std::string script_args;
@@ -494,6 +495,15 @@ void Computer::run(std::string bios_name) {
         if (selectedRenderer == 1) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_HEADLESS");
+        }
+        if (onboardingMode == 1) {
+            lua_pushboolean(L, true);
+            lua_setglobal(L, "_CCPC_FIRST_RUN");
+            onboardingMode = 0;
+        } else if (onboardingMode == 2) {
+            lua_pushboolean(L, true);
+            lua_setglobal(L, "_CCPC_UPDATED_VERSION");
+            onboardingMode = 0;
         }
         if (!script_file.empty()) {
             std::string script;

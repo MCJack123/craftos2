@@ -92,6 +92,7 @@ public:
     Value operator[](std::string key) { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); }
     void operator=(int v) { obj = v; updateParent(); }
     void operator=(bool v) { obj = v; updateParent(); }
+    void operator=(const char * v) { obj = std::string(v); updateParent(); }
     void operator=(std::string v) { obj = v; updateParent(); }
     bool asBool() { return obj.convert<bool>(); }
     int asInt() { return obj.convert<int>(); }
