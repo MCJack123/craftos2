@@ -58,7 +58,7 @@ end
 if shell == nil then error("This program must be run from the shell.") end
 
 local mode = ...
-if mode == "software" or mode == nil then
+if mode ~= "hardware" then
     if config.get("useHardwareRenderer") == true or config.get("debug_enable") == false then
         config.set("useHardwareRenderer", false)
         config.set("debug_enable", true)
@@ -86,7 +86,7 @@ if mode == "software" or mode == nil then
     print("The software rendering portion of the test is complete. CraftOS-PC will now quit. Re-open CraftOS-PC to complete the test.\n\nPress enter to continie.")
     read()
     os.shutdown()
-elseif mode == "hardware" then
+else
     local score = runTests()
     local file = fs.open(".benchmark_results", "r")
     if file == nil then
@@ -114,4 +114,4 @@ elseif mode == "hardware" then
     local answer = read()
     if answer:sub(1, 1):upper() == "Y" then config.set("useHardwareRenderer", swscore < score) 
     else config.set("useHardwareRenderer", false) end
-else printError("This script must be used with the BenchmarkRenderers shell/batch script.") end
+end
