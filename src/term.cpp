@@ -683,7 +683,9 @@ const char * termGetEvent(lua_State *L) {
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.scancode == SDL_SCANCODE_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
             else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
+#ifndef __EMSCRIPTEN__
             else if (e.key.keysym.scancode == SDL_SCANCODE_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
+#endif
             else if (e.key.keysym.scancode == SDL_SCANCODE_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
             else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.scancode == SDL_SCANCODE_T : e.key.keysym.scancode == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 1) {
