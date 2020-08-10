@@ -170,7 +170,7 @@ int luaopen_ccemux(lua_State *L) {
     for (int i = 0; M[i].name != NULL && M[i].func != NULL; i++) {
         lua_pushstring(L, M[i].name);
         if (std::string(M[i].name) == "openDataDir" || std::string(M[i].name) == "openConfig") {
-            lua_pushvalue(L, 2);
+            lua_pushvalue(L, 3);
             lua_pushcclosure(L, M[i].func, 1);
         } else lua_pushcfunction(L, M[i].func);
         lua_settable(L, -3);
