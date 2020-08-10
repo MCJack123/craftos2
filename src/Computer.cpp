@@ -231,96 +231,99 @@ void Computer::loadPlugin(std::string path) {
     if (pos == std::string::npos) pos = 0;
     else pos++;
     std::string api_name = path.substr(pos).substr(0, path.substr(pos).find_first_of('.'));
-    lua_CFunction info = (lua_CFunction)loadSymbol(path, "plugin_info");
-    if (info == NULL) {
-        printf("The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str()); 
-        pluginError(L, api_name.c_str(), "Missing plugin info");
-    } else {
-        lua_pushcfunction(L, info);
-        lua_pushstring(L, CRAFTOSPC_VERSION);
-        int ok = lua_pcall(L, 1, 1, 0);
-        if (ok != 0) {
-            printf("The plugin \"%s\" ran into an error while initializing, and will not be loaded: %s\n", api_name.c_str(), lua_tostring(L, -1));
-            pluginError(L, api_name.c_str(), lua_tostring(L, -1));
-            lua_pop(L, 1);
-            return;
-        } else if (!lua_istable(L, -1)) {
-            printf("The plugin \"%s\" returned invalid info (%s). Use at your own risk.\n", api_name.c_str(), lua_typename(L, lua_type(L, -1)));
-            pluginError(L, api_name.c_str(), "Invalid plugin info");
+    if (api_name.substr(0, 4) == "lua_") api_name = api_name.substr(4);
+    else {
+        lua_CFunction info = (lua_CFunction)loadSymbol(path, "plugin_info");
+        if (info == NULL) {
+            fprintf(stderr, "The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str());
+            pluginError(L, api_name.c_str(), "Missing plugin info");
         } else {
-            lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
-            lua_pushvalue(L, -2);
-            lua_setfield(L, -2, api_name.c_str());
-            lua_pop(L, 1);
-            
-            lua_getfield(L, -1, "version");
-            if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) {
-                printf("The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
-                pluginError(L, api_name.c_str(), "Old plugin API");
+            lua_pushcfunction(L, info);
+            lua_pushstring(L, CRAFTOSPC_VERSION);
+            int ok = lua_pcall(L, 1, 1, 0);
+            if (ok != 0) {
+                fprintf(stderr, "The plugin \"%s\" ran into an error while initializing, and will not be loaded: %s\n", api_name.c_str(), lua_tostring(L, -1));
+                pluginError(L, api_name.c_str(), lua_tostring(L, -1));
+                lua_pop(L, 1);
+                return;
+            } else if (!lua_istable(L, -1)) {
+                fprintf(stderr, "The plugin \"%s\" returned invalid info (%s). Use at your own risk.\n", api_name.c_str(), lua_typename(L, lua_type(L, -1)));
+                pluginError(L, api_name.c_str(), "Invalid plugin info");
+            } else {
+                lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
+                lua_pushvalue(L, -2);
+                lua_setfield(L, -2, api_name.c_str());
+                lua_pop(L, 1);
+
+                lua_getfield(L, -1, "version");
+                if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) {
+                    fprintf(stderr, "The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
+                    pluginError(L, api_name.c_str(), "Old plugin API");
+                }
+                lua_pop(L, 1);
+
+                lua_getfield(L, -1, "register_getLibrary");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushlightuserdata(L, (void*)&getLibrary);
+                    lua_pushstring(L, "getLibrary");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
+
+                lua_getfield(L, -1, "register_registerPeripheral");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushlightuserdata(L, (void*)&registerPeripheral);
+                    lua_pushstring(L, "registerPeripheral");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
+
+                lua_getfield(L, -1, "register_addMount");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushlightuserdata(L, (void*)&addMount);
+                    lua_pushstring(L, "addMount");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
+
+                lua_getfield(L, -1, "register_termQueueProvider");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushlightuserdata(L, (void*)&termQueueProvider);
+                    lua_pushstring(L, "termQueueProvider");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
+
+                lua_getfield(L, -1, "register_startComputer");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushlightuserdata(L, (void*)&startComputer);
+                    lua_pushstring(L, "startComputer");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
+
+                lua_getfield(L, -1, "register_queueTask");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushlightuserdata(L, (void*)&queueTask);
+                    lua_pushstring(L, "queueTask");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
+
+                lua_getfield(L, -1, "register_getComputerById");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushlightuserdata(L, (void*)&getComputerById);
+                    lua_pushstring(L, "getComputerById");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
+
+                lua_getfield(L, -1, "get_selectedRenderer");
+                if (lua_isfunction(L, -1)) {
+                    lua_pushinteger(L, selectedRenderer);
+                    lua_pushstring(L, "selectedRenderer");
+                    lua_call(L, 2, 0);
+                } else lua_pop(L, 1);
             }
             lua_pop(L, 1);
-
-            lua_getfield(L, -1, "register_getLibrary");
-            if (lua_isfunction(L, -1)) {
-                lua_pushlightuserdata(L, (void*)&getLibrary);
-                lua_pushstring(L, "getLibrary");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
-            
-            lua_getfield(L, -1, "register_registerPeripheral");
-            if (lua_isfunction(L, -1)) {
-                lua_pushlightuserdata(L, (void*)&registerPeripheral);
-                lua_pushstring(L, "registerPeripheral");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
-
-            lua_getfield(L, -1, "register_addMount");
-            if (lua_isfunction(L, -1)) {
-                lua_pushlightuserdata(L, (void*)&addMount);
-                lua_pushstring(L, "addMount");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
-
-            lua_getfield(L, -1, "register_termQueueProvider");
-            if (lua_isfunction(L, -1)) {
-                lua_pushlightuserdata(L, (void*)&termQueueProvider);
-                lua_pushstring(L, "termQueueProvider");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
-
-            lua_getfield(L, -1, "register_startComputer");
-            if (lua_isfunction(L, -1)) {
-                lua_pushlightuserdata(L, (void*)&startComputer);
-                lua_pushstring(L, "startComputer");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
-
-            lua_getfield(L, -1, "register_queueTask");
-            if (lua_isfunction(L, -1)) {
-                lua_pushlightuserdata(L, (void*)&queueTask);
-                lua_pushstring(L, "queueTask");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
-
-            lua_getfield(L, -1, "register_getComputerById");
-            if (lua_isfunction(L, -1)) {
-                lua_pushlightuserdata(L, (void*)&getComputerById);
-                lua_pushstring(L, "getComputerById");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
-
-            lua_getfield(L, -1, "get_selectedRenderer");
-            if (lua_isfunction(L, -1)) {
-                lua_pushinteger(L, selectedRenderer);
-                lua_pushstring(L, "selectedRenderer");
-                lua_call(L, 2, 0);
-            } else lua_pop(L, 1);
         }
-        lua_pop(L, 1);
     }
     lua_CFunction luaopen = (lua_CFunction)loadSymbol(path, "luaopen_" + api_name);
     if (luaopen == NULL) {
-        printf("Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); 
+        fprintf(stderr, "Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); 
         pluginError(L, api_name.c_str(), "Missing API opener");
         return;
     }

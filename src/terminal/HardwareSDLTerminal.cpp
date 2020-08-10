@@ -252,7 +252,7 @@ void HardwareSDLTerminal::render() {
             if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
-        if (circle == NULL) { printf("Error: %s\n", SDL_GetError()); assert(false); }
+        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); assert(false); }
         SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, circle);
         if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, 2 * charScale * fontScale * dpiScale, 10, 10)) != 0) return;
         SDL_FreeSurface(circle);

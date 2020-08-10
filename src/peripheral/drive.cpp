@@ -67,8 +67,8 @@ int drive::playAudio(lua_State *L) {
     if (diskType != disk_type::DISK_TYPE_AUDIO) return 0;
     if (music != NULL) stopAudio(L);
     music = Mix_LoadMUS(path.c_str());
-    if (music == NULL) printf("Could not load audio: %s\n", Mix_GetError());
-    if (Mix_PlayMusic(music, 1) == -1) printf("Could not play audio: %s\n", Mix_GetError());
+    if (music == NULL) fprintf(stderr, "Could not load audio: %s\n", Mix_GetError());
+    if (Mix_PlayMusic(music, 1) == -1) fprintf(stderr, "Could not play audio: %s\n", Mix_GetError());
 #endif
     return 0;
 }

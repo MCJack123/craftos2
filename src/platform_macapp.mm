@@ -192,7 +192,7 @@ void updateNow(std::string tag_name) {
             char c = in.get();
             while (in.good()) {out.put(c); c = in.get();}
             out.close();
-            printf("Wrote: %s\n", tempFileTemplateCString);
+            fprintf(stderr, "Wrote: %s\n", tempFileTemplateCString);
             NSError * err = nil;
             NSUserUnixTask * task = [[NSUserUnixTask alloc] initWithURL:[NSURL fileURLWithPath:@"/usr/bin/hdiutil" isDirectory:false] error:&err];
             if (err != nil) {
@@ -244,7 +244,7 @@ void updateNow(std::string tag_name) {
                         return;
                     }
                     int pid = fork();
-                    if (pid < 0) printf("Could not fork: %d\n", pid);
+                    if (pid < 0) fprintf(stderr, "Could not fork: %d\n", pid);
                     else if (pid == 0) {
                         if ([[NSFileManager defaultManager] isWritableFileAtPath:[NSBundle mainBundle].bundlePath]) system(("/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation])).c_str());
                         else system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str());

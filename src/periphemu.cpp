@@ -87,7 +87,7 @@ int periphemu_create(lua_State* L) {
         if (type == std::string("debugger") && config.debug_enable) p = new debugger(L, side.c_str());
         else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
         else {
-            printf("not found: %s\n", type.c_str());
+            //fprintf(stderr, "not found: %s\n", type.c_str());
             lua_pushboolean(L, false);
             return 1;
         }

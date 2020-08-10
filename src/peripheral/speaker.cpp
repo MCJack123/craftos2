@@ -206,7 +206,7 @@ struct CustomSdlMixerPlaybackSpeedEffectHandler
     static void registerOnChannel(int channel, float& speed, Mix_Chunk* chunk, bool loop)
     {
         if (!Mix_RegisterEffect(channel, Handler::mixEffectFuncCallback, Handler::mixEffectDoneCallback, new Handler(speed, chunk, loop)))
-            printf("Could not register effect: %s\n", Mix_GetError());
+            fprintf(stderr, "Could not register effect: %s\n", Mix_GetError());
     }
 };
 
@@ -532,7 +532,7 @@ void speakerInit() {
                     else for (sound_file_t f : items) soundEvents[eventName].push_back(f);
                 }
             } catch (Poco::BadCastException &e) {
-                printf("%s\n", e.displayText().c_str());
+                fprintf(stderr, "An error occurred while parsing the sounds.json file: %s\n", e.displayText().c_str());
             }
         }
         closedir(d);

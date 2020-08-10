@@ -105,7 +105,7 @@ void update_thread() {
 #endif
         }
     } catch (std::exception &e) {
-        printf("Could not check for updates: %s\n", e.what());
+        fprintf(stderr, "Could not check for updates: %s\n", e.what());
     }
 }
 

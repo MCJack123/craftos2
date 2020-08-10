@@ -58,7 +58,7 @@ std::string getPlugInPath() { return getROMPath() + "/plugins/"; }
 void setThreadName(std::thread &t, std::string name) {
     HRESULT (*_SetThreadDescription)(HANDLE, PCWSTR) = (HRESULT(*)(HANDLE, PCWSTR))loadSymbol("kernel32", "SetThreadDescription");
     if (_SetThreadDescription != NULL) _SetThreadDescription((HANDLE)t.native_handle(), std::wstring(name.begin(), name.end()).c_str());
-    else printf("Could not find symbol\n");
+    //else fprintf(stderr, "Could not find symbol\n");
 }
 
 int createDirectory(std::string path) {

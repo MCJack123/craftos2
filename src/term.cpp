@@ -435,7 +435,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
             lua_concat(L, 2);
-            printf("%s\n", lua_tostring(L, -1));
+            //fprintf(stderr, "%s\n", lua_tostring(L, -1));
             lua_error(L);
         }
     } else if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
@@ -465,7 +465,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             }
         }
     } else if (ar->event == LUA_HOOKERROR) {
-        if (config.logErrors) printf("Got error: %s\n", lua_tostring(L, -2));
+        if (config.logErrors) fprintf(stderr, "Got error: %s\n", lua_tostring(L, -2));
         if (!computer->isDebugger && computer->debugger != NULL) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_ERROR)) 

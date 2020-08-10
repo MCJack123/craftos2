@@ -152,7 +152,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     do {
         param = lua_newthread(computer->paramQueue);
         while (termHasEvent(computer) && computer->eventQueue.size() < 25) {
-            if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
+            if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
             const char * name = termGetEvent(param);
             if (name != NULL) {
                 if (strcmp(name, "die") == 0) { computer->running = 0; name = "terminate"; }
@@ -183,7 +183,7 @@ int getNextEvent(lua_State *L, std::string filter) {
                 }
             }
             while (termHasEvent(computer) && computer->eventQueue.size() < 25) {
-                if (!lua_checkstack(param, 4)) printf("Could not allocate event\n");
+                if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
                 const char * name = termGetEvent(param);
                 if (name != NULL) {
                     if (strcmp(name, "die") == 0) { computer->running = 0; name = "terminate"; }
@@ -199,17 +199,17 @@ int getNextEvent(lua_State *L, std::string filter) {
         std::this_thread::yield();
     } while (!filter.empty() && ev != filter);
     if ((size_t)lua_gettop(computer->paramQueue) != computer->eventQueue.size() + 1) {
-        printf("Warning: Queue sizes are incorrect! Expect misaligned event parameters.\n");
+        fprintf(stderr, "Warning: Queue sizes are incorrect! Expect misaligned event parameters.\n");
     }
     param = lua_tothread(computer->paramQueue, 1);
     if (param == NULL) {
-        printf("Queue item is not a thread for event \"%s\"!\n", ev.c_str()); 
+        fprintf(stderr, "Queue item is not a thread for event \"%s\"!\n", ev.c_str()); 
         if (lua_gettop(computer->paramQueue) > 0) lua_remove(computer->paramQueue, 1);
         return 0;
     }
     int count = lua_gettop(param);
     if (!lua_checkstack(L, count + 1)) {
-        printf("Could not allocate enough space in the stack for %d elements, skipping event \"%s\"\n", count, ev.c_str());
+        fprintf(stderr, "Could not allocate enough space in the stack for %d elements, skipping event \"%s\"\n", count, ev.c_str());
         if (lua_gettop(computer->paramQueue) > 0) lua_remove(computer->paramQueue, 1);
         return 0;
     }

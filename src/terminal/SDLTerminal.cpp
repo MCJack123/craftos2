@@ -320,7 +320,7 @@ void SDLTerminal::render() {
     if (surf != NULL) SDL_FreeSurface(surf);
     surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 24, SDL_PIXELFORMAT_RGB888);
     if (surf == NULL) {
-        printf("Could not allocate renderer: %s\n", SDL_GetError());
+        fprintf(stderr, "Could not allocate rendering surface: %s\n", SDL_GetError());
         return;
     }
     SDL_Rect rect;
@@ -400,7 +400,7 @@ void SDLTerminal::render() {
             if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
-        if (circle == NULL) { printf("Error: %s\n", SDL_GetError()); assert(false); }
+        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); assert(false); }
         if (gotResizeEvent) return;
         if (SDL_BlitSurface(circle, NULL, surf, setRect(&rect, (newwidth * newcharWidth * dpiScale + 2 * newcharScale * (2/ newfontScale) * dpiScale) - 10, 2 * newcharScale * (2/ newfontScale) * dpiScale, 10, 10)) != 0) return;
         SDL_FreeSurface(circle);

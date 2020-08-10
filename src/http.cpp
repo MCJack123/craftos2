@@ -180,7 +180,7 @@ void downloadThread(void* arg) {
             return;
         }
     } catch (Poco::Exception &e) {
-        printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
+        fprintf(stderr, "Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
         http_check_t * err = new http_check_t;
@@ -196,7 +196,7 @@ void downloadThread(void* arg) {
     try {
         handle = new http_handle_t(session->receiveResponse(*response));
     } catch (Poco::Exception &e) {
-        printf("Error while downloading %s: %s\n", param->url, e.message().c_str());
+        fprintf(stderr, "Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
         http_check_t * err = new http_check_t;
@@ -433,7 +433,7 @@ public:
     int port;
     HTTPListener(int p, Computer *c): comp(c), port(p) {}
     void handleRequest(HTTPServerRequest& req, HTTPServerResponse& res) {
-        printf("Got request: %s\n", req.getURI().c_str());
+        //fprintf(stderr, "Got request: %s\n", req.getURI().c_str());
         struct http_res lres = {"", &res};
         struct http_request_data evdata = {port, false, &req, &lres};
         termQueueProvider(comp, http_request_event, &evdata);
@@ -700,7 +700,7 @@ void stopWebsocket(void* wsh) {
     ((struct ws_handle*)wsh)->externalClosed = 1;
     ((struct ws_handle*)wsh)->ws->shutdown();
     for (int i = 0; ((struct ws_handle*)wsh)->externalClosed != 2; i++) {
-        if (i % 4 == 0) printf("Waiting for WebSocket...\n");
+        if (i % 4 == 0) fprintf(stderr, "Waiting for WebSocket...\n");
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     ((struct ws_handle*)wsh)->externalClosed = 3;
