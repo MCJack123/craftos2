@@ -80,7 +80,7 @@ if mode ~= "hardware" then
     file.close()
     config.set("useHardwareRenderer", true)
     term.setBackgroundColor(colors.black)
-    term.setTextColor(colors.blue)
+    term.setTextColor(colors.lightBlue)
     term.clear()
     term.setCursorPos(1, 1)
     print("The software rendering portion of the test is complete. CraftOS-PC will now quit. Re-open CraftOS-PC to complete the test.\n\nPress enter to continie.")
