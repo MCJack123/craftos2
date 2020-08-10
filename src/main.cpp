@@ -44,7 +44,6 @@ extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
 int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
-bool benchmark = false;
 std::string overrideHardwareDriver;
 std::map<uint8_t, Terminal*> rawClientTerminals;
 std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
@@ -312,7 +311,6 @@ int main(int argc, char*argv[]) {
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
 #endif
         else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
-        else if (arg == "--addBenchmarkFunction") benchmark = true;
         else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
             std::string mount_path = argv[++i];
             if (mount_path.find('=') == std::string::npos) {

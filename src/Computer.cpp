@@ -41,7 +41,6 @@ extern int term_benchmark(lua_State *L);
 extern int selectedRenderer;
 extern int onboardingMode;
 extern bool forceCheckTimeout;
-extern bool benchmark;
 extern std::string script_args;
 extern std::string script_file;
 std::vector<Computer*> computers;
@@ -534,12 +533,8 @@ void Computer::run(std::string bios_name) {
             lua_pushlstring(L, script_args.c_str(), script_args.length());
             lua_setglobal(L, "_CCPC_STARTUP_ARGS");
         }
-        if (benchmark) {
-            lua_getglobal(L, "term");
-            lua_pushcfunction(L, term_benchmark);
-            lua_setfield(L, -2, "benchmark");
-            lua_pop(L, 1);
-        }
+        lua_pushcfunction(L, term_benchmark);
+        lua_setfield(L, LUA_REGISTRYINDEX, "benchmark");
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
