@@ -69,7 +69,7 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
     const float kSysDefaultDpi =
 #ifdef __APPLE__
-        144.0f;
+        72.0f;
 #elif defined(_WIN32)
         96.0f;
 #else

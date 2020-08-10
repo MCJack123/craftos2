@@ -546,7 +546,6 @@ void termRenderLoop() {
     pthread_setname_np("Render Thread");
 #endif
     while (!exiting) {
-renderTop:
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         bool pushEvent = false;
         Terminal::renderTargetsLock.lock();
