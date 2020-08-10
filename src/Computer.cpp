@@ -231,8 +231,11 @@ void Computer::loadPlugin(std::string path) {
     if (pos == std::string::npos) pos = 0;
     else pos++;
     std::string api_name = path.substr(pos).substr(0, path.substr(pos).find_first_of('.'));
-    if (api_name.substr(0, 4) == "lua_") api_name = api_name.substr(4);
-    else {
+    bool isLuaLib = false;
+    if (api_name.substr(0, 4) == "lua_") {
+        api_name = api_name.substr(4);
+        isLuaLib = true;
+    } else {
         lua_CFunction info = (lua_CFunction)loadSymbol(path, "plugin_info");
         if (info == NULL) {
             fprintf(stderr, "The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str());
@@ -328,9 +331,12 @@ void Computer::loadPlugin(std::string path) {
         return;
     }
     lua_pushcfunction(L, luaopen);
-    lua_pushstring(L, getROMPath().c_str());
-    lua_pushstring(L, getBasePath().c_str());
-    lua_call(L, 2, 1);
+    lua_pushstring(L, api_name.c_str());
+    if (!isLuaLib) {
+        lua_pushstring(L, getROMPath().c_str());
+        lua_pushstring(L, getBasePath().c_str());
+        lua_call(L, 3, 1);
+    } else lua_call(L, 1, 1);
     lua_setglobal(L, api_name.c_str());
 }
 
