@@ -4,7 +4,7 @@ extern "C" {
 }
 #include "../src/Computer.hpp"
 
-#define PLUGIN_VERSION 2
+#define PLUGIN_VERSION 4
 
 void bad_argument(lua_State *L, const char * type, int pos) {
     lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));

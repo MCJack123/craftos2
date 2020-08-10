@@ -33,7 +33,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-#define PLUGIN_VERSION 2
+#define PLUGIN_VERSION 4
 
 extern std::string asciify(std::string);
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
