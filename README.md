@@ -8,7 +8,7 @@ Visit the website at https://www.craftos-pc.cc/ for more information, including 
 ## Requirements for released builds
 * Supported operating systems:
   * Windows Vista x64 or later
-  * macOS 10.9+
+  * macOS 10.13+
   * Ubuntu 18.04, 19.10, 20.04
   * Arch Linux with AUR helper
 * Administrator privileges
