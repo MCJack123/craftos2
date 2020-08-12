@@ -35,6 +35,7 @@ extern "C" {
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 #include <png++/png.hpp>
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
@@ -314,4 +315,14 @@ void setupCrashHandler() {
     signal(SIGILL, handler);
     signal(SIGBUS, handler);
     signal(SIGTRAP, handler);
+}
+
+float getBackingScaleFactor(SDL_Window *win) {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(win, &info);
+    if (info.info.cocoa.window.screen == nil) return 1.0f;
+    if ([info.info.cocoa.window.screen respondsToSelector:@selector(backingScaleFactor)])  // Mac OS X 10.7 and later
+        return [info.info.cocoa.window.screen backingScaleFactor];
+    return 1.0f;
 }

@@ -65,26 +65,6 @@ Color defaultPalette[16] = {
     {0x11, 0x11, 0x11}
 };
 
-void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
-{
-    const float kSysDefaultDpi =
-#ifdef __APPLE__
-        72.0f;
-#elif defined(_WIN32)
-        96.0f;
-#else
-        96.0f;
-#endif
- 
-    if (SDL_GetDisplayDPI(displayIndex, NULL, dpi, NULL) != 0)
-    {
-        // Failed to get DPI, so just return the default value.
-        if (dpi) *dpi = kSysDefaultDpi;
-    }
- 
-    if (defaultDpi) *defaultDpi = kSysDefaultDpi;
-}
-
 int SDLTerminal::fontScale = 2;
 std::list<Terminal*> Terminal::renderTargets;
 std::mutex Terminal::renderTargetsLock;

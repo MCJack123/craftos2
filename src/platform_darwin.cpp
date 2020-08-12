@@ -224,4 +224,12 @@ void setupCrashHandler() {
     signal(SIGTRAP, handler);
 }
 
+extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);
+
+float getBackingScaleFactor(SDL_Window *win) {
+    float dpi, defaultDpi;
+    MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
+    return dpi / defaultDpi;
+}
+
 #endif // __INTELLISENSE__

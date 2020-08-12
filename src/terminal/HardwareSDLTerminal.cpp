@@ -33,18 +33,40 @@ extern "C" {
 #endif
 }
 
-extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);
 extern std::string overrideHardwareDriver;
+#ifdef __APPLE__
+extern float getBackingScaleFactor(SDL_Window *win);
+#endif
+
+void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
+{
+    const float kSysDefaultDpi =
+#ifdef __APPLE__
+        144.0f;
+#elif defined(_WIN32)
+        96.0f;
+#else
+        96.0f;
+#endif
+ 
+    if (SDL_GetDisplayDPI(displayIndex, NULL, dpi, NULL) != 0)
+    {
+        // Failed to get DPI, so just return the default value.
+        if (dpi) *dpi = kSysDefaultDpi;
+    }
+ 
+    if (defaultDpi) *defaultDpi = kSysDefaultDpi;
+}
 
 HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
     float dpi, defaultDpi;
-    MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
 #ifdef __APPLE__
-    if ((int)dpi % 2 == 0 && dpi / defaultDpi >= 4) dpi /= 2;
+    dpi = getBackingScaleFactor(win), defaultDpi = 1.0;
+#else
+    MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
 #endif
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
-    printf("%f %f -> %d\n", dpi, defaultDpi, dpiScale);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
     if (ren == nullptr || ren == NULL || ren == (SDL_Renderer*)0) {
         SDL_DestroyWindow(win);
