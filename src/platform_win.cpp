@@ -225,7 +225,7 @@ void copyImage(SDL_Surface* surf) {
 }
 
 LONG WINAPI exceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
-    MessageBoxA(NULL, "Uh oh, CraftOS-PC has crashed! Please report this to https://github.com/MCJack123/craftos2/issues/new/choose. When writing the report, attach the latest CraftOS-PC.exe .dmp file located here (you can type this into the File Explorer): '%LOCALAPPDATA%\\CrashDumps'. CraftOS-PC will now close.", "Application Error", MB_OK | MB_ICONSTOP);
+    MessageBoxA(NULL, "Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, attach the latest CraftOS-PC.exe .dmp file located here (you can type this into the File Explorer): '%LOCALAPPDATA%\\CrashDumps'. CraftOS-PC will now close.", "Application Error", MB_OK | MB_ICONSTOP);
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
