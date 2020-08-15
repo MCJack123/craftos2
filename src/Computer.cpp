@@ -225,6 +225,8 @@ static void pluginError(lua_State *L, const char * name, const char * err) {
     lua_pop(L, 1);
 }
 
+extern void config_save();
+
 void Computer::loadPlugin(std::string path) {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos) pos = 0;
@@ -512,6 +514,10 @@ void Computer::run(std::string bios_name) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_CCPC_UPDATED_VERSION");
             onboardingMode = 0;
+            if (std::string(CRAFTOSPC_VERSION) == "v2.4" && !::config.romReadOnly) {
+                ::config.romReadOnly = true;
+                config_save();
+            }
         }
         if (!script_file.empty()) {
             std::string script;
