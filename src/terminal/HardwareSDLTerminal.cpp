@@ -150,6 +150,7 @@ void HardwareSDLTerminal::render() {
     Color newpalette[256];
     int newblinkX, newblinkY, newmode, newwidth, newheight, newcharWidth, newcharHeight, newfontScale, newcharScale;
     bool newblink;
+    unsigned char newcursorColor;
     {
         std::lock_guard<std::mutex> locked_g(locked);
         if (ren == NULL || font == NULL) return; // race condition since HardwareSDLTerminal() is called after SDLTerminal(), which adds the terminal to the render targets
@@ -171,6 +172,7 @@ void HardwareSDLTerminal::render() {
         newblinkX = blinkX, newblinkY = blinkY, newmode = mode;
         newblink = blink;
         newwidth = width, newheight = height, newcharWidth = charWidth, newcharHeight = charHeight, newfontScale = fontScale, newcharScale = charScale;
+        newcursorColor = cursorColor;
         changed = false;
     }
     std::lock_guard<std::mutex> rlock(renderlock);
@@ -201,12 +203,8 @@ void HardwareSDLTerminal::render() {
                 if (!drawChar((*newscreen)[y][x], x, y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
             }
         }
-        if (newblinkX >= newwidth) newblinkX = newwidth - 1;
-        if (newblinkY >= newheight) newblinkY = newheight - 1;
-        if (newblinkX < 0) newblinkX = 0;
-        if (newblinkY < 0) newblinkY = 0;
         if (gotResizeEvent) return;
-        if (newblink) if (!drawChar('_', newblinkX, newblinkY, newpalette[0], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
+        if (newblink && newblinkX >= 0 && newblinkY >= 0 && newblinkX < newwidth && newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
     }
     currentFPS++;
     if (lastSecond != time(0)) {
