@@ -491,16 +491,19 @@ void termHook(lua_State *L, lua_Debug *ar) {
             }
             if (dbg->isProfiling) {
                 lua_getinfo(L, "nS", ar);
+                std::string name;
+                if (ar->name == NULL) name = "(unknown)";
+                else name = ar->name;
                 if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
-                if (dbg->profile[ar->source].find(ar->name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][ar->name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
+                if (dbg->profile[ar->source].find(name) == dbg->profile[ar->source].end()) dbg->profile[ar->source][name] = {true, 1, std::chrono::high_resolution_clock::now(), std::chrono::microseconds(0)};
                 else {
-                    if (dbg->profile[ar->source][ar->name].running) {
-                        dbg->profile[ar->source][ar->name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][ar->name].start);
-                        dbg->profile[ar->source][ar->name].running = false;
+                    if (dbg->profile[ar->source][name].running) {
+                        dbg->profile[ar->source][name].time += (std::chrono::high_resolution_clock::now() - dbg->profile[ar->source][name].start);
+                        dbg->profile[ar->source][name].running = false;
                     }
-                    dbg->profile[ar->source][ar->name].running = true;
-                    dbg->profile[ar->source][ar->name].count++;
-                    dbg->profile[ar->source][ar->name].start = std::chrono::high_resolution_clock::now();
+                    dbg->profile[ar->source][name].running = true;
+                    dbg->profile[ar->source][name].count++;
+                    dbg->profile[ar->source][name].start = std::chrono::high_resolution_clock::now();
                 }
             }
         } else if (ar->event == LUA_HOOKRESUME) {
