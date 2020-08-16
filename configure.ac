@@ -17,7 +17,6 @@ AC_ARG_WITH(txt, [AS_HELP_STRING([--with-txt], [make printer output text files])
 AC_ARG_WITH(standalone_rom, [AS_HELP_STRING([--with-standalone-rom], [path to standalone ROM file, enables standalone build])])
 AC_ARG_ENABLE(wasm, [AS_HELP_STRING([--enable-wasm], [compile for WebAssembly using Emscripten])])
 AC_ARG_WITH(wasm_poco, [AS_HELP_STRING([--with-wasm-poco], [path to Poco build for WASM])])
-AC_ARG_WITH(wasm_openssl, [AS_HELP_STRING([--with-wasm-openssl], [path to OpenSSL build for WASM])])
 AC_ARG_WITH(wasm_rom, [AS_HELP_STRING([--with-wasm-rom], [path to ROM for WASM builds])])
 
 if test "x$CC" = "xemcc"; then enable_wasm=yes; fi
@@ -37,15 +36,14 @@ fi
 if test "x$enable_wasm" = "xyes"; then
     # Set up compiler for emcc/em++
     AS_IF([test "x$with_wasm_poco" = "x"], [AC_MSG_ERROR([--with-wasm-poco must be specified when building for WASM.])])
-    AS_IF([test "x$with_wasm_openssl" = "x"], [AC_MSG_ERROR([--with-wasm-openssl must be specified when building for WASM.])])
     AS_IF([test "x$with_wasm_rom" = "x"], [AC_MSG_ERROR([--with-wasm-rom must be specified when building for WASM.])])
     SQBROP=@<:@
     SQBRCL=@:>@
     CC=emcc
     CXX=em++
-    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -I$with_wasm_openssl/include -Icraftos2-lua/include -DNO_CLI -DNO_PNG -DNO_MIXER -DPRINT_TYPE=1"
+    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -DNO_CLI -DNO_PNG -DNO_MIXER -DPRINT_TYPE=1"
     CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1"
-    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -L$with_wasm_openssl/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL"
+    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL -s ASYNCIFY"
 fi
 
 # Check language
@@ -79,7 +77,7 @@ AC_CHECK_HEADERS(Poco/Net/NetSSL.h, [], [AC_MSG_ERROR([Could not find Poco NetSS
 
 if test "x$enable_wasm" = "xyes"; then
     LDFLAGS="$LDFLAGS -s USE_PTHREADS=1 --embed-file $with_wasm_rom@/craftos --shared-memory"
-    LIBS="$LIBS -lPocoNetSSL -lPocoNet -lPocoCrypto -lPocoJSON -lPocoXML -lPocoUtil -lPocoFoundation -lssl -lcrypto"
+    LIBS="$LIBS -lPocoJSON -lPocoUtil -lPocoFoundation"
     AC_SUBST(OUT_TARGET, craftos.html)
     AC_SUBST(HTTP_TARGET, "http_emscripten.o")
 else

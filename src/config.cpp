@@ -26,6 +26,10 @@ struct configuration config;
 extern int selectedRenderer;
 int onboardingMode = 0;
 
+#ifdef __EMSCRIPTEN__
+extern "C" {extern void syncfs();}
+#endif
+
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false};
     std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
@@ -63,6 +67,9 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
     std::ofstream out(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
     out << root;
     out.close();
+#ifdef __EMSCRIPTEN__
+    queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
+#endif
 }
 
 #define readConfigSetting(name, type) if (root.isMember(#name)) config.name = root[#name].as##type()
@@ -111,7 +118,7 @@ void config_init() {
         false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
-    if (!in.is_open()) { onboardingMode = 1;  return; }
+    if (!in.is_open()) { onboardingMode = 1; return; }
     Value root;
     Poco::JSON::Object::Ptr p;
     try {
@@ -208,6 +215,9 @@ void config_save() {
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
     out.close();
+#ifdef __EMSCRIPTEN__
+    queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
+#endif
 }
 
 void config_deinit(Computer *comp) { config_save(); }

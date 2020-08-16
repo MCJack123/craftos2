@@ -687,7 +687,6 @@ with_txt
 with_standalone_rom
 enable_wasm
 with_wasm_poco
-with_wasm_openssl
 with_wasm_rom
 '
       ac_precious_vars='build_alias
@@ -1328,7 +1327,6 @@ Optional Packages:
   --with-standalone-rom   path to standalone ROM file, enables standalone
                           build
   --with-wasm-poco        path to Poco build for WASM
-  --with-wasm-openssl     path to OpenSSL build for WASM
   --with-wasm-rom         path to ROM for WASM builds
 
 Some influential environment variables:
@@ -2210,12 +2208,6 @@ if test "${with_wasm_poco+set}" = set; then :
 fi
 
 
-# Check whether --with-wasm_openssl was given.
-if test "${with_wasm_openssl+set}" = set; then :
-  withval=$with_wasm_openssl;
-fi
-
-
 # Check whether --with-wasm_rom was given.
 if test "${with_wasm_rom+set}" = set; then :
   withval=$with_wasm_rom;
@@ -2245,9 +2237,6 @@ if test "x$enable_wasm" = "xyes"; then
     if test "x$with_wasm_poco" = "x"; then :
   as_fn_error $? "--with-wasm-poco must be specified when building for WASM." "$LINENO" 5
 fi
-    if test "x$with_wasm_openssl" = "x"; then :
-  as_fn_error $? "--with-wasm-openssl must be specified when building for WASM." "$LINENO" 5
-fi
     if test "x$with_wasm_rom" = "x"; then :
   as_fn_error $? "--with-wasm-rom must be specified when building for WASM." "$LINENO" 5
 fi
@@ -2255,9 +2244,9 @@ fi
     SQBRCL=]
     CC=emcc
     CXX=em++
-    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -I$with_wasm_openssl/include -Icraftos2-lua/include -DNO_CLI -DNO_PNG -DNO_MIXER -DPRINT_TYPE=1"
+    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -DNO_CLI -DNO_PNG -DNO_MIXER -DPRINT_TYPE=1"
     CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1"
-    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -L$with_wasm_openssl/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL"
+    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL -s ASYNCIFY"
 fi
 
 # Check language
@@ -4170,7 +4159,7 @@ done
 
 if test "x$enable_wasm" = "xyes"; then
     LDFLAGS="$LDFLAGS -s USE_PTHREADS=1 --embed-file $with_wasm_rom@/craftos --shared-memory"
-    LIBS="$LIBS -lPocoNetSSL -lPocoNet -lPocoCrypto -lPocoJSON -lPocoXML -lPocoUtil -lPocoFoundation -lssl -lcrypto"
+    LIBS="$LIBS -lPocoJSON -lPocoUtil -lPocoFoundation"
     OUT_TARGET=craftos.html
 
     HTTP_TARGET="http_emscripten.o"

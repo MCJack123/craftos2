@@ -37,6 +37,10 @@ extern std::string overrideHardwareDriver;
 #ifdef __APPLE__
 extern float getBackingScaleFactor(SDL_Window *win);
 #endif
+#ifdef __EMSCRIPTEN__
+SDL_Renderer *HardwareSDLTerminal::ren = NULL;
+SDL_Texture *HardwareSDLTerminal::font = NULL;
+#endif
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
@@ -59,6 +63,9 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 }
 
 HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
+#ifdef __EMSCRIPTEN__
+    if (ren == NULL) {
+#endif
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
     float dpi, defaultDpi;
 #ifdef __APPLE__
@@ -84,14 +91,21 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
     }
+#ifdef __EMSCRIPTEN__
+    }
+#endif
 }
 
 HardwareSDLTerminal::~HardwareSDLTerminal() {
+#ifndef __EMSCRIPTEN__
     if (!overridden) {
         if (pixtex != NULL) SDL_DestroyTexture(pixtex);
         SDL_DestroyTexture(font);
         SDL_DestroyRenderer(ren);
     }
+#else
+    if (pixtex != NULL) SDL_DestroyTexture(pixtex);
+#endif
 }
 
 extern bool operator!=(Color lhs, Color rhs);
@@ -142,6 +156,9 @@ static unsigned char circlePix[] = {
 };
 
 void HardwareSDLTerminal::render() {
+#ifdef __EMSCRIPTEN__
+    if (*HardwareSDLTerminal::renderTarget != this) return;
+#endif
     if (width == 0 || height == 0) return; // don't render if we don't have a valid screen size
     // copy the screen data so we can let Lua keep going without waiting for the mutex
     std::unique_ptr<vector2d<unsigned char> > newscreen;
@@ -358,12 +375,8 @@ bool HardwareSDLTerminal::pollEvents() {
             }
         } else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
-            HardwareSDLTerminal* term = dynamic_cast<HardwareSDLTerminal*>(*HardwareSDLTerminal::renderTarget);
-            if (term != NULL) {
-                std::lock_guard<std::mutex> lock(term->renderlock);
-                SDL_RenderPresent(sdlterm->ren);
-                SDL_UpdateWindowSurface(sdlterm->win);
-            }
+            SDL_RenderPresent(HardwareSDLTerminal::ren);
+            SDL_UpdateWindowSurface(SDLTerminal::win);
 #else
             for (Terminal* term : Terminal::renderTargets) {
                 HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);

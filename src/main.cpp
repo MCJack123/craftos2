@@ -22,10 +22,12 @@
 #include <functional>
 #include <thread>
 #include <iomanip>
+#ifndef __EMSCRIPTEN__
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
+#endif
 #include <Poco/JSON/Parser.h>
 #include <Poco/Checksum.h>
 #ifdef __EMSCRIPTEN__
@@ -52,6 +54,7 @@ std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
 
+#ifndef __EMSCRIPTEN__
 void update_thread() {
     try {
         Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
@@ -107,6 +110,7 @@ void update_thread() {
         fprintf(stderr, "Could not check for updates: %s\n", e.what());
     }
 }
+#endif
 
 inline Terminal * createTerminal(std::string title) {
 #ifndef NO_CLI
@@ -271,11 +275,7 @@ int runRenderer() {
 
 int main(int argc, char*argv[]) {
 #ifdef __EMSCRIPTEN__
-    EM_ASM(
-        FS.mkdir('/user-data');
-        FS.mount(IDBFS, {}, '/user-data');
-        FS.syncfs(true, function(err) {if (err) console.log('Error while loading filesystem: ', err);});
-    );
+    while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
 #endif
     int id = 0;
     bool manualID = false;

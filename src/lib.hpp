@@ -98,7 +98,7 @@ public:
     int asInt() { return obj.convert<int>(); }
     float asFloat() { return obj.convert<float>(); }
     std::string asString() { return obj.toString(); }
-    const char * asCString() { return obj.toString().c_str(); }
+    //const char * asCString() { return obj.toString().c_str(); }
     bool isArray() {return obj.isArray();}
     bool isBoolean() {return obj.isBoolean();}
     bool isInt() {return obj.isInteger();}

@@ -192,14 +192,14 @@ int fs_handle_readChar(lua_State *L) {
         if (c < 0) {
             if (c & 64) {
                 char c2 = fgetc(fp);
-                if (c2 >= 0 || c2 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                if (c2 >= 0 || c2 & 64) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                 if (c & 32) {
                     char c3 = fgetc(fp);
-                    if (c3 >= 0 || c3 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                    if (c3 >= 0 || c3 & 64) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                     if (c & 16) {
-                        if (c & 8) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                        if (c & 8) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                         char c4 = fgetc(fp);
-                        if (c4 >= 0 || c4 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                        if (c4 >= 0 || c4 & 64) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                         codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
                     } else {
                         codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
@@ -207,7 +207,7 @@ int fs_handle_readChar(lua_State *L) {
                 } else {
                     codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
                 }
-            } else {codepoint = 2^31; goto fs_handle_readCharDone;}
+            } else {codepoint = 1<<31; goto fs_handle_readCharDone;}
         } else codepoint = c;
     fs_handle_readCharDone:
         if (codepoint > 255) retval += '?';
@@ -236,14 +236,14 @@ int fs_handle_istream_readChar(lua_State *L) {
         if (c < 0) {
             if (c & 64) {
                 char c2 = fp->get();
-                if (c2 >= 0 || c2 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                if (c2 >= 0 || c2 & 64) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                 if (c & 32) {
                     char c3 = fp->get();
-                    if (c3 >= 0 || c3 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                    if (c3 >= 0 || c3 & 64) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                     if (c & 16) {
-                        if (c & 8) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                        if (c & 8) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                         char c4 = fp->get();
-                        if (c4 >= 0 || c4 & 64) {codepoint = 2^31; goto fs_handle_readCharDone;}
+                        if (c4 >= 0 || c4 & 64) {codepoint = 1<<31; goto fs_handle_readCharDone;}
                         codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
                     } else {
                         codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
@@ -251,7 +251,7 @@ int fs_handle_istream_readChar(lua_State *L) {
                 } else {
                     codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
                 }
-            } else {codepoint = 2^31; goto fs_handle_readCharDone;}
+            } else {codepoint = 1<<31; goto fs_handle_readCharDone;}
         } else codepoint = c;
     fs_handle_readCharDone:
         if (codepoint > 255) retval += '?';
