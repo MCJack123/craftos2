@@ -160,7 +160,7 @@ void config_init() {
     readConfigSetting(useHardwareRenderer, Bool);
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
-    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString() != CRAFTOSPC_VERSION)) onboardingMode = 2;
+    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString() != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
     if (config.standardsMode) config.abortTimeout = 7000;
 }
 
