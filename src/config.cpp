@@ -69,6 +69,8 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
 
 bool configLoadError = false;
 
+void config_save();
+
 void config_init() {
     createDirectory((std::string(getBasePath()) + "/config").c_str());
     config = {
