@@ -125,12 +125,12 @@ clean: $(ODIR)
 rebuild: clean craftos
 
 install: craftos
-	echo " [CP]    $(DESTDIR)/craftos"
-	cp craftos $(DESTDIR)/craftos
+	echo " [CP]    $(DESTDIR)/craftos-luajit"
+	cp craftos $(DESTDIR)/craftos-luajit
 
 uninstall:
-	echo " [RM]    $(DESTDIR)/craftos"
-	rm $(DESTDIR)/craftos
+	echo " [RM]    $(DESTDIR)/craftos-luajit"
+	rm $(DESTDIR)/craftos-luajit
 
 test: craftos
 	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua
