@@ -2,6 +2,7 @@ language: c++
 script: CFLAGS=-Wall ./configure && make && make test
 dist: bionic
 before_install:
+  - git submodule update --init --recursive 
   - sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
   - sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses-dev
 addons:

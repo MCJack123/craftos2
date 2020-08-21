@@ -5,14 +5,12 @@
  * This file implements the methods for the printer peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "printer.hpp"
 #include "../platform.hpp"
-extern "C" {
-#include <lauxlib.h>
-}
 #include <cstring>
 
 #if PRINT_TYPE == PRINT_TYPE_PDF
@@ -119,8 +117,7 @@ static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
 
 void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata) {
     lua_State *L = (lua_State*)userdata;
-    lua_pushfstring(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
-    lua_error(L);
+    luaL_error(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
 }
 #elif PRINT_TYPE == PRINT_TYPE_HTML
 std::string page_ext = ".html";
@@ -154,7 +151,6 @@ int printer::write(lua_State *L) {
     for (i = 0; i < str_sz && i + cursorX < width; i++) 
         body[cursorY][i+cursorX] = str[i] == '\n' ? '?' : str[i];
     cursorX += (int)i;
-    //printf("%s\n", &body[cursorY][0]);
     return 0;
 }
 
@@ -163,7 +159,6 @@ int printer::setCursorPos(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     cursorX = (lua_tointeger(L, 1)-1);
     cursorY = (lua_tointeger(L, 2)-1);
-    //printf("(%d, %d)\n", cursorX, cursorY);
     return 0;
 }
 

@@ -5,12 +5,12 @@
  * This file defines the class for the monitor peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 #ifndef PERIPHERAL_MONITOR_HPP
 #define PERIPHERAL_MONITOR_HPP
 #include "peripheral.hpp"
-#include "../TerminalWindow.hpp"
+#include "../terminal/Terminal.hpp"
 #include <chrono>
 #undef scroll
 
@@ -43,7 +43,7 @@ private:
     int getTextScale(lua_State *L);
     int drawPixels(lua_State *L);
 public:
-    TerminalWindow * term;
+    Terminal * term;
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new monitor(L, side);}
     static void deinit(peripheral * p) {delete (monitor*)p;}

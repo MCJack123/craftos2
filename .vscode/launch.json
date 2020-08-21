@@ -14,6 +14,16 @@
             "preLaunchTask": "Build",
         },
         {
+            "name": "(lldb) Launch (Guard Malloc)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/craftos",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build",
+            "env": {"DYLD_INSERT_LIBRARIES": "/usr/lib/libgmalloc.dylib"}
+        },
+        {
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",

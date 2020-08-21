@@ -5,23 +5,19 @@
  * This file defines the class for the drive peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019 JackMacWindows. 
+ * Copyright (c) 2019-2020 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_DRIVE_HPP
 #define PERIPHERAL_DRIVE_HPP
 #include <unordered_set>
 #ifndef NO_MIXER
-#ifdef _WIN32
-#include <SDL_mixer.h>
-#else
 #include <SDL2/SDL_mixer.h>
-#endif
 #endif
 #include "peripheral.hpp"
 #include "../mounter.hpp"
 
-enum disk_type {
+enum class disk_type {
     DISK_TYPE_NONE,
     DISK_TYPE_DISK,
     DISK_TYPE_AUDIO,
@@ -30,7 +26,7 @@ enum disk_type {
 
 class drive: public peripheral {
 private:
-    disk_type diskType = DISK_TYPE_NONE;
+    disk_type diskType = disk_type::DISK_TYPE_NONE;
     std::string mount_path;
     std::string path;
 #ifndef NO_MIXER
@@ -39,7 +35,6 @@ private:
     void* music = NULL;
 #endif
     int id = 0;
-    static std::unordered_set<int> usedMounts;
     int isDiskPresent(lua_State *L);
     int getDiskLabel(lua_State *L);
     int setDiskLabel(lua_State *L);

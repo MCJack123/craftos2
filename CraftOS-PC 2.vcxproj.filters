@@ -13,39 +13,72 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
+    <Filter Include="Other Files">
+      <UniqueIdentifier>{d98073d1-e5dd-4a38-b763-591f75234892}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="CraftOSTest.lua">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="src\platform_macapp.mm">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="DOCUMENTATION.md">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include=".travis.yml">
-      <Filter>Resource Files</Filter>
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="DOCUMENTATION.md">
+      <Filter>Other Files</Filter>
     </None>
     <None Include="LICENSE">
-      <Filter>Resource Files</Filter>
+      <Filter>Other Files</Filter>
     </None>
-    <None Include="Info.plist">
-      <Filter>Resource Files</Filter>
+    <None Include=".github\workflows\main.yml">
+      <Filter>Other Files</Filter>
     </None>
     <None Include="Makefile.in">
-      <Filter>Resource Files</Filter>
+      <Filter>Other Files</Filter>
     </None>
     <None Include="README.md">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include=".gitignore">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="configure.ac">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\.install">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CCEmuXConverter.java">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CCT-Test-Bootstrap.lua">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CCT-Tests.patch">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\CraftOSTest.lua">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\packStandaloneROM.js">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\Info.plist">
       <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\BenchmarkRenderers.lua">
+      <Filter>Other Files</Filter>
+    </None>
+    <None Include="resources\BenchmarkRenderers.sh.bat">
+      <Filter>Other Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\Ccblink.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="image1.bmp">
+      <Filter>Other Files</Filter>
+    </Image>
+    <Image Include="resources\CraftOS-PC.ico">
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="x64\favicon.ico">
@@ -59,16 +92,10 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\TerminalWindow.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\peripheral\monitor.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\peripheral\printer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\peripheral\computer.hpp">
@@ -87,9 +114,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\config.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\favicon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\fs.hpp">
@@ -134,6 +158,33 @@
     <ClInclude Include="src\peripheral\debugger.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\terminal\CLITerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\RawTerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\SDLTerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\Terminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\speaker.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\TRoRTerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fs_standalone.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\windows\resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\peripheral\monitor.cpp">
@@ -167,9 +218,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\term.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\TerminalWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\mounter.cpp">
@@ -211,14 +259,47 @@
     <ClCompile Include="src\peripheral\debugger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\terminal\CLITerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\RawTerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\SDLTerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\speaker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\speaker_sounds.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\TRoRTerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fs_standalone.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gif.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="examples\raw_frame_reader.cpp">
+      <Filter>Other Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\favicon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="CraftOS-PC 2.rc">
+    <ResourceCompile Include="src\windows\CraftOS-PC 2.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="CraftOS-PC.exe.manifest">
+    <Manifest Include="resources\CraftOS-PC.exe.manifest">
       <Filter>Resource Files</Filter>
     </Manifest>
   </ItemGroup>

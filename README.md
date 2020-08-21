@@ -3,13 +3,15 @@ A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using 
 
 CraftOS-PC *Accelerated* uses LuaJIT instead of the standard PUC Lua, which offers improved performance at the expense of possible incompatibility.
 
-![Screenfetch](image1.png)
+Visit the website at https://www.craftos-pc.cc/ for more information, including documentation.
+
+![Screenfetch](resources/image1.png)
 
 ## Requirements for released builds
 * Supported operating systems:
   * Windows Vista x64 or later
-  * macOS 10.9+
-  * Ubuntu 18.04, 19.04, 19.10
+  * macOS 10.13+
+  * Ubuntu 18.04, 19.10, 20.04
   * Arch Linux with AUR helper
 * Administrator privileges
 * 20 MB free space
@@ -21,8 +23,6 @@ CraftOS-PC *Accelerated* uses LuaJIT instead of the standard PUC Lua, which offe
 3. Open CraftOS-PC from the Start Menu
 
 ### Mac
-#### __*Catalina Users: READ THIS*__
-macOS Catalina adds a new policy requiring all apps to be notarized with a Developer ID. Because I don't have a paid dev account, CraftOS-PC cannot be notarized, meaning Catalina users can't just double click on the app at first launch. **When opening CraftOS-PC for the first time, make sure to right-click on the app and click Open, instead of double-clicking the app as usual.**
 #### Homebrew Cask
 ```bash
 $ brew tap MCJack123/CraftOSPC
@@ -45,7 +45,7 @@ $ craftos
 ### Arch Linux
 Install the `craftos-pc-accelerated` package using your chosen AUR helper (e.g. `yay -S craftos-pc-accelerated`).
 
-## v2.2: Where are my files?
+### v2.2: Where are my files?
 CraftOS-PC v2.2 moves the save directory to be more appropriate for each platform. Your files are not gone; they're automatically moved over before launching if the old folder is still present. You can find the computer data files at these locations:
 * Windows: `%appdata%\CraftOS-PC` (`C:\Users\<user>\AppData\Roaming\CraftOS-PC`)
 * Mac: `~/Library/Application Support/CraftOS-PC`
@@ -60,9 +60,8 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Windows: Visual Studio 2019
 * LuaJIT 2.0
 * SDL 2.0.8+ (may work on older versions on non-Linux)
-* OpenSSL 1.0.x
-* Windows: dirent.h
-* POCO NetSSL + JSON libraries + dependencies
+* OpenSSL 1.1 (for POCO)
+* POCO NetSSL & JSON libraries + dependencies
   * Foundation
   * Util
   * Crypto
@@ -70,8 +69,10 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * JSON
   * Net
   * NetSSL
+* Windows: dirent.h (install with NuGet OR vcpkg)
+* Windows: [vcpkg](https://github.com/microsoft/vcpkg)
 
-### Optional
+#### Optional
 * libpng 1.6 & png++ 0.2.7+
   * Can be disabled with `--without-png`, will save as BMP instead
 * [libharu/libhpdf](https://github.com/libharu/libharu)
@@ -82,25 +83,34 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Can be disabled with `--without-sdl_mixer`, will disable audio disc support
   * For MP3 support, libmpg123 is required
   * For FLAC support, libFLAC is required
+  * For SF2 support, SDL_mixer must be built manually with fluidsynth support
 * The path to the ROM package can be changed with `--prefix=<path>`, which will store the ROM at `<path>/share/craftos`
+* Standalone builds can be enabled with `--with-standalone-rom=<fs_standalone.cpp>`, with `<fs_standalone.cpp>` referring to the path to the packed standalone ROM file.
+  * The latest packed ROM can be downloaded as an artifact from the latest CI build, found by following the top link [here](https://github.com/MCJack123/craftos2-rom/actions).
 
 You can get all of these dependencies with:
-  * Windows: The VS solution includes all packages required except POCO and png (build yourself)
+  * Windows: `vcpkg install sdl2:x64-windows sdl2-mixer:x64-windows pngpp:x64-windows libharu:x64-windows poco:x64-windows dirent:x64-windows`
   * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
   * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
-  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer openssl-1.0 png++ libharu poco ncurses`
+  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer png++ libharu poco ncurses`
+
+### Windows Nightly Builds
+Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-pc.cc/nightly/). These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. New builds are posted at midnight EST, unless there were no changes since the last build. Note that these files are just the raw executable. You must drop the file into a pre-existing CraftOS-PC install directory for it to work properly. Depending on changes made in the latest version, you may also have to download the latest [ROM](https://github.com/MCJack123/craftos2-rom).
 
 ### Instructions
 #### Windows
 1. Download [Visual Studio 2019](https://visualstudio.microsoft.com/) if not already installed
-2. [Build Poco from source](https://pocoproject.org/download.html#visualstudio)
-3. Open a new Explorer window in %ProgramFiles% (Win-R, %ProgramFiles%)
-4. Create a directory named `CraftOS-PC`
-5. Copy the contents of the CraftOS ROM into the directory
-6. Open `CraftOS-PC 2.sln` with VS
-7. Ensure all NuGet packages are installed
-8. Right click on CraftOS-PC 2.vcxproj -> CraftOS-PC 2 Properties... -> Linker -> General -> Additional Library Search Paths -> Add the path to the poco/lib directory
-9. Build & Run
+2. `git submodule update --init --recursive`
+3. Open `CraftOS-PC 2.sln` with VS
+4. Build solution
+5. Copy all files from the ROM into the same directory as the new executable (ex. `craftos2\x64\Release`)
+6. Run solution
+
+The solution has a few different build configurations:
+* Debug: for debugging, no optimization
+* Release: standard Windows application build with optimization (same as installed `CraftOS-PC.exe`)
+* ReleaseC: same as Release but with console support (same as installed `CraftOS-PC_console.exe`)
+* ReleaseStandalone: same as Release but builds a standalone build; requires `fs_standalone.cpp` to be present in `src`
 
 #### Mac
 1. Open a new Terminal window
@@ -115,7 +125,7 @@ You can get all of these dependencies with:
 10. Copy the ROM package inside
 11. Run CraftOS-PC.app
 
-#### Linux
+#### Linux (or Mac as non-app binary)
 1. Open a new terminal
 2. `cd` to the cloned repository
 3. `git submodule update --init --recursive`

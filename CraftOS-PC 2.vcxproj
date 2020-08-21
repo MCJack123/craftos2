@@ -5,6 +5,14 @@
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseC|Win32">
+      <Configuration>ReleaseC</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseC|x64">
+      <Configuration>ReleaseC</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
@@ -17,12 +25,21 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseStandalone|Win32">
+      <Configuration>ReleaseStandalone</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseStandalone|x64">
+      <Configuration>ReleaseStandalone</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{966C1071-8EB9-4BBA-85A4-9F9BFE05F3B1}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <VcpkgTriplet Condition="'$(Platform)'=='x64'">x64-windows</VcpkgTriplet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -35,15 +52,38 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
+    <EnableASAN>false</EnableASAN>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <EnableASAN>false</EnableASAN>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -56,10 +96,22 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
@@ -73,15 +125,39 @@
     <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">
+    <LinkIncremental>true</LinkIncremental>
     <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
-    <TargetName>CraftOS-PC</TargetName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    <Linkage-dirent>static</Linkage-dirent>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     <Linkage-dirent>static</Linkage-dirent>
     <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    <Linkage-dirent>static</Linkage-dirent>
+    <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
+    <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    <Linkage-dirent>static</Linkage-dirent>
+    <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
+    <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    <Linkage-dirent>static</Linkage-dirent>
+    <TargetName>CraftOS-PC</TargetName>
+    <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -120,21 +196,60 @@
       <AdditionalLibraryDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\lib;$(SolutionDir)packages\sdl2.2.0.5\build\native\lib\x64\dynamic;$(SolutionDir)packages\lua51.5.1.5\build\native\lib\x64\v120\Release;$(SolutionDir)packages\jsoncpp-vc140-static-64.1.8.0\lib\native\libs\x64\static\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NO_CLI;PRINT_TYPE=1;CURL_STATICLIB;WIN32;PRINT_TYPE=1;CURL_STATICLIB;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;jsoncpp.lib;libcurl_a.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\lib;$(SolutionDir)packages\sdl2.2.0.5\build\native\lib\x64\dynamic;$(SolutionDir)packages\lua51.5.1.5\build\native\lib\x64\v120\Release;$(SolutionDir)packages\jsoncpp-vc140-static-64.1.8.0\lib\native\libs\x64\static\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NO_CLI;PRINT_TYPE=1;CURL_STATICLIB;WIN32;PRINT_TYPE=1;CURL_STATICLIB;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;jsoncpp.lib;libcurl_a.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\curl.7.65.3\build\native\lib;$(SolutionDir)packages\sdl2.2.0.5\build\native\lib\x64\dynamic;$(SolutionDir)packages\lua51.5.1.5\build\native\lib\x64\v120\Release;$(SolutionDir)packages\jsoncpp-vc140-static-64.1.8.0\lib\native\libs\x64\static\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\sdl2.nuget.2.0.10\build\native\lib\x64\dynamic;$(SolutionDir)packages\vii.SDL2_mixer.2.0.2\build\native\lib\x64;$(SolutionDir)packages\poco.1.9.3\build\native\lib\x64\Debug\v142;$(SolutionDir)packages\png++.0.2.10\build\native\lib\x64\Debug;$(SolutionDir)craftos2-luajit\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;SDL2_mixer.lib;PocoNetmtd.lib;PocoFoundationmtd.lib;iphlpapi.lib;PocoNetSSLmtd.lib;PocoCryptomtd.lib;PocoJSONmtd.lib;libpng16d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51d.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;wer.lib;crypt32.lib;normaliz.lib;SDL2maind.lib;iphlpapi.lib;libpng16d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <AdditionalOptions>/VERBOSE:LIB %(AdditionalOptions)</AdditionalOptions>
       <Profile>true</Profile>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;PRINT_TYPE=1;HAVE_STRERROR_S;CURL_STATICLIB</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\poco.1.9.3\build\native\include;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-luajit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-luajit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <TreatSpecificWarningsAsErrors>4013</TreatSpecificWarningsAsErrors>
       <WarningLevel>Level1</WarningLevel>
+      <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -142,50 +257,95 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\sdl2.nuget.2.0.10\build\native\lib\x64\dynamic;$(SolutionDir)packages\vii.SDL2_mixer.2.0.2\build\native\lib\x64;$(SolutionDir)packages\poco.1.9.3\build\native\lib\x64\Release\v142;$(SolutionDir)packages\png++.0.2.10\build\native\lib\x64\Release;$(SolutionDir)craftos2-luajit\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;SDL2_mixer.lib;PocoNetmt.lib;PocoFoundationmt.lib;iphlpapi.lib;PocoNetSSLmt.lib;PocoCryptomt.lib;PocoJSONmt.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;PRINT_TYPE=1;HAVE_STRERROR_S;CURL_STATICLIB</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\poco.1.9.3\build\native\include;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-luajit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-luajit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
       <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
+    <Link>
+      <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NO_CLI;STANDALONE_ROM;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-luajit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <Optimization>MaxSpeed</Optimization>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
+    <Link>
+      <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;SDL2_mixer.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-luajit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <Optimization>MaxSpeed</Optimization>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include=".github\workflows\main.yml" />
+    <None Include=".gitignore" />
     <None Include=".travis.yml" />
-    <None Include="CraftOSTest.lua" />
+    <None Include="configure.ac" />
     <None Include="DOCUMENTATION.md" />
-    <None Include="Info.plist" />
     <None Include="LICENSE" />
     <None Include="Makefile.in" />
     <None Include="packages.config" />
     <None Include="README.md" />
+    <None Include="resources\.install" />
+    <None Include="resources\BenchmarkRenderers.lua" />
+    <None Include="resources\BenchmarkRenderers.sh.bat" />
+    <None Include="resources\CCEmuXConverter.java" />
+    <None Include="resources\CCT-Test-Bootstrap.lua" />
+    <None Include="resources\CCT-Tests.patch" />
+    <None Include="resources\CraftOSTest.lua" />
+    <None Include="resources\Info.plist" />
+    <None Include="resources\packStandaloneROM.js" />
     <None Include="src\platform_macapp.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\Ccblink.ico" />
     <Image Include="image1.bmp" />
-    <Image Include="x64\favicon.ico" />
-    <Image Include="x64\favicon2.ico" />
-    <Image Include="x64\Installer\icon_adv.bmp" />
+    <Image Include="resources\CraftOS-PC.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="resource.h" />
     <ClInclude Include="src\bit.hpp" />
     <ClInclude Include="src\Computer.hpp" />
     <ClInclude Include="src\config.hpp" />
-    <ClInclude Include="src\favicon.h" />
     <ClInclude Include="src\fs.hpp" />
     <ClInclude Include="src\fs_handle.hpp" />
+    <ClInclude Include="src\fs_standalone.hpp" />
     <ClInclude Include="src\gif.hpp" />
     <ClInclude Include="src\http.hpp" />
     <ClInclude Include="src\http_handle.hpp" />
@@ -200,17 +360,41 @@
     <ClInclude Include="src\peripheral\monitor.hpp" />
     <ClInclude Include="src\peripheral\peripheral.hpp" />
     <ClInclude Include="src\peripheral\printer.hpp" />
+    <ClInclude Include="src\peripheral\speaker.hpp" />
     <ClInclude Include="src\platform.hpp" />
     <ClInclude Include="src\redstone.hpp" />
     <ClInclude Include="src\term.hpp" />
-    <ClInclude Include="src\TerminalWindow.hpp" />
+    <ClInclude Include="src\terminal\CLITerminal.hpp" />
+    <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp" />
+    <ClInclude Include="src\terminal\RawTerminal.hpp" />
+    <ClInclude Include="src\terminal\SDLTerminal.hpp" />
+    <ClInclude Include="src\terminal\Terminal.hpp" />
+    <ClInclude Include="src\terminal\TRoRTerminal.hpp" />
+    <ClInclude Include="src\windows\resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="examples\raw_frame_reader.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\Computer.cpp" />
     <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\favicon.c" />
     <ClCompile Include="src\font.c" />
     <ClCompile Include="src\fs.cpp" />
     <ClCompile Include="src\fs_handle.cpp" />
+    <ClCompile Include="src\fs_standalone.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="src\gif.cpp" />
     <ClCompile Include="src\http.cpp" />
     <ClCompile Include="src\http_handle.cpp" />
     <ClCompile Include="src\lib.cpp" />
@@ -225,50 +409,73 @@
     <ClCompile Include="src\peripheral\monitor.cpp" />
     <ClCompile Include="src\peripheral\peripheral.cpp" />
     <ClCompile Include="src\peripheral\printer.cpp" />
+    <ClCompile Include="src\peripheral\speaker.cpp" />
+    <ClCompile Include="src\peripheral\speaker_sounds.cpp">
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
+      </MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">false</MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </MinimalRebuild>
+      <MinimalRebuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
+      </MinimalRebuild>
+    </ClCompile>
     <ClCompile Include="src\platform.cpp" />
     <ClCompile Include="src\platform_darwin.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\platform_linux.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\platform_win.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\term.cpp" />
-    <ClCompile Include="src\TerminalWindow.cpp" />
+    <ClCompile Include="src\terminal\CLITerminal.cpp" />
+    <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp" />
+    <ClCompile Include="src\terminal\RawTerminal.cpp" />
+    <ClCompile Include="src\terminal\SDLTerminal.cpp" />
+    <ClCompile Include="src\terminal\TRoRTerminal.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="CraftOS-PC 2.rc" />
+    <ResourceCompile Include="src\windows\CraftOS-PC 2.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="CraftOS-PC.exe.manifest" />
+    <Manifest Include="resources\CraftOS-PC.exe.manifest" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\dirent.1.13.1\build\native\dirent.targets" Condition="Exists('packages\dirent.1.13.1\build\native\dirent.targets')" />
-    <Import Project="packages\sdl2.nuget.redist.2.0.10\build\native\sdl2.nuget.redist.targets" Condition="Exists('packages\sdl2.nuget.redist.2.0.10\build\native\sdl2.nuget.redist.targets')" />
-    <Import Project="packages\sdl2.nuget.2.0.10\build\native\sdl2.nuget.targets" Condition="Exists('packages\sdl2.nuget.2.0.10\build\native\sdl2.nuget.targets')" />
-    <Import Project="packages\vii.SDL2_mixer.redist.2.0.2\build\native\vii.SDL2_mixer.redist.targets" Condition="Exists('packages\vii.SDL2_mixer.redist.2.0.2\build\native\vii.SDL2_mixer.redist.targets')" />
-    <Import Project="packages\vii.SDL2_mixer.2.0.2\build\native\vii.SDL2_mixer.targets" Condition="Exists('packages\vii.SDL2_mixer.2.0.2\build\native\vii.SDL2_mixer.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('packages\dirent.1.13.1\build\native\dirent.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\dirent.1.13.1\build\native\dirent.targets'))" />
-    <Error Condition="!Exists('packages\sdl2.nuget.redist.2.0.10\build\native\sdl2.nuget.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\sdl2.nuget.redist.2.0.10\build\native\sdl2.nuget.redist.targets'))" />
-    <Error Condition="!Exists('packages\sdl2.nuget.2.0.10\build\native\sdl2.nuget.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\sdl2.nuget.2.0.10\build\native\sdl2.nuget.targets'))" />
-    <Error Condition="!Exists('packages\vii.SDL2_mixer.redist.2.0.2\build\native\vii.SDL2_mixer.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\vii.SDL2_mixer.redist.2.0.2\build\native\vii.SDL2_mixer.redist.targets'))" />
-    <Error Condition="!Exists('packages\vii.SDL2_mixer.2.0.2\build\native\vii.SDL2_mixer.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\vii.SDL2_mixer.2.0.2\build\native\vii.SDL2_mixer.targets'))" />
   </Target>
 </Project>

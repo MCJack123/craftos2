@@ -5,23 +5,23 @@
  * This file defines the methods for the debugger peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "debugger.hpp"
+#include "../fs_standalone.hpp"
 #include "../os.hpp"
-#include "../CLITerminalWindow.hpp"
+#include "../terminal/CLITerminal.hpp"
 #include "../term.hpp"
 #include "../mounter.hpp"
+#include "../platform.hpp"
 #include <sstream>
-#include <functional>
+#include <thread>
 #include <unordered_set>
 #include <cassert>
-extern "C" {
-#include <lauxlib.h>
-}
 
-extern bool cli;
+
 extern std::list<std::thread*> computerThreads;
 extern std::unordered_set<Computer*> freedComputers;
 extern std::thread::id mainThreadID;
@@ -30,7 +30,13 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread (Debugger)").c_str());
 #endif
+    // in case the allocator decides to reuse pointers
+    if (freedComputers.find(comp) != freedComputers.end()) freedComputers.erase(comp);
+#ifdef STANDALONE_ROM
+    comp->run(standaloneDebug["bios.lua"].data);
+#else
     comp->run("debug/bios.lua");
+#endif
     freedComputers.insert(comp);
     for (auto it = computers.begin(); it != computers.end(); it++) {
         if (*it == comp) {
@@ -40,10 +46,15 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
     }
     delete (library_t*)comp->debugger;
     if (!dbg->deleteThis) {
-        dbg->computer->peripherals_mutex.lock();
-        dbg->computer->peripherals.erase(side);
-        dbg->computer->peripherals_mutex.unlock();
-        queueTask([comp](void*arg)->void*{delete (debugger*)arg; delete comp; return NULL;}, dbg, true);
+        dbg->breakMask = 0;
+        dbg->didBreak = false;
+        dbg->running = false;
+        {
+            std::lock_guard<std::mutex> lock(dbg->computer->peripherals_mutex);
+            dbg->computer->peripherals.erase(side);
+        }
+        dbg->computer->shouldDeinitDebugger = true;
+        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL, true);
     }
 }
 
@@ -149,7 +160,8 @@ int debugger_lib_setBreakpoint(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     int id = dbg->computer->breakpoints.size() > 0 ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
-    dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false, false), lua_tointeger(L, 2));
+    dbg->computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
 }
@@ -159,6 +171,9 @@ int debugger_lib_unsetBreakpoint(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (dbg->computer->breakpoints.find(lua_tointeger(L, 1)) != dbg->computer->breakpoints.end()) {
         dbg->computer->breakpoints.erase(lua_tointeger(L, 1));
+        if (dbg->computer->breakpoints.size() == 0) {
+            dbg->computer->hasBreakpoints = false;
+        }
         lua_pushboolean(L, true);
     } else lua_pushboolean(L, false);
     return 1;
@@ -182,6 +197,66 @@ int debugger_lib_listBreakpoints(lua_State *L) {
     return 1;
 }
 
+int debugger_lib_local_index(lua_State *L) {
+    if (lua_istable(L, 1)) lua_remove(L, 1);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_Debug ar;
+    if (lua_isnumber(L, 1)) {
+        if (!lua_getstack(thread, lua_tointeger(L, 1), &ar)) { lua_pushnil(L); return 1; }
+        const char * name;
+        lua_newtable(L);
+        for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
+            if (std::string(name) == "(*temporary)") {
+                lua_pop(thread, 1);
+                continue;
+            }
+            lua_pushstring(L, name);
+            lua_xmove(thread, L, 1);
+            lua_settable(L, -3);
+        }
+        return 1;
+    } else if (lua_isstring(L, 1)) {
+        const char * name, *search = lua_tostring(L, 1);
+        for (int i = 0; lua_getstack(thread, i, &ar); i++) {
+            for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
+                if (strcmp(search, name) == 0) return 1;
+                else lua_pop(L, 1);
+            }
+        }
+        lua_pushnil(L);
+        return 1;
+    } else {
+        lua_pushnil(L);
+        return 1;
+    }
+}
+
+int debugger_lib_local_newindex(lua_State *L) {
+    if (lua_istable(L, 1)) lua_remove(L, 1);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_Debug ar;
+    const char * name, *search = luaL_checkstring(L, 1);
+    for (int i = 0; lua_getstack(thread, i, &ar); i++) {
+        for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
+            if (strcmp(search, name) == 0) {
+                lua_setlocal(thread, &ar, 2);
+                return 0;
+            }
+            else lua_pop(L, 1);
+        }
+    }
+    return 0;
+}
+
+int debugger_lib_local_tostring(lua_State *L) {
+    lua_pushstring(L, "locals table");
+    return 1;
+}
+
 int debugger_lib_run(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
@@ -191,22 +266,20 @@ int debugger_lib_run(lua_State *L) {
     int top = lua_gettop(dbg->thread); // ...
     luaL_loadstring(dbg->thread, lua_tostring(L, 1)); // ..., func
     luaL_loadstring(dbg->thread, "return setmetatable({_echo = function(...) return ... end, getfenv = getfenv, locals = ..., _ENV = getfenv(2)}, {__index = getfenv(2)})"); // ..., func, getenv
-    lua_newtable(dbg->thread); // ..., func, getenv, table
-    lua_getstack(dbg->thread, 1, &ar); // ..., func, getenv, table
-    if (ar.what != NULL && (std::string(ar.what) == "Lua" || std::string(ar.what) == "main")) {
-        const char * name;
-        for (int i = 1; (name = lua_getlocal(dbg->thread, &ar, i)) != NULL; i++) { // ..., func, getenv, table, local
-            if (std::string(name) == "(*temporary)") {
-                lua_pop(dbg->thread, 1); // ..., func, getenv, table
-                continue;
-            }
-            lua_setfield(dbg->thread, -2, name); // ..., func, getenv, table
-        }
-    }
+    lua_pushlightuserdata(dbg->thread, NULL); // ..., func, getenv, table
+    lua_newtable(dbg->thread);
+    lua_pushcfunction(dbg->thread, debugger_lib_local_index);
+    lua_setfield(dbg->thread, -2, "__index");
+    lua_pushcfunction(dbg->thread, debugger_lib_local_newindex);
+    lua_setfield(dbg->thread, -2, "__newindex");
+    lua_pushcfunction(dbg->thread, debugger_lib_local_tostring);
+    lua_setfield(dbg->thread, -2, "__tostring");
+    lua_setmetatable(dbg->thread, -2);
     lua_call(dbg->thread, 1, 1); // ..., func, env
     lua_setfenv(dbg->thread, -2); // ..., func
     lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0)); // ..., results...
     int top2 = lua_gettop(dbg->thread) - top; // #{..., results...} - #{...} = #{results...}
+    // TODO: Properly copy values over rather than relying on undefined behavior from xmove
     lua_xmove(dbg->thread, L, top2); // ...
     return top2 + 1;
 }
@@ -282,19 +355,25 @@ int debugger_lib_getReason(lua_State *L) {
 int debugger_lib_getLocals(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
     lua_Debug ar;
-    lua_getstack(dbg->thread, 1, &ar);
+    lua_getstack(thread, 2, &ar);
     lua_newtable(L);
     const char * name;
-    for (int i = 1; (name = lua_getlocal(dbg->thread, &ar, i)) != NULL; i++) {
+    for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
         if (std::string(name) == "(*temporary)") {
-            lua_pop(dbg->thread, 1);
+            lua_pop(thread, 1);
             continue;
         }
         lua_pushstring(L, name);
-        lua_xmove(dbg->thread, L, 1);
+        if (thread != L) lua_xmove(thread, L, 1);
+        else { lua_pushvalue(L, -2); lua_remove(L, -3); }
         lua_settable(L, -3);
     }
+    lua_newtable(L);
+    lua_pushcfunction(L, debugger_lib_local_index);
+    lua_setfield(L, -2, "__index");
+    lua_setmetatable(L, -2);
     return 1;
 }
 
@@ -388,36 +467,101 @@ int debugger::setBreakpoint(lua_State *L) {
     if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     Computer * computer = get_comp(L);
     int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
-    computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false), lua_tointeger(L, 2));
+    computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false, false), lua_tointeger(L, 2));
+    computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
 }
 
 const char * debugger_print(lua_State *L, void* arg) {
-    lua_pushstring(L, (char*)arg);
-    delete[] (char*)arg;
+    std::string * str = (std::string*)arg;
+    lua_pushlstring(L, str->c_str(), str->size());
+    delete str;
     return "debugger_print";
 }
 
+static int lua_converttostring (lua_State *L) {
+  luaL_checkany(L, 1);
+  if (luaL_getmetafield(L, 1, "__tostring")) {
+    lua_pushvalue(L, 1);
+    lua_call(L, 1, 1);  /* call metamethod */
+    return 1;
+  }
+  switch (lua_type(L, 1)) {
+    case LUA_TNUMBER:
+      lua_pushstring(L, lua_tostring(L, 1));
+      break;
+    case LUA_TSTRING:
+      lua_pushvalue(L, 1);
+      break;
+    case LUA_TBOOLEAN:
+      lua_pushstring(L, (lua_toboolean(L, 1) ? "true" : "false"));
+      break;
+    case LUA_TNIL:
+      lua_pushliteral(L, "nil");
+      break;
+    default:
+      lua_pushfstring(L, "%s: %p", luaL_typename(L, 1), lua_topointer(L, 1));
+      break;
+  }
+  return 1;
+}
+
 int debugger::print(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    char * str = new char[lua_strlen(L, 1)];
-    memcpy(str, lua_tostring(L, 1), lua_strlen(L, 1));
+    lua_settop(L, 1);
+    if (!lua_isstring(L, -1)) {
+        lua_pushcfunction(L, lua_converttostring);
+        lua_pushvalue(L, -2);
+        lua_call(L, 1, 1);
+        if (!lua_isstring(L, -1))
+            bad_argument(L, "string", 1);
+    }
+    std::string * str = new std::string(lua_tostring(L, -1), lua_strlen(L, -1));
     termQueueProvider(monitor, debugger_print, str);
     return 0;
 }
 
+struct debugger_param {
+    int id;
+    std::string err;
+};
+
 debugger::debugger(lua_State *L, const char * side) {
     didBreak = false;
+    running = true;
     computer = get_comp(L);
-    monitor = (Computer*)queueTask([](void*computer)->void*{return new Computer(((Computer*)computer)->id, true);}, computer);
+    if (computer->debugger != NULL) throw std::runtime_error("A debugger is already attached to this computer");
+    debugger_param * p = new debugger_param;
+    p->id = computer->id;
+    monitor = (Computer*)queueTask([](void*computer)->void*{try {return new Computer(((debugger_param*)computer)->id, true);} catch (std::exception &e) {((debugger_param*)computer)->err = e.what(); return NULL;}}, p);
+    if (monitor == NULL) {
+        std::string exc = "Could not start debugger session: " + std::string(p->err);
+        delete p;
+        throw std::runtime_error(exc.c_str());
+    }
+    delete p;
     monitor->debugger = createDebuggerLibrary();
     computers.push_back(monitor);
     compThread = new std::thread(debuggerThread, monitor, this, std::string(side));
     setThreadName(*compThread, std::string("Computer " + std::to_string(computer->id) + " Thread (Debugger)").c_str());
     computerThreads.push_back(compThread);
-    if (computer->debugger != NULL) throw std::bad_exception();
+    computer->shouldDeinitDebugger = false;
     computer->debugger = this;
+    lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+    for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
+        lua_rawgeti(L, -1, (int)i);
+        lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+}
+
+void debugger::reinitialize(lua_State *L) {
+    lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
 }
 
 debugger::~debugger() {
@@ -438,7 +582,7 @@ debugger::~debugger() {
     }
     assert(thread == NULL);
     if (compThread->joinable()) compThread->join();
-    computer->debugger = NULL;
+    computer->shouldDeinitDebugger = true;
 }
 
 int debugger::call(lua_State *L, const char * method) {
@@ -446,7 +590,17 @@ int debugger::call(lua_State *L, const char * method) {
     if (m == "stop" || m == "break") return _break(L);
     else if (m == "setBreakpoint") return setBreakpoint(L);
     else if (m == "print") return print(L);
+    else if (m == "deinit") return _deinit(L);
     else return 0;
+}
+
+int debugger::_deinit(lua_State *L) {
+    if (!computer->hasBreakpoints) {
+        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+    }
+    return 0;
 }
 
 const char * debugger_keys[] = {

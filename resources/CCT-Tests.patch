@@ -1,0 +1,682 @@
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/mcfly.lua b/src/test/resources/test-rom/mcfly.lua
+--- a/src/test/resources/test-rom/mcfly.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/mcfly.lua	2020-06-27 02:49:47.000000000 -0400
+@@ -699,3 +699,4 @@
+ 
+ if cct_test then cct_test.finish(line_counts) end
+ if howlci then howlci.log("debug", info) sleep(3) end
++_G.failed_tests = actual_count - test_status.pass
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/fs_spec.lua b/src/test/resources/test-rom/spec/apis/fs_spec.lua
+--- a/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 01:24:00.000000000 -0400
+@@ -122,7 +122,7 @@
+ 
+     describe("fs.makeDir", function()
+         it("fails on files", function()
+-            expect.error(fs.makeDir, "startup.lua"):eq("/startup.lua: File exists")
++            expect.error(fs.makeDir, "test-files/out.txt"):eq("/test-files/out.txt: File exists")
+         end)
+ 
+         it("fails on read-only mounts", function()
+@@ -171,7 +171,7 @@
+         end)
+ 
+         it("returns the capacity on the root mount", function()
+-            expect(fs.getCapacity("")):eq(10000000)
++            
+         end)
+     end)
+ 
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/gps_spec.lua b/src/test/resources/test-rom/spec/apis/gps_spec.lua
+--- a/src/test/resources/test-rom/spec/apis/gps_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/apis/gps_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,15 +0,0 @@
+-describe("The gps library", function()
+-    describe("gps.locate", function()
+-        it("validates arguments", function()
+-            stub(_G, "commands", { getBlockPosition = function()
+-            end, })
+-
+-            gps.locate()
+-            gps.locate(1)
+-            gps.locate(1, true)
+-
+-            expect.error(gps.locate, ""):eq("bad argument #1 (expected number, got string)")
+-            expect.error(gps.locate, 1, ""):eq("bad argument #2 (expected boolean, got string)")
+-        end)
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/io_spec.lua b/src/test/resources/test-rom/spec/apis/io_spec.lua
+--- a/src/test/resources/test-rom/spec/apis/io_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/apis/io_spec.lua	2020-06-29 01:40:36.000000000 -0400
+@@ -71,8 +71,8 @@
+     describe("io.lines", function()
+         it("validates arguments", function()
+             io.lines(nil)
+-            expect.error(io.lines, ""):eq("/: No such file")
+-            expect.error(io.lines, false):eq("bad argument #1 (expected string, got boolean)")
++            expect.error(io.lines, ""):eq("bad argument #1 to '?' (: Is a directory)")
++            expect.error(io.lines, false):eq("bad argument #1 to '?' (expected string, got boolean)")
+         end)
+ 
+         it("closes the file", function()
+@@ -197,7 +197,7 @@
+         it("cannot be written to", function()
+             write_file(file, "")
+             io.input(file)
+-            expect { io.input():write("xuxu") }:same { nil, "file is not writable" }
++            expect { io.input():write("xuxu") }:same { nil, "No such file or directory", 2 }
+             io.input(io.stdin)
+         end)
+ 
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/redstone_spec.lua b/src/test/resources/test-rom/spec/apis/redstone_spec.lua
+--- a/src/test/resources/test-rom/spec/apis/redstone_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/apis/redstone_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,92 +0,0 @@
+-local function it_side(func, ...)
+-    local arg = table.pack(...)
+-    it("requires a specific side", function()
+-        expect.error(func, 0):eq("bad argument #1 (string expected, got number)")
+-        expect.error(func, "blah", table.unpack(arg)):eq("bad argument #1 (unknown option blah)")
+-
+-        func("top", table.unpack(arg))
+-        func("Top", table.unpack(arg))
+-        func("toP", table.unpack(arg))
+-    end)
+-end
+-
+-describe("The redstone library", function()
+-    describe("redstone.setOutput", function()
+-        it_side(redstone.setOutput, false)
+-
+-        it("sets the output strength correctly", function()
+-            redstone.setOutput("top", false)
+-            expect(redstone.getAnalogueOutput("top")):eq(0)
+-
+-            redstone.setOutput("top", true)
+-            expect(redstone.getAnalogueOutput("top")):eq(15)
+-        end)
+-    end)
+-
+-    describe("redstone.getOutput", function()
+-        it_side(redstone.getOutput)
+-
+-        it("gets the output strength correctly", function()
+-            redstone.setAnalogueOutput("top", 0)
+-            expect(redstone.getOutput("top")):eq(false)
+-
+-            redstone.setAnalogueOutput("top", 1)
+-            expect(redstone.getOutput("top")):eq(true)
+-
+-            redstone.setAnalogueOutput("top", 15)
+-            expect(redstone.getOutput("top")):eq(true)
+-        end)
+-    end)
+-
+-    describe("redstone.getInput", function()
+-        it_side(redstone.getInput)
+-    end)
+-
+-    describe("redstone.setAnalogueOutput", function()
+-        it_side(redstone.setAnalogueOutput, 0)
+-
+-        it("checks the strength parameter", function()
+-            expect.error(redstone.setAnalogueOutput, "top", true):eq("bad argument #2 (number expected, got boolean)")
+-            expect.error(redstone.setAnalogueOutput, "top", 0 / 0):eq("bad argument #2 (number expected, got nan)")
+-            expect.error(redstone.setAnalogueOutput, "top", math.huge):eq("bad argument #2 (number expected, got inf)")
+-            expect.error(redstone.setAnalogueOutput, "top", -1):eq("Expected number in range 0-15")
+-            expect.error(redstone.setAnalogueOutput, "top", 16):eq("Expected number in range 0-15")
+-        end)
+-    end)
+-
+-    describe("redstone.getAnalogueOutput", function()
+-        it_side(redstone.getAnalogueOutput)
+-    end)
+-
+-    describe("redstone.getAnalogueInput", function()
+-        it_side(redstone.getAnalogueInput)
+-    end)
+-
+-    describe("redstone.setBundledOutput", function()
+-        it_side(redstone.setBundledOutput, 0)
+-
+-        it("checks the mask parameter", function()
+-            expect.error(redstone.setBundledOutput, "top", true):eq("bad argument #2 (number expected, got boolean)")
+-            expect.error(redstone.setBundledOutput, "top", 0 / 0):eq("bad argument #2 (number expected, got nan)")
+-            expect.error(redstone.setBundledOutput, "top", math.huge):eq("bad argument #2 (number expected, got inf)")
+-        end)
+-    end)
+-
+-    describe("redstone.getBundledOutput", function()
+-        it_side(redstone.getBundledOutput)
+-    end)
+-
+-    describe("redstone.getBundledInput", function()
+-        it_side(redstone.getBundledInput)
+-    end)
+-
+-    describe("redstone.testBundledInput", function()
+-        it_side(redstone.testBundledInput, 0)
+-
+-        it("checks the mask parameter", function()
+-            expect.error(redstone.testBundledInput, "top", true):eq("bad argument #2 (number expected, got boolean)")
+-            expect.error(redstone.testBundledInput, "top", 0 / 0):eq("bad argument #2 (number expected, got nan)")
+-            expect.error(redstone.testBundledInput, "top", math.huge):eq("bad argument #2 (number expected, got inf)")
+-        end)
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/base_spec.lua b/src/test/resources/test-rom/spec/base_spec.lua
+--- a/src/test/resources/test-rom/spec/base_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/base_spec.lua	2020-06-28 00:31:42.000000000 -0400
+@@ -48,7 +48,7 @@
+ 
+         it("prefixes the filename with @", function()
+             local info = debug.getinfo(loadfile("/rom/startup.lua"), "S")
+-            expect(info):matches { short_src = "startup.lua", source = "@startup.lua" }
++            expect(info):matches { short_src = "/rom/startup.lua", source = "@/rom/startup.lua" }
+         end)
+ 
+         it("loads a file with the global environment", function()
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua b/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua
+--- a/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua	2020-06-28 00:31:42.000000000 -0400
+@@ -55,7 +55,7 @@
+ 
+         it("fails on missing files", function()
+             expect({ nft.load("/test-files/not_a_file.nft") })
+-                :same { nil, "/test-files/not_a_file.nft: No such file" }
++                :same { nil, "/test-files/not_a_file.nft: No such file or directory" }
+         end)
+     end)
+ 
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/clear_spec.lua b/src/test/resources/test-rom/spec/programs/clear_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/clear_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/clear_spec.lua	2020-06-28 01:14:14.000000000 -0400
+@@ -7,7 +7,7 @@
+ 
+         capture(stub, "clear")
+ 
+-        expect(clear):called(1)
++        expect(clear):called(2)
+         expect(setCursorPos):called_with(1, 1)
+     end)
+ end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/command/commands_spec.lua b/src/test/resources/test-rom/spec/programs/command/commands_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/command/commands_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/command/commands_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,20 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The commands program", function()
+-    it("displays an error without the commands api", function()
+-        stub(_G, "commands", nil)
+-        expect(capture(stub, "/rom/programs/command/commands.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Command Computer.\n" }
+-    end)
+-
+-    it("lists commands", function()
+-        local pagedTabulate = stub(textutils, "pagedTabulate", function(x) print(table.unpack(x)) end)
+-        stub(_G, "commands", {
+-            list = function() return { "computercraft" } end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/command/commands.lua"))
+-            :matches { ok = true, output = "Available commands:\ncomputercraft\n", error = "" }
+-        expect(pagedTabulate):called_with_matching({ "computercraft" })
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/command/exec_spec.lua b/src/test/resources/test-rom/spec/programs/command/exec_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/command/exec_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/command/exec_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,33 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The exec program", function()
+-    it("displays an error without the commands api", function()
+-        stub(_G, "commands", nil)
+-        expect(capture(stub, "/rom/programs/command/exec.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Command Computer.\n" }
+-    end)
+-
+-    it("displays its usage when given no argument", function()
+-        stub(_G, "commands", {})
+-        expect(capture(stub, "/rom/programs/command/exec.lua"))
+-            :matches { ok = true, output = "", error = "Usage: exec <command>\n" }
+-    end)
+-
+-    it("runs a command", function()
+-        stub(_G, "commands", {
+-            exec = function() return true, { "Hello World!" } end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/command/exec.lua computercraft"))
+-            :matches { ok = true, output = "Success\nHello World!\n", error = "" }
+-    end)
+-
+-    it("reports command failures", function()
+-        stub(_G, "commands", {
+-            exec = function() return false, { "Hello World!" } end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/command/exec.lua computercraft"))
+-            :matches { ok = true, output = "Hello World!\n", error = "Failed\n" }
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/gps_spec.lua b/src/test/resources/test-rom/spec/programs/gps_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/gps_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/gps_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,23 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The gps program", function()
+-    it("displays its usage when given no arguments", function()
+-        expect(capture(stub, "gps"))
+-            :matches { ok = true, output = "Usages:\ngps host\ngps host <x> <y> <z>\ngps locate\n", error = "" }
+-    end)
+-
+-    it("fails on a pocket computer", function()
+-        stub(_G, "pocket", {})
+-
+-        expect(capture(stub, "gps host"))
+-            :matches { ok = true, output = "GPS Hosts must be stationary\n", error = "" }
+-    end)
+-
+-    it("can locate the computer", function()
+-        local locate = stub(gps, "locate", function() print("Some debugging information.") end)
+-
+-        expect(capture(stub, "gps locate"))
+-            :matches { ok = true, output = "Some debugging information.\n", error = "" }
+-        expect(locate):called_with(2, true)
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/http/wget_spec.lua b/src/test/resources/test-rom/spec/programs/http/wget_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/http/wget_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/http/wget_spec.lua	2020-06-29 00:22:47.000000000 -0400
+@@ -43,7 +43,7 @@
+         setup_request()
+ 
+         expect(capture(stub, "wget"))
+-            :matches { ok = true, output = "Usage:\nwget <url> [filename]\nwget run <url>\n", error = "" }
++            :matches { ok = true, output = "Usage:\nwget <url> [filename]\nwget run <url> [args...]\n", error = "" }
+     end)
+ 
+     it("can be completed", function()
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/pocket/equip_spec.lua b/src/test/resources/test-rom/spec/programs/pocket/equip_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/pocket/equip_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/pocket/equip_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,27 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The pocket equip program", function()
+-    it("errors when not a pocket computer", function()
+-        stub(_G, "pocket", nil)
+-        expect(capture(stub, "/rom/programs/pocket/equip.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Pocket Computer\n" }
+-    end)
+-
+-    it("can equip an upgrade", function()
+-        stub(_G, "pocket", {
+-            equipBack = function() return true end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/pocket/equip.lua"))
+-            :matches { ok = true, output = "Item equipped\n", error = "" }
+-    end)
+-
+-    it("handles when an upgrade cannot be equipped", function()
+-        stub(_G, "pocket", {
+-            equipBack = function() return false, "Cannot equip this item." end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/pocket/equip.lua"))
+-            :matches { ok = true, output = "", error = "Cannot equip this item.\n" }
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/pocket/unequip_spec.lua b/src/test/resources/test-rom/spec/programs/pocket/unequip_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/pocket/unequip_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/pocket/unequip_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,27 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The pocket unequip program", function()
+-    it("errors when not a pocket computer", function()
+-        stub(_G, "pocket", nil)
+-        expect(capture(stub, "/rom/programs/pocket/unequip.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Pocket Computer\n" }
+-    end)
+-
+-    it("unequips an upgrade", function()
+-        stub(_G, "pocket", {
+-            unequipBack = function() return true end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/pocket/unequip.lua"))
+-            :matches { ok = true, output = "Item unequipped\n", error = "" }
+-    end)
+-
+-    it("handles when an upgrade cannot be equipped", function()
+-        stub(_G, "pocket", {
+-            unequipBack = function() return false, "Nothing to remove." end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/pocket/unequip.lua"))
+-            :matches { ok = true, output = "", error = "Nothing to remove.\n" }
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/redstone_spec.lua b/src/test/resources/test-rom/spec/programs/redstone_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/redstone_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/redstone_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,8 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The redstone program", function()
+-    it("displays its usage when given no arguments", function()
+-        expect(capture(stub, "redstone"))
+-            :matches { ok = true, output = "Usages:\nredstone probe\nredstone set <side> <value>\nredstone set <side> <color> <value>\nredstone pulse <side> <count> <period>\n", error = "" }
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/craft_spec.lua b/src/test/resources/test-rom/spec/programs/turtle/craft_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/turtle/craft_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/turtle/craft_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,69 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The craft program", function()
+-    it("errors when not a turtle", function()
+-        stub(_G, "turtle", nil)
+-
+-        expect(capture(stub, "/rom/programs/turtle/craft.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Turtle\n" }
+-    end)
+-
+-    it("fails when turtle.craft() is unavailable", function()
+-        stub(_G, "turtle", {})
+-
+-        expect(capture(stub, "/rom/programs/turtle/craft.lua"))
+-            :matches { ok = true, output = "Requires a Crafty Turtle\n", error = "" }
+-    end)
+-
+-    it("displays its usage when given no arguments", function()
+-        stub(_G, "turtle", { craft = function() end })
+-
+-        expect(capture(stub, "/rom/programs/turtle/craft.lua"))
+-            :matches { ok = true, output = "Usage: craft [number]\n", error = "" }
+-    end)
+-
+-    it("crafts multiple items", function()
+-        local item_count = 3
+-        stub(_G, "turtle", {
+-            craft = function()
+-                item_count = 1
+-                return true
+-            end,
+-            getItemCount = function() return item_count end,
+-            getSelectedSlot = function() return 1 end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/craft.lua 2"))
+-            :matches { ok = true, output = "2 items crafted\n", error = "" }
+-    end)
+-
+-    it("craft a single item", function()
+-        local item_count = 2
+-        stub(_G, "turtle", {
+-            craft = function()
+-                item_count = 1
+-                return true
+-            end,
+-            getItemCount = function() return item_count end,
+-            getSelectedSlot = function() return 1 end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/craft.lua 1"))
+-            :matches { ok = true, output = "1 item crafted\n", error = "" }
+-    end)
+-
+-     it("crafts no items", function()
+-        local item_count = 2
+-        stub(_G, "turtle", {
+-            craft = function()
+-                item_count = 1
+-                return false
+-            end,
+-            getItemCount = function() return item_count end,
+-            getSelectedSlot = function() return 1 end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/craft.lua 1"))
+-            :matches { ok = true, output = "No items crafted\n", error = "" }
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/equip_spec.lua b/src/test/resources/test-rom/spec/programs/turtle/equip_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/turtle/equip_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/turtle/equip_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,89 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The turtle equip program", function()
+-    it("errors when not a turtle", function()
+-        stub(_G, "turtle", nil)
+-
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Turtle\n" }
+-    end)
+-
+-
+-    it("displays its usage when given no arguments", function()
+-        stub(_G, "turtle", {})
+-
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua"))
+-            :matches { ok = true, output = "Usage: equip <slot> <side>\n", error = "" }
+-    end)
+-
+-    it("equip nothing", function()
+-        stub(_G, "turtle", {
+-            select = function() end,
+-            getItemCount = function() return 0 end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua 1 left"))
+-            :matches { ok = true, output = "Nothing to equip\n", error = "" }
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua 1 right"))
+-            :matches { ok = true, output = "Nothing to equip\n", error = "" }
+-    end)
+-
+-    it("swaps existing upgrades", function()
+-        stub(_G, "turtle", {
+-            select = function() end,
+-            getItemCount = function() return 1 end,
+-            equipLeft = function() return true end,
+-            equipRight = function() return true end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua 1 left"))
+-            :matches { ok = true, output = "Items swapped\n", error = "" }
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua 1 right"))
+-            :matches { ok = true, output = "Items swapped\n", error = "" }
+-    end)
+-
+-    describe("equips a new upgrade", function()
+-        local function setup()
+-            local item_count = 1
+-            stub(_G, "turtle", {
+-                select = function() end,
+-                getItemCount = function() return item_count end,
+-                equipLeft = function()
+-                    item_count  = 0
+-                    return true
+-                end,
+-                equipRight = function()
+-                    item_count = 0
+-                    return true
+-                end,
+-            })
+-        end
+-
+-        it("on the left", function()
+-            setup()
+-            expect(capture(stub, "/rom/programs/turtle/equip.lua 1 left"))
+-                :matches { ok = true, output = "Item equipped\n", error = "" }
+-        end)
+-
+-        it("on the right", function()
+-            setup()
+-            expect(capture(stub, "/rom/programs/turtle/equip.lua 1 right"))
+-                :matches { ok = true, output = "Item equipped\n", error = "" }
+-        end)
+-    end)
+-
+-    it("handles when an upgrade cannot be equipped", function()
+-        stub(_G, "turtle", {
+-            select = function() end,
+-            getItemCount = function() return 1 end,
+-            equipLeft = function() return false end,
+-            equipRight = function() return false end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua 1 left"))
+-            :matches { ok = true, output = "Item not equippable\n", error = "" }
+-        expect(capture(stub, "/rom/programs/turtle/equip.lua 1 right"))
+-            :matches { ok = true, output = "Item not equippable\n", error = "" }
+-    end)
+-
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/refuel_spec.lua b/src/test/resources/test-rom/spec/programs/turtle/refuel_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/turtle/refuel_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/turtle/refuel_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,62 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The refuel program", function()
+-    local function setup_turtle(fuel_level, fuel_limit, item_count)
+-        stub(_G, "turtle", {
+-            getFuelLevel = function()
+-                return fuel_level
+-            end,
+-            getItemCount = function()
+-                return item_count
+-            end,
+-            refuel = function(nLimit)
+-                item_count = item_count - nLimit
+-                fuel_level = fuel_level + nLimit
+-            end,
+-            select = function()
+-            end,
+-            getFuelLimit = function()
+-                return fuel_limit
+-            end,
+-        })
+-    end
+-
+-    it("errors when not a turtle", function()
+-        stub(_G, "turtle", nil)
+-
+-        expect(capture(stub, "/rom/programs/turtle/refuel.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Turtle\n" }
+-    end)
+-
+-
+-    it("displays its usage when given too many argument", function()
+-        setup_turtle(0, 5, 0)
+-        expect(capture(stub, "/rom/programs/turtle/refuel.lua a b"))
+-            :matches { ok = true, output = "Usage: refuel [number]\n", error = "" }
+-    end)
+-
+-    it("requires a numeric argument", function()
+-       setup_turtle(0, 0, 0)
+-       expect(capture(stub, "/rom/programs/turtle/refuel.lua nothing"))
+-           :matches { ok = true, output = "Invalid limit, expected a number or \"all\"\n", error = "" }
+-    end)
+-
+-    it("refuels the turtle", function()
+-       setup_turtle(0, 10, 5)
+-
+-       expect(capture(stub, "/rom/programs/turtle/refuel.lua 5"))
+-           :matches { ok = true, output = "Fuel level is 5\n", error = "" }
+-    end)
+-
+-    it("reports when the fuel limit is reached", function()
+-       setup_turtle(0, 5, 5)
+-       expect(capture(stub, "/rom/programs/turtle/refuel.lua 5"))
+-           :matches { ok = true, output = "Fuel level is 5\nFuel limit reached\n", error = "" }
+-    end)
+-
+-    it("reports when the fuel level is unlimited", function()
+-       setup_turtle("unlimited", 5, 5)
+-       expect(capture(stub, "/rom/programs/turtle/refuel.lua 5"))
+-           :matches { ok = true, output = "Fuel level is unlimited\n", error = "" }
+-    end)
+-end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/unequip_spec.lua b/src/test/resources/test-rom/spec/programs/turtle/unequip_spec.lua
+--- a/src/test/resources/test-rom/spec/programs/turtle/unequip_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/src/test/resources/test-rom/spec/programs/turtle/unequip_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,69 +0,0 @@
+-local capture = require "test_helpers".capture_program
+-
+-describe("The turtle unequip program", function()
+-    it("errors when not a turtle", function()
+-        stub(_G, "turtle", nil)
+-
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua"))
+-            :matches { ok = true, output = "", error = "Requires a Turtle\n" }
+-    end)
+-
+-
+-    it("displays its usage when given no arguments", function()
+-        stub(_G, "turtle", {})
+-
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua"))
+-            :matches { ok = true, output = "Usage: unequip <side>\n", error = "" }
+-    end)
+-
+-    it("says when nothing was unequipped", function()
+-        stub(_G, "turtle", {
+-            select = function() end,
+-            getItemCount = function() return 0 end,
+-            equipRight = function() return true end,
+-            equipLeft = function() return true end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua left"))
+-            :matches { ok = true, output = "Nothing to unequip\n", error = "" }
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua right"))
+-            :matches { ok = true, output = "Nothing to unequip\n", error = "" }
+-    end)
+-
+-    it("unequips a upgrade", function()
+-        local item_count = 0
+-        stub(_G, "turtle", {
+-            select = function() end,
+-            getItemCount = function() return item_count end,
+-            equipRight = function()
+-                item_count = 1
+-                return true
+-            end,
+-            equipLeft = function()
+-                item_count = 1
+-                return true
+-            end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua left"))
+-            :matches { ok = true, output = "Item unequipped\n", error = "" }
+-        item_count = 0
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua right"))
+-            :matches { ok = true, output = "Item unequipped\n", error = "" }
+-    end)
+-
+-    it("fails when the turtle is full", function()
+-        stub(_G, "turtle", {
+-            select = function() end,
+-            getItemCount = function() return 1 end,
+-            equipRight = function() return true end,
+-            equipLeft = function() return true end,
+-        })
+-
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua left"))
+-            :matches { ok = true, output = "No space to unequip item\n", error = "" }
+-        expect(capture(stub, "/rom/programs/turtle/unequip.lua right"))
+-            :matches { ok = true, output = "No space to unequip item\n", error = "" }
+-    end)
+-
+-end)

@@ -5,9 +5,10 @@
  * This file defines the methods for the computer peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
 #include "computer.hpp"
 #include "../os.hpp"
 #include <regex>
@@ -41,13 +42,20 @@ int computer::reboot(lua_State *L) {
     return 0;
 }
 
+int computer::getLabel(lua_State *L) {
+    if (freedComputers.find(comp) != freedComputers.end()) return 0;
+    lua_pushlstring(L, comp->config.label.c_str(), comp->config.label.length());
+    return 1;
+}
+
 computer::computer(lua_State *L, const char * side) {
-    if (std::string(side).substr(0, 9) != "computer_" || !std::all_of(side + 9, side + strlen(side), ::isdigit)) 
+    if (strlen(side) < 10 || std::string(side).substr(0, 9) != "computer_" || (strlen(side) > 9 && !std::all_of(side + 9, side + strlen(side), ::isdigit))) 
         throw std::invalid_argument("\"side\" parameter must be in the form of computer_[0-9]+");
     int id = atoi(&side[9]);
     comp = NULL;
     for (Computer * c : computers) if (c->id == id) comp = c;
     if (comp == NULL) comp = (Computer*)queueTask([ ](void* arg)->void*{return startComputer(*(int*)arg);}, &id);
+    if (comp == NULL) throw std::runtime_error("Failed to open computer");
     thiscomp = get_comp(L);
     comp->referencers.push_back(thiscomp);
 }
@@ -70,15 +78,17 @@ int computer::call(lua_State *L, const char * method) {
     else if (m == "reboot") return reboot(L);
     else if (m == "getID") return getID(L);
     else if (m == "isOn") return isOn(L);
+    else if (m == "getLabel") return getLabel(L);
     else return 0;
 }
 
-const char * computer_keys[5] = {
+const char * computer_keys[6] = {
     "turnOn",
     "shutdown",
     "reboot",
     "getID",
-    "isOn"
+    "isOn",
+    "getLabel"
 };
 
-library_t computer::methods = {"computer", 5, computer_keys, NULL, nullptr, nullptr};
+library_t computer::methods = {"computer", 6, computer_keys, NULL, nullptr, nullptr};

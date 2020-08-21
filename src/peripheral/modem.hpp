@@ -5,7 +5,7 @@
  * This file defines the class for the modem peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019 JackMacWindows. 
+ * Copyright (c) 2019-2020 JackMacWindows. 
  */
 
 #include "peripheral.hpp"
@@ -15,16 +15,25 @@ class modem: public peripheral {
 private:
     friend const char * modem_message(lua_State *, void*);
     std::unordered_set<uint16_t> openPorts;
+    std::unordered_set<void*> modemMessages;
     Computer * comp;
     lua_State * eventQueue;
+    std::mutex eventQueueMutex;
+    std::unordered_set<int> idsToDelete;
     std::string side;
+    int netID = 0;
     int isOpen(lua_State *L);
     int open(lua_State *L);
     int close(lua_State *L);
     int closeAll(lua_State *L);
     int transmit(lua_State *L);
     int isWireless(lua_State *L);
-    void receive(uint16_t port, uint16_t replyPort, lua_State *param);
+    int getNamesRemote(lua_State *L);
+    int getTypeRemote(lua_State *L);
+    int isPresentRemote(lua_State *L);
+    int getMethodsRemote(lua_State *L);
+    int callRemote(lua_State *L);
+    void receive(uint16_t port, uint16_t replyPort, int id, modem * sender);
 public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new modem(L, side);}
@@ -35,4 +44,5 @@ public:
     ~modem();
     int call(lua_State *L, const char * method);
     void update() {}
+    void reinitialize(lua_State *L);
 };

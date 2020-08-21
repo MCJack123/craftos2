@@ -5,7 +5,7 @@
  * This file defines the class for the debugger peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019 JackMacWindows. 
+ * Copyright (c) 2019-2020 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_DEBUGGER_HPP
@@ -13,6 +13,7 @@
 #include "peripheral.hpp"
 #include <mutex>
 #include <condition_variable>
+#include <thread>
 
 #define DEBUGGER_BREAK_TYPE_NONSTOP 0
 #define DEBUGGER_BREAK_TYPE_LINE    1
@@ -35,6 +36,7 @@ private:
     int setBreakpoint(lua_State *L);
     int print(lua_State *L);
     void init(Computer * comp);
+    int _deinit(lua_State *L);
     library_t * createDebuggerLibrary();
     static library_t methods;
 public:
@@ -65,6 +67,7 @@ public:
     void update(){}
     int call(lua_State *L, const char * method);
     library_t getMethods() {return methods;}
+    void reinitialize(lua_State *L);
 };
 
 #endif

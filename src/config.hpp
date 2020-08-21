@@ -5,7 +5,7 @@
  * This file defines the methods for the config API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #ifndef CONFIG_HPP
@@ -19,8 +19,10 @@ struct configuration {
     bool http_enable;
     bool debug_enable;
     int mount_mode;
-    //String[] http_whitelist;
-    //String[] http_blacklist;
+    //std::vector<std::string> http_whitelist;
+    //std::vector<std::string> http_blacklist;
+    //std::vector<std::string> mounter_whitelist;
+    //std::vector<std::string> mounter_blacklist;
     bool disable_lua51_features;
     std::string default_computer_settings;
     bool logErrors;
@@ -40,10 +42,25 @@ struct configuration {
     bool configReadOnly;
     bool vanilla;
     int initialComputer;
+    int maxRecordingTime;
+    int recordingFPS; // should be an even divisor of clockSpeed
+    int cliControlKeyMode; // 0: home = ctrl, s+home = home; 1: home = home, s+home = ctrl; 2: home = home, esc-c = control; 3: home = home, ctrl-c = control
+    bool showMountPrompt;
+    int maxOpenPorts;
+    int mouse_move_throttle;
+    bool monitorsUseMouseEvents;
+    int defaultWidth;
+    int defaultHeight;
+    bool standardsMode;
+    bool useHardwareRenderer;
+    std::string preferredHardwareDriver;
+    bool useVsync;
 };
 struct computer_configuration {
     std::string label;
     bool isColor;
+    bool loadFailure;
+    bool startFullscreen;
 };
 #include "lib.hpp"
 extern library_t config_lib;

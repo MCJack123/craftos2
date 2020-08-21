@@ -20,7 +20,9 @@ class CCEmuXConverter {
         {"httpEnable", "http_enable"},
         {"disableLua51Features", "disable_lua51_features"},
         {"defaultComputerSettings", "default_computer_settings"},
-        {"debugEnable", "debug_enable"}
+        {"debugEnable", "debug_enable"},
+        {"termWidth", "defaultWidth"},
+        {"termHeight", "defaultHeight"}
     };
 
     public static void main(String[] args) throws FileNotFoundException, IOException, ParseException, ClassNotFoundException, UnsupportedLookAndFeelException, InstantiationException, IllegalAccessException {

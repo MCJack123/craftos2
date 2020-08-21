@@ -5,7 +5,7 @@
  * This file defines the class for the computer peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019 JackMacWindows. 
+ * Copyright (c) 2019-2020 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_COMPUTER_HPP
@@ -15,7 +15,7 @@
 
 class computer: public peripheral {
 private:
-    friend class Computer;
+    friend struct Computer;
     Computer * comp;
     Computer * thiscomp;
     int turnOn(lua_State *L);
@@ -23,6 +23,7 @@ private:
     int reboot(lua_State *L);
     int getID(lua_State *L);
     int isOn(lua_State *L);
+    int getLabel(lua_State *L);
 public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new computer(L, side);}

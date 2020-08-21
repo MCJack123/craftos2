@@ -6,7 +6,7 @@
  * computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #ifndef COMPUTER_HPP
@@ -21,26 +21,30 @@ extern "C" {
 #include <queue>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <atomic>
 #include <condition_variable>
 #include <csetjmp>
-#ifdef _WIN32
-#include <SDL.h>
-#else
 #include <SDL2/SDL.h>
-#endif
 #ifndef NO_CLI
 #include <ncurses.h>
 #include <panel.h>
 #endif
 #include "peripheral/peripheral.hpp"
-#include "TerminalWindow.hpp"
+#include "terminal/Terminal.hpp"
 #include "config.hpp"
 
 typedef const char * (*event_provider)(lua_State *L, void* data);
 
-class Computer {
-public:
+extern "C" struct mouse_event_data {
+    int x;
+    int y;
+    uint8_t button;
+    uint8_t event;
+    std::string side;
+};
+
+struct Computer {
     int id;
     int running = 0;
     int files_open = 0;
@@ -48,13 +52,12 @@ public:
     bool mounter_initializing = false;
     std::queue<std::string> eventQueue;
     lua_State * paramQueue;
-    std::vector<std::chrono::steady_clock::time_point> timers;
     std::vector<double> alarms;
     std::unordered_map<std::string, peripheral*> peripherals;
     std::mutex peripherals_mutex;
     std::queue<std::pair<event_provider, void*> > event_provider_queue;
     std::mutex event_provider_queue_mutex;
-    TerminalWindow * term;
+    Terminal * term;
 #ifndef NO_CLI
     PANEL * cli_panel;
     WINDOW * cli_term;
@@ -76,15 +79,36 @@ public:
     void * debugger = NULL;
     bool isDebugger = false;
     int hookMask = 0;
+    std::unordered_set<SDL_TimerID> timerIDs;
+    std::vector<void*> openWebsockets;
+    SDL_TimerID eventTimeout = 0;
+    bool hasBreakpoints = false;
+    bool shouldDeinitDebugger = false;
+    int timeoutCheckCount = 0;
+    std::unordered_set<int> usedDriveMounts;
+    lua_State *coro;
+    mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()};
+    SDL_TimerID mouseMoveDebounceTimer = 0;
+    mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()};
+    std::unordered_map<int, std::function<void(Computer*, int, void*)> > userdata_destructors;
+    std::string dataDir;
+    std::mutex termEventQueueMutex;
 
+    static std::unordered_map<int, std::string> customDataDirs;
+    static std::list<std::string> customPlugins;
+    static std::list<std::tuple<std::string, std::string, int> > customMounts;
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
     ~Computer();
     void run(std::string bios_name);
     bool getEvent(SDL_Event* e);
+private:
+    void loadPlugin(std::string path);
 };
 
 extern std::vector<Computer*> computers;
+extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
+extern std::string computerDir;
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 

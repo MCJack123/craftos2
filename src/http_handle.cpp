@@ -5,15 +5,19 @@
  * This file implements the methods for HTTP handles.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#define CRAFTOSPC_INTERNAL
+#ifndef __EMSCRIPTEN__
 #include "http_handle.hpp"
 #include "lib.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <codecvt>
+#include <locale>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPServerResponse.h>
@@ -49,7 +53,7 @@ int http_handle_close(lua_State *L) {
     return 0;
 }
 
-extern char checkChar(char c);
+#define checkChar(c) c
 
 int http_handle_readAll(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
@@ -60,7 +64,17 @@ int http_handle_readAll(lua_State *L) {
         ret.append(buffer, sizeof(buffer));
     ret.append(buffer, handle->stream.gcount());
     if (!lua_toboolean(L, lua_upvalueindex(2))) ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
-    lua_pushlstring(L, ret.c_str(), ret.length());
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring wstr;
+    try {wstr = converter.from_bytes(ret.c_str(), ret.c_str() + ret.length());}
+    catch (std::exception & e) {
+        fprintf(stderr, "http_handle_readAll: Error decoding UTF-8: %s\n", e.what());
+        lua_pushlstring(L, ret.c_str(), ret.length());
+        return 1;
+    }
+    std::string out;
+    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
+    lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
 
@@ -70,13 +84,50 @@ int http_handle_readLine(lua_State *L) {
     std::string line;
     std::getline(handle->stream, line, '\n');
     line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-    lua_pushstring(L, line.c_str());
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring wstr;
+    try {wstr = converter.from_bytes(line.c_str(), line.c_str() + line.length());}
+    catch (std::exception & e) {
+        fprintf(stderr, "http_handle_readLine: Error decoding UTF-8: %s\n", e.what());
+        lua_pushlstring(L, line.c_str(), line.length());
+        return 1;
+    }
+    std::string out;
+    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
+    lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
 
 int http_handle_readChar(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed || !handle->stream.good()) return 0;
+    uint32_t codepoint = 0;
+    char c = handle->stream.get();
+    if (c < 0) {
+        if (c & 64) {
+            char c2 = handle->stream.get();
+            if (c2 >= 0 || c2 & 64) {codepoint = 2^31; goto http_handle_readCharDone;}
+            if (c & 32) {
+                char c3 = handle->stream.get();
+                if (c3 >= 0 || c3 & 64) {codepoint = 2^31; goto http_handle_readCharDone;}
+                if (c & 16) {
+                    if (c & 8) {codepoint = 2^31; goto http_handle_readCharDone;}
+                    char c4 = handle->stream.get();
+                    if (c4 >= 0 || c4 & 64) {codepoint = 2^31; goto http_handle_readCharDone;}
+                    codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                } else {
+                    codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                }
+            } else {
+                codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
+            }
+        } else {codepoint = 2^31; goto http_handle_readCharDone;}
+    } else codepoint = c;
+http_handle_readCharDone:
+    if (codepoint > 255) {
+        lua_pushstring(L, "?");
+        return 1;
+    }
     char retval[2];
     retval[0] = checkChar(handle->stream.get());
     lua_pushstring(L, retval);
@@ -213,8 +264,7 @@ int res_close(lua_State *L) {
         res->res->send().write(body.c_str(), body.size());
     } catch (std::exception &e) {
         *(bool*)lua_touserdata(L, lua_upvalueindex(2)) = true;
-        lua_pushfstring(L, "Could not send data: %s", e.what());
-        lua_error(L);
+        luaL_error(L, "Could not send data: %s", e.what());
     }
     *(bool*)lua_touserdata(L, lua_upvalueindex(2)) = true;
     return 0;
@@ -236,3 +286,5 @@ int res_setResponseHeader(lua_State *L) {
     res->res->set(lua_tostring(L, 1), lua_tostring(L, 2));
     return 0;
 }
+
+#endif // __EMSCRIPTEN__

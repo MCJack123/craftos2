@@ -5,8 +5,13 @@
  * This file implements the methods for the http API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
+
+#define CRAFTOSPC_INTERNAL
+#ifdef __EMSCRIPTEN__
+#include "http_emscripten.cpp"
+#else
 
 #include "http.hpp"
 #include "http_handle.hpp"
@@ -20,9 +25,6 @@
 #include <cctype>
 #include <functional>
 #include <chrono>
-extern "C" {
-#include <lauxlib.h>
-}
 #include <Poco/URI.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
@@ -46,6 +48,7 @@ typedef struct {
     Computer *comp;
     char * url;
     char * postData;
+    size_t postDataSize;
     std::unordered_map<std::string, std::string> headers;
     std::string method;
     char * old_url;
@@ -121,8 +124,12 @@ const char * http_success(lua_State *L, void* data) {
 }
 
 const char * http_failure(lua_State *L, void* data) {
-    lua_pushstring(L, (char*)data);
-    delete[] (char*)data;
+    http_check_t * err = (http_check_t*)data;
+    lua_pushstring(L, err->url);
+    delete[] err->url;
+    if (!err->status.empty()) lua_pushstring(L, err->status.c_str());
+    else lua_pushnil(L);
+    delete err;
     return "http_failure";
 }
 
@@ -153,36 +160,52 @@ void downloadThread(void* arg) {
     HTTPRequest request(param->method != "" ? param->method : (param->postData != NULL ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
     session->setTimeout(Poco::Timespan(15, 0));
-    //if (param->postData != NULL) request.setMethod("POST");
-    request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
     for (auto it = param->headers.begin(); it != param->headers.end(); it++) request.add(it->first, it->second);
+    if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
+    if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
+    if (param->postData != NULL) request.setContentLength(param->postDataSize);
     try {
         std::ostream& reqs = session->sendRequest(request);
-        if (param->postData != NULL) reqs << param->postData;
+        if (param->postData != NULL) reqs.write(param->postData, param->postDataSize);
         if (reqs.bad() || reqs.fail()) {
             if (param->postData != NULL) delete[] param->postData;
             if (param->url != param->old_url) delete[] param->old_url;
-            termQueueProvider(param->comp, http_failure, param->url);
+            http_check_t * err = new http_check_t;
+            err->url = param->url;
+            err->status = "Failed to send request";
+            termQueueProvider(param->comp, http_failure, err);
             delete param;
+            delete response;
+            delete session;
             return;
         }
-    } catch (std::exception &e) {
-        printf("Error while downloading %s: %s\n", param->url, e.what());
+    } catch (Poco::Exception &e) {
+        fprintf(stderr, "Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
-        termQueueProvider(param->comp, http_failure, param->url);
+        http_check_t * err = new http_check_t;
+        err->url = param->url;
+        err->status = e.what();
+        termQueueProvider(param->comp, http_failure, err);
         delete param;
+        delete response;
+        delete session;
         return;
     }
     http_handle_t * handle;
     try {
         handle = new http_handle_t(session->receiveResponse(*response));
-    } catch (std::exception &e) {
-        printf("Error while downloading %s: %s\n", param->url, e.what());
+    } catch (Poco::Exception &e) {
+        fprintf(stderr, "Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
-        termQueueProvider(param->comp, http_failure, param->url);
+        http_check_t * err = new http_check_t;
+        err->url = param->url;
+        err->status = e.message();
+        termQueueProvider(param->comp, http_failure, err);
         delete param;
+        delete response;
+        delete session;
         return;
     }
     handle->session = session;
@@ -216,7 +239,7 @@ void HTTPDownload(std::string url, std::function<void(std::istream&)> callback) 
     Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
     Poco::Net::HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
-    request.add("User-Agent", "CraftOS-PC/2.0 Poco/1.9.3");
+    request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " Poco/1.9.3");
     session.sendRequest(request);
     std::istream& stream = session.receiveResponse(response);
     if (response.getStatus() / 100 == 3 && response.has("Location")) 
@@ -257,6 +280,7 @@ int http_request(lua_State *L) {
     param->isBinary = false;
     if (lua_isstring(L, 2)) {
         param->postData = new char[lua_strlen(L, 2) + 1];
+        param->postDataSize = lua_strlen(L, 2);
         memcpy(param->postData, lua_tostring(L, 2), lua_strlen(L, 2));
     }
     if (lua_istable(L, 3)) {
@@ -409,7 +433,7 @@ public:
     int port;
     HTTPListener(int p, Computer *c): comp(c), port(p) {}
     void handleRequest(HTTPServerRequest& req, HTTPServerResponse& res) {
-        printf("Got request: %s\n", req.getURI().c_str());
+        //fprintf(stderr, "Got request: %s\n", req.getURI().c_str());
         struct http_res lres = {"", &res};
         struct http_request_data evdata = {port, false, &req, &lres};
         termQueueProvider(comp, http_request_event, &evdata);
@@ -450,7 +474,14 @@ int http_addListener(lua_State *L) {
         delete listeners[port];
         listeners.erase(port);
     }
-    HTTPServer * srv = new HTTPServer((HTTPRequestHandlerFactory*)new HTTPListener::Factory(get_comp(L), port), port, new HTTPServerParams);
+    HTTPServer * srv;
+    try {
+        srv = new HTTPServer((HTTPRequestHandlerFactory*)new HTTPListener::Factory(get_comp(L), port), port, new HTTPServerParams);
+    } catch (NetException &e) {
+        return luaL_error(L, "Could not open server: %s\n", e.message().c_str());
+    } catch (std::exception &e) {
+        return luaL_error(L, "Could not open server: %s\n", e.what());
+    }
     srv->start();
     listeners[port] = srv;
     return 0;
@@ -471,14 +502,14 @@ int http_removeListener(lua_State *L) {
 #endif
 
 struct websocket_failure_data {
-    char * url;
+    std::string url;
     std::string reason;
 };
 
 const char * websocket_failure(lua_State *L, void* userp) {
     struct websocket_failure_data * data = (struct websocket_failure_data*)userp;
-    if (data->url == NULL) lua_pushnil(L);
-    else { lua_pushstring(L, data->url); delete[] data->url; }
+    if (data->url.empty()) lua_pushnil(L);
+    else lua_pushstring(L, data->url.c_str());
     lua_pushstring(L, data->reason.c_str());
     delete data;
     return "websocket_failure";
@@ -494,8 +525,9 @@ const char * websocket_closed(lua_State *L, void* userp) {
 
 struct ws_handle {
     bool closed;
-    const char * url;
+    std::string url;
     bool binary;
+    int externalClosed;
     WebSocket * ws;
 };
 
@@ -504,7 +536,8 @@ int websocket_send(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     struct ws_handle * ws = (struct ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     if (ws->closed) return 0;
-    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), WebSocket::FRAME_FLAG_FIN | (ws->binary ? WebSocket::FRAME_OP_BINARY : WebSocket::FRAME_OP_TEXT)) < 1) ws->closed = true;
+    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), WebSocket::FRAME_FLAG_FIN | (ws->binary ? WebSocket::FRAME_OP_BINARY : WebSocket::FRAME_OP_TEXT)) < 1) 
+        ws->closed = true;
     return 0;
 }
 
@@ -525,20 +558,23 @@ int websocket_free(lua_State *L) {
 }
 
 const char websocket_receive[] = "local _url, _isOpen = ...\n"
-"return function()\n"
+"return function(timeout)\n"
+"   local tm\n"
+"   if timeout then tm = os.startTimer(timeout) end\n"
 "   while true do\n"
-"       if not _isOpen() then return nil end\n"
+"       if not _isOpen() then error('attempt to use a closed file', 2) end\n"
 "       local ev, url, param = os.pullEvent()\n"
 "       if ev == 'websocket_message' and url == _url then return param\n"
-"       elseif ev == 'websocket_closed' and url == _url then return nil end\n"
+"       elseif ev == 'websocket_closed' and url == _url and not _isOpen() then return nil\n"
+"       elseif ev == 'timer' and url == tm then return nil end\n"
 "   end\n"
 "end";
 
 const char * websocket_success(lua_State *L, void* userp) {
     struct ws_handle * ws = (struct ws_handle*)userp;
     luaL_checkstack(L, 10, "Could not grow stack for websocket_success");
-    if (ws->url == NULL) lua_pushnil(L);
-    else lua_pushstring(L, ws->url);
+    if (ws->url.empty()) lua_pushnil(L);
+    else lua_pushstring(L, ws->url.c_str());
     lua_newtable(L);
 
     lua_pushstring(L, "close");
@@ -555,7 +591,7 @@ const char * websocket_success(lua_State *L, void* userp) {
     lua_pushstring(L, "receive");
     assert(luaL_loadstring(L, websocket_receive) == 0);
     assert(lua_isfunction(L, -1));
-    lua_pushstring(L, ws->url);
+    lua_pushstring(L, ws->url.c_str());
     lua_pushlightuserdata(L, ws);
     lua_pushcclosure(L, websocket_isOpen, 1);
     lua_call(L, 2, 1);
@@ -575,15 +611,16 @@ const char * websocket_success(lua_State *L, void* userp) {
 }
 
 struct ws_message {
-    const char * url;
+    std::string url;
     char* data;
+    size_t size;
 };
 
 const char * websocket_message(lua_State *L, void* userp) {
     struct ws_message * message = (struct ws_message*)userp;
-    if (message->url == NULL) lua_pushnil(L);
-    else lua_pushstring(L, message->url);
-    lua_pushstring(L, message->data);
+    if (message->url.empty()) lua_pushnil(L);
+    else lua_pushstring(L, message->url.c_str());
+    lua_pushlstring(L, message->data, message->size);
     delete[] message->data;
     delete message;
     return "websocket_message";
@@ -594,24 +631,25 @@ public:
     Computer * comp;
     HTTPServer *srv;
     bool binary;
-    websocket_server(Computer * c, bool b, HTTPServer *s): comp(c), srv(s), binary(b) {}
+    std::unordered_map<std::string, std::string> headers;
+    websocket_server(Computer * c, bool b, HTTPServer *s, std::unordered_map<std::string, std::string> h): comp(c), srv(s), binary(b), headers(h) {}
     void handleRequest(HTTPServerRequest &request, HTTPServerResponse &response) {
         WebSocket * ws = NULL;
         try {
             ws = new WebSocket(request, response);
-        } catch (std::exception &e) {
+        } catch (NetException &e) {
             struct websocket_failure_data * data = new struct websocket_failure_data;
-            data->url = NULL;
-            data->reason = e.what();
+            data->url = "";
+            data->reason = e.message();
             termQueueProvider(comp, websocket_failure, data);
             if (ws != NULL) delete ws;
-            if (srv != NULL) { srv->stop(); delete srv; }
+            if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
             return;
         }
         struct ws_handle * wsh = new struct ws_handle;
         wsh->closed = false;
         wsh->ws = ws;
-        wsh->url = NULL;
+        wsh->url = "";
         wsh->binary = binary;
         termQueueProvider(comp, websocket_success, wsh);
         while (!wsh->closed) {
@@ -623,7 +661,7 @@ public:
                     termQueueProvider(comp, websocket_closed, NULL);
                     break;
                 }
-            } catch (std::exception &e) {
+            } catch (NetException &e) {
                 wsh->closed = true;
                 termQueueProvider(comp, websocket_closed, NULL);
                 break;
@@ -633,40 +671,64 @@ public:
                 termQueueProvider(comp, websocket_closed, NULL);
             } else {
                 struct ws_message * message = new struct ws_message;
-                message->url = NULL;
+                message->url = "";
                 message->data = new char[buf.sizeBytes()];
                 memcpy(message->data, buf.begin(), buf.sizeBytes());
+                message->size = buf.sizeBytes();
                 termQueueProvider(comp, websocket_message, message);
             }
         }
-        ws->shutdown();
-        if (srv != NULL) { srv->stop(); delete srv; }
+        try {ws->shutdown();} catch (...) {}
+        if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
     }
     class Factory: public HTTPRequestHandlerFactory {
     public:
         Computer *comp;
         HTTPServer *srv = NULL;
         bool binary;
-        Factory(Computer *c, bool b): comp(c), binary(b) {}
+        std::unordered_map<std::string, std::string> headers;
+        Factory(Computer *c, bool b, std::unordered_map<std::string, std::string> h): comp(c), binary(b), headers(h) {}
         virtual HTTPRequestHandler* createRequestHandler(const HTTPServerRequest&) {
             assert(srv != NULL);
-            return new websocket_server(comp, binary, srv);
+            return new websocket_server(comp, binary, srv, headers);
         }
     };
 };
 
-void websocket_client_thread(Computer *comp, char * str, bool binary) {
+void stopWebsocket(void* wsh) {
+    ((struct ws_handle*)wsh)->closed = true; 
+    ((struct ws_handle*)wsh)->externalClosed = 1;
+    ((struct ws_handle*)wsh)->ws->shutdown();
+    for (int i = 0; ((struct ws_handle*)wsh)->externalClosed != 2; i++) {
+        if (i % 4 == 0) fprintf(stderr, "Waiting for WebSocket...\n");
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    ((struct ws_handle*)wsh)->externalClosed = 3;
+}
+
+void websocket_client_thread(Computer *comp, std::string str, bool binary, std::unordered_map<std::string, std::string> headers) {
 #ifdef __APPLE__
     pthread_setname_np("WebSocket Client Thread");
 #endif
     Poco::URI uri(str);
-    HTTPSClientSession cs(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    HTTPClientSession * cs;
+    if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
+    else if (uri.getScheme() == "wss") cs = new HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    else {
+        struct websocket_failure_data * data = new struct websocket_failure_data;
+        data->url = str;
+        data->reason = std::string("Unknown protocol" + uri.getScheme());
+        termQueueProvider(comp, websocket_failure, data);
+        return;
+    }
+    if (uri.getPathAndQuery() == "") uri.setPath("/");
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     request.set("origin", "http://www.websocket.org");
+    for (std::pair<std::string, std::string> h : headers) request.set(h.first, h.second);
     HTTPResponse response;
     WebSocket* ws;
     try {
-        ws = new WebSocket(cs, request, response);
+        ws = new WebSocket(*cs, request, response);
     } catch (Poco::Net::NetException &e) {
         struct websocket_failure_data * data = new struct websocket_failure_data;
         data->url = str;
@@ -674,51 +736,110 @@ void websocket_client_thread(Computer *comp, char * str, bool binary) {
         termQueueProvider(comp, websocket_failure, data);
         return;
     }
+    ws->setReceiveTimeout(Poco::Timespan(2, 0));
     struct ws_handle * wsh = new struct ws_handle;
     wsh->closed = false;
+    wsh->externalClosed = false;
     wsh->url = str;
     wsh->ws = ws;
     wsh->binary = binary;
+    comp->openWebsockets.push_back(wsh);
     termQueueProvider(comp, websocket_success, wsh);
     while (!wsh->closed) {
         Poco::Buffer<char> buf(0);
         int flags = 0;
         try {
-            if (ws->receiveFrame(buf, flags) == 0) {
+            int res = ws->receiveFrame(buf, flags);
+            if (res == 0) {
                 wsh->closed = true;
-                termQueueProvider(comp, websocket_closed, str);
+                wsh->url = "";
+                char * sptr = new char[str.length()+1];
+                memcpy(sptr, str.c_str(), str.length());
+                sptr[str.length()] = 0;
+                termQueueProvider(comp, websocket_closed, sptr);
                 break;
             }
-        } catch (std::exception &e) {
+        } catch (Poco::TimeoutException &e) {
+            if (wsh->closed) {
+                char * sptr = new char[str.length()+1];
+                memcpy(sptr, str.c_str(), str.length());
+                sptr[str.length()] = 0;
+                termQueueProvider(comp, websocket_closed, sptr);
+                break;
+            }
+            continue;
+        } catch (NetException &e) {
             wsh->closed = true;
-            termQueueProvider(comp, websocket_closed, str);
+            wsh->url = "";
+            char * sptr = new char[str.length()+1];
+            memcpy(sptr, str.c_str(), str.length());
+            sptr[str.length()] = 0;
+            termQueueProvider(comp, websocket_closed, sptr);
             break;
         }
         if (flags & WebSocket::FRAME_OP_CLOSE) {
             wsh->closed = true;
-            termQueueProvider(comp, websocket_closed, str);
+            wsh->url = "";
+            char * sptr = new char[str.length()+1];
+            memcpy(sptr, str.c_str(), str.length());
+            sptr[str.length()] = 0;
+            termQueueProvider(comp, websocket_closed, sptr);
+            break;
         } else {
             struct ws_message * message = new struct ws_message;
             message->url = str;
-            message->data = new char[buf.sizeBytes()+1];
+            message->data = new char[buf.sizeBytes()];
             memcpy(message->data, buf.begin(), buf.sizeBytes());
-            message->data[buf.sizeBytes()] = 0;
+            message->size = buf.sizeBytes();
             termQueueProvider(comp, websocket_message, message);
         }
         std::this_thread::yield();
     }
-    ws->shutdown();
+    wsh->url = "";
+    try {if (!wsh->externalClosed) ws->shutdown();} catch (std::exception &e) {}
+    for (auto it = comp->openWebsockets.begin(); it != comp->openWebsockets.end(); it++) {
+        if (*it == wsh) {
+            comp->openWebsockets.erase(it);
+            break;
+        }
+    }
+    if (wsh->externalClosed) {wsh->externalClosed = 2; while (wsh->externalClosed == 2) std::this_thread::sleep_for(std::chrono::milliseconds(500));}
+    delete wsh;
+    delete cs;
 }
 
 int http_websocket(lua_State *L) {
+    if (!lua_isnoneornil(L, 3) && !lua_isboolean(L, 3)) luaL_error(L, "bad argument #3 (expected boolean or nil, got %s)", lua_typename(L, lua_type(L, 3)));
     if (lua_isstring(L, 1)) {
         char* url = new char[lua_strlen(L, 1) + 1];
         strcpy(url, lua_tostring(L, 1));
-        std::thread th(websocket_client_thread, get_comp(L), url, lua_isboolean(L, 2) && lua_toboolean(L, 2));
+        std::unordered_map<std::string, std::string> headers;
+        if (lua_istable(L, 2)) {
+            lua_pushvalue(L, 2);
+            lua_pushnil(L);
+            for (int i = 0; lua_next(L, -2); i++) {
+                lua_pushvalue(L, -2);
+                headers[std::string(lua_tostring(L, -1), lua_strlen(L, -1))] = std::string(lua_tostring(L, -2), lua_strlen(L, -2));
+                lua_pop(L, 2);
+            }
+            lua_pop(L, 1);
+        }
+        std::thread th(websocket_client_thread, get_comp(L), url, lua_isboolean(L, 3) && lua_toboolean(L, 3), headers);
         setThreadName(th, "WebSocket Client Thread");
         th.detach();
-    } else {
-        websocket_server::Factory * f = new websocket_server::Factory(get_comp(L), lua_isboolean(L, 2) && lua_toboolean(L, 2));
+    } else if (lua_isnoneornil(L, 1)) {
+        std::unordered_map<std::string, std::string> headers;
+        if (lua_istable(L, 2)) {
+            lua_pushvalue(L, 2);
+            lua_pushnil(L);
+            for (int i = 0; lua_next(L, -2); i++) {
+                lua_pushvalue(L, -2);
+                headers[std::string(lua_tostring(L, -1), lua_strlen(L, -1))] = std::string(lua_tostring(L, -2), lua_strlen(L, -2));
+                lua_pop(L, 2);
+            }
+            lua_pop(L, 1);
+        } else if (!lua_isnoneornil(L, 2)) luaL_error(L, "bad argument #2 (expected table or nil, got %s)", lua_typename(L, lua_type(L, 2)));
+        websocket_server::Factory * f = new websocket_server::Factory(get_comp(L), lua_isboolean(L, 3) && lua_toboolean(L, 3), headers);
         try {f->srv = new HTTPServer(f, 80);}
         catch (Poco::Exception& e) {
             fprintf(stderr, "Could not open server: %s\n", e.displayText().c_str());
@@ -726,7 +847,7 @@ int http_websocket(lua_State *L) {
             return 1;
         }
         f->srv->start();
-    }
+    } else luaL_error(L, "bad argument #1 (expected string or nil, got %s)", lua_typename(L, lua_type(L, 1)));
     lua_pushboolean(L, true);
     return 1;
 }
@@ -752,3 +873,5 @@ lua_CFunction http_values[5] = {
 };
 
 library_t http_lib = {"http", 5, http_keys, http_values, nullptr, nullptr};
+
+#endif // __EMSCRIPTEN__

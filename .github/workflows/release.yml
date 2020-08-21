@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  reddit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: BjornLuG/release-for-reddit-action@v1
+      with:
+        username: ${{ secrets.REDDIT_USERNAME }}
+        password: ${{ secrets.REDDIT_PASSWORD }}
+        app-id: ${{ secrets.REDDIT_APP_ID }}
+        app-secret: ${{ secrets.REDDIT_APP_SECRET }}
+        subreddit: craftos_pc
+        title: CraftOS-PC ${{ github.event.release.tag_name }} is now available!
+        comment: ${{ github.event.release.body }}
+        flair-id: 33b418d2-8e71-11ea-b7d8-0e1aee799c6b
+
+  hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Release Hashes
+        uses: MCJack123/ghaction-Generate-Release-Hashes@v1
+        with:
+          file-name: hashes.txt
+      - name: Upload a Release Asset
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # The URL for uploading assets to the release
+          upload_url: ${{ github.event.release.upload_url }}
+          # The path to the asset you want to upload
+          asset_path: hashes.txt
+          # The name of the asset you want to upload
+          asset_name: sha256-hashes.txt
+          # The content-type of the asset you want to upload. See the supported Media Types here: https://www.iana.org/assignments/media-types/media-types.xhtml for more information
+          asset_content_type: text/plain

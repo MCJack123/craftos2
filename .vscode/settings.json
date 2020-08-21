@@ -87,8 +87,12 @@
         "shared_mutex": "cpp",
         "cfenv": "cpp",
         "future": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "csetjmp": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++14",
-    "C_Cpp.default.cStandard": "c11"
+    "C_Cpp.default.cStandard": "c11",
+    "lldb.displayFormat": "auto",
+    "lldb.showDisassembly": "auto",
+    "lldb.dereferencePointers": true
 }

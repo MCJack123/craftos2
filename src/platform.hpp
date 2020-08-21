@@ -6,7 +6,7 @@
  * built for.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #ifndef PLATFORM_HPP
@@ -19,7 +19,10 @@ extern "C" {
 extern void setThreadName(std::thread &t, std::string name);
 extern int createDirectory(std::string path);
 extern unsigned long long getFreeSpace(std::string path);
+extern unsigned long long getCapacity(std::string path);
 extern int removeDirectory(std::string path);
+extern void setBasePath(const char * path);
+extern void setROMPath(const char * path);
 extern std::string getBasePath();
 extern std::string getROMPath();
 extern std::string getPlugInPath();
@@ -28,6 +31,7 @@ extern void migrateData();
 extern void * loadSymbol(std::string path, std::string symbol);
 extern void unloadLibraries();
 extern void copyImage(SDL_Surface* surf);
+extern void setupCrashHandler();
 #ifdef WIN32
 extern char* basename(char* path);
 extern char* dirname(char* path);

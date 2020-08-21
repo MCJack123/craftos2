@@ -6,7 +6,7 @@
  * programs when run in CraftOS-PC.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019 JackMacWindows.
+ * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 extern "C" {
@@ -16,16 +16,15 @@ extern "C" {
 #include "../src/Computer.hpp"
 #include <chrono>
 #include <string>
+#include <SDL2/SDL.h>
 #ifdef _WIN32
-#include <SDL.h>
 #include <windows.h>
 #else
-#include <SDL2/SDL.h>
 #include <stdlib.h>
 #endif
 #define libFunc(lib, name) getLibraryFunction(getLibrary(lib), name)
 
-#define PLUGIN_VERSION 3
+#define PLUGIN_VERSION 5
 
 library_t * (*getLibrary)(std::string);
 
@@ -52,7 +51,7 @@ int ccemux_getVersion(lua_State *L) {
 
 int ccemux_openEmu(lua_State *L) {
     int id = 1;
-    if (lua_isnumber(L, 1)) id = lua_tointeger(L, 1);
+    if (lua_isnumber(L, 1)) id = (int)lua_tointeger(L, 1);
     else {
         library_t * plib = getLibrary("peripheral");
         for (; id < 256; id++) { // don't search forever
@@ -80,12 +79,12 @@ int ccemux_openDataDir(lua_State *L) {
     const char * basePath = lua_tostring(L, lua_upvalueindex(1));
     Computer *comp = get_comp(L);
 #ifdef WIN32
-    ShellExecuteA(NULL, "explore", (std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteA(NULL, "explore", comp->dataDir.c_str(), NULL, NULL, SW_SHOW);
 #elif defined(__APPLE__)
-    system(("open " + std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str());
+    system(("open '" + comp->dataDir + "'").c_str());
     lua_pushboolean(L, true);
 #elif defined(__linux__)
-    system(("xdg-open " + std::string(basePath) + "/computer/" + std::to_string(comp->id)).c_str());
+    system(("xdg-open '" + comp->dataDir + "'").c_str());
     lua_pushboolean(L, true);
 #else
     lua_pushboolean(L, false);
@@ -98,10 +97,10 @@ int ccemux_openConfig(lua_State *L) {
 #ifdef WIN32
     ShellExecuteA(NULL, "open", (std::string(basePath) + "/config/global.json").c_str(), NULL, NULL, SW_SHOW);
 #elif defined(__APPLE__)
-    system(("open " + std::string(basePath) + "/config/global.json").c_str());
+    system(("open '" + std::string(basePath) + "/config/global.json'").c_str());
     lua_pushboolean(L, true);
 #elif defined(__linux__)
-    system(("xdg-open " + std::string(basePath) + "/config/global.json").c_str());
+    system(("xdg-open '" + std::string(basePath) + "/config/global.json'").c_str());
     lua_pushboolean(L, true);
 #else
     lua_pushboolean(L, false);
@@ -171,7 +170,7 @@ int luaopen_ccemux(lua_State *L) {
     for (int i = 0; M[i].name != NULL && M[i].func != NULL; i++) {
         lua_pushstring(L, M[i].name);
         if (std::string(M[i].name) == "openDataDir" || std::string(M[i].name) == "openConfig") {
-            lua_pushvalue(L, 2);
+            lua_pushvalue(L, 3);
             lua_pushcclosure(L, M[i].func, 1);
         } else lua_pushcfunction(L, M[i].func);
         lua_settable(L, -3);
