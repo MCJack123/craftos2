@@ -516,9 +516,24 @@ Special thanks:\n\
     return 1;
 }
 
+void setAllHooks(lua_State *L, Computer * computer, int hookmask) {
+    lua_sethook(computer->L, termHook, hookmask, 1);
+    lua_sethook(computer->coro, termHook, hookmask, 1);
+    lua_sethook(L, termHook, hookmask, 1);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+    for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
+        lua_rawgeti(L, -1, (int)i);
+        lua_sethook(lua_tothread(L, -1), termHook, hookmask, 1);
+        lua_pop(L, 1);
+    }
+}
+
 int os_setHaltOnLongRunMode(lua_State *L) {
     if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    lua_sethook(L, termHook, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1);
+    Computer * comp = get_comp(L);
+    if (comp->debugger != NULL && !comp->isDebugger) setAllHooks(L, comp, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD);
+    else if (config.debug_enable && !comp->isDebugger) setAllHooks(L, comp, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD);
+    else setAllHooks(L, comp, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKERROR);
     return 0;
 }
 
