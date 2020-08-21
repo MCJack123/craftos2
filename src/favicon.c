@@ -1,6 +1,6 @@
 /* GIMP RGBA C-Source image dump (favicon.c) */
 
-static const struct {
+struct favicon {
   unsigned int 	 width;
   unsigned int 	 height;
   unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
