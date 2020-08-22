@@ -22,7 +22,7 @@ class CLITerminal: public Terminal {
     friend void pressControl(int sig);
     friend void pressAlt(int sig);
     unsigned last_pair;
-    unsigned short lastPaletteChecksum = 0;
+    static unsigned short lastPaletteChecksum;
     static std::set<unsigned>::iterator selectedWindow;
     static std::set<unsigned> currentIDs;
 public:

@@ -112,6 +112,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
     else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
     else term = new SDLTerminal(term_title);
+    if (term) term->grayscale = !config.isColor;
 }
 
 extern void stopWebsocket(void*);

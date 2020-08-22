@@ -231,10 +231,12 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
+        bg = grayscalify(bg);
         if (SDL_FillRect(surf, &bgdestrect, rgb(bg)) != 0) return false;
     }
     if (c != ' ' && c != '\0') {
         if (gotResizeEvent) return false;
+        fg = grayscalify(fg);
         if (SDL_SetSurfaceColorMod(bmp, fg.r, fg.g, fg.b) != 0) return false;
         if (gotResizeEvent) return false;
         if (SDL_BlitScaled(bmp, &srcrect, surf, &destrect) != 0) return false;

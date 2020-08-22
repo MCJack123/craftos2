@@ -29,6 +29,7 @@ std::set<unsigned> CLITerminal::currentIDs;
 std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
 bool CLITerminal::stopRender = false;
 bool CLITerminal::forceRender = false;
+unsigned short CLITerminal::lastPaletteChecksum = 0;
 
 void CLITerminal::renderNavbar(std::string title) {
     move(LINES-1, 0);
@@ -106,12 +107,18 @@ void CLITerminal::render() {
         clear();
         if (stopRender) {stopRender = false; return;}
         if (can_change_color()) {
-            unsigned short checksum = 0;
+            unsigned short checksum = grayscale;
             for (int i = 0; i < 48; i++) 
                 checksum = (checksum >> 1) + ((checksum & 1) << 15) + ((unsigned char*)palette)[i];
-            if (checksum != lastPaletteChecksum)
-                for (int i = 0; i < 16; i++) 
-                    init_color(15-i, palette[i].r * (1000/255), palette[i].g * (1000/255), palette[i].b * (1000/255));
+            if (checksum != lastPaletteChecksum) {
+                for (int i = 0; i < 16; i++) {
+                    if (grayscale) {
+                        int c = (palette[i].r + palette[i].g + palette[i].b) * 1000 / 765;
+                        init_color(15-i, c, c, c);
+                    }
+                    else init_color(15-i, palette[i].r * (1000/255), palette[i].g * (1000/255), palette[i].b * (1000/255));
+                }
+            }
             lastPaletteChecksum = checksum;
         }
         for (int y = 0; y < height; y++) {
