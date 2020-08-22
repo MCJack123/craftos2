@@ -515,7 +515,7 @@ void Computer::run(std::string bios_name) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_CCPC_UPDATED_VERSION");
             onboardingMode = 0;
-            if (std::string(CRAFTOSPC_VERSION) == "v2.4" && !::config.romReadOnly) {
+            if (std::string(CRAFTOSPC_VERSION) == "v2.4.1" && !::config.romReadOnly) {
                 ::config.romReadOnly = true;
                 config_save();
             }
