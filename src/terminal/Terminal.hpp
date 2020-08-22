@@ -113,9 +113,15 @@ public:
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now();
     int framecount;
     int errorcount = 0;
+    bool grayscale = false;
 protected:
     Terminal(int w, int h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
         memcpy(palette, defaultPalette, sizeof(defaultPalette));
+    }
+    Color grayscalify(Color c) {
+        if (!grayscale) return c;
+        uint8_t avg = ((int)c.r + (int)c.g + (int)c.b) / 3;
+        return {avg, avg, avg};
     }
 public:
     virtual ~Terminal(){}

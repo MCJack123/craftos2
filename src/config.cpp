@@ -380,6 +380,7 @@ int config_set(lua_State *L) {
     setConfigSetting(ignoreHotkeys, boolean);
     else if (strcmp(name, "isColor") == 0) {
         computer->config.isColor = lua_toboolean(L, 2);
+        if (computer->term) computer->term->grayscale = !computer->config.isColor;
         setComputerConfig(computer->id, computer->config);
     } else if (strcmp(name, "startFullscreen") == 0) {
         computer->config.startFullscreen = lua_toboolean(L, 2);

@@ -1016,10 +1016,10 @@ int term_setTextColor(lua_State *L) {
         printf("TF:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
     unsigned int c = log2i(lua_tointeger(L, 1));
-    if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6) {
+    //if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6) {
         computer->colors = (computer->colors & 0xf0) | c;
         if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = c;
-    }
+    //}
     return 0;
 }
 
@@ -1029,7 +1029,7 @@ int term_setBackgroundColor(lua_State *L) {
         printf("TK:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
     unsigned int c = log2i(lua_tointeger(L, 1));
-    if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
+    //if ((computer->config.isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
         computer->colors = (computer->colors & 0x0f) | (c << 4);
     return 0;
 }
@@ -1200,8 +1200,8 @@ int term_getPixel(lua_State *L) {
     int x = lua_tointeger(L, 1);
     int y = lua_tointeger(L, 2);
     if (x > term->width * term->fontWidth || y > term->height * term->fontHeight || x < 0 || y < 0) lua_pushnil(L);
-    else if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
-    else if (term->mode == 2) lua_pushinteger(L, term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
+    else if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[y][x]);
+    else if (term->mode == 2) lua_pushinteger(L, term->pixels[y][x]);
     else return 0;
     return 1;
 }

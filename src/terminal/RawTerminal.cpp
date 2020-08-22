@@ -39,7 +39,8 @@
   0x06       2          Height
   0x08       2          Cursor X
   0x0A       2          Cursor Y
-  0x0C       4          Reserved
+  0x0C       1          Grayscale? (1 = grayscale, 0 = color) -- if grayscale, render colors with (r + g + b) / 3
+  0x0D       3          Reserved
   ===================== Screen data
   --------------------- Text mode (mode 0)
   0x10       *x*        RLE-encoded text (length of expanded RLE = width * height)
@@ -508,7 +509,8 @@ void RawTerminal::render() {
         output.write((char*)&height, 2);
         output.write((char*)&blinkX, 2);
         output.write((char*)&blinkY, 2);
-        for (int i = 0; i < 4; i++) output.put(0);
+        output.put(grayscale ? 1 : 0);
+        for (int i = 0; i < 3; i++) output.put(0);
         if (mode == 0) {
             unsigned char c = screen[0][0];
             unsigned char n = 0;

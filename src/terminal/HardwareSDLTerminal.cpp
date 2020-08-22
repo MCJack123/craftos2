@@ -127,12 +127,14 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
+        bg = grayscalify(bg);
         if (SDL_SetRenderDrawColor(ren, bg.r, bg.g, bg.b, 0xFF) != 0) return false;
         if (gotResizeEvent) return false;
         if (SDL_RenderFillRect(ren, &bgdestrect) != 0) return false;
     }
     if (c != ' ' && c != '\0') {
         if (gotResizeEvent) return false;
+        fg = grayscalify(fg);
         if (SDL_SetTextureColorMod(font, fg.r, fg.g, fg.b) != 0) return false;
         if (gotResizeEvent) return false;
         if (SDL_RenderCopy(ren, font, &srcrect, &destrect) != 0) return false;
