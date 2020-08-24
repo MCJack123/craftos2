@@ -761,6 +761,8 @@ int fs_attributes(lua_State *L) {
     lua_setfield(L, -2, "access");
     lua_pushinteger(L, st_time_ms(st.st_m));
     lua_setfield(L, -2, "modification");
+    lua_pushinteger(L, st_time_ms(st.st_m));
+    lua_setfield(L, -2, "modified");
     lua_pushinteger(L, st_time_ms(st.st_c));
     lua_setfield(L, -2, "created");
     lua_pushinteger(L, S_ISDIR(st.st_mode) ? 0 : st.st_size);
