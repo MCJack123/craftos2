@@ -340,7 +340,6 @@
     <Image Include="resources\CraftOS-PC.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\bit.hpp" />
     <ClInclude Include="src\Computer.hpp" />
     <ClInclude Include="src\config.hpp" />
     <ClInclude Include="src\fs.hpp" />

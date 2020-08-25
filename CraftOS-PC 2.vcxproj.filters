@@ -98,9 +98,6 @@
     <ClInclude Include="src\peripheral\peripheral.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\bit.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\Computer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

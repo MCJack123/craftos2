@@ -12,7 +12,6 @@
 #include "Computer.hpp"
 #include "platform.hpp"
 #include "term.hpp"
-#include "bit.hpp"
 #include "config.hpp"
 #include "fs.hpp"
 #include "fs_standalone.hpp"
@@ -54,7 +53,6 @@ std::list<std::tuple<std::string, std::string, int> > Computer::customMounts;
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
-    &bit_lib,
     &config_lib,
     &fs_lib,
     &mounter_lib,
@@ -195,8 +193,7 @@ extern "C" {
 }
 
 library_t * getLibrary(std::string name) {
-    if (name == "bit") return &bit_lib;
-    else if (name == "config") return &config_lib;
+    if (name == "config") return &config_lib;
     else if (name == "fs") return &fs_lib; 
     else if (name == "mounter") return &mounter_lib; 
     else if (name == "os") return &os_lib; 
