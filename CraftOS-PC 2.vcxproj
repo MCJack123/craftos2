@@ -263,7 +263,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
@@ -282,7 +282,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;STANDALONE_ROM;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NO_CLI;STANDALONE_ROM;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>

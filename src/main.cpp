@@ -273,6 +273,12 @@ int runRenderer() {
     return 0;
 }
 
+#ifdef WINDOWS_SUBSYSTEM
+#define checkTTY() {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Unsupported command-line argument", "This build of CraftOS-PC does not support console input/output, which is required for one or more arguments passed to CraftOS-PC. Please use CraftOS-PC_console.exe instead, as this supports console I/O. If it is not present in the install directory, please reinstall CraftOS-PC with the console build option enabled.", NULL); return 5;}
+#else
+#define checkTTY() 
+#endif
+
 int main(int argc, char*argv[]) {
 #ifdef __EMSCRIPTEN__
     while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
@@ -284,12 +290,12 @@ int main(int argc, char*argv[]) {
     std::string customDataDir;
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
-        if (arg == "--headless") selectedRenderer = 1;
+        if (arg == "--headless") {selectedRenderer = 1; checkTTY();}
         else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
-        else if (arg == "--cli" || arg == "-c") selectedRenderer = 2;
-        else if (arg == "--raw") selectedRenderer = 3;
-        else if (arg == "--raw-client") rawClient = true;
-        else if (arg == "--tror") selectedRenderer = 4;
+        else if (arg == "--cli" || arg == "-c") {selectedRenderer = 2; checkTTY();}
+        else if (arg == "--raw") {selectedRenderer = 3; checkTTY();}
+        else if (arg == "--raw-client") {rawClient = true; checkTTY();}
+        else if (arg == "--tror") {selectedRenderer = 4; checkTTY();}
         else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
@@ -320,6 +326,7 @@ int main(int argc, char*argv[]) {
             Computer::customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
         } else if (arg == "--renderer" || arg == "-r") {
             if (++i == argc) {
+                checkTTY();
                 std::cout << "Available renderering methods:\n sdl\n headless\n "
 #ifndef NO_CLI
                 << "ncurses\n "
@@ -351,6 +358,7 @@ int main(int argc, char*argv[]) {
                 }
             }
         } else if (arg == "-V" || arg == "--version") {
+            checkTTY();
             std::cout << "CraftOS-PC " << CRAFTOSPC_VERSION;
 #if CRAFTOSPC_INDEV == true && defined(CRAFTOSPC_COMMIT)
             std::cout << " (commit " << CRAFTOSPC_COMMIT << ")";
@@ -378,6 +386,7 @@ int main(int argc, char*argv[]) {
             std::cout << "\nCopyright (c) 2019-2020 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
+            checkTTY();
             std::cout << "Usage: " << argv[0] << " [options...]\n\n"
                       << "General options:\n"
                       << "  -d|--directory <dir>             Sets the directory that stores user data\n"
