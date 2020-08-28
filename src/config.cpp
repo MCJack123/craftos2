@@ -115,6 +115,7 @@ void config_init() {
         false,
         false,
         "",
+        false,
         false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
@@ -169,6 +170,7 @@ void config_init() {
     readConfigSetting(useHardwareRenderer, Bool);
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
+    readConfigSetting(jit_ffi_enable, Bool);
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString() != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
     if (config.standardsMode) config.abortTimeout = 7000;
 }
@@ -211,6 +213,7 @@ void config_save() {
     root["useHardwareRenderer"] = config.useHardwareRenderer;
     root["preferredHardwareDriver"] = config.preferredHardwareDriver;
     root["useVsync"] = config.useVsync;
+    root["jit_ffi_enable"] = config.jit_ffi_enable;
     root["lastVersion"] = CRAFTOSPC_VERSION;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
