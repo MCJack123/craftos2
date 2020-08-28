@@ -115,6 +115,7 @@ void config_init() {
         false,
         false,
         "",
+        false,
         false
     };
     std::ifstream in(std::string(getBasePath()) + "/config/global.json");
@@ -169,6 +170,7 @@ void config_init() {
     readConfigSetting(useHardwareRenderer, Bool);
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
+    readConfigSetting(jit_ffi_enable, Bool);
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString() != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
     if (config.standardsMode) config.abortTimeout = 7000;
 }
@@ -211,6 +213,7 @@ void config_save() {
     root["useHardwareRenderer"] = config.useHardwareRenderer;
     root["preferredHardwareDriver"] = config.preferredHardwareDriver;
     root["useVsync"] = config.useVsync;
+    root["jit_ffi_enable"] = config.jit_ffi_enable;
     root["lastVersion"] = CRAFTOSPC_VERSION;
     std::ofstream out(std::string(getBasePath()) + "/config/global.json");
     out << root;
@@ -269,6 +272,7 @@ int config_get(lua_State *L) {
     else if (strcmp(name, "preferredHardwareDriver") == 0)
         lua_pushstring(L, config.preferredHardwareDriver.c_str());
     getConfigSetting(useVsync, boolean);
+    getConfigSetting(jit_ffi_enable, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath == "") lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -312,7 +316,8 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"startFullscreen", {2, 0}},
     {"useHardwareRenderer", {2, 0}},
     {"preferredHardwareDriver", {2, 2}},
-    {"useVsync", {2, 0}}
+    {"useVsync", {2, 0}},
+    {"jit_ffi_enable", {1, 0}}
 };
 
 const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};

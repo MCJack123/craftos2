@@ -55,6 +55,7 @@ struct configuration {
     bool useHardwareRenderer;
     std::string preferredHardwareDriver;
     bool useVsync;
+    bool jit_ffi_enable;
 };
 struct computer_configuration {
     std::string label;

@@ -397,9 +397,9 @@ void Computer::run(std::string bios_name) {
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
-        if (debugger != NULL && !isDebugger) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else if (::config.debug_enable && !isDebugger) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
+        if (debugger != NULL && !isDebugger) lua_sethook(coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        else if (::config.debug_enable && !isDebugger) lua_sethook(coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        else lua_sethook(coro, termHook, LUA_MASKERROR, 0);
         lua_atpanic(L, termPanic);
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
         if (::config.http_enable) load_library(this, coro, http_lib);
@@ -412,6 +412,12 @@ void Computer::run(std::string bios_name) {
         lua_pop(L, 1);
         lua_pushnil(L);
         lua_setglobal(L, "os_date");
+        if (::config.jit_ffi_enable) {
+            lua_pushcfunction(L, luaopen_ffi);
+            lua_pushstring(L, "ffi");
+            lua_call(L, 1, 1);
+            lua_setglobal(L, "ffi");
+        }
 
         // Load any plugins available
         if (!::config.vanilla) {

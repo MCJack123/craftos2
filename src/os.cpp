@@ -129,6 +129,7 @@ void mainLoop() {
 }
 
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
+    lua_sethook(((Computer*)param)->L, termHook, lua_gethookmask(((Computer*)param)->L) | LUA_MASKCOUNT, 1);
     forceCheckTimeout = true;
     return 1000;
 }
@@ -142,6 +143,7 @@ int getNextEvent(lua_State *L, std::string filter) {
 #else
         SDL_RemoveTimer(computer->eventTimeout);
 #endif
+        lua_sethook(L, termHook, lua_gethookmask(L) & ~LUA_MASKCOUNT, 0);
         computer->eventTimeout = 0;
         computer->timeoutCheckCount = 0;
     }
@@ -516,28 +518,7 @@ Special thanks:\n\
     return 1;
 }
 
-void setAllHooks(lua_State *L, Computer * computer, int hookmask) {
-    lua_sethook(computer->L, termHook, hookmask, 1);
-    lua_sethook(computer->coro, termHook, hookmask, 1);
-    lua_sethook(L, termHook, hookmask, 1);
-    lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
-    for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
-        lua_rawgeti(L, -1, (int)i);
-        lua_sethook(lua_tothread(L, -1), termHook, hookmask, 1);
-        lua_pop(L, 1);
-    }
-}
-
-int os_setHaltOnLongRunMode(lua_State *L) {
-    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
-    Computer * comp = get_comp(L);
-    if (comp->debugger != NULL && !comp->isDebugger) setAllHooks(L, comp, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD);
-    else if (config.debug_enable && !comp->isDebugger) setAllHooks(L, comp, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD);
-    else setAllHooks(L, comp, (lua_toboolean(L, 1) * LUA_MASKCOUNT) | LUA_MASKERROR);
-    return 0;
-}
-
-const char * os_keys[18] = {
+const char * os_keys[17] = {
     "getComputerID",
     "computerID",
     "getComputerLabel",
@@ -554,11 +535,10 @@ const char * os_keys[18] = {
     "cancelAlarm",
     "shutdown",
     "reboot",
-    "about",
-    "setHaltOnLongRunMode"
+    "about"
 };
 
-lua_CFunction os_values[18] = {
+lua_CFunction os_values[17] = {
     os_getComputerID,
     os_getComputerID,
     os_getComputerLabel,
@@ -575,8 +555,7 @@ lua_CFunction os_values[18] = {
     os_cancelAlarm,
     os_shutdown,
     os_reboot,
-    os_about,
-    os_setHaltOnLongRunMode
+    os_about
 };
 
-library_t os_lib = {"os", 18, os_keys, os_values, nullptr, nullptr};
+library_t os_lib = {"os", 17, os_keys, os_values, nullptr, nullptr};

@@ -388,13 +388,13 @@ void termHook(lua_State *L, lua_Debug *ar) {
         lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
         for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
             lua_rawgeti(L, -1, (int)i);
-            lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+            lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
-        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(computer->L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        lua_sethook(computer->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        lua_sethook(L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
         computer->debugger = NULL;
     }
