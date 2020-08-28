@@ -52,7 +52,7 @@ std::string getROMPath() {
     return rom_path_expanded;
 }
 
-std::string getPlugInPath() { return getROMPath() + "/plugins/"; }
+std::string getPlugInPath() { return getROMPath() + "/plugins-luajit/"; }
 
 
 void setThreadName(std::thread &t, std::string name) {
