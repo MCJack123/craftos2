@@ -118,16 +118,19 @@ inline Terminal * createTerminal(std::string title) {
     else
 #endif
     if (selectedRenderer == 3) return new RawTerminal(title);
+    else if (selectedRenderer == 5) return new HardwareSDLTerminal(title);
     else return new SDLTerminal(title);
 }
 
 extern std::thread::id mainThreadID;
 
 int runRenderer() {
-    if (selectedRenderer != 0) {
+    if (selectedRenderer == 0) SDLTerminal::init();
+    else if (selectedRenderer == 5) HardwareSDLTerminal::init();
+    else {
         std::cerr << "Error: Raw client mode requires using a GUI terminal.\n";
         return 3;
-    } else SDLTerminal::init();
+    }
     std::thread inputThread([](){
         while (!exiting) {
             unsigned char c = std::cin.get();
@@ -269,7 +272,8 @@ int runRenderer() {
     mainLoop();
     inputThread.join();
     for (auto t : rawClientTerminals) delete t.second;
-    SDLTerminal::quit();
+    if (selectedRenderer) HardwareSDLTerminal::quit();
+    else SDLTerminal::quit();
     return 0;
 }
 
