@@ -53,7 +53,6 @@ std::list<std::tuple<std::string, std::string, int> > Computer::customMounts;
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
-    //&bit_lib,
     &config_lib,
     &fs_lib,
     &mounter_lib,

@@ -553,7 +553,7 @@ debugger::debugger(lua_State *L, const char * side) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
     for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
         lua_rawgeti(L, -1, (int)i);
-        lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        if (lua_isthread(L, -1)) lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         lua_pop(L, 1);
     }
     lua_pop(L, 1);
