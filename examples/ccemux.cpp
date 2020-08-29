@@ -44,7 +44,7 @@ int ccemux_getVersion(lua_State *L) {
     lua_pushstring(L, "match");
     lua_gettable(L, -2);
     lua_pushvalue(L, -3);
-    lua_pushstring(L, "^CraftOS%-PC v([%d%l%.%-]+)\n");
+    lua_pushstring(L, "^CraftOS%-PC A-c-c-e-l-e-r-a-t-e-d- -v([%d%l%.%-]+)\n");
     lua_call(L, 2, 1);
     return 1;
 }

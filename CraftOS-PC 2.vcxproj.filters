@@ -280,6 +280,9 @@
     <ClCompile Include="src\favicon.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\platform_emscripten.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\windows\CraftOS-PC 2.rc">

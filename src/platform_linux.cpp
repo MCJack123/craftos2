@@ -187,19 +187,6 @@ void migrateData() {
         recursiveCopyPlatform(oldpath, getBasePath());
 }
 
-std::unordered_map<std::string, void*> dylibs;
-
-void * loadSymbol(std::string path, std::string symbol) {
-    void * handle;
-    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
-    handle = dylibs[path];
-    return dlsym(handle, symbol.c_str());
-}
-
-void unloadLibraries() {
-    for (auto lib : dylibs) dlclose(lib.second);
-}
-
 void copyImage(SDL_Surface* surf) {
     fprintf(stderr, "Warning: Linux does not support taking screenshots to the clipboard.\n");
 }

@@ -66,12 +66,6 @@ void updateNow(std::string tag_name) {}
 
 void migrateData() {}
 
-void * loadSymbol(std::string path, std::string symbol) {
-    return NULL;
-}
-
-void unloadLibraries() {}
-
 void copyImage(SDL_Surface* surf) {}
 
 void setupCrashHandler() {}

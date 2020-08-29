@@ -54,11 +54,15 @@ std::string getROMPath() {
 
 std::string getPlugInPath() { return getROMPath() + "/plugins/"; }
 
+void* kernel32handle = NULL;
+HRESULT(*_SetThreadDescription)(HANDLE, PCWSTR) = NULL;
 
 void setThreadName(std::thread &t, std::string name) {
-    HRESULT (*_SetThreadDescription)(HANDLE, PCWSTR) = (HRESULT(*)(HANDLE, PCWSTR))loadSymbol("kernel32", "SetThreadDescription");
+    if (kernel32handle == NULL) {
+        kernel32handle = SDL_LoadObject("kernel32");
+        _SetThreadDescription = (HRESULT(*)(HANDLE, PCWSTR))SDL_LoadFunction(kernel32handle, "SetThreadDescription");
+    }
     if (_SetThreadDescription != NULL) _SetThreadDescription((HANDLE)t.native_handle(), std::wstring(name.begin(), name.end()).c_str());
-    //else fprintf(stderr, "Could not find symbol\n");
 }
 
 int createDirectory(std::string path) {
@@ -194,19 +198,6 @@ void migrateData() {
         recursiveCopy(oldpath, getBasePath());
     if (!failedCopy.empty())
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
-}
-
-std::unordered_map<std::string, HINSTANCE> dylibs;
-
-void * loadSymbol(std::string path, std::string symbol) {
-    HINSTANCE handle;
-    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibraryA(path.c_str());
-    handle = dylibs[path];
-    return GetProcAddress(handle, symbol.c_str());
-}
-
-void unloadLibraries() {
-    for (auto lib : dylibs) FreeLibrary(lib.second);
 }
 
 void copyImage(SDL_Surface* surf) {

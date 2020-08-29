@@ -53,6 +53,9 @@ std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
+#ifdef WIN32
+extern void* kernel32handle;
+#endif
 
 #ifndef __EMSCRIPTEN__
 void update_thread() {
@@ -487,5 +490,8 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 4) TRoRTerminal::quit();
     else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
+#ifdef WIN32
+    if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
+#endif
     return returnValue;
 }

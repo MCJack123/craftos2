@@ -28,8 +28,6 @@ extern std::string getROMPath();
 extern std::string getPlugInPath();
 extern void updateNow(std::string tag_name);
 extern void migrateData();
-extern void * loadSymbol(std::string path, std::string symbol);
-extern void unloadLibraries();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();
 #ifdef WIN32
