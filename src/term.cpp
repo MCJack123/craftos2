@@ -381,6 +381,10 @@ extern "C" {extern const char KEY_HOOK;}
 extern bool forceCheckTimeout;
 
 void termHook(lua_State *L, lua_Debug *ar) {
+    if (lua_icontext(L)) {
+        lua_pop(L, 1);
+        return;
+    }
     if (ar->event == LUA_HOOKCOUNT && !forceCheckTimeout) return;
     Computer * computer = get_comp(L);
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
@@ -535,7 +539,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
                             lua_pushinteger(L, ar->currentline);
                         }
                         else lua_pushnil(L);
-                        lua_call(L, 2, 0);
+                        lua_icall(L, 2, 0, 1);
                     } else lua_pop(L, 1);
                 } else lua_pop(L, 1);
             }
