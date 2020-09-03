@@ -14,8 +14,11 @@
 #include "peripheral.hpp"
 
 class speaker: public peripheral {
-private:
     static library_t methods;
+    static unsigned int nextChannelGroup;
+    std::chrono::system_clock::time_point lastTickReset = std::chrono::system_clock::now();
+    unsigned int noteCount = 0;
+    unsigned int channelGroup;
     int playNote(lua_State *L);
     int playSound(lua_State *L);
     int playLocalMusic(lua_State *L);
