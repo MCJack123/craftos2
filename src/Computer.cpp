@@ -631,6 +631,8 @@ void* computerThread(void* data) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
 #endif
+    // seed the Lua RNG
+    srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);
