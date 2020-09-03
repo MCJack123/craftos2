@@ -1,4 +1,4 @@
-#include "platform.hpp"
+#include "../platform.hpp"
 #include <unistd.h>
 #include <sys/stat.h>
 #include <stdio.h>

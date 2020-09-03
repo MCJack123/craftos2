@@ -10,8 +10,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include "platform.hpp"
-#include "mounter.hpp"
+#include "../platform.hpp"
+#include "../mounter.hpp"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -22,7 +22,7 @@
 #include <shlwapi.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "http.hpp"
+#include "../http.hpp"
 
 const char * base_path = "%appdata%\\CraftOS-PC";
 std::string base_path_expanded;

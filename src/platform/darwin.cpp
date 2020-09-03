@@ -32,8 +32,8 @@ extern "C" {
 #include <sstream>
 #include <png++/png.hpp>
 #include <ApplicationServices/ApplicationServices.h>
-#include "mounter.hpp"
-#include "platform.hpp"
+#include "../mounter.hpp"
+#include "../platform.hpp"
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
