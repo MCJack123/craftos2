@@ -83,6 +83,15 @@ std::string getROMPath() { return rom_path; }
 std::string getPlugInPath() { return std::string(rom_path) + "/plugins/"; }
 #endif
 
+std::string getMCSavePath() {
+    wordexp_t p;
+    wordexp("$HOME/Library/Application\\ Support/minecraft/saves/", &p, 0);
+    std::string expanded = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) expanded += p.we_wordv[i];
+    wordfree(&p);
+    return expanded;
+}
+
 void setThreadName(std::thread &t, std::string name) {}
 
 int createDirectory(std::string path) {

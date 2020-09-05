@@ -86,6 +86,17 @@ std::string getPlugInPath() {
     return s;
 }
 
+std::string getMCSavePath() {
+    if (customBasePath != NULL) return customBasePath;
+    return std::string([[[NSFileManager defaultManager] 
+                         URLForDirectory:NSApplicationSupportDirectory 
+                         inDomain:NSUserDomainMask 
+                         appropriateForURL:[NSURL fileURLWithPath:@"/"] 
+                         create:NO 
+                         error:nil
+                        ] fileSystemRepresentation]) + "/minecraft/saves/";
+}
+
 void setThreadName(std::thread &t, std::string name) {}
 
 int createDirectory(std::string path) {

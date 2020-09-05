@@ -41,7 +41,7 @@ void setROMPath(const char * path) {
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     DWORD size = ExpandEnvironmentStringsA(base_path, expand_tmp, 32767);
-    base_path_expanded = expand_tmp;
+    base_path_expanded = std::string(expand_tmp);
     return base_path_expanded;
 }
 
@@ -53,6 +53,11 @@ std::string getROMPath() {
 }
 
 std::string getPlugInPath() { return getROMPath() + "/plugins/"; }
+
+std::string getMCSavePath() {
+    DWORD size = ExpandEnvironmentStringsA("%appdata%\\.minecraft\\saves\\", expand_tmp, 32767);
+    return std::string(expand_tmp);
+}
 
 void* kernel32handle = NULL;
 HRESULT(*_SetThreadDescription)(HANDLE, PCWSTR) = NULL;

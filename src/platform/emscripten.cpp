@@ -62,6 +62,10 @@ std::string getPlugInPath() {
     return "/user-data/plugins";
 }
 
+std::string getMCSavePath() {
+    return "";
+}
+
 void updateNow(std::string tag_name) {}
 
 void migrateData() {}
