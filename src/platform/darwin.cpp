@@ -1,14 +1,14 @@
 /*
- * platform_linux.cpp
+ * platform_darwin.cpp
  * CraftOS-PC 2
  * 
- * This file implements functions specific to Linux.
+ * This file implements functions specific to macOS when run from the Terminal.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#ifdef __linux__ // disable error checking on Windows
+#ifdef __APPLE__ // disable error checking on Windows
 extern "C" {
 #include <lua.h>
 }
@@ -16,36 +16,32 @@ extern "C" {
 #include <string.h>
 #include <wordexp.h>
 #include <stdio.h>
-#include <libgen.h>
 #include <unistd.h>
-//#include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/utsname.h>
+#include <libgen.h>
+#include <pthread.h>
 #include <glob.h>
 #include <dirent.h>
-#include <pthread.h>
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <signal.h>
-#include <ucontext.h>
 #include <string>
 #include <vector>
 #include <sstream>
-#include "mounter.hpp"
-#include "platform.hpp"
+#include <png++/png.hpp>
+#include <ApplicationServices/ApplicationServices.h>
+#include "../mounter.hpp"
+#include "../platform.hpp"
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
 std::string rom_path_expanded;
 #else
-const char * rom_path = "/usr/share/craftos";
+const char * rom_path = "/usr/local/share/craftos";
 #endif
-#ifdef FS_ROOT
-const char * base_path = "";
-#else
-const char * base_path = "$XDG_DATA_HOME/craftos-pc";
-#endif
+const char * base_path = "$HOME/Library/Application\\ Support/CraftOS-PC";
 std::string base_path_expanded;
 
 void setBasePath(const char * path) {
@@ -65,14 +61,8 @@ std::string getBasePath() {
     wordexp_t p;
     wordexp(base_path, &p, 0);
     base_path_expanded = p.we_wordv[0];
-    for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
+    for (int i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
     wordfree(&p);
-    if (base_path_expanded == "/craftos-pc") {
-        wordexp("$HOME/.local/share/craftos-pc", &p, 0);
-        base_path_expanded = p.we_wordv[0];
-        for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
-        wordfree(&p);
-    }
     return base_path_expanded;
 }
 
@@ -82,24 +72,31 @@ std::string getROMPath() {
     wordexp_t p;
     wordexp(rom_path, &p, 0);
     rom_path_expanded = p.we_wordv[0];
-    for (unsigned i = 1; i < p.we_wordc; i++) rom_path_expanded += p.we_wordv[i];
+    for (int i = 1; i < p.we_wordc; i++) rom_path_expanded += p.we_wordv[i];
     wordfree(&p);
     return rom_path_expanded;
 }
 
-std::string getPlugInPath() { return getROMPath() + "/plugins-luajit/"; }
+std::string getPlugInPath() { return std::string(getROMPath()) + "/plugins-luajit/"; }
 #else
 std::string getROMPath() { return rom_path; }
 std::string getPlugInPath() { return std::string(rom_path) + "/plugins-luajit/"; }
 #endif
 
-void setThreadName(std::thread &t, std::string name) {
-    pthread_setname_np(*(pthread_t*)t.native_handle(), name.c_str());
+std::string getMCSavePath() {
+    wordexp_t p;
+    wordexp("$HOME/Library/Application\\ Support/minecraft/saves/", &p, 0);
+    std::string expanded = p.we_wordv[0];
+    for (int i = 1; i < p.we_wordc; i++) expanded += p.we_wordv[i];
+    wordfree(&p);
+    return expanded;
 }
+
+void setThreadName(std::thread &t, std::string name) {}
 
 int createDirectory(std::string path) {
     struct stat st;
-    if (stat(path.c_str(), &st) == 0 ) return !S_ISDIR(st.st_mode);
+    if (stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
     if (mkdir(path.c_str(), 0777) != 0) {
         if (errno == ENOENT && path != "/" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
@@ -137,7 +134,7 @@ unsigned long long getFreeSpace(std::string path) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
     }
-    return st.f_bavail * st.f_bsize;
+    return st.f_bavail * st.f_frsize;
 }
 
 unsigned long long getCapacity(std::string path) {
@@ -150,7 +147,7 @@ unsigned long long getCapacity(std::string path) {
 }
 
 void updateNow(std::string tag_name) {
-    
+    fprintf(stderr, "Updating is not available on Mac terminal builds.\n");
 }
 
 int recursiveCopyPlatform(std::string fromDir, std::string toDir) {
@@ -181,86 +178,54 @@ void migrateData() {
     struct stat st;
     wordexp("$HOME/.craftos", &p, 0);
     std::string oldpath = p.we_wordv[0];
-    for (unsigned i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
+    for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
     wordfree(&p);
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
         recursiveCopyPlatform(oldpath, getBasePath());
 }
 
-std::unordered_map<std::string, void*> dylibs;
-
-void * loadSymbol(std::string path, std::string symbol) {
-    void * handle;
-    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
-    handle = dylibs[path];
-    return dlsym(handle, symbol.c_str());
-}
-
-void unloadLibraries() {
-    for (auto lib : dylibs) dlclose(lib.second);
-}
-
 void copyImage(SDL_Surface* surf) {
-    fprintf(stderr, "Warning: Linux does not support taking screenshots to the clipboard.\n");
+    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
+    memcpy((void*)&pixbuf.get_bytes()[0], surf->pixels, surf->h * surf->pitch);
+    png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);
+    img.set_pixbuf(pixbuf);
+    std::stringstream ss;
+    img.write_stream(ss);
+    PasteboardRef clipboard;
+    PasteboardCreate(kPasteboardClipboard, &clipboard);
+    PasteboardClear(clipboard);
+    CFDataRef imgdata = CFDataCreate(kCFAllocatorDefault, (const uint8_t*)ss.str().c_str(), ss.str().size());
+    PasteboardPutItemFlavor(clipboard, NULL, kUTTypePNG, imgdata, 0);
+    CFRelease(imgdata);
+    CFRelease(clipboard);
 }
 
-#if defined(__i386__) || defined(__x86_64__)
+void handler(int sig) {
+    void *array[25];
+    size_t size;
 
-/* This structure mirrors the one found in /usr/include/asm/ucontext.h */
-typedef struct _sig_ucontext {
-    unsigned long     uc_flags;
-    struct ucontext   *uc_link;
-    stack_t           uc_stack;
-    struct sigcontext uc_mcontext;
-    sigset_t          uc_sigmask;
-} sig_ucontext_t;
-
-void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext) {
-    void *             array[25];
-    void *             caller_address;
-    char **            messages;
-    int                size, i;
-    sig_ucontext_t *   uc;
-
-    uc = (sig_ucontext_t *)ucontext;
-
-/* Get the address at the time the signal was raised */
-#if defined(__i386__) // gcc specific
-    caller_address = (void *) uc->uc_mcontext.eip; // EIP: x86 specific
-#elif defined(__x86_64__) // gcc specific
-    caller_address = (void *) uc->uc_mcontext.rip; // RIP: x86_64 specific
-#else
-#error Unsupported architecture. // TODO: Add support for other arch.
-#endif
-    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s (%d). Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\n", strsignal(sig_num), sig_num);
-    fprintf(stderr, "OS: Linux\nAddress is %p from %p\n", info->si_addr, (void *)caller_address);
+    // get void*'s for all entries on the stack
     size = backtrace(array, 25);
-    /* overwrite sigaction with caller's address */
-    array[1] = caller_address;
-    messages = backtrace_symbols(array, size);
-    /* skip first stack frame (points here) */
-    for (i = 1; i < size && messages != NULL; ++i) 
-        fprintf(stderr, "[bt]: (%d) %s\n", i, messages[i]);
-    free(messages);
-    signal(sig_num, NULL);
-}
 
-#define setSignalHandler(type) if (sigaction(type, &sigact, (struct sigaction *)NULL) != 0) \
-        fprintf(stderr, "Error setting signal handler for %d (%s), continuing.\n", type, strsignal(type));
+    // print out all the frames to stderr
+    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Console build)\n", strsignal(sig));
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    signal(sig, NULL);
+}
 
 void setupCrashHandler() {
-    struct sigaction sigact;
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_sigaction = crit_err_hdlr;
-    sigact.sa_flags = SA_RESTART | SA_SIGINFO;
-    setSignalHandler(SIGSEGV);
-    setSignalHandler(SIGILL);
-    setSignalHandler(SIGBUS);
-    setSignalHandler(SIGTRAP);
+    signal(SIGSEGV, handler);
+    signal(SIGILL, handler);
+    signal(SIGBUS, handler);
+    signal(SIGTRAP, handler);
 }
 
-#else
-void setupCrashHandler() {}
-#endif
+extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);
+
+float getBackingScaleFactor(SDL_Window *win) {
+    float dpi, defaultDpi;
+    MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
+    return dpi / defaultDpi;
+}
 
 #endif // __INTELLISENSE__

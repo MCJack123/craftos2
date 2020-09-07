@@ -16,12 +16,24 @@
     <Filter Include="Other Files">
       <UniqueIdentifier>{d98073d1-e5dd-4a38-b763-591f75234892}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\platform">
+      <UniqueIdentifier>{c4a66d54-67f9-499a-aeb2-8731fa9304f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\peripheral">
+      <UniqueIdentifier>{4f8ed92e-5ff1-484e-a4ce-dbc119007193}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\terminal">
+      <UniqueIdentifier>{6b3ac8ea-afdc-4ecd-9441-22a778c086d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\terminal">
+      <UniqueIdentifier>{a540b562-29a1-48d5-8e38-2f78bb9001c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\peripheral">
+      <UniqueIdentifier>{c4a9dce1-5d6a-45f0-9fc6-fc20746d5dfd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="src\platform_macapp.mm">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include=".travis.yml">
       <Filter>Other Files</Filter>
     </None>
@@ -73,6 +85,9 @@
     <None Include="resources\BenchmarkRenderers.sh.bat">
       <Filter>Other Files</Filter>
     </None>
+    <None Include="src\platform\macapp.mm">
+      <Filter>Source Files\platform</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp">
@@ -83,21 +98,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\peripheral\monitor.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\peripheral\printer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\peripheral\computer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\peripheral\modem.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\peripheral\peripheral.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\Computer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -140,50 +140,56 @@
     <ClInclude Include="src\term.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\peripheral\drive.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\peripheral\debugger.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\terminal\CLITerminal.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\terminal\RawTerminal.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\terminal\SDLTerminal.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\terminal\Terminal.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\peripheral\speaker.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\terminal\TRoRTerminal.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\fs_standalone.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\terminal\CLITerminal.hpp">
+      <Filter>Header Files\terminal</Filter>
     </ClInclude>
-    <ClInclude Include="src\windows\resource.h">
+    <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp">
+      <Filter>Header Files\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\RawTerminal.hpp">
+      <Filter>Header Files\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\SDLTerminal.hpp">
+      <Filter>Header Files\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\TRoRTerminal.hpp">
+      <Filter>Header Files\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminal\Terminal.hpp">
+      <Filter>Header Files\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\computer.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\debugger.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\drive.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\modem.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\monitor.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\peripheral.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\printer.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\speaker.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\platform\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\peripheral\monitor.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\peripheral\peripheral.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\peripheral\printer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\config.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -194,15 +200,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\platform.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\platform_darwin.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\platform_linux.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\platform_win.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\term.cpp">
@@ -232,37 +229,7 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\peripheral\modem.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\peripheral\computer_p.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\peripheral\drive.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\font.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\peripheral\debugger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\terminal\CLITerminal.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\terminal\RawTerminal.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\terminal\SDLTerminal.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\peripheral\speaker.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\peripheral\speaker_sounds.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\terminal\TRoRTerminal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\fs_standalone.cpp">
@@ -271,18 +238,69 @@
     <ClCompile Include="src\gif.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="examples\raw_frame_reader.cpp">
       <Filter>Other Files</Filter>
     </ClCompile>
     <ClCompile Include="src\favicon.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\platform\darwin.cpp">
+      <Filter>Source Files\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="src\platform\emscripten.cpp">
+      <Filter>Source Files\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="src\platform\linux.cpp">
+      <Filter>Source Files\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="src\platform\win.cpp">
+      <Filter>Source Files\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\computer_p.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\debugger.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\drive.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\modem.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\monitor.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\peripheral.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\printer.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\speaker.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\speaker_sounds.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\CLITerminal.cpp">
+      <Filter>Source Files\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp">
+      <Filter>Source Files\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\SDLTerminal.cpp">
+      <Filter>Source Files\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\RawTerminal.cpp">
+      <Filter>Source Files\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminal\TRoRTerminal.cpp">
+      <Filter>Source Files\terminal</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="src\windows\CraftOS-PC 2.rc">
+    <ResourceCompile Include="src\platform\CraftOS-PC 2.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

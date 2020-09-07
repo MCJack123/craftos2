@@ -11,16 +11,16 @@
 #define CRAFTOSPC_INTERNAL
 #include "platform.hpp"
 #ifdef WIN32
-#include "platform_win.cpp"
+#include "platform/win.cpp"
 #else
 #ifdef __APPLE__
-#include "platform_darwin.cpp"
+#include "platform/darwin.cpp"
 #else
 #ifdef __linux__
-#include "platform_linux.cpp"
+#include "platform/linux.cpp"
 #else
 #ifdef __EMSCRIPTEN__
-#include "platform_emscripten.cpp"
+#include "platform/emscripten.cpp"
 #else
 #error Unknown platform
 #endif

@@ -1,4 +1,4 @@
-#include "platform.hpp"
+#include "../platform.hpp"
 #include <unistd.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -62,15 +62,13 @@ std::string getPlugInPath() {
     return "/user-data/plugins";
 }
 
+std::string getMCSavePath() {
+    return "";
+}
+
 void updateNow(std::string tag_name) {}
 
 void migrateData() {}
-
-void * loadSymbol(std::string path, std::string symbol) {
-    return NULL;
-}
-
-void unloadLibraries() {}
 
 void copyImage(SDL_Surface* surf) {}
 

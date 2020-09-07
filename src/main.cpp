@@ -53,6 +53,9 @@ std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
+#ifdef WIN32
+extern void* kernel32handle;
+#endif
 
 #ifndef __EMSCRIPTEN__
 void update_thread() {
@@ -300,13 +303,8 @@ int main(int argc, char*argv[]) {
     std::string customDataDir;
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
-        if (arg == "--headless") {selectedRenderer = 1; checkTTY();}
-        else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
-        else if (arg == "--cli" || arg == "-c") {selectedRenderer = 2; checkTTY();}
-        else if (arg == "--raw") {selectedRenderer = 3; checkTTY();}
-        else if (arg == "--raw-client") {rawClient = true; checkTTY();}
-        else if (arg == "--tror") {selectedRenderer = 4; checkTTY();}
-        else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
+        if (arg == "--headless") { selectedRenderer = 1; checkTTY(); } else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
+        else if (arg == "--cli" || arg == "-c") { selectedRenderer = 2; checkTTY(); } else if (arg == "--raw") { selectedRenderer = 3; checkTTY(); } else if (arg == "--raw-client") { rawClient = true; checkTTY(); } else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); } else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
@@ -322,9 +320,11 @@ int main(int argc, char*argv[]) {
 #ifdef _WIN32
         else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "\\assets\\computercraft\\lua").c_str());
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "\\assets\\computercraft\\lua").c_str());
+        else if (arg == "--mc-save") computerDir = getMCSavePath() + argv[++i] + "\\computer";
 #else
         else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "/assets/computercraft/lua").c_str());
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
+        else if (arg == "--mc-save") computerDir = getMCSavePath() + argv[++i] + "/computer";
 #endif
         else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
         else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
@@ -400,6 +400,7 @@ int main(int argc, char*argv[]) {
             std::cout << "Usage: " << argv[0] << " [options...]\n\n"
                       << "General options:\n"
                       << "  -d|--directory <dir>             Sets the directory that stores user data\n"
+                      << "  --mc-save <name>                 Uses the selected Minecraft save name for computer data\n"
                       << "  --rom <dir>                      Sets the directory that holds the ROM & BIOS\n"
                       << "  -i|--id <id>                     Sets the ID of the computer that will launch\n"
                       << "  --script <file>                  Sets a script to be run before starting the shell\n"
@@ -493,5 +494,8 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 4) TRoRTerminal::quit();
     else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
+#ifdef WIN32
+    if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
+#endif
     return returnValue;
 }

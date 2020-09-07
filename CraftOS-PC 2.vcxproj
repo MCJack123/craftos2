@@ -250,6 +250,7 @@
       <TreatSpecificWarningsAsErrors>4013</TreatSpecificWarningsAsErrors>
       <WarningLevel>Level1</WarningLevel>
       <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -331,9 +332,13 @@
     <None Include="resources\CraftOSTest.lua" />
     <None Include="resources\Info.plist" />
     <None Include="resources\packStandaloneROM.js" />
-    <None Include="src\platform_macapp.mm">
+    <ClCompile Include="src\platform\macapp.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </None>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp" />
@@ -361,6 +366,7 @@
     <ClInclude Include="src\peripheral\printer.hpp" />
     <ClInclude Include="src\peripheral\speaker.hpp" />
     <ClInclude Include="src\platform.hpp" />
+    <ClInclude Include="src\platform\resource.h" />
     <ClInclude Include="src\redstone.hpp" />
     <ClInclude Include="src\term.hpp" />
     <ClInclude Include="src\terminal\CLITerminal.hpp" />
@@ -369,7 +375,6 @@
     <ClInclude Include="src\terminal\SDLTerminal.hpp" />
     <ClInclude Include="src\terminal\Terminal.hpp" />
     <ClInclude Include="src\terminal\TRoRTerminal.hpp" />
-    <ClInclude Include="src\windows\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="examples\raw_frame_reader.cpp">
@@ -424,35 +429,29 @@
       </MinimalRebuild>
     </ClCompile>
     <ClCompile Include="src\platform.cpp" />
-    <ClCompile Include="src\platform_darwin.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
+    <ClCompile Include="src\platform\darwin.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="src\platform_linux.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
+    <ClCompile Include="src\platform\emscripten.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="src\platform_win.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|Win32'">true</ExcludedFromBuild>
+    <ClCompile Include="src\platform\linux.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="src\platform\win.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\term.cpp" />
     <ClCompile Include="src\terminal\CLITerminal.cpp" />
@@ -462,7 +461,7 @@
     <ClCompile Include="src\terminal\TRoRTerminal.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="src\windows\CraftOS-PC 2.rc" />
+    <ResourceCompile Include="src\platform\CraftOS-PC 2.rc" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="resources\CraftOS-PC.exe.manifest" />

@@ -1,4 +1,4 @@
-obj
+obj*
 craftos
 /.vs
 /Debug
@@ -35,3 +35,4 @@ raw_frame_reader
 src/fs_standalone.cpp
 *.vcxproj.user
 *.aps
+include_arm

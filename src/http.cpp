@@ -150,6 +150,7 @@ void downloadThread(void* arg) {
 #endif
     http_param_t* param = (http_param_t*)arg;
     Poco::URI uri(param->url);
+    if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
     HTTPClientSession * session;
     if (uri.getScheme() == "http") {
         session = new HTTPClientSession(uri.getHost(), uri.getPort());

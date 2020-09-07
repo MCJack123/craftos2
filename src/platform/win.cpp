@@ -10,8 +10,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include "platform.hpp"
-#include "mounter.hpp"
+#include "../platform.hpp"
+#include "../mounter.hpp"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -22,7 +22,7 @@
 #include <shlwapi.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "http.hpp"
+#include "../http.hpp"
 
 const char * base_path = "%appdata%\\CraftOS-PC";
 std::string base_path_expanded;
@@ -41,7 +41,7 @@ void setROMPath(const char * path) {
 std::string getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     DWORD size = ExpandEnvironmentStringsA(base_path, expand_tmp, 32767);
-    base_path_expanded = expand_tmp;
+    base_path_expanded = std::string(expand_tmp);
     return base_path_expanded;
 }
 
@@ -54,11 +54,20 @@ std::string getROMPath() {
 
 std::string getPlugInPath() { return getROMPath() + "/plugins-luajit/"; }
 
+std::string getMCSavePath() {
+    DWORD size = ExpandEnvironmentStringsA("%appdata%\\.minecraft\\saves\\", expand_tmp, 32767);
+    return std::string(expand_tmp);
+}
+
+void* kernel32handle = NULL;
+HRESULT(*_SetThreadDescription)(HANDLE, PCWSTR) = NULL;
 
 void setThreadName(std::thread &t, std::string name) {
-    HRESULT (*_SetThreadDescription)(HANDLE, PCWSTR) = (HRESULT(*)(HANDLE, PCWSTR))loadSymbol("kernel32", "SetThreadDescription");
+    if (kernel32handle == NULL) {
+        kernel32handle = SDL_LoadObject("kernel32");
+        _SetThreadDescription = (HRESULT(*)(HANDLE, PCWSTR))SDL_LoadFunction(kernel32handle, "SetThreadDescription");
+    }
     if (_SetThreadDescription != NULL) _SetThreadDescription((HANDLE)t.native_handle(), std::wstring(name.begin(), name.end()).c_str());
-    //else fprintf(stderr, "Could not find symbol\n");
 }
 
 int createDirectory(std::string path) {
@@ -194,19 +203,6 @@ void migrateData() {
         recursiveCopy(oldpath, getBasePath());
     if (!failedCopy.empty())
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
-}
-
-std::unordered_map<std::string, HINSTANCE> dylibs;
-
-void * loadSymbol(std::string path, std::string symbol) {
-    HINSTANCE handle;
-    if (dylibs.find(path) == dylibs.end()) dylibs[path] = LoadLibraryA(path.c_str());
-    handle = dylibs[path];
-    return GetProcAddress(handle, symbol.c_str());
-}
-
-void unloadLibraries() {
-    for (auto lib : dylibs) FreeLibrary(lib.second);
 }
 
 void copyImage(SDL_Surface* surf) {

@@ -392,7 +392,6 @@ int config_set(lua_State *L) {
         setComputerConfig(computer->id, computer->config);
     }
     setConfigSetting(checkUpdates, boolean);
-    setConfigSetting(romReadOnly, boolean);
     setConfigSetting(vanilla, boolean);
     setConfigSettingI(initialComputer);
     setConfigSettingI(maxRecordingTime);

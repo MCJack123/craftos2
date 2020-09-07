@@ -39,10 +39,10 @@ extern "C" {
 #include <png++/png.hpp>
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
-#include "platform.hpp"
-#include "mounter.hpp"
-#include "http.hpp"
-#include "os.hpp"
+#include "../platform.hpp"
+#include "../mounter.hpp"
+#include "../http.hpp"
+#include "../os.hpp"
 
 extern bool exiting;
 std::string rom_path_expanded;
@@ -84,6 +84,17 @@ std::string getPlugInPath() {
     std::string s((const char*)retval);
     delete[] retval;
     return s;
+}
+
+std::string getMCSavePath() {
+    if (customBasePath != NULL) return customBasePath;
+    return std::string([[[NSFileManager defaultManager] 
+                         URLForDirectory:NSApplicationSupportDirectory 
+                         inDomain:NSUserDomainMask 
+                         appropriateForURL:[NSURL fileURLWithPath:@"/"] 
+                         create:NO 
+                         error:nil
+                        ] fileSystemRepresentation]) + "/minecraft/saves/";
 }
 
 void setThreadName(std::thread &t, std::string name) {}
@@ -269,19 +280,6 @@ void migrateData() {
     wordfree(&p);
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
         [[NSFileManager defaultManager] moveItemAtPath:[NSString stringWithCString:oldpath.c_str() encoding:NSASCIIStringEncoding] toPath:[NSString stringWithCString:getBasePath().c_str() encoding:NSASCIIStringEncoding] error:nil];
-}
-
-std::unordered_map<std::string, void*> dylibs;
-
-void * loadSymbol(std::string path, std::string symbol) {
-    void * handle;
-    if (dylibs.find(path) == dylibs.end()) dylibs[path] = dlopen(path.c_str(), RTLD_LAZY);
-    handle = dylibs[path];
-    return dlsym(handle, symbol.c_str());
-}
-
-void unloadLibraries() {
-    for (auto lib : dylibs) dlclose(lib.second);
 }
 
 void copyImage(SDL_Surface* surf) {

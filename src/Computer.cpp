@@ -227,15 +227,20 @@ extern void config_save();
 
 void Computer::loadPlugin(std::string path) {
     size_t pos = path.find_last_of("/\\");
-    if (pos == std::string::npos) pos = 0;
-    else pos++;
+    if (pos == std::string::npos) pos = 0; else pos++;
     std::string api_name = path.substr(pos).substr(0, path.substr(pos).find_first_of('.'));
     bool isLuaLib = false;
+    void* handle = SDL_LoadObject(path.c_str());
+    if (handle == NULL) {
+        fprintf(stderr, "The plugin \"%s\" is not a valid plugin file.\n", api_name.c_str());
+        pluginError(L, api_name.c_str(), "Not a valid plugin");
+        return;
+    }
     if (api_name.substr(0, 4) == "lua_") {
         api_name = api_name.substr(4);
         isLuaLib = true;
     } else {
-        lua_CFunction info = (lua_CFunction)loadSymbol(path, "plugin_info");
+        lua_CFunction info = (lua_CFunction)SDL_LoadFunction(handle, "plugin_info");
         if (info == NULL) {
             fprintf(stderr, "The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str());
             pluginError(L, api_name.c_str(), "Missing plugin info");
@@ -247,6 +252,7 @@ void Computer::loadPlugin(std::string path) {
                 fprintf(stderr, "The plugin \"%s\" ran into an error while initializing, and will not be loaded: %s\n", api_name.c_str(), lua_tostring(L, -1));
                 pluginError(L, api_name.c_str(), lua_tostring(L, -1));
                 lua_pop(L, 1);
+                SDL_UnloadObject(handle);
                 return;
             } else if (!lua_istable(L, -1)) {
                 fprintf(stderr, "The plugin \"%s\" returned invalid info (%s). Use at your own risk.\n", api_name.c_str(), lua_typename(L, lua_type(L, -1)));
@@ -258,9 +264,12 @@ void Computer::loadPlugin(std::string path) {
                 lua_pop(L, 1);
 
                 lua_getfield(L, -1, "version");
-                if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) < PLUGIN_VERSION) {
-                    fprintf(stderr, "The plugin \"%s\" is built for an older version of CraftOS-PC (%td). Use at your own risk.\n", api_name.c_str(), lua_tointeger(L, -1));
+                if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) != PLUGIN_VERSION) {
+                    fprintf(stderr, "The plugin \"%s\" is built for an older version of CraftOS-PC (%td), and will not be loaded.\n", api_name.c_str(), lua_tointeger(L, -1));
                     pluginError(L, api_name.c_str(), "Old plugin API");
+                    lua_pop(L, 1);
+                    SDL_UnloadObject(handle);
+                    return;
                 }
                 lua_pop(L, 1);
 
@@ -323,10 +332,11 @@ void Computer::loadPlugin(std::string path) {
             lua_pop(L, 1);
         }
     }
-    lua_CFunction luaopen = (lua_CFunction)loadSymbol(path, "luaopen_" + api_name);
+    lua_CFunction luaopen = (lua_CFunction)SDL_LoadFunction(handle, ("luaopen_" + api_name).c_str());
     if (luaopen == NULL) {
         fprintf(stderr, "Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); 
         pluginError(L, api_name.c_str(), "Missing API opener");
+        SDL_UnloadObject(handle);
         return;
     }
     lua_pushcfunction(L, luaopen);
@@ -337,6 +347,7 @@ void Computer::loadPlugin(std::string path) {
         lua_call(L, 3, 1);
     } else lua_call(L, 1, 1);
     lua_setglobal(L, api_name.c_str());
+    SDL_UnloadObject(handle);
 }
 
 // Main computer loop
@@ -640,6 +651,8 @@ void* computerThread(void* data) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
 #endif
+    // seed the Lua RNG
+    srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);

@@ -26,10 +26,9 @@ extern void setROMPath(const char * path);
 extern std::string getBasePath();
 extern std::string getROMPath();
 extern std::string getPlugInPath();
+extern std::string getMCSavePath();
 extern void updateNow(std::string tag_name);
 extern void migrateData();
-extern void * loadSymbol(std::string path, std::string symbol);
-extern void unloadLibraries();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();
 #ifdef WIN32

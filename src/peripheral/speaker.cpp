@@ -39,8 +39,6 @@
 
 namespace AudioSpec
 {
-    int allocatedMixChannelsCount = 0;  // number of mix channels allocated
-
     // read-only!
     Uint16 format = AUDIO_S16;  // current audio format constant
     int frequency = 44100;  // frequency rate of the current audio format
@@ -260,12 +258,13 @@ std::mt19937 RNG;
  */
 
 Mix_Music * currentlyPlayingMusic = NULL;
-void musicFinished() {if (currentlyPlayingMusic != NULL) {Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL;}}
+speaker * musicSpeaker = NULL;
+void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
 
 void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
 void emptyEffect(int c, void* stream, int len, void* udata) {}
 
-bool playSoundEvent(std::string name, float volume, float speed) {
+bool playSoundEvent(std::string name, float volume, float speed, unsigned int channel) {
     if (name.find(":") == std::string::npos) name = "minecraft:" + name;
     if (soundEvents.find(name) == soundEvents.end()) return false;
     unsigned randMax = 0;
@@ -275,7 +274,7 @@ bool playSoundEvent(std::string name, float volume, float speed) {
     for (sound_file_t f : soundEvents[name]) {
         if ((i += f.pitch) > num) {
             // play this event
-            if (f.isEvent) return playSoundEvent(f.name, min(volume * f.volume, 3.0f), min(speed * f.pitch, 2.0f));
+            if (f.isEvent) return playSoundEvent(f.name, min(volume * f.volume, 3.0f), min(speed * f.pitch, 2.0f), channel);
 #ifdef WIN32
             std::string path((getROMPath() + "\\sounds\\" + (f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + "\\sounds\\" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
             for (int i = 0; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
@@ -327,8 +326,7 @@ bool playSoundEvent(std::string name, float volume, float speed) {
                 newchunk->alen = chunk->alen / speed;
                 newchunk->allocated = true;
                 newchunk->volume = min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3);
-                int channel = Mix_PlayChannel(-1, newchunk, 0);
-                if (channel == -1) return false;
+                if (Mix_PlayChannel(channel, newchunk, 0) == -1) return false;
                 Mix_ChannelFinished(channelFinished);
                 return true;
             }
@@ -347,12 +345,25 @@ int speaker::playNote(lua_State *L) {
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
     if (pitch < 0 || pitch > 24) luaL_error(L, "invalid pitch %d", pitch);
     if (speaker_sounds.find(inst) == speaker_sounds.end()) luaL_error(L, "invalid instrument %s", inst.c_str());
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastTickReset).count() >= 50) {
+        lastTickReset = std::chrono::system_clock::now();
+        noteCount = 0;
+    }
+    if (noteCount >= config.maxNotesPerTick) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    noteCount++;
+    int channel;
+    for (channel = Mix_GroupAvailable(channelGroup); channel == -1; channel = Mix_GroupAvailable(channelGroup)) {
+        int next = Mix_GroupAvailable(0);
+        if (next == -1) next = Mix_AllocateChannels(Mix_AllocateChannels(-1) + 1) - 1;
+        Mix_GroupChannel(next, channelGroup);
+    }
     if (soundEvents.find("minecraft:block.note_block." + inst) != soundEvents.end()) {
-        lua_pushboolean(L, playSoundEvent("minecraft:block.note_block." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0)));
-        return 1;
+        lua_pushboolean(L, playSoundEvent("minecraft:block.note_block." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0), channel));
     } else if (soundEvents.find("minecraft:block.note." + inst) != soundEvents.end()) {
-        lua_pushboolean(L, playSoundEvent("minecraft:block.note." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0)));
-        return 1;
+        lua_pushboolean(L, playSoundEvent("minecraft:block.note." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0), channel));
     } else {
         Mix_Chunk * chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(speaker_sounds[inst].first, speaker_sounds[inst].second), true);
         if (chunk == NULL) luaL_error(L, "Fatal error while reading instrument sample");
@@ -367,15 +378,15 @@ int speaker::playNote(lua_State *L) {
         newchunk->alen = chunk->alen / speed;
         newchunk->allocated = true;
         newchunk->volume = volume * (MIX_MAX_VOLUME / 3);
-        int channel = Mix_PlayChannel(-1, newchunk, 0);
-        if (channel == -1) {
+        if (Mix_PlayChannel(channel, newchunk, 0) == -1) {
             lua_pushboolean(L, false);
             return 1;
         }
         Mix_ChannelFinished(channelFinished);
         lua_pushboolean(L, true);
-        return 1;
     }
+    if (lua_toboolean(L, -1)) { lua_pushinteger(L, channel); return 2; }
+    return 1;
 }
 
 int speaker::playSound(lua_State *L) {
@@ -391,8 +402,24 @@ int speaker::playSound(lua_State *L) {
     float speed = lua_isnumber(L, 3) ? lua_tonumber(L, 3) : 1.0;
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
     if (speed < 0.0 || speed > 2.0) luaL_error(L, "invalid speed %f", speed);
-    lua_pushboolean(L, playSoundEvent(inst, volume, speed));
-    return 1;
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastTickReset).count() >= 50) {
+        lastTickReset = std::chrono::system_clock::now();
+        noteCount = 0;
+    }
+    if (noteCount != 0) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    noteCount = UINT_MAX;
+    int channel;
+    for (channel = Mix_GroupAvailable(channelGroup); channel == -1; channel = Mix_GroupAvailable(channelGroup)) {
+        int next = Mix_GroupAvailable(0);
+        if (next == -1) next = Mix_AllocateChannels(Mix_AllocateChannels(-1) + 1) - 1;
+        Mix_GroupChannel(next, channelGroup);
+    }
+    lua_pushboolean(L, playSoundEvent(inst, volume, speed, channel));
+    lua_pushinteger(L, channel);
+    return 2;
 #endif
 }
 
@@ -442,6 +469,7 @@ int speaker::playLocalMusic(lua_State *L) {
     if (Mix_PlayingMusic()) Mix_HaltMusic();
     Mix_VolumeMusic(volume * (MIX_MAX_VOLUME / 3));
     currentlyPlayingMusic = mus;
+    musicSpeaker = this;
     Mix_PlayMusic(mus, 0);
     Mix_HookMusicFinished(musicFinished);
     return 0;
@@ -449,22 +477,29 @@ int speaker::playLocalMusic(lua_State *L) {
 
 int speaker::setSoundFont(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    Mix_SetSoundFonts(lua_tostring(L, 1));
+    Mix_SetSoundFonts(fixpath(get_comp(L), lua_tostring(L, 1), true).c_str());
     return 0;
 }
 
 int speaker::stopSounds(lua_State *L) {
-    Mix_HaltMusic();
-    Mix_HaltChannel(-1);
+    if (lua_isnumber(L, 1)) Mix_HaltChannel(lua_tointeger(L, 1));
+    else {
+        if (musicSpeaker == this) { Mix_HaltMusic(); musicSpeaker = NULL; }
+        Mix_HaltGroup(channelGroup);
+    }
     return 0;
 }
 
 speaker::speaker(lua_State *L, const char * side) {
     RNG.seed(time(0)); // doing this here so the seed can be refreshed
+    channelGroup = nextChannelGroup++;
 }
 
 speaker::~speaker() {
-    
+    if (musicSpeaker == this) { Mix_HaltMusic(); musicSpeaker = NULL; }
+    Mix_HaltGroup(channelGroup);
+    for (int channel = Mix_GroupAvailable(channelGroup); channel != -1; channel = Mix_GroupAvailable(channelGroup))
+        Mix_GroupChannel(channel, 0);
 }
 
 int speaker::call(lua_State *L, const char * method) {
@@ -488,7 +523,7 @@ void speakerInit() {
         if (!(loadedFormats & MIX_INIT_MID)) fprintf(stderr, "mid ");
         fprintf(stderr, "\n");
     }
-    AudioSpec::allocatedMixChannelsCount = Mix_AllocateChannels(config.maxNotesPerTick);
+    Mix_GroupChannels(0, Mix_AllocateChannels(config.maxNotesPerTick)-1, 0);
 #ifndef STANDALONE_ROM
     DIR * d = opendir((getROMPath() + "/sounds").c_str());
     if (d) {
@@ -554,5 +589,6 @@ const char * speaker_names[] = {
 };
 
 library_t speaker::methods = {"speaker", 6, speaker_names, NULL, nullptr, nullptr};
+unsigned int speaker::nextChannelGroup = 1;
 
 #endif
