@@ -1,10 +1,10 @@
-obj
+obj*
 craftos
 /.vs
 /Debug
 /packages
 /x64
-CraftOS-PC.app
+CraftOS-PC*.app
 /autoscan.log
 /Makefile - Copy
 /autom4te.cache
@@ -36,3 +36,4 @@ raw_frame_reader
 src/fs_standalone.cpp
 *.vcxproj.user
 *.aps
+include_arm
