@@ -85,15 +85,12 @@
     <None Include="resources\BenchmarkRenderers.sh.bat">
       <Filter>Other Files</Filter>
     </None>
-    <None Include="src\platform\macapp.mm">
-      <Filter>Source Files\platform</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp">
       <Filter>Other Files</Filter>
     </Image>
-    <Image Include="resources\CraftOS-PC.ico">
+    <Image Include="resources\CraftOS-PC Accelerated.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
@@ -298,6 +295,7 @@
     <ClCompile Include="src\terminal\TRoRTerminal.cpp">
       <Filter>Source Files\terminal</Filter>
     </ClCompile>
+    <ClCompile Include="src\platform\macapp.mm" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\platform\CraftOS-PC 2.rc">

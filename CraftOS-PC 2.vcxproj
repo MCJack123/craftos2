@@ -342,7 +342,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp" />
-    <Image Include="resources\CraftOS-PC.ico" />
+    <Image Include="resources\CraftOS-PC Accelerated.ico" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Computer.hpp" />
