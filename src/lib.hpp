@@ -23,7 +23,7 @@ extern "C" {
 
 #define CRAFTOSPC_VERSION    "v2.4.2"
 #define CRAFTOSPC_CC_VERSION "1.91.0"
-#define CRAFTOSPC_INDEV      true
+#define CRAFTOSPC_INDEV      false
 
 struct Computer;
 typedef struct library {
@@ -120,7 +120,7 @@ public:
 extern void* getCompCache_glob;
 extern Computer * getCompCache_comp;
 extern Computer * _get_comp(lua_State *L);
-#define get_comp(L) (*(void**)(((ptrdiff_t)L) + sizeof(int) + sizeof(void*)*3 + 4) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
+#define get_comp(L) (*(void**)(((ptrdiff_t)L) + sizeof(void*)*3 + 3) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
 #else
 inline Computer * get_comp(lua_State *L) {
     lua_pushinteger(L, 1);
