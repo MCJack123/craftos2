@@ -128,7 +128,10 @@ void mainLoop() {
 #endif
 }
 
+extern std::unordered_set<Computer*> freedComputers;
+
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
+    if (freedComputers.find((Computer*)param) != freedComputers.end()) return 0;
     lua_sethook(((Computer*)param)->L, termHook, lua_gethookmask(((Computer*)param)->L) | LUA_MASKCOUNT, 1);
     forceCheckTimeout = true;
     return 1000;
