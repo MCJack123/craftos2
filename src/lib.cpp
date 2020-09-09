@@ -28,7 +28,7 @@ Computer * _get_comp(lua_State *L) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, 1);
     void * retval = lua_touserdata(L, -1);
     lua_pop(L, 1);
-    getCompCache_glob = *(void**)(((ptrdiff_t)L) + sizeof(int) + sizeof(void*)*3 + 4);
+    getCompCache_glob = *(void**)(((ptrdiff_t)L) + sizeof(int) + sizeof(void*)*3 + 3);
     getCompCache_comp = (Computer*)retval;
     return (Computer*)retval;
 }
