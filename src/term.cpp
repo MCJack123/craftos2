@@ -284,7 +284,7 @@ int log2i(int num) {
 
 inline const char * checkstr(const char * str) {return str == NULL ? "(null)" : str;}
 
-extern library_t * libraries[9];
+extern library_t * libraries[8];
 int termPanic(lua_State *L) {
     Computer * comp = get_comp(L);
     comp->running = 0;
