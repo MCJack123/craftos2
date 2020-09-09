@@ -44,6 +44,7 @@ extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
+extern std::unordered_map<std::string, void*> loadedPlugins;
 int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
 std::string overrideHardwareDriver;
@@ -70,7 +71,7 @@ void update_thread() {
         parser.parse(session.receiveResponse(response));
         Poco::JSON::Object::Ptr root = parser.asVar().extract<Poco::JSON::Object::Ptr>();
         if (root->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) {
-#if defined(__APPLE__) || defined(WIN32)
+#if (defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
             SDL_MessageBoxData msg;
             SDL_MessageBoxButtonData buttons[] = {
                 {0, 0, "Skip This Version"},
@@ -457,7 +458,7 @@ int main(int argc, char*argv[]) {
 #ifndef NO_MIXER
     speakerInit();
 #endif
-#if !defined(__EMSCRIPTEN__) && !defined(STANDALONE_ROM)
+#if !defined(__EMSCRIPTEN__)
     if (!CRAFTOSPC_INDEV && (selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
@@ -488,6 +489,7 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 4) TRoRTerminal::quit();
     else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
+    for (auto p : loadedPlugins) SDL_UnloadObject(p.second);
 #ifdef WIN32
     if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
 #endif
