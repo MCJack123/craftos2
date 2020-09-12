@@ -147,25 +147,26 @@ int ccemux_detach(lua_State *L) {
     return libFunc("periphemu", "remove")(L);
 }
 
+struct luaL_Reg M[] = {
+    {"getVersion", ccemux_getVersion},
+    {"openEmu", ccemux_openEmu},
+    {"closeEmu", ccemux_closeEmu},
+    {"openDataDir", ccemux_openDataDir},
+    {"openConfig", ccemux_openConfig},
+    {"milliTime", ccemux_milliTime},
+    {"nanoTime", ccemux_nanoTime},
+    {"echo", ccemux_echo},
+    {"setClipboard", ccemux_setClipboard},
+    {"attach", ccemux_attach},
+    {"detach", ccemux_detach},
+    {NULL, NULL}
+};
+
 extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
 int luaopen_ccemux(lua_State *L) {
-    struct luaL_reg M[] = {
-        {"getVersion", ccemux_getVersion},
-        {"openEmu", ccemux_openEmu},
-        {"closeEmu", ccemux_closeEmu},
-        {"openDataDir", ccemux_openDataDir},
-        {"openConfig", ccemux_openConfig},
-        {"milliTime", ccemux_milliTime},
-        {"nanoTime", ccemux_nanoTime},
-        {"echo", ccemux_echo},
-        {"setClipboard", ccemux_setClipboard},
-        {"attach", ccemux_attach},
-        {"detach", ccemux_detach},
-        {NULL, NULL}
-    };
     lua_newtable(L);
     for (int i = 0; M[i].name != NULL && M[i].func != NULL; i++) {
         lua_pushstring(L, M[i].name);
