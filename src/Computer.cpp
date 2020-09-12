@@ -63,32 +63,6 @@ library_t * libraries[] = {
     &term_lib
 };
 
-// Since BitOp doesn't come with these, we need to implement them here
-static int bit32_extract(lua_State *L) {
-    unsigned int n = luaL_checkinteger(L, 1);
-    int field = luaL_checkinteger(L, 2);
-    if (field < 0 || field > 31) luaL_error(L, "bad argument #2 (field out of range)");
-    int width = luaL_optinteger(L, 3, 1);
-    if (width < 1 || field + width - 1 > 31) luaL_error(L, "bad argument #3 (width out of range)");
-    unsigned int mask = 0;
-    for (int i = field; i < field + width; i++) mask |= 2^i;
-    lua_pushinteger(L, n & mask);
-    return 1;
-}
-
-static int bit32_replace(lua_State *L) {
-    unsigned int n = luaL_checkinteger(L, 1);
-    unsigned int v = luaL_checkinteger(L, 2);
-    int field = luaL_checkinteger(L, 3);
-    if (field < 0 || field > 31) luaL_error(L, "bad argument #3 (field out of range)");
-    int width = luaL_optinteger(L, 4, 1);
-    if (width < 1 || field + width - 1 > 31) luaL_error(L, "bad argument #4 (width out of range)");
-    unsigned int mask = 0;
-    for (int i = field; i < field + width; i++) mask |= 2^i;
-    lua_pushinteger(L, (n & ~mask) | (v & mask));
-    return 1;
-}
-
 // Constructor
 Computer::Computer(int i, bool debug): isDebugger(debug) {
     id = i;
@@ -451,32 +425,6 @@ void Computer::run(std::string bios_name) {
         lua_pop(L, 1);
         lua_pushnil(L);
         lua_setglobal(L, "os_date");
-
-        // Move the LuaJIT bit library to bit32
-        lua_getglobal(L, "bit");
-        lua_getfield(L, -1, "ror");
-        lua_setfield(L, -2, "rrotate");
-        lua_getfield(L, -1, "rol");
-        lua_setfield(L, -2, "lrotate");
-        luaL_loadstring(L, "return bit32.band(...) ~= 0");
-        lua_setfield(L, -2, "btest");
-        lua_pushcfunction(L, bit32_extract);
-        lua_setfield(L, -2, "extract");
-        lua_pushcfunction(L, bit32_replace);
-        lua_setfield(L, -2, "replace");
-        lua_pushnil(L);
-        lua_setfield(L, -2, "ror");
-        lua_pushnil(L);
-        lua_setfield(L, -2, "rol");
-        lua_pushnil(L);
-        lua_setfield(L, -2, "tobit");
-        lua_pushnil(L);
-        lua_setfield(L, -2, "tohex");
-        lua_pushnil(L);
-        lua_setfield(L, -2, "bswap");
-        lua_setglobal(L, "bit32");
-        lua_pushnil(L);
-        lua_setglobal(L, "bit");
 
         if (::config.jit_ffi_enable) {
             lua_pushcfunction(L, luaopen_ffi);
