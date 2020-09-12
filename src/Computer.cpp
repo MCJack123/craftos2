@@ -225,16 +225,23 @@ static void pluginError(lua_State *L, const char * name, const char * err) {
 
 extern void config_save();
 
+std::unordered_map<std::string, void*> loadedPlugins;
+
 void Computer::loadPlugin(std::string path) {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos) pos = 0; else pos++;
     std::string api_name = path.substr(pos).substr(0, path.substr(pos).find_first_of('.'));
     bool isLuaLib = false;
-    void* handle = SDL_LoadObject(path.c_str());
-    if (handle == NULL) {
-        fprintf(stderr, "The plugin \"%s\" is not a valid plugin file.\n", api_name.c_str());
-        pluginError(L, api_name.c_str(), "Not a valid plugin");
-        return;
+    void* handle;
+    if (loadedPlugins.find(path) != loadedPlugins.end()) handle = loadedPlugins[path];
+    else {
+        handle = SDL_LoadObject(path.c_str());
+        if (handle == NULL) {
+            fprintf(stderr, "The plugin \"%s\" is not a valid plugin file.\n", api_name.c_str());
+            pluginError(L, api_name.c_str(), "Not a valid plugin");
+            return;
+        }
+        loadedPlugins[path] = handle;
     }
     if (api_name.substr(0, 4) == "lua_") {
         api_name = api_name.substr(4);
@@ -347,7 +354,6 @@ void Computer::loadPlugin(std::string path) {
         lua_call(L, 3, 1);
     } else lua_call(L, 1, 1);
     lua_setglobal(L, api_name.c_str());
-    SDL_UnloadObject(handle);
 }
 
 // Main computer loop
