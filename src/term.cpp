@@ -381,7 +381,7 @@ extern "C" {extern const char KEY_HOOK;}
 extern bool forceCheckTimeout;
 
 void termHook(lua_State *L, lua_Debug *ar) {
-    if (lua_icontext(L)) {
+    if (lua_icontext(L) == 1) {
         lua_pop(L, 1);
         return;
     }
