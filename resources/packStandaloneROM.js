@@ -222,7 +222,7 @@ function writeDir(path, level) {
         fs.writeSync(out, "},\n")
     }
     if (path == "rom/apis") {
-        fs.writeSync(out, `${' '.repeat(level * 4)}{"${f}", ${JSON.stringify(ioapi).replace(/\\r\\n/g, "\\n").replace(/\\n/g, "\\n\"\n\"")}},`)
+        fs.writeSync(out, `${' '.repeat(level * 4)}{"io.lua", ${JSON.stringify(ioapi).replace(/\\r\\n/g, "\\n").replace(/\\n/g, "\\n\"\n\"")}},`)
     }
     fs.writeSync(out, " ".repeat((level - 1) * 4) + "}")
 }
