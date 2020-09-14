@@ -53,8 +53,8 @@ typedef std::string path_t;
 #define platform_DIR DIR
 #define struct_dirent struct dirent
 #define struct_stat struct stat
-#define wstr(s) s
-#define astr(s) s
+#define wstr(s) (s)
+#define astr(s) (s)
 #define to_path_t std::to_string
 #define WS(s) s
 #define pathcmp strcmp
