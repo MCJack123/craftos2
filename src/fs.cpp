@@ -90,7 +90,7 @@ path_t fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::str
     }
     if (!md) return maxPath;
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    if (createDirectory(maxPath + PATH_SEP + converter.from_bytes(concat(append, PATH_SEPC))) != 0) return path_t();
+    if (createDirectory(maxPath + PATH_SEP + wstr(concat(append, PATH_SEPC))) != 0) return path_t();
     return fixpath(comp, path.c_str(), false, true, mountPath);
 }
 
