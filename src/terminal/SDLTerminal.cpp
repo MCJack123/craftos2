@@ -150,7 +150,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     if (config.customFontPath.empty()) 
         old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, font_image.width, font_image.height, font_image.bytes_per_pixel * 8, font_image.bytes_per_pixel * font_image.width, SDL_PIXELFORMAT_RGB565);
 #ifndef STANDALONE_ROM
-    else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP((getROMPath() + "/hdfont.bmp").c_str());
+    else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP(astr(getROMPath() + WS("/hdfont.bmp")).c_str());
 #endif
     else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
     if (old_bmp == (SDL_Surface*)0) {
@@ -335,7 +335,7 @@ void SDLTerminal::render() {
         if (gotResizeEvent) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
-        if (screenshotPath == "clipboard") {
+        if (screenshotPath == WS("clipboard")) {
             copyImage(temp);
         } else {
             png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
@@ -343,7 +343,9 @@ void SDLTerminal::render() {
                 memcpy((void*)&pixbuf.get_bytes()[i * temp->w * 3], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
             png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
             img.set_pixbuf(pixbuf);
-            img.write(screenshotPath);
+            std::ofstream out(screenshotPath, std::ios::binary);
+            img.write_stream(out);
+            out.close();
         }
         SDL_FreeSurface(temp);
 #else
@@ -428,24 +430,24 @@ bool SDLTerminal::resizeWholeWindow(int w, int h) {
 }
 
 void SDLTerminal::screenshot(std::string path) {
-    if (path != "") screenshotPath = path;
+    if (path != "") screenshotPath = wstr(path);
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
         screenshotPath = getBasePath();
 #ifdef WIN32
-        screenshotPath += "\\screenshots\\";
+        screenshotPath += WS("\\screenshots\\");
 #else
-        screenshotPath += "/screenshots/";
+        screenshotPath += WS("/screenshots/");
 #endif
         createDirectory(screenshotPath.c_str());
         char * tstr = new char[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
         tstr[23] = '\0';
 #ifdef NO_PNG
-        screenshotPath += std::string(tstr) + ".bmp";
+        screenshotPath += wstr(std::string(tstr)) + WS(".bmp");
 #else
-        screenshotPath += std::string(tstr) + ".png";
+        screenshotPath += wstr(std::string(tstr)) + WS(".png");
 #endif
         delete[] tstr;
     }
@@ -456,20 +458,20 @@ void SDLTerminal::record(std::string path) {
     shouldRecord = true;
     recordedFrames = 0;
     frameWait = 0;
-    if (path != "") recordingPath = path;
+    if (path != "") recordingPath = wstr(path);
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
         recordingPath = getBasePath();
 #ifdef WIN32
-        recordingPath += "\\screenshots\\";
+        recordingPath += WS("\\screenshots\\");
 #else
-        recordingPath += "/screenshots/";
+        recordingPath += WS("/screenshots/");
 #endif
         createDirectory(recordingPath.c_str());
         char * tstr = new char[24];
         strftime(tstr, 20, "%F_%H.%M.%S", nowt);
-        recordingPath += std::string(tstr) + ".gif";
+        recordingPath += wstr(std::string(tstr)) + WS(".gif");
         delete[] tstr;
     }
     changed = true;
@@ -485,7 +487,8 @@ void SDLTerminal::stopRecording() {
     recorderMutex.lock();
     if (recording.size() < 1) { recorderMutex.unlock(); return; }
     GifWriter g;
-    GifBegin(&g, recordingPath.c_str(), ((uint32_t*)(&recording[0][0]))[0], ((uint32_t*)(&recording[0][0]))[1], 100 / config.recordingFPS);
+    g.f = platform_fopen(recordingPath.c_str(), "wb");
+    GifBegin(&g, NULL, ((uint32_t*)(&recording[0][0]))[0], ((uint32_t*)(&recording[0][0]))[1], 100 / config.recordingFPS);
     for (std::string s : recording) {
         uint32_t w = ((uint32_t*)&s[0])[0], h = ((uint32_t*)&s[0])[1];
         uint32_t* ipixels = new uint32_t[w * h];

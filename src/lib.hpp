@@ -69,6 +69,7 @@ extern void bad_argument(lua_State *L, const char * type, int pos);
 extern std::string b64encode(std::string orig);
 extern std::string b64decode(std::string orig);
 extern std::vector<std::string> split(std::string strToSplit, char delimeter);
+extern std::vector<std::wstring> split(std::wstring strToSplit, wchar_t delimeter);
 
 #ifdef CRAFTOSPC_INTERNAL // so plugins won't need Poco
 

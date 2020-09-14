@@ -737,12 +737,14 @@ struct GifWriter
 bool GifBegin( GifWriter* writer, const char* filename, uint32_t width, uint32_t height, uint32_t delay, int32_t bitDepth = 8, bool dither = false )
 {
     (void)bitDepth; (void)dither; // Mute "Unused argument" warnings
+    if (filename != NULL) {
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
-    writer->f = 0;
-    fopen_s(&writer->f, filename, "wb");
+        writer->f = 0;
+        fopen_s(&writer->f, filename, "wb");
 #else
-    writer->f = fopen(filename, "wb");
+        writer->f = fopen(filename, "wb");
 #endif
+    }
     if(!writer->f) return false;
 
     writer->firstFrame = true;

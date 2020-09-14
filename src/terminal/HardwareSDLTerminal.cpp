@@ -240,7 +240,7 @@ void HardwareSDLTerminal::render() {
         if (gotResizeEvent) return;
         if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) return;
 #ifdef PNGPP_PNG_HPP_INCLUDED
-        if (screenshotPath == "clipboard") {
+        if (screenshotPath == WS("clipboard")) {
             SDL_Surface * temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 24, SDL_PIXELFORMAT_RGB24);
             if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, temp->pixels, temp->pitch) != 0) return;
             copyImage(temp);
@@ -251,7 +251,9 @@ void HardwareSDLTerminal::render() {
             if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) return;
             png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
             img.set_pixbuf(pixbuf);
-            img.write(screenshotPath);
+            std::ofstream out(screenshotPath, std::ios::binary);
+            img.write_stream(out);
+            out.close();
         }
 #else
         SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);

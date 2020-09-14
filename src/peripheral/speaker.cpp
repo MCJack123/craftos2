@@ -276,10 +276,10 @@ bool playSoundEvent(std::string name, float volume, float speed, unsigned int ch
             // play this event
             if (f.isEvent) return playSoundEvent(f.name, min(volume * f.volume, 3.0f), min(speed * f.pitch, 2.0f), channel);
 #ifdef WIN32
-            std::string path((getROMPath() + "\\sounds\\" + (f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + "\\sounds\\" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
+            std::string path(astr(getROMPath() + WS("\\sounds\\") + wstr(f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + WS("\\sounds\\") + wstr(f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
             for (int i = 0; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
 #else
-            std::string path((getROMPath() + "/sounds/" + (f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + "/sounds/" + (f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
+            std::string path(astr(getROMPath() + WS("/sounds/") + wstr(f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + WS("/sounds/") + wstr(f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
 #endif
             if (f.isMusic) {
                 Mix_Music * chunk = Mix_LoadMUS((path + ".ogg").c_str());
@@ -460,11 +460,11 @@ int speaker::listSounds(lua_State *L) {
 int speaker::playLocalMusic(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
-    std::string path = fixpath(get_comp(L), lua_tostring(L, 1), true);
+    path_t path = fixpath(get_comp(L), lua_tostring(L, 1), true);
     if (path.empty()) luaL_error(L, "%s: File does not exist", lua_tostring(L, 1));
     float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
-    Mix_Music * mus = Mix_LoadMUS(path.c_str());
+    Mix_Music * mus = Mix_LoadMUS(astr(path).c_str());
     if (mus == NULL) luaL_error(L, "%s: Could not load music file: %s", lua_tostring(L, 1), Mix_GetError());
     if (Mix_PlayingMusic()) Mix_HaltMusic();
     Mix_VolumeMusic(volume * (MIX_MAX_VOLUME / 3));
@@ -477,7 +477,7 @@ int speaker::playLocalMusic(lua_State *L) {
 
 int speaker::setSoundFont(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    Mix_SetSoundFonts(fixpath(get_comp(L), lua_tostring(L, 1), true).c_str());
+    Mix_SetSoundFonts(astr(fixpath(get_comp(L), lua_tostring(L, 1), true)).c_str());
     return 0;
 }
 
@@ -525,24 +525,24 @@ void speakerInit() {
     }
     Mix_GroupChannels(0, Mix_AllocateChannels(config.maxNotesPerTick)-1, 0);
 #ifndef STANDALONE_ROM
-    DIR * d = opendir((getROMPath() + "/sounds").c_str());
+    platform_DIR * d = platform_opendir((getROMPath() + WS("/sounds")).c_str());
     if (d) {
-        struct dirent *dir;
-        for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-            if (std::string(dir->d_name) == "." || std::string(dir->d_name) == "..") continue;
-            struct stat st;
-            if (stat((getROMPath() + "/sounds/" + dir->d_name).c_str(), &st) != 0 || 
+        struct_dirent *dir;
+        for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
+            if (path_t(dir->d_name) == WS(".") || path_t(dir->d_name) == WS("..")) continue;
+            struct_stat st;
+            if (platform_stat((getROMPath() + WS("/sounds/") + dir->d_name).c_str(), &st) != 0 ||
                 !S_ISDIR(st.st_mode) || 
-                stat((getROMPath() + "/sounds/" + dir->d_name + "/sounds.json").c_str(), &st) != 0) 
+                platform_stat((getROMPath() + WS("/sounds/") + dir->d_name + WS("/sounds.json")).c_str(), &st) != 0)
                 continue;
-            std::ifstream in(getROMPath() + "/sounds/" + dir->d_name + "/sounds.json");
+            std::ifstream in(getROMPath() + WS("/sounds/") + dir->d_name + WS("/sounds.json"));
             if (!in.is_open()) continue;
             Value root;
             Poco::JSON::Object::Ptr p = root.parse(in);
             in.close();
             try {
                 for (auto it = root.begin(); it != root.end(); it++) {
-                    std::string eventName = std::string(dir->d_name) + ":" + it->first;
+                    std::string eventName = astr(path_t(dir->d_name)) + ":" + it->first;
                     std::vector<sound_file_t> items;
                     for (auto it2 = it->second.extract<Poco::JSON::Object::Ptr>()->get("sounds").extract<Poco::JSON::Array::Ptr>()->begin(); 
                          it2 != it->second.extract<Poco::JSON::Object::Ptr>()->get("sounds").extract<Poco::JSON::Array::Ptr>()->end(); it2++) {
@@ -570,7 +570,7 @@ void speakerInit() {
                 fprintf(stderr, "An error occurred while parsing the sounds.json file: %s\n", e.displayText().c_str());
             }
         }
-        closedir(d);
+        platform_closedir(d);
     }
 #endif
 }

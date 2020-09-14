@@ -24,7 +24,7 @@ int drive::isDiskPresent(lua_State *L) {
 int drive::getDiskLabel(lua_State *L) {
     if (diskType == disk_type::DISK_TYPE_AUDIO) return getAudioTitle(L);
     else if (diskType == disk_type::DISK_TYPE_MOUNT) {
-        lua_pushstring(L, path.substr((path.find_last_of('\\') == std::string::npos ? path.find_last_of('/') : path.find_last_of('\\')) + 1).c_str());
+        lua_pushstring(L, astr(path.substr((path.find_last_of('\\') == std::string::npos ? path.find_last_of('/') : path.find_last_of('\\')) + 1)).c_str());
         return 1;
     }
     return 0;
@@ -58,7 +58,7 @@ int drive::getAudioTitle(lua_State *L) {
     }
     int lastdot = path.find_last_of('.');
     int start = path.find('\\') != std::string::npos ? path.find_last_of('\\') + 1 : path.find_last_of('/') + 1;
-    lua_pushstring(L, path.substr(start, lastdot > start ? lastdot - start : UINT32_MAX).c_str());
+    lua_pushstring(L, astr(path.substr(start, lastdot > start ? lastdot - start : UINT32_MAX)).c_str());
     return 1;
 }
 
@@ -66,7 +66,7 @@ int drive::playAudio(lua_State *L) {
 #ifndef NO_MIXER
     if (diskType != disk_type::DISK_TYPE_AUDIO) return 0;
     if (music != NULL) stopAudio(L);
-    music = Mix_LoadMUS(path.c_str());
+    music = Mix_LoadMUS(astr(path).c_str());
     if (music == NULL) fprintf(stderr, "Could not load audio: %s\n", Mix_GetError());
     if (Mix_PlayMusic(music, 1) == -1) fprintf(stderr, "Could not play audio: %s\n", Mix_GetError());
 #endif
@@ -125,33 +125,33 @@ int drive::insertDisk(lua_State *L, bool init) {
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
         comp->mounter_initializing = true;
 #ifdef WIN32
-        createDirectory((computerDir + "\\disk\\" + std::to_string(id)).c_str());
-        addMount(comp, (computerDir + "\\disk\\" + std::to_string(id)).c_str(), mount_path.c_str(), false);
+        createDirectory((computerDir + WS("\\disk\\") + to_path_t(id)).c_str());
+        addMount(comp, (computerDir + WS("\\disk\\") + to_path_t(id)).c_str(), mount_path.c_str(), false);
 #else
         assert(createDirectory((computerDir + "/disk/" + std::to_string(id)).c_str()) == 0);
         addMount(comp, (computerDir + "/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
 #endif
         comp->mounter_initializing = false;
     } else if (lua_isstring(L, arg)) {
-        path = lua_tostring(L, arg);
-        struct stat st;
+        path = wstr(lua_tostring(L, arg));
+        struct_stat st;
 #ifndef STANDALONE_ROM
-        if (path.substr(0, 9) == "treasure:") {
+        if (path.substr(0, 9) == WS("treasure:")) {
 #ifdef WIN32
             for (int i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
-            path = getROMPath() + "\\treasure\\" + path.substr(9);
+            path = getROMPath() + WS("\\treasure\\") + path.substr(9);
 #else
-            path = getROMPath() + "/treasure/" + path.substr(9);
+            path = getROMPath() + WS("/treasure/") + path.substr(9);
 #endif
-        } else if (path.substr(0, 7) == "record:") {
+        } else if (path.substr(0, 7) == WS("record:")) {
 #ifdef WIN32
-            path = getROMPath() + "\\sounds\\minecraft\\sounds\\records\\" + path.substr(7) + ".ogg";
+            path = getROMPath() + WS("\\sounds\\minecraft\\sounds\\records\\") + path.substr(7) + WS(".ogg");
 #else
-            path = getROMPath() + "/sounds/minecraft/sounds/records/" + path.substr(7) + ".ogg";
+            path = getROMPath() + WS("/sounds/minecraft/sounds/records/") + path.substr(7) + WS(".ogg");
 #endif
         }
 #endif
-        if (stat(path.c_str(), &st) != 0) {
+        if (platform_stat(path.c_str(), &st) != 0) {
             if (init) throw std::system_error(errno, std::system_category(), "Could not mount: ");
             else luaL_error(L, "Could not mount: %s", strerror(errno));
         }

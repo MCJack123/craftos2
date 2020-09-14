@@ -44,7 +44,7 @@ extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
-extern std::unordered_map<std::string, void*> loadedPlugins;
+extern std::unordered_map<path_t, void*> loadedPlugins;
 int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
 std::string overrideHardwareDriver;
@@ -295,7 +295,7 @@ int main(int argc, char*argv[]) {
     bool manualID = false;
     std::string base_path_storage;
     std::string rom_path_storage;
-    std::string customDataDir;
+    path_t customDataDir;
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
         if (arg == "--headless") { selectedRenderer = 1; checkTTY(); } else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
@@ -304,18 +304,18 @@ int main(int argc, char*argv[]) {
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
         else if (arg == "--args") script_args = argv[++i];
-        else if (arg == "--plugin") Computer::customPlugins.push_back(argv[++i]);
+        else if (arg == "--plugin") Computer::customPlugins.push_back(wstr(argv[++i]));
         else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
         else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
-        else if (arg == "--computers-dir" || arg == "-C") computerDir = std::string(argv[++i]);
-        else if (arg.substr(0, 3) == "-C=") computerDir = arg.substr(3);
-        else if (arg == "--start-dir") customDataDir = std::string(argv[++i]);
-        else if (arg.substr(0, 3) == "-c=") customDataDir = arg.substr(3);
+        else if (arg == "--computers-dir" || arg == "-C") computerDir = wstr(argv[++i]);
+        else if (arg.substr(0, 3) == "-C=") computerDir = wstr(arg.substr(3));
+        else if (arg == "--start-dir") customDataDir = wstr(argv[++i]);
+        else if (arg.substr(0, 3) == "-c=") customDataDir = wstr(arg.substr(3));
         else if (arg == "--rom") setROMPath(argv[++i]);
 #ifdef _WIN32
         else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "\\assets\\computercraft\\lua").c_str());
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "\\assets\\computercraft\\lua").c_str());
-        else if (arg == "--mc-save") computerDir = getMCSavePath() + argv[++i] + "\\computer";
+        else if (arg == "--mc-save") computerDir = getMCSavePath() + wstr(argv[++i]) + WS("\\computer");
 #else
         else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "/assets/computercraft/lua").c_str());
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
@@ -435,9 +435,9 @@ int main(int argc, char*argv[]) {
     }
 #endif
 #ifdef _WIN32
-    if (computerDir.empty()) computerDir = getBasePath() + "\\computer";
+    if (computerDir.empty()) computerDir = getBasePath() + WS("\\computer");
 #else
-    if (computerDir.empty()) computerDir = getBasePath() + "/computer";
+    if (computerDir.empty()) computerDir = getBasePath() + WS("/computer");
 #endif
     if (!customDataDir.empty()) Computer::customDataDirs[id] = customDataDir;
     setupCrashHandler();

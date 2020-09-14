@@ -28,7 +28,7 @@ class drive: public peripheral {
 private:
     disk_type diskType = disk_type::DISK_TYPE_NONE;
     std::string mount_path;
-    std::string path;
+    path_t path;
 #ifndef NO_MIXER
     Mix_Music* music = NULL;
 #else

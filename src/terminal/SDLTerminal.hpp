@@ -26,8 +26,8 @@ protected:
     bool shouldScreenshot = false;
     bool shouldRecord = false;
     bool fullscreen = false;
-    std::string screenshotPath;
-    std::string recordingPath;
+    path_t screenshotPath;
+    path_t recordingPath;
     int recordedFrames = 0;
     int frameWait = 0;
     std::vector<std::string> recording;

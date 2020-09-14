@@ -15,6 +15,7 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
+#include <codecvt>
 
 struct FileEntry {
     bool isDir;
@@ -35,6 +36,10 @@ struct FileEntry {
         FileEntry * retval = this;
         while (std::getline(ss, item, '/')) if (!item.empty() && item != "rom:" && item != "debug:") retval = &(*retval)[item];
         return *retval;
+    }
+    FileEntry& path(std::wstring path) { // throws
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+        return this->path(converter.to_bytes(path));
     }
 };
 
