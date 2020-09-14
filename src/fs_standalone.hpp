@@ -16,6 +16,7 @@
 #include <string>
 #include <algorithm>
 #include <codecvt>
+#include <locale>
 
 struct FileEntry {
     bool isDir;
