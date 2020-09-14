@@ -576,7 +576,7 @@ void Computer::run(path_t bios_name) {
         path_t bios_path_expanded = getROMPath() + WS("/") + bios_name;
 #endif
         FILE * bios_file = platform_fopen(bios_path_expanded.c_str(), "r");
-        status = lua_load(coro, file_reader, bios_file, "bios.lua");
+        status = lua_load(coro, file_reader, bios_file, "@bios.lua");
         fclose(bios_file);
 #endif
         if (status || !lua_isfunction(coro, -1)) {
