@@ -155,11 +155,11 @@
 
 class printer: public peripheral {
 private:
-    friend void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata);
     static library_t methods;
     static const int width = 25;
     static const int height = 21;
 #if PRINT_TYPE == PRINT_TYPE_PDF
+    friend void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata);
     HPDF_Doc out;
     HPDF_Page page;
     lua_State *currentState;
