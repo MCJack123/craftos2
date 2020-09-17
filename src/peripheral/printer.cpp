@@ -16,6 +16,8 @@
 #if PRINT_TYPE == PRINT_TYPE_PDF
 #include <unordered_map>
 #include <cmath>
+#include "../terminal/RawTerminal.hpp"
+#include "../terminal/TRoRTerminal.hpp"
 static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
     {HPDF_ARRAY_COUNT_ERR, "Internal error. Data consistency was lost."},
     {HPDF_ARRAY_ITEM_NOT_FOUND, "Internal error. Data consistency was lost."},
@@ -115,9 +117,21 @@ static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
     {HPDF_INVALID_FONT, "An invalid font-handle was specified."},
 };
 
+extern int selectedRenderer;
+
 void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata) {
-    lua_State *L = (lua_State*)userdata;
-    luaL_error(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
+    lua_State *L = ((printer*)userdata)->currentState;
+    if (L) luaL_error(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
+    else {
+        std::string e = "Error printing to PDF: " + std::string(pdf_errors[error_no]) + " (" + std::to_string(error_no) + ", " + std::to_string(detail_no) + ")";
+        switch (selectedRenderer) {
+            case 0: case 5: SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str(), NULL); break;
+            case 1: case 2: fprintf(stderr, "%s\n", e.c_str()); break;
+            case 3: RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str()); break;
+            case 4: TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str()); break;
+        }
+        throw std::runtime_error(e);
+    }
 }
 #elif PRINT_TYPE == PRINT_TYPE_HTML
 std::string page_ext = ".html";
@@ -129,15 +143,16 @@ printer::printer(lua_State *L, const char * side) {
     if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
     outPath = lua_tostring(L, 3);
 #if PRINT_TYPE == PRINT_TYPE_PDF
-    out = HPDF_New(pdf_error_handler, L);
+    currentState = NULL;
+    out = HPDF_New(pdf_error_handler, this);
 #else
     createDirectory(outPath.c_str());
 #endif
 }
 
 printer::~printer() {
+    if (started) endPage(NULL);
 #if PRINT_TYPE == PRINT_TYPE_PDF
-    HPDF_SaveToFile(out, outPath.c_str());
     HPDF_Free(out);
 #endif
 }
@@ -182,6 +197,7 @@ int printer::newPage(lua_State *L) {
     cursorX = 0;
     cursorY = 0;
 #if PRINT_TYPE == PRINT_TYPE_PDF
+    currentState = L;
     page = HPDF_AddPage(out);
 #endif
     started = true;
@@ -190,18 +206,28 @@ int printer::newPage(lua_State *L) {
 }
 
 int printer::endPage(lua_State *L) {
-#if PRINT_TYPE == PRINT_TYPE_PDF
-    HPDF_Page_BeginText(page);
-    HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 12.0);
-    for (unsigned i = 0; i < body.size(); i++) {
-        char * str = new char[width + 1];
-        memcpy(str, &body[i][0], width);
-        str[width] = 0;
-        HPDF_Page_TextOut(page, 72, HPDF_Page_GetHeight(page) - (72 + ((i + 1) * 15)), (const char *)str);
-        delete[] str;
+    if (!started) {
+        if (L) lua_pushboolean(L, false);
+        return 1;
     }
-    HPDF_Page_EndText(page);
-    HPDF_SaveToFile(out, outPath.c_str());
+#if PRINT_TYPE == PRINT_TYPE_PDF
+    currentState = L;
+    try {
+        HPDF_Page_BeginText(page);
+        HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 12.0);
+        for (unsigned i = 0; i < body.size(); i++) {
+            char * str = new char[width + 1];
+            memcpy(str, &body[i][0], width);
+            str[width] = 0;
+            HPDF_Page_TextOut(page, 72, HPDF_Page_GetHeight(page) - (72 + ((i + 1) * 15)), (const char *)str);
+            delete[] str;
+        }
+        HPDF_Page_EndText(page);
+        HPDF_SaveToFile(out, outPath.c_str());
+    } catch (...) {
+        if (L) lua_pushboolean(L, false);
+        return 1;
+    }
     page = NULL;
 #else
     std::ofstream out(outPath + "/" + (title == "" ? "Page" + std::to_string(pageNumber) : title) + page_ext);
@@ -220,7 +246,7 @@ int printer::endPage(lua_State *L) {
     out.close();
 #endif
     started = false;
-    lua_pushboolean(L, true);
+    if (L) lua_pushboolean(L, true);
     return 1;
 }
 
