@@ -32,7 +32,7 @@ extern "C" {extern void syncfs();}
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false};
-    std::ifstream in(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
+    std::ifstream in(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
     if (!in.is_open()) return cfg; 
     if (in.peek() == std::ifstream::traits_type::eof()) {in.close(); return cfg;} // treat an empty file as if it didn't exist in the first place
     Value root;
@@ -64,7 +64,7 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
     root["isColor"] = cfg.isColor;
     root["base64"] = true;
     root["startFullscreen"] = cfg.startFullscreen;
-    std::ofstream out(std::string(getBasePath()) + "/config/" + std::to_string(id) + ".json");
+    std::ofstream out(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
     out << root;
     out.close();
 #ifdef __EMSCRIPTEN__
@@ -79,7 +79,7 @@ bool configLoadError = false;
 void config_save();
 
 void config_init() {
-    createDirectory((std::string(getBasePath()) + "/config").c_str());
+    createDirectory(getBasePath() + WS("/config"));
     config = {
         true,
         false,
@@ -118,7 +118,7 @@ void config_init() {
         false,
         false
     };
-    std::ifstream in(std::string(getBasePath()) + "/config/global.json");
+    std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
     Value root;
     Poco::JSON::Object::Ptr p;
@@ -215,7 +215,7 @@ void config_save() {
     root["useVsync"] = config.useVsync;
     root["jit_ffi_enable"] = config.jit_ffi_enable;
     root["lastVersion"] = CRAFTOSPC_VERSION;
-    std::ofstream out(std::string(getBasePath()) + "/config/global.json");
+    std::ofstream out(getBasePath() + WS("/config/global.json"));
     out << root;
     out.close();
 #ifdef __EMSCRIPTEN__

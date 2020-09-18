@@ -12,8 +12,9 @@
 #define MOUNTER_HPP
 #include "lib.hpp"
 #include "Computer.hpp"
+#include "platform.hpp"
 extern library_t mounter_lib;
-extern std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
-extern bool addMount(Computer *comp, const char * real_path, const char * comp_path, bool read_only);
+extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
+extern bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool read_only);
 extern bool fixpath_ro(Computer *comp, const char * path);
 #endif

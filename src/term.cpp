@@ -42,113 +42,113 @@ extern std::unordered_set<Computer*> freedComputers;
 std::thread * renderThread;
 std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
-    {SDL_SCANCODE_1, 2},
-    {SDL_SCANCODE_2, 3},
-    {SDL_SCANCODE_3, 4},
-    {SDL_SCANCODE_4, 5},
-    {SDL_SCANCODE_5, 6},
-    {SDL_SCANCODE_6, 7},
-    {SDL_SCANCODE_7, 8},
-    {SDL_SCANCODE_8, 9},
-    {SDL_SCANCODE_9, 10},
-    {SDL_SCANCODE_0, 11},
-    {SDL_SCANCODE_MINUS, 12},
-    {SDL_SCANCODE_EQUALS, 13},
-    {SDL_SCANCODE_BACKSPACE, 14},
-    {SDL_SCANCODE_TAB, 15},
-    {SDL_SCANCODE_Q, 16},
-    {SDL_SCANCODE_W, 17},
-    {SDL_SCANCODE_E, 18},
-    {SDL_SCANCODE_R, 19},
-    {SDL_SCANCODE_T, 20},
-    {SDL_SCANCODE_Y, 21},
-    {SDL_SCANCODE_U, 22},
-    {SDL_SCANCODE_I, 23},
-    {SDL_SCANCODE_O, 24},
-    {SDL_SCANCODE_P, 25},
-    {SDL_SCANCODE_LEFTBRACKET, 26},
-    {SDL_SCANCODE_RIGHTBRACKET, 27},
-    {SDL_SCANCODE_RETURN, 28},
-    {SDL_SCANCODE_LCTRL, 29},
-    {SDL_SCANCODE_A, 30},
-    {SDL_SCANCODE_S, 31},
-    {SDL_SCANCODE_D, 32},
-    {SDL_SCANCODE_F, 33},
-    {SDL_SCANCODE_G, 34},
-    {SDL_SCANCODE_H, 35},
-    {SDL_SCANCODE_J, 36},
-    {SDL_SCANCODE_K, 37},
-    {SDL_SCANCODE_L, 38},
-    {SDL_SCANCODE_SEMICOLON, 39},
-    {SDL_SCANCODE_APOSTROPHE, 40},
-    {SDL_SCANCODE_GRAVE, 41},
-    {SDL_SCANCODE_LSHIFT, 42},
-    {SDL_SCANCODE_BACKSLASH, 43},
-    {SDL_SCANCODE_Z, 44},
-    {SDL_SCANCODE_X, 45},
-    {SDL_SCANCODE_C, 46},
-    {SDL_SCANCODE_V, 47},
-    {SDL_SCANCODE_B, 48},
-    {SDL_SCANCODE_N, 49},
-    {SDL_SCANCODE_M, 50},
-    {SDL_SCANCODE_COMMA, 51},
-    {SDL_SCANCODE_PERIOD, 52},
-    {SDL_SCANCODE_SLASH, 53},
-    {SDL_SCANCODE_RSHIFT, 54},
-    {SDL_SCANCODE_KP_MULTIPLY, 55},
-    {SDL_SCANCODE_LALT, 56},
-    {SDL_SCANCODE_SPACE, 57},
-    {SDL_SCANCODE_CAPSLOCK, 58},
-    {SDL_SCANCODE_F1, 59},
-    {SDL_SCANCODE_F2, 60},
-    {SDL_SCANCODE_F3, 61},
-    {SDL_SCANCODE_F4, 62},
-    {SDL_SCANCODE_F5, 63},
-    {SDL_SCANCODE_F6, 64},
-    {SDL_SCANCODE_F7, 65},
-    {SDL_SCANCODE_F8, 66},
-    {SDL_SCANCODE_F9, 67},
-    {SDL_SCANCODE_F10, 68},
-    {SDL_SCANCODE_NUMLOCKCLEAR, 69},
-    {SDL_SCANCODE_SCROLLLOCK, 70},
-    {SDL_SCANCODE_KP_7, 71},
-    {SDL_SCANCODE_KP_8, 72},
-    {SDL_SCANCODE_KP_9, 73},
-    {SDL_SCANCODE_KP_MINUS, 74},
-    {SDL_SCANCODE_KP_4, 75},
-    {SDL_SCANCODE_KP_5, 76},
-    {SDL_SCANCODE_KP_6, 77},
-    {SDL_SCANCODE_KP_PLUS, 78},
-    {SDL_SCANCODE_KP_1, 79},
-    {SDL_SCANCODE_KP_2, 80},
-    {SDL_SCANCODE_KP_3, 81},
-    {SDL_SCANCODE_KP_0, 82},
-    {SDL_SCANCODE_KP_DECIMAL, 83},
-    {SDL_SCANCODE_F11, 87},
-    {SDL_SCANCODE_F12, 88},
-    {SDL_SCANCODE_F13, 100},
-    {SDL_SCANCODE_F14, 101},
-    {SDL_SCANCODE_F15, 102},
-    {SDL_SCANCODE_KP_EQUALS, 141},
-    {SDL_SCANCODE_KP_AT, 145},
-    {SDL_SCANCODE_KP_COLON, 146},
-    {SDL_SCANCODE_STOP, 149},
-    {SDL_SCANCODE_KP_ENTER, 156},
-    {SDL_SCANCODE_RCTRL, 157},
-    {SDL_SCANCODE_KP_COMMA, 179},
-    {SDL_SCANCODE_KP_DIVIDE, 181},
-    {SDL_SCANCODE_RALT, 184},
-    {SDL_SCANCODE_PAUSE, 197},
-    {SDL_SCANCODE_HOME, 199},
-    {SDL_SCANCODE_UP, 200},
-    {SDL_SCANCODE_PAGEUP, 201},
-    {SDL_SCANCODE_LEFT, 203},
-    {SDL_SCANCODE_RIGHT, 205},
-    {SDL_SCANCODE_END, 207},
-    {SDL_SCANCODE_DOWN, 208},
-    {SDL_SCANCODE_PAGEDOWN, 209},
-    {SDL_SCANCODE_INSERT, 210},
-    {SDL_SCANCODE_DELETE, 211}
+    {SDLK_1, 2},
+    {SDLK_2, 3},
+    {SDLK_3, 4},
+    {SDLK_4, 5},
+    {SDLK_5, 6},
+    {SDLK_6, 7},
+    {SDLK_7, 8},
+    {SDLK_8, 9},
+    {SDLK_9, 10},
+    {SDLK_0, 11},
+    {SDLK_MINUS, 12},
+    {SDLK_EQUALS, 13},
+    {SDLK_BACKSPACE, 14},
+    {SDLK_TAB, 15},
+    {SDLK_q, 16},
+    {SDLK_w, 17},
+    {SDLK_e, 18},
+    {SDLK_r, 19},
+    {SDLK_t, 20},
+    {SDLK_y, 21},
+    {SDLK_u, 22},
+    {SDLK_i, 23},
+    {SDLK_o, 24},
+    {SDLK_p, 25},
+    {SDLK_LEFTBRACKET, 26},
+    {SDLK_RIGHTBRACKET, 27},
+    {SDLK_RETURN, 28},
+    {SDLK_LCTRL, 29},
+    {SDLK_a, 30},
+    {SDLK_s, 31},
+    {SDLK_d, 32},
+    {SDLK_f, 33},
+    {SDLK_g, 34},
+    {SDLK_h, 35},
+    {SDLK_j, 36},
+    {SDLK_k, 37},
+    {SDLK_l, 38},
+    {SDLK_SEMICOLON, 39},
+    {SDLK_QUOTE, 40},
+    {SDLK_BACKQUOTE, 41},
+    {SDLK_LSHIFT, 42},
+    {SDLK_BACKSLASH, 43},
+    {SDLK_z, 44},
+    {SDLK_x, 45},
+    {SDLK_c, 46},
+    {SDLK_v, 47},
+    {SDLK_b, 48},
+    {SDLK_n, 49},
+    {SDLK_m, 50},
+    {SDLK_COMMA, 51},
+    {SDLK_PERIOD, 52},
+    {SDLK_SLASH, 53},
+    {SDLK_RSHIFT, 54},
+    {SDLK_KP_MULTIPLY, 55},
+    {SDLK_LALT, 56},
+    {SDLK_SPACE, 57},
+    {SDLK_CAPSLOCK, 58},
+    {SDLK_F1, 59},
+    {SDLK_F2, 60},
+    {SDLK_F3, 61},
+    {SDLK_F4, 62},
+    {SDLK_F5, 63},
+    {SDLK_F6, 64},
+    {SDLK_F7, 65},
+    {SDLK_F8, 66},
+    {SDLK_F9, 67},
+    {SDLK_F10, 68},
+    {SDLK_NUMLOCKCLEAR, 69},
+    {SDLK_SCROLLLOCK, 70},
+    {SDLK_KP_7, 71},
+    {SDLK_KP_8, 72},
+    {SDLK_KP_9, 73},
+    {SDLK_KP_MINUS, 74},
+    {SDLK_KP_4, 75},
+    {SDLK_KP_5, 76},
+    {SDLK_KP_6, 77},
+    {SDLK_KP_PLUS, 78},
+    {SDLK_KP_1, 79},
+    {SDLK_KP_2, 80},
+    {SDLK_KP_3, 81},
+    {SDLK_KP_0, 82},
+    {SDLK_KP_DECIMAL, 83},
+    {SDLK_F11, 87},
+    {SDLK_F12, 88},
+    {SDLK_F13, 100},
+    {SDLK_F14, 101},
+    {SDLK_F15, 102},
+    {SDLK_KP_EQUALS, 141},
+    {SDLK_KP_AT, 145},
+    {SDLK_KP_COLON, 146},
+    {SDLK_STOP, 149},
+    {SDLK_KP_ENTER, 156},
+    {SDLK_RCTRL, 157},
+    {SDLK_KP_COMMA, 179},
+    {SDLK_KP_DIVIDE, 181},
+    {SDLK_RALT, 184},
+    {SDLK_PAUSE, 197},
+    {SDLK_HOME, 199},
+    {SDLK_UP, 200},
+    {SDLK_PAGEUP, 201},
+    {SDLK_LEFT, 203},
+    {SDLK_RIGHT, 205},
+    {SDLK_END, 207},
+    {SDLK_DOWN, 208},
+    {SDLK_PAGEDOWN, 209},
+    {SDLK_INSERT, 210},
+    {SDLK_DELETE, 211}
 };
 #ifndef NO_CLI
 std::unordered_map<int, unsigned char> keymap_cli = {
@@ -680,36 +680,36 @@ const char * termGetEvent(lua_State *L) {
     if (computer->getEvent(&e)) {
         if (e.type == SDL_QUIT) 
             return "die";
-        else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.scancode) != keymap.end())) {
+        else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.sym) != keymap.end())) {
             Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
-            if (e.key.keysym.scancode == SDL_SCANCODE_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
-            else if (e.key.keysym.scancode == SDL_SCANCODE_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
+            if (e.key.keysym.sym == SDLK_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
+            else if (e.key.keysym.sym == SDLK_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
 #ifndef __EMSCRIPTEN__
-            else if (e.key.keysym.scancode == SDL_SCANCODE_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
+            else if (e.key.keysym.sym == SDLK_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
 #endif
-            else if (e.key.keysym.scancode == SDL_SCANCODE_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
-            else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.scancode == SDL_SCANCODE_T : e.key.keysym.scancode == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
+            else if (e.key.keysym.sym == SDLK_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
+            else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_t : e.key.keysym.sym == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 1) {
                     computer->waitingForTerminate |= 2;
                     computer->waitingForTerminate &= ~1;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 3) == 0) computer->waitingForTerminate |= 1;
-            } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.scancode == SDL_SCANCODE_S : e.key.keysym.scancode == 31) && (e.key.keysym.mod & KMOD_CTRL)) {
+            } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_s : e.key.keysym.sym == 31) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 4) {
                     computer->waitingForTerminate |= 8;
                     computer->waitingForTerminate &= ~4;
                     computer->running = 0;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 12) == 0) computer->waitingForTerminate |= 4;
-            } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.scancode == SDL_SCANCODE_R : e.key.keysym.scancode == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
+            } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 16) {
                     computer->waitingForTerminate |= 32;
                     computer->waitingForTerminate &= ~16;
                     computer->running = 2;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 48) == 0) computer->waitingForTerminate |= 16;
-            } else if (e.key.keysym.scancode == SDL_SCANCODE_V && 
+            } else if (e.key.keysym.sym == SDLK_v && 
 #ifdef __APPLE__
               (e.key.keysym.mod & KMOD_GUI) &&
 #else
@@ -723,15 +723,15 @@ const char * termGetEvent(lua_State *L) {
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
-            if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.scancode); 
-            else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
+            if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.sym); 
+            else lua_pushinteger(L, keymap.at(e.key.keysym.sym));
             lua_pushboolean(L, e.key.repeat);
             return "key";
-        } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.scancode) != keymap.end())) {
-            if (e.key.keysym.scancode != SDL_SCANCODE_F2 || config.ignoreHotkeys) {
+        } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.sym) != keymap.end())) {
+            if (e.key.keysym.sym != SDLK_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
-                if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.scancode); 
-                else lua_pushinteger(L, keymap.at(e.key.keysym.scancode));
+                if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.sym); 
+                else lua_pushinteger(L, keymap.at(e.key.keysym.sym));
                 return "key_up";
             }
         } else if (e.type == SDL_TEXTINPUT) {

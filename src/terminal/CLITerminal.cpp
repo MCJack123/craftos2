@@ -188,14 +188,14 @@ void handle_winch(int sig) {
 void pressControl(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
-    e.key.keysym.scancode = (SDL_Scancode)29;
+    e.key.keysym.sym = (SDL_Keycode)29;
     for (Computer * c : computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
             c->termEventQueue.push(e);
             e.type = SDL_KEYUP;
-            e.key.keysym.scancode = (SDL_Scancode)29;
+            e.key.keysym.sym = (SDL_Keycode)29;
             c->termEventQueue.push(e);
             c->event_lock.notify_all();
         }
@@ -205,14 +205,14 @@ void pressControl(int sig) {
 void pressAlt(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
-    e.key.keysym.scancode = (SDL_Scancode)56;
+    e.key.keysym.sym = (SDL_Keycode)56;
     for (Computer * c : computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
             c->termEventQueue.push(e);
             e.type = SDL_KEYUP;
-            e.key.keysym.scancode = (SDL_Scancode)56;
+            e.key.keysym.sym = (SDL_Keycode)56;
             c->termEventQueue.push(e);
             c->event_lock.notify_all();
         }
@@ -307,7 +307,7 @@ bool CLITerminal::pollEvents() {
         for (int cc : lastch) {
             if (cc != 27) {
                 e.type = SDL_KEYUP;
-                e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
+                e.key.keysym.sym = (SDL_Keycode)(keymap_cli.find(cc) != keymap_cli.end() ? keymap_cli.at(cc) : cc);
                 sendEventToTermQueue(e, key);
             }
         }
@@ -383,8 +383,8 @@ bool CLITerminal::pollEvents() {
         e.button.y = me.y + 1;
         sendEventToTermQueue(e, button);
     } else if (ch != ERR && ch != KEY_RESIZE) {
-        if (config.cliControlKeyMode == 2 && ch == 'c' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1025;
-        else if (config.cliControlKeyMode == 2 && ch == 'a' && lastch.find(27) != lastch.end()) ch = (SDL_Scancode)1026;
+        if (config.cliControlKeyMode == 2 && ch == 'c' && lastch.find(27) != lastch.end()) ch = (SDL_Keycode)1025;
+        else if (config.cliControlKeyMode == 2 && ch == 'a' && lastch.find(27) != lastch.end()) ch = (SDL_Keycode)1026;
         if ((ch >= 32 && ch < 127)) {
             e.type = SDL_TEXTINPUT;
             e.text.text[0] = ch;
@@ -392,8 +392,8 @@ bool CLITerminal::pollEvents() {
             sendEventToTermQueue(e, text);
         }
         e.type = SDL_KEYDOWN;
-        e.key.keysym.scancode = (SDL_Scancode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
-        if (ch == '\n') e.key.keysym.scancode = (SDL_Scancode)28;
+        e.key.keysym.sym = (SDL_Keycode)(keymap_cli.find(ch) != keymap_cli.end() ? keymap_cli.at(ch) : ch);
+        if (ch == '\n') e.key.keysym.sym = (SDL_Keycode)28;
         if (ch != 27) {
             sendEventToTermQueue(e, key);
         }

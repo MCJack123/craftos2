@@ -33,6 +33,11 @@ extern "C" {
 #include "peripheral/peripheral.hpp"
 #include "terminal/Terminal.hpp"
 #include "config.hpp"
+#ifdef WIN32
+typedef std::wstring path_t;
+#else
+typedef std::string path_t;
+#endif
 
 typedef const char * (*event_provider)(lua_State *L, void* data);
 
@@ -48,7 +53,7 @@ struct Computer {
     int id;
     int running = 0;
     int files_open = 0;
-    std::vector< std::tuple<std::list<std::string>, std::string, bool> > mounts;
+    std::vector< std::tuple<std::list<std::string>, path_t, bool> > mounts;
     bool mounter_initializing = false;
     std::queue<std::string> eventQueue;
     lua_State * paramQueue;
@@ -91,24 +96,24 @@ struct Computer {
     SDL_TimerID mouseMoveDebounceTimer = 0;
     mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()};
     std::unordered_map<int, std::function<void(Computer*, int, void*)> > userdata_destructors;
-    std::string dataDir;
+    path_t dataDir;
     std::mutex termEventQueueMutex;
 
-    static std::unordered_map<int, std::string> customDataDirs;
-    static std::list<std::string> customPlugins;
+    static std::unordered_map<int, path_t> customDataDirs;
+    static std::list<path_t> customPlugins;
     static std::list<std::tuple<std::string, std::string, int> > customMounts;
     Computer(int i): Computer(i, false) {}
     Computer(int i, bool debug);
     ~Computer();
-    void run(std::string bios_name);
+    void run(path_t bios_name);
     bool getEvent(SDL_Event* e);
 private:
-    void loadPlugin(std::string path);
+    void loadPlugin(path_t path);
 };
 
 extern std::vector<Computer*> computers;
 extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
-extern std::string computerDir;
+extern path_t computerDir;
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 

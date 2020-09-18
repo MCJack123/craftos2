@@ -181,10 +181,10 @@ extern int convertX(SDLTerminal *term, int x);
 extern int convertY(SDLTerminal *term, int y);
 
 void sendRawEvent(SDL_Event e) {
-    if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (selectedRenderer != 0 || keymap.find(e.key.keysym.scancode) != keymap.end())) 
+    if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (selectedRenderer != 0 || keymap.find(e.key.keysym.sym) != keymap.end())) 
         sendRawData(CCPC_RAW_KEY_DATA, rawClientTerminalIDs[e.key.windowID], [e](std::ostream& output) {
-            if (selectedRenderer == 0) output.put(keymap.at(e.key.keysym.scancode));
-            else output.put(e.key.keysym.scancode);
+            if (selectedRenderer == 0) output.put(keymap.at(e.key.keysym.sym));
+            else output.put(e.key.keysym.sym);
             output.put((e.type == SDL_KEYUP) | ((0) << 1) | (((e.key.keysym.mod & KMOD_CTRL) != 0) << 2) | ((0) << 3));
         });
     else if (e.type == SDL_TEXTINPUT)
@@ -339,7 +339,7 @@ void rawInputLoop() {
                 } else if ((flags & 9) == 1) {
                     e.type = SDL_KEYUP;
                     e.key.windowID = id;
-                    e.key.keysym.scancode = (SDL_Scancode)key;
+                    e.key.keysym.sym = (SDL_Keycode)key;
                     if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
                     for (Computer * c : computers) {
                         if (checkWindowID(c, e.key.windowID)) {
@@ -352,7 +352,7 @@ void rawInputLoop() {
                 } else {
                     e.type = SDL_KEYDOWN;
                     e.key.windowID = id;
-                    e.key.keysym.scancode = (SDL_Scancode)key;
+                    e.key.keysym.sym = (SDL_Keycode)key;
                     if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
                     for (Computer * c : computers) {
                         if (checkWindowID(c, e.key.windowID)) {

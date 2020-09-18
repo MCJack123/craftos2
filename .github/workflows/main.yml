@@ -67,7 +67,7 @@ jobs:
         cd ..
     - name: Build CraftOS-PC
       run: |
-        CFLAGS=-Wall ./configure --with-standalone-rom=craftos2-rom/fs_standalone.cpp
+        CFLAGS=-Wall ./configure --with-standalone_rom=craftos2-rom/fs_standalone.cpp
         make
     - name: Run CraftOSTest
       run: make test || echo $? > ~/.retval

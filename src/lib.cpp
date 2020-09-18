@@ -73,3 +73,13 @@ std::vector<std::string> split(std::string strToSplit, char delimeter) {
     }
     return splittedStrings;
 }
+
+std::vector<std::wstring> split(std::wstring strToSplit, wchar_t delimeter) {
+    std::wstringstream ss(strToSplit);
+    std::wstring item;
+    std::vector<std::wstring> splittedStrings;
+    while (std::getline(ss, item, delimeter)) {
+        splittedStrings.push_back(item);
+    }
+    return splittedStrings;
+}

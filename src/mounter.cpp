@@ -25,7 +25,7 @@
 #include <cassert>
 #ifdef WIN32
 #include <dirent.h>
-#define PATH_SEP "\\"
+#define PATH_SEP L"\\"
 #else
 #include <libgen.h>
 #define PATH_SEP "/"
@@ -35,28 +35,28 @@ extern std::string script_file;
 
 bool nothrow(std::function<void()> f) {try {f(); return true;} catch (std::exception &e) {return false;}}
 
-std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
+path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
     std::vector<std::string> elems = split(path, '/');
     std::list<std::string> pathc;
     for (std::string s : elems) {
-        if (s == "..") { if (pathc.size() < 1) return std::string(); else pathc.pop_back(); } 
+        if (s == "..") { if (pathc.size() < 1) return path_t(); else pathc.pop_back(); } 
         else if (s != "." && s != "") pathc.push_back(s);
     }
     while (pathc.size() > 0 && pathc.front().empty()) pathc.pop_front();
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua") 
 #ifdef STANDALONE_ROM
-        return ":bios.lua";
+        return WS(":bios.lua");
 #else
-        return getROMPath() + PATH_SEP + "bios.lua";
+        return getROMPath() + PATH_SEP + WS("bios.lua");
 #endif
-    std::stringstream ss;
+    pathstream_t ss;
     if (addExt) {
-        std::pair<size_t, std::vector<std::string> > max_path = std::make_pair(0, std::vector<std::string>(1, comp->dataDir));
+        std::pair<size_t, std::vector<path_t> > max_path = std::make_pair(0, std::vector<path_t>(1, comp->dataDir));
         std::list<std::string> * mount_list = NULL;
         for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++) {
             if (pathc.size() >= std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin())) {
                 if (std::get<0>(*it).size() > max_path.first) {
-                    max_path = std::make_pair(std::get<0>(*it).size(), std::vector<std::string>(1, std::get<1>(*it)));
+                    max_path = std::make_pair(std::get<0>(*it).size(), std::vector<path_t>(1, std::get<1>(*it)));
                     mount_list = &std::get<0>(*it);
                 } else if (std::get<0>(*it).size() == max_path.first) {
                     max_path.second.push_back(std::get<1>(*it));
@@ -67,49 +67,49 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
         if (isRoot != NULL) *isRoot = pathc.empty();
         if (exists) {
             bool found = false;
-            for (std::string p : max_path.second) {
-                std::stringstream sstmp;
-                struct stat st;
+            for (path_t p : max_path.second) {
+                pathstream_t sstmp;
+                struct_stat st;
                 sstmp << p;
-                for (std::string s : pathc) sstmp << PATH_SEP << s;
+                for (std::string s : pathc) sstmp << PATH_SEP << wstr(s);
                 if (
 #ifdef STANDALONE_ROM
-                (p == "rom:" && nothrow([&sstmp](){standaloneROM.path(sstmp.str());})) || (p == "debug:" && nothrow([&sstmp](){standaloneDebug.path(sstmp.str());})) ||
+                (p == WS("rom:") && nothrow([&sstmp](){standaloneROM.path(sstmp.str());})) || (p == WS("debug:") && nothrow([&sstmp](){standaloneDebug.path(sstmp.str());})) ||
 #endif
-                (stat((sstmp.str()).c_str(), &st) == 0)) {
+                (platform_stat((sstmp.str()).c_str(), &st) == 0)) {
                     if (getAllResults && found) ss << "\n";
                     ss << sstmp.str();
                     found = true;
                     if (!getAllResults) break;
                 }
             }
-            if (!found) return std::string();
+            if (!found) return path_t();
         } else if (pathc.size() > 1) {
             bool found = false;
             std::string back = pathc.back();
             pathc.pop_back();
-            for (std::string p : max_path.second) {
-                std::stringstream sstmp;
-                struct stat st;
+            for (path_t p : max_path.second) {
+                pathstream_t sstmp;
+                struct_stat st;
                 sstmp << p;
-                for (std::string s : pathc) sstmp << PATH_SEP << s;
+                for (std::string s : pathc) sstmp << PATH_SEP << wstr(s);
                 if (
 #ifdef STANDALONE_ROM
-                (p == "rom:" && (nothrow([&sstmp, back](){standaloneROM.path(sstmp.str() + "/" + back);}) || (nothrow([&sstmp](){standaloneROM.path(sstmp.str());}) && standaloneROM.path(sstmp.str()).isDir))) || 
-                (p == "debug:" && (nothrow([&sstmp, back](){standaloneDebug.path(sstmp.str() + "/" + back);}) || (nothrow([&sstmp](){standaloneDebug.path(sstmp.str());}) && standaloneDebug.path(sstmp.str()).isDir))) ||
+                (p == WS("rom:") && (nothrow([&sstmp, back](){standaloneROM.path(sstmp.str() + WS("/") + wstr(back));}) || (nothrow([&sstmp](){standaloneROM.path(sstmp.str());}) && standaloneROM.path(sstmp.str()).isDir))) || 
+                (p == WS("debug:") && (nothrow([&sstmp, back](){standaloneDebug.path(sstmp.str() + WS("/") + wstr(back));}) || (nothrow([&sstmp](){standaloneDebug.path(sstmp.str());}) && standaloneDebug.path(sstmp.str()).isDir))) ||
 #endif
-                (stat((sstmp.str() + PATH_SEP + back).c_str(), &st) == 0) || (stat(sstmp.str().c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+                (platform_stat((sstmp.str() + PATH_SEP + wstr(back)).c_str(), &st) == 0) || (platform_stat(sstmp.str().c_str(), &st) == 0 && S_ISDIR(st.st_mode))
                 ) {
                     if (getAllResults && found) ss << "\n";
-                    ss << sstmp.str() << PATH_SEP << back;
+                    ss << sstmp.str() << PATH_SEP << wstr(back);
                     found = true;
                     if (!getAllResults) break;
                 }
             }
-            if (!found) return std::string();
+            if (!found) return path_t();
         } else {
             ss << max_path.second.front();
-            for (std::string s : pathc) ss << PATH_SEP << s;
+            for (std::string s : pathc) ss << PATH_SEP << wstr(s);
         }
         if (mountPath != NULL) {
             if (mount_list == NULL) *mountPath = "hdd";
@@ -122,7 +122,7 @@ std::string fixpath(Computer *comp, const char * path, bool exists, bool addExt,
                 *mountPath = ss2.str();
             }
         }
-    } else for (std::string s : pathc) ss << (ss.tellp() == 0 ? "" : "/") << s;
+    } else for (std::string s : pathc) ss << (ss.tellp() == 0 ? WS("") : WS("/")) << wstr(s);
     return ss.str();
 }
 
@@ -140,13 +140,13 @@ bool fixpath_ro(Computer *comp, const char * path) {
     return max_path.second;
 }
 
-bool addMount(Computer *comp, const char * real_path, const char * comp_path, bool read_only) {
-    struct stat sb;
+bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool read_only) {
+    struct_stat sb;
     if (
 #ifdef STANDALONE_ROM
-        (std::string(real_path) != "rom:" && std::string(real_path) != "debug:") &&
+        (real_path != WS("rom:") && real_path != WS("debug:")) &&
 #endif
-        (stat(real_path, &sb) != 0 || !S_ISDIR(sb.st_mode))
+        (platform_stat(real_path.c_str(), &sb) != 0 || !S_ISDIR(sb.st_mode))
         ) return false;
     std::vector<std::string> elems = split(comp_path, '/');
     std::list<std::string> pathc;
@@ -165,7 +165,7 @@ bool addMount(Computer *comp, const char * real_path, const char * comp_path, bo
         data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
         data.title = "Mount requested";
         // see config.cpp:234 for why this is a pointer (TL;DR Windows is dumb)
-        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(real_path) + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
+        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(astr(real_path)) + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
         data.message = message->c_str();
         data.numbuttons = 2;
         SDL_MessageBoxButtonData buttons[2];
@@ -181,7 +181,7 @@ bool addMount(Computer *comp, const char * real_path, const char * comp_path, bo
         delete message;
     }
     if (!selected) return false;
-    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), std::string(real_path), read_only));
+    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), path_t(real_path), read_only));
     return true;
 }
 
@@ -205,7 +205,7 @@ int mounter_mount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     bool read_only = config.mount_mode != MOUNT_MODE_RW;
     if (lua_isboolean(L, 3) && config.mount_mode != MOUNT_MODE_RO_STRICT) read_only = lua_toboolean(L, 3);
-    lua_pushboolean(L, addMount(get_comp(L), lua_tostring(L, 2), lua_tostring(L, 1), read_only));
+    lua_pushboolean(L, addMount(get_comp(L), wstr(lua_tostring(L, 2)), lua_tostring(L, 1), read_only));
     return 1;
 }
 
@@ -252,7 +252,7 @@ int mounter_list(lua_State *L) {
             lua_newtable(L); // table, entries
         }
         lua_pushinteger(L, lua_objlen(L, -1) + 1); // table, entries, index
-        lua_pushstring(L, std::get<1>(m).c_str()); // table, entries, index, value
+        lua_pushstring(L, astr(std::get<1>(m)).c_str()); // table, entries, index, value
         lua_settable(L, -3); // table, entries
         lua_pushstring(L, ss.str().c_str()); // table, entries, key
         lua_pushvalue(L, -2); // table, entries, key, entries
@@ -284,24 +284,24 @@ int mounter_isReadOnly(lua_State *L) {
     return 0; // redundant
 }
 
-extern std::string fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL);
+extern path_t fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL);
 
 extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
     if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0'))) 
         luaL_error(L, "Unsupported mode");
     if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
-    struct stat st;
-    std::string newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
+    struct_stat st;
+    path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
     if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename)) 
         { errno = EACCES; return NULL; }
-    if (stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
+    if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
     FILE* retval;
-    if (mode[1] == 'b' && mode[2] == '+') retval = fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
+    if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
     else if (mode[1] == '+') {
         std::string mstr = mode;
         mstr.erase(mstr.begin() + 1);
-        retval = fopen(newpath.c_str(), mstr.c_str());
-    } else retval = fopen(newpath.c_str(), mode);
+        retval = platform_fopen(newpath.c_str(), mstr.c_str());
+    } else retval = platform_fopen(newpath.c_str(), mode);
     if (retval != NULL) get_comp(L)->files_open++;
     return retval;
 }

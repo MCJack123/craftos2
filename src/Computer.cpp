@@ -46,9 +46,9 @@ std::vector<Computer*> computers;
 std::mutex computers_mutex;
 std::unordered_set<Computer*> freedComputers; 
 ProtectedObject<std::unordered_set<SDL_TimerID>> freedTimers;
-std::string computerDir;
-std::unordered_map<int, std::string> Computer::customDataDirs;
-std::list<std::string> Computer::customPlugins;
+path_t computerDir;
+std::unordered_map<int, path_t> Computer::customDataDirs;
+std::list<path_t> Computer::customPlugins;
 std::list<std::tuple<std::string, std::string, int> > Computer::customMounts;
 
 // Basic CraftOS libraries
@@ -69,32 +69,32 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
 #ifdef STANDALONE_ROM
-    addMount(this, "rom:", "rom", true);
-    if (debug) addMount(this, "debug:", "debug", true);
+    addMount(this, WS("rom:"), "rom", true);
+    if (debug) addMount(this, WS("debug:"), "debug", true);
 #else
 #ifdef _WIN32
-    if (!addMount(this, (getROMPath() + "\\rom").c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
-    if (debug) if (!addMount(this, (getROMPath() + "\\debug").c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
+    if (!addMount(this, (getROMPath() + WS("\\rom")).c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
+    if (debug) if (!addMount(this, (getROMPath() + WS("\\debug")).c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
 #else
-    if (!addMount(this, (getROMPath() + "/rom").c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
-    if (debug) if (!addMount(this, (getROMPath() + "/debug").c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
+    if (!addMount(this, (getROMPath() + WS("/rom")).c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
+    if (debug) if (!addMount(this, (getROMPath() + WS("/debug")).c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
 #endif // _WIN32
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
     for (auto m : customMounts) {
         switch (std::get<2>(m)) {
-            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) addMount(this, std::get<1>(m).c_str(), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
-            case 0: addMount(this, std::get<1>(m).c_str(), std::get<0>(m).c_str(), true); break; // force RO
-            default: addMount(this, std::get<1>(m).c_str(), std::get<0>(m).c_str(), false); break; // force RW
+            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) addMount(this, wstr(std::get<1>(m)).c_str(), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
+            case 0: addMount(this, wstr(std::get<1>(m)).c_str(), std::get<0>(m).c_str(), true); break; // force RO
+            default: addMount(this, wstr(std::get<1>(m)).c_str(), std::get<0>(m).c_str(), false); break; // force RW
         }
     }
     mounter_initializing = false;
     // Get the computer's data directory
     if (customDataDirs.find(id) != customDataDirs.end()) dataDir = customDataDirs[id];
 #ifdef _WIN32
-    else dataDir = computerDir + "\\" + std::to_string(id);
+    else dataDir = computerDir + WS("\\") + to_path_t(id);
 #else
-    else dataDir = computerDir + "/" + std::to_string(id);
+    else dataDir = computerDir + WS("/") + to_path_t(id);
 #endif
     // Create the root directory
     createDirectory(dataDir.c_str());
@@ -162,7 +162,7 @@ extern "C" {
         if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
         Computer * computer = get_comp(L);
         int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
-        computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, lua_tostring(L, 1), false, false), lua_tointeger(L, 2));
+        computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, lua_tostring(L, 1), false, false)), lua_tointeger(L, 2));
         if (!computer->hasBreakpoints) forceCheckTimeout = true;
         computer->hasBreakpoints = true;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
@@ -225,17 +225,17 @@ static void pluginError(lua_State *L, const char * name, const char * err) {
 
 extern void config_save();
 
-std::unordered_map<std::string, void*> loadedPlugins;
+std::unordered_map<path_t, void*> loadedPlugins;
 
-void Computer::loadPlugin(std::string path) {
-    size_t pos = path.find_last_of("/\\");
+void Computer::loadPlugin(path_t path) {
+    size_t pos = path.find_last_of(WS("/\\"));
     if (pos == std::string::npos) pos = 0; else pos++;
-    std::string api_name = path.substr(pos).substr(0, path.substr(pos).find_first_of('.'));
+    std::string api_name = astr(path.substr(pos).substr(0, path.substr(pos).find_first_of('.')));
     bool isLuaLib = false;
     void* handle;
     if (loadedPlugins.find(path) != loadedPlugins.end()) handle = loadedPlugins[path];
     else {
-        handle = SDL_LoadObject(path.c_str());
+        handle = SDL_LoadObject(astr(path).c_str());
         if (handle == NULL) {
             fprintf(stderr, "The plugin \"%s\" is not a valid plugin file.\n", api_name.c_str());
             pluginError(L, api_name.c_str(), "Not a valid plugin");
@@ -349,15 +349,23 @@ void Computer::loadPlugin(std::string path) {
     lua_pushcfunction(L, luaopen);
     lua_pushstring(L, api_name.c_str());
     if (!isLuaLib) {
-        lua_pushstring(L, getROMPath().c_str());
-        lua_pushstring(L, getBasePath().c_str());
+        lua_pushstring(L, astr(getROMPath()).c_str());
+        lua_pushstring(L, astr(getBasePath()).c_str());
         lua_call(L, 3, 1);
     } else lua_call(L, 1, 1);
     lua_setglobal(L, api_name.c_str());
 }
 
+char file_read_tmp[4096];
+
+const char * file_reader(lua_State *L, void * ud, size_t *size) {
+    if (feof((FILE*)ud)) return NULL;
+    *size = fread(file_read_tmp, 1, 4096, (FILE*)ud);
+    return file_read_tmp;
+}
+
 // Main computer loop
-void Computer::run(std::string bios_name) {
+void Computer::run(path_t bios_name) {
     if (config.startFullscreen && dynamic_cast<SDLTerminal*>(term) != NULL) ((SDLTerminal*)term)->toggleFullscreen();
     running = 1;
     if (L != NULL) lua_close(L);
@@ -444,20 +452,20 @@ void Computer::run(std::string bios_name) {
 #ifndef STANDALONE_ROM
             lua_newtable(L);
             lua_setfield(L, LUA_REGISTRYINDEX, "plugin_info");
-            struct dirent *dir;
-            std::string plugin_path = getPlugInPath();
-            DIR * d = opendir(plugin_path.c_str());
-            struct stat st;
+            struct_dirent *dir;
+            path_t plugin_path = getPlugInPath();
+            platform_DIR * d = platform_opendir(plugin_path.c_str());
+            struct_stat st;
             if (d) {
-                for (int i = 0; (dir = readdir(d)) != NULL; i++) {
-                    if (stat((plugin_path + "/" + std::string(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
-                    if (std::string(dir->d_name) == ".DS_Store" || std::string(dir->d_name) == "desktop.ini") continue;
-                    loadPlugin(plugin_path + "/" + dir->d_name);
+                for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
+                    if (platform_stat((plugin_path + WS("/") + path_t(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+                    if (path_t(dir->d_name) == WS(".DS_Store") || path_t(dir->d_name) == WS("desktop.ini")) continue;
+                    loadPlugin(plugin_path + WS("/") + dir->d_name);
                 }
-                closedir(d);
+                platform_closedir(d);
             }
 #endif
-            for (std::string path : customPlugins) loadPlugin(path);
+            for (path_t path : customPlugins) loadPlugin(path);
         }
 
         // Delete unwanted globals
@@ -573,25 +581,27 @@ void Computer::run(std::string bios_name) {
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
-        status = luaL_loadstring(coro, bios_name.c_str());
-        std::string bios_path_expanded = "standalone ROM";
+        status = luaL_loadstring(coro, astr(bios_name).c_str());
+        path_t bios_path_expanded = WS("standalone ROM");
 #else
 #ifdef WIN32
-        std::string bios_path_expanded = getROMPath() + "\\" + bios_name;
+        path_t bios_path_expanded = getROMPath() + WS("\\") + bios_name;
 #else
-        std::string bios_path_expanded = getROMPath() + "/" + bios_name;
+        path_t bios_path_expanded = getROMPath() + WS("/") + bios_name;
 #endif
-        status = luaL_loadfile(coro, bios_path_expanded.c_str());
+        FILE * bios_file = platform_fopen(bios_path_expanded.c_str(), "r");
+        status = lua_load(coro, file_reader, bios_file, "@bios.lua");
+        fclose(bios_file);
 #endif
         if (status || !lua_isfunction(coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.c_str(), lua_tostring(L, -1));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(L, -1));
             queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
                     SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
                     std::string(
-                        "Couldn't load BIOS from " + bios_path_expanded + ". Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)"
+                        "Couldn't load BIOS from " + astr(bios_path_expanded) + ". Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)"
                     ).c_str()
                 ); 
                 return NULL;
@@ -657,9 +667,9 @@ void* computerThread(void* data) {
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);
 #ifdef STANDALONE_ROM
-    comp->run(standaloneBIOS);
+    comp->run(wstr(standaloneBIOS));
 #else
-    comp->run("bios.lua");
+    comp->run(WS("bios.lua"));
 #endif
     freedComputers.insert(comp);
     {
