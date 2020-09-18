@@ -74,7 +74,7 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
                 for (std::string s : pathc) sstmp << PATH_SEP << wstr(s);
                 if (
 #ifdef STANDALONE_ROM
-                (p == "rom:" && nothrow([&sstmp](){standaloneROM.path(sstmp.str());})) || (p == "debug:" && nothrow([&sstmp](){standaloneDebug.path(sstmp.str());})) ||
+                (p == WS("rom:") && nothrow([&sstmp](){standaloneROM.path(sstmp.str());})) || (p == WS("debug:") && nothrow([&sstmp](){standaloneDebug.path(sstmp.str());})) ||
 #endif
                 (platform_stat((sstmp.str()).c_str(), &st) == 0)) {
                     if (getAllResults && found) ss << "\n";
@@ -95,8 +95,8 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
                 for (std::string s : pathc) sstmp << PATH_SEP << wstr(s);
                 if (
 #ifdef STANDALONE_ROM
-                (p == "rom:" && (nothrow([&sstmp, back](){standaloneROM.path(sstmp.str() + "/" + back);}) || (nothrow([&sstmp](){standaloneROM.path(sstmp.str());}) && standaloneROM.path(sstmp.str()).isDir))) || 
-                (p == "debug:" && (nothrow([&sstmp, back](){standaloneDebug.path(sstmp.str() + "/" + back);}) || (nothrow([&sstmp](){standaloneDebug.path(sstmp.str());}) && standaloneDebug.path(sstmp.str()).isDir))) ||
+                (p == WS("rom:") && (nothrow([&sstmp, back](){standaloneROM.path(sstmp.str() + WS("/") + wstr(back));}) || (nothrow([&sstmp](){standaloneROM.path(sstmp.str());}) && standaloneROM.path(sstmp.str()).isDir))) || 
+                (p == WS("debug:") && (nothrow([&sstmp, back](){standaloneDebug.path(sstmp.str() + WS("/") + wstr(back));}) || (nothrow([&sstmp](){standaloneDebug.path(sstmp.str());}) && standaloneDebug.path(sstmp.str()).isDir))) ||
 #endif
                 (platform_stat((sstmp.str() + PATH_SEP + wstr(back)).c_str(), &st) == 0) || (platform_stat(sstmp.str().c_str(), &st) == 0 && S_ISDIR(st.st_mode))
                 ) {
@@ -144,7 +144,7 @@ bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool rea
     struct_stat sb;
     if (
 #ifdef STANDALONE_ROM
-        (std::string(real_path) != "rom:" && std::string(real_path) != "debug:") &&
+        (real_path != WS("rom:") && real_path != WS("debug:")) &&
 #endif
         (platform_stat(real_path.c_str(), &sb) != 0 || !S_ISDIR(sb.st_mode))
         ) return false;

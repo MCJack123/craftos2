@@ -14,7 +14,7 @@ AC_ARG_WITH(sdl_mixer, [AS_HELP_STRING([--without-sdl_mixer], [do not support au
 AC_ARG_WITH(hpdf, [AS_HELP_STRING([--with-hpdf], [make printer output PDF files])])
 AC_ARG_WITH(html, [AS_HELP_STRING([--with-html], [make printer output HTML files])])
 AC_ARG_WITH(txt, [AS_HELP_STRING([--with-txt], [make printer output text files])])
-AC_ARG_WITH(standalone_rom, [AS_HELP_STRING([--with-standalone-rom], [path to standalone ROM file, enables standalone build])])
+AC_ARG_WITH(standalone_rom, [AS_HELP_STRING([--with-standalone_rom], [path to standalone ROM file, enables standalone build])])
 AC_ARG_ENABLE(wasm, [AS_HELP_STRING([--enable-wasm], [compile for WebAssembly using Emscripten])])
 AC_ARG_WITH(wasm_poco, [AS_HELP_STRING([--with-wasm-poco], [path to Poco build for WASM])])
 AC_ARG_WITH(wasm_rom, [AS_HELP_STRING([--with-wasm-rom], [path to ROM for WASM builds])])

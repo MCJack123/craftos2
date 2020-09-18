@@ -239,7 +239,7 @@ int fs_getSize(lua_State *L) {
             if (d.isDir) err(L, 1, "Is a directory");
             lua_pushinteger(L, d.data.size());
         } catch (std::exception &e) {err(L, 1, "No such file");}
-    } else if (path == ":bios.lua") {
+    } else if (path == WS(":bios.lua")) {
         lua_pushinteger(L, standaloneBIOS.size());
     } else {
 #endif
@@ -419,7 +419,7 @@ int fs_open(lua_State *L) {
 #ifdef STANDALONE_ROM
     if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:") || path == WS(":bios.lua")) {
         std::stringstream * fp;
-        if (path == ":bios.lua") {
+        if (path == WS(":bios.lua")) {
             fp = new std::stringstream(standaloneBIOS);
         } else {
             try {

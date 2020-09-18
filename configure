@@ -1324,7 +1324,7 @@ Optional Packages:
   --with-hpdf             make printer output PDF files
   --with-html             make printer output HTML files
   --with-txt              make printer output text files
-  --with-standalone-rom   path to standalone ROM file, enables standalone
+  --with-standalone_rom   path to standalone ROM file, enables standalone
                           build
   --with-wasm-poco        path to Poco build for WASM
   --with-wasm-rom         path to ROM for WASM builds

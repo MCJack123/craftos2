@@ -69,8 +69,8 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
 #ifdef STANDALONE_ROM
-    addMount(this, "rom:", "rom", true);
-    if (debug) addMount(this, "debug:", "debug", true);
+    addMount(this, WS("rom:"), "rom", true);
+    if (debug) addMount(this, WS("debug:"), "debug", true);
 #else
 #ifdef _WIN32
     if (!addMount(this, (getROMPath() + WS("\\rom")).c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
@@ -568,7 +568,7 @@ void Computer::run(path_t bios_name) {
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
         status = luaL_loadstring(coro, astr(bios_name).c_str());
-        std::string bios_path_expanded = "standalone ROM";
+        path_t bios_path_expanded = WS("standalone ROM");
 #else
 #ifdef WIN32
         path_t bios_path_expanded = getROMPath() + WS("\\") + bios_name;
