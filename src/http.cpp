@@ -61,9 +61,10 @@ typedef struct http_handle {
     char * url;
     HTTPClientSession * session;
     HTTPResponse * handle;
-    std::istream& stream;
+    std::istream * stream;
     bool isBinary;
-    http_handle(std::istream& s): stream(s) {}
+    std::string failureReason;
+    http_handle(std::istream * s): stream(s) {}
 } http_handle_t;
 
 typedef struct {
@@ -124,12 +125,60 @@ const char * http_success(lua_State *L, void* data) {
 }
 
 const char * http_failure(lua_State *L, void* data) {
-    http_check_t * err = (http_check_t*)data;
-    lua_pushstring(L, err->url);
-    delete[] err->url;
-    if (!err->status.empty()) lua_pushstring(L, err->status.c_str());
-    else lua_pushnil(L);
-    delete err;
+    http_handle_t * handle = (http_handle_t*)data;
+    luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
+    lua_pushstring(L, handle->url);
+    if (!handle->failureReason.empty()) lua_pushstring(L, handle->failureReason.c_str());
+    if (handle->stream != NULL) {
+        lua_newtable(L);
+
+        lua_pushstring(L, "close");
+        lua_pushlightuserdata(L, handle);
+        lua_newtable(L);
+        lua_pushstring(L, "__gc");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_free, 1);
+        lua_settable(L, -3);
+        lua_setmetatable(L, -2);
+        lua_pushcclosure(L, http_handle_close, 1);
+        lua_settable(L, -3);
+
+        lua_pushstring(L, "readAll");
+        lua_pushlightuserdata(L, handle);
+        lua_pushboolean(L, handle->isBinary);
+        lua_pushcclosure(L, http_handle_readAll, 2);
+        lua_settable(L, -3);
+
+        if (!handle->isBinary) {
+            lua_pushstring(L, "readLine");
+            lua_pushlightuserdata(L, handle);
+            lua_pushcclosure(L, http_handle_readLine, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "read");
+            lua_pushlightuserdata(L, handle);
+            lua_pushcclosure(L, http_handle_readChar, 1);
+            lua_settable(L, -3);
+        } else {
+            lua_pushstring(L, "read");
+            lua_pushlightuserdata(L, handle);
+            lua_pushcclosure(L, http_handle_readByte, 1);
+            lua_settable(L, -3);
+        }
+
+        lua_pushstring(L, "getResponseCode");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_getResponseCode, 1);
+        lua_settable(L, -3);
+
+        lua_pushstring(L, "getResponseHeaders");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_getResponseHeaders, 1);
+        lua_settable(L, -3);
+    } else {
+        delete[] handle->url;
+        delete handle;
+    }
     return "http_failure";
 }
 
@@ -171,9 +220,9 @@ void downloadThread(void* arg) {
         if (reqs.bad() || reqs.fail()) {
             if (param->postData != NULL) delete[] param->postData;
             if (param->url != param->old_url) delete[] param->old_url;
-            http_check_t * err = new http_check_t;
+            http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
-            err->status = "Failed to send request";
+            err->failureReason = "Failed to send request";
             termQueueProvider(param->comp, http_failure, err);
             delete param;
             delete response;
@@ -184,9 +233,9 @@ void downloadThread(void* arg) {
         fprintf(stderr, "Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
-        http_check_t * err = new http_check_t;
+        http_handle_t * err = new http_handle_t(NULL);
         err->url = param->url;
-        err->status = e.what();
+        err->failureReason = e.message();
         termQueueProvider(param->comp, http_failure, err);
         delete param;
         delete response;
@@ -195,14 +244,14 @@ void downloadThread(void* arg) {
     }
     http_handle_t * handle;
     try {
-        handle = new http_handle_t(session->receiveResponse(*response));
+        handle = new http_handle_t(&session->receiveResponse(*response));
     } catch (Poco::Exception &e) {
         fprintf(stderr, "Error while downloading %s: %s\n", param->url, e.message().c_str());
         if (param->postData != NULL) delete[] param->postData;
         if (param->url != param->old_url) delete[] param->old_url;
-        http_check_t * err = new http_check_t;
+        http_handle_t * err = new http_handle_t(NULL);
         err->url = param->url;
-        err->status = e.message();
+        err->failureReason = e.message();
         termQueueProvider(param->comp, http_failure, err);
         delete param;
         delete response;
@@ -228,7 +277,10 @@ void downloadThread(void* arg) {
         return downloadThread(param);
     }
     handle->closed = false;
-    termQueueProvider(param->comp, http_success, handle);
+    if (response->getStatus() >= 400) {
+        handle->failureReason = HTTPResponse::getReasonForStatus(response->getStatus());
+        termQueueProvider(param->comp, http_failure, handle);
+    } else termQueueProvider(param->comp, http_success, handle);
     if (param->postData != NULL) delete[] param->postData;
     if (param->url != param->old_url) delete[] param->url;
     delete param;
