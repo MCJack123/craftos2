@@ -25,12 +25,15 @@
 
 using namespace Poco::Net;
 
-typedef struct {
+typedef struct http_handle {
     bool closed;
     char * url;
     HTTPClientSession * session;
     HTTPResponse * handle;
-    std::istream& stream;
+    std::istream * stream;
+    bool isBinary;
+    std::string failureReason;
+    http_handle(std::istream * s) : stream(s) {}
 } http_handle_t;
 
 struct http_res {
@@ -57,12 +60,12 @@ int http_handle_close(lua_State *L) {
 
 int http_handle_readAll(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream.good()) return 0;
+    if (handle->closed || !handle->stream->good()) return 0;
     std::string ret;
     char buffer[4096];
-    while (handle->stream.read(buffer, sizeof(buffer)))
+    while (handle->stream->read(buffer, sizeof(buffer)))
         ret.append(buffer, sizeof(buffer));
-    ret.append(buffer, handle->stream.gcount());
+    ret.append(buffer, handle->stream->gcount());
     if (!lua_toboolean(L, lua_upvalueindex(2))) ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::wstring wstr;
@@ -80,9 +83,9 @@ int http_handle_readAll(lua_State *L) {
 
 int http_handle_readLine(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream.good()) return 0;
+    if (handle->closed || !handle->stream->good()) return 0;
     std::string line;
-    std::getline(handle->stream, line, '\n');
+    std::getline(*handle->stream, line, '\n');
     line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::wstring wstr;
@@ -100,19 +103,19 @@ int http_handle_readLine(lua_State *L) {
 
 int http_handle_readChar(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream.good()) return 0;
+    if (handle->closed || !handle->stream->good()) return 0;
     uint32_t codepoint = 0;
-    char c = handle->stream.get();
+    char c = handle->stream->get();
     if (c < 0) {
         if (c & 64) {
-            char c2 = handle->stream.get();
+            char c2 = handle->stream->get();
             if (c2 >= 0 || c2 & 64) {codepoint = 1<<31; goto http_handle_readCharDone;}
             if (c & 32) {
-                char c3 = handle->stream.get();
+                char c3 = handle->stream->get();
                 if (c3 >= 0 || c3 & 64) {codepoint = 1<<31; goto http_handle_readCharDone;}
                 if (c & 16) {
                     if (c & 8) {codepoint = 1<<31; goto http_handle_readCharDone;}
-                    char c4 = handle->stream.get();
+                    char c4 = handle->stream->get();
                     if (c4 >= 0 || c4 & 64) {codepoint = 1<<31; goto http_handle_readCharDone;}
                     codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
                 } else {
@@ -129,20 +132,20 @@ http_handle_readCharDone:
         return 1;
     }
     char retval[2];
-    retval[0] = checkChar(handle->stream.get());
+    retval[0] = checkChar(handle->stream->get());
     lua_pushstring(L, retval);
     return 1;
 }
 
 int http_handle_readByte(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream.good()) return 0;
+    if (handle->closed || !handle->stream->good()) return 0;
     if (!lua_isnumber(L, 1)) {
-        lua_pushinteger(L, handle->stream.get());
+        lua_pushinteger(L, handle->stream->get());
     } else {
         int c = lua_tointeger(L, 1);
         char * retval = new char[c+1];
-        handle->stream.read(retval, c);
+        handle->stream->read(retval, c);
         lua_pushstring(L, retval);
     }
     return 1;
