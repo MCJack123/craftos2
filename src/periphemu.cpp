@@ -79,7 +79,8 @@ int periphemu_create(lua_State* L) {
     if (computer->peripherals.find(side) != computer->peripherals.end()) {
         computer->peripherals_mutex.unlock();
         lua_pushboolean(L, false);
-        return 1;
+        lua_pushfstring(L, "Peripheral already attached on side %s", side.c_str());
+        return 2;
     }
     computer->peripherals_mutex.unlock();
     try {
@@ -89,7 +90,8 @@ int periphemu_create(lua_State* L) {
         else {
             //fprintf(stderr, "not found: %s\n", type.c_str());
             lua_pushboolean(L, false);
-            return 1;
+            lua_pushfstring(L, "No peripheral named %s", type.c_str());
+            return 2;
         }
         computer->peripherals_mutex.lock();
         try { computer->peripherals[side] = p; } catch (...) {}

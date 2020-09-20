@@ -50,7 +50,7 @@ int computer::getLabel(lua_State *L) {
 
 computer::computer(lua_State *L, const char * side) {
     if (strlen(side) < 10 || std::string(side).substr(0, 9) != "computer_" || (strlen(side) > 9 && !std::all_of(side + 9, side + strlen(side), ::isdigit))) 
-        throw std::invalid_argument("\"side\" parameter must be in the form of computer_[0-9]+");
+        throw std::invalid_argument("\"side\" parameter must be a number (the computer's ID)");
     int id = atoi(&side[9]);
     comp = NULL;
     for (Computer * c : computers) if (c->id == id) comp = c;
