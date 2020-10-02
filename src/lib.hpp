@@ -21,9 +21,9 @@ extern "C" {
 #include <lauxlib.h>
 }
 
-#define CRAFTOSPC_VERSION    "v2.4.3-luajit"
+#define CRAFTOSPC_VERSION    "v2.4.4-luajit"
 #define CRAFTOSPC_CC_VERSION "1.92.0"
-#define CRAFTOSPC_INDEV      false
+#define CRAFTOSPC_INDEV      true
 
 struct Computer;
 typedef struct library {

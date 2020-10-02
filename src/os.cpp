@@ -199,10 +199,10 @@ int getNextEvent(lua_State *L, std::string filter) {
         }
         ev = computer->eventQueue.front();
         computer->eventQueue.pop();
-        if (!filter.empty() && ev != filter) lua_remove(computer->paramQueue, 1);
+        if (!filter.empty() && ev != filter && ev != "terminate") lua_remove(computer->paramQueue, 1);
         lua_pop(computer->paramQueue, 1);
         std::this_thread::yield();
-    } while (!filter.empty() && ev != filter);
+    } while (!filter.empty() && ev != filter && ev != "terminate");
     if ((size_t)lua_gettop(computer->paramQueue) != computer->eventQueue.size() + 1) {
         fprintf(stderr, "Warning: Queue sizes are incorrect! Expect misaligned event parameters.\n");
     }

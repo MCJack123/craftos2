@@ -252,12 +252,32 @@ int fs_getSize(lua_State *L) {
     return 1;
 }
 
+int calculateDirectorySize(path_t path) {
+    platform_DIR * d = platform_opendir(path.c_str());
+    int size = 0;
+    if (d) {
+        struct_dirent * dir;
+        struct_stat st;
+        while ((dir = platform_readdir(d)) != NULL) {
+            if (path_t(dir->d_name) != WS(".") && path_t(dir->d_name) != WS("..")) {
+                path_t dname = path + PATH_SEP + dir->d_name;
+                if (platform_stat(dname.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) size += calculateDirectorySize(dname);
+                else size += st.st_size;
+            }
+        }
+        platform_closedir(d);
+    }
+    return size;
+}
+
 int fs_getFreeSpace(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    path_t path = fixpath(get_comp(L), lua_tostring(L, 1), false);
+    std::string mountPath;
+    path_t path = fixpath(get_comp(L), lua_tostring(L, 1), false, true, &mountPath);
     if (path.empty()) err(L, 1, "No such path");
     if (fixpath_ro(get_comp(L), lua_tostring(L, 1))) lua_pushinteger(L, 0);
-    else lua_pushinteger(L, getFreeSpace(path));
+    else if (!config.standardsMode || mountPath != "hdd") lua_pushinteger(L, getFreeSpace(path));
+    else lua_pushinteger(L, config.computerSpaceLimit - calculateDirectorySize(fixpath(get_comp(L), "", true)));
     return 1;
 }
 
