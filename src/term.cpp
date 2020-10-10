@@ -1249,8 +1249,8 @@ int term_screenshot(lua_State *L) {
     if (term == NULL) return 0;
     if (std::chrono::system_clock::now() - term->lastScreenshotTime < std::chrono::milliseconds(1000 / config.recordingFPS)) return 0;
     // Specifying a save path is no longer supported.
-    //if (lua_isstring(L, 1)) term->screenshot(std::string(lua_tostring(L, 1), lua_strlen(L, 1))); else
-    term->screenshot();
+    if (lua_toboolean(L, 1)) term->screenshot("clipbaord");
+    else term->screenshot();
     term->lastScreenshotTime = std::chrono::system_clock::now();
     return 0;
 }
