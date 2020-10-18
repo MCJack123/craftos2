@@ -1,0 +1,20 @@
+{
+    "name": "craftos-pc",
+    "version-string": "v2.4.4",
+    "description": "Advanced ComputerCraft emulator",
+    "dependencies": [
+        "sdl2",
+        {
+            "name": "sdl2-mixer",
+            "default-features": true,
+            "features": ["dynamic-load", "libflac", "mpg123", "libmodplug", "libvorbis", "opusfile", "fluidsynth"]
+        },
+        "pngpp",
+        "libharu",
+        "poco",
+        {
+            "name": "dirent",
+            "platform": "windows"
+        }
+    }
+}
