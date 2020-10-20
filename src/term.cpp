@@ -1159,7 +1159,7 @@ int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "boolean or number", 1);
     Computer * computer = get_comp(L);
     if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config.isColor || computer->isDebugger)) return 0;
-    computer->term->mode = lua_isboolean(L, 1) ? lua_toboolean(L, 1) : lua_tointeger(L, 1);
+    computer->term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : lua_tointeger(L, 1);
     computer->term->changed = true;
     return 0;
 }
