@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Generate Release Hashes
-        uses: MCJack123/ghaction-Generate-Release-Hashes@v1
+        uses: MCJack123/ghaction-Generate-Release-Hashes@v2
         with:
           file-name: hashes.txt
       - name: Upload a Release Asset
