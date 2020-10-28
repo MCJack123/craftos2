@@ -45,12 +45,15 @@ monitor::~monitor() {delete term;}
 int monitor::write(lua_State *L) {
     if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     if (selectedRenderer == 4) printf("TW:%d;%s\n", term->id, lua_tostring(L, 1));
+    if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
     size_t str_sz;
     const char * str = lua_tolstring(L, 1, &str_sz);
     std::lock_guard<std::mutex> lock(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
-        term->screen[term->blinkY][term->blinkX] = str[i];
-        term->colors[term->blinkY][term->blinkX] = colors;
+        if (term->blinkX >= 0) {
+            term->screen[term->blinkY][term->blinkX] = str[i];
+            term->colors[term->blinkY][term->blinkX] = colors;
+        }
     }
     term->changed = true;
     return 0;
@@ -61,28 +64,20 @@ int monitor::scroll(lua_State *L) {
     if (selectedRenderer == 4) printf("TS:%d;%d\n", term->id, (int)lua_tointeger(L, 1));
     int lines = lua_tointeger(L, 1);
     std::lock_guard<std::mutex> lock(term->locked);
-    if (lines >= term->height) {
+    if (lines >= term->height || -lines >= term->height) {
         // scrolling more than the height is equivalent to clearing the screen
-        term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
-        term->colors = vector2d<unsigned char>(term->width, term->height, colors);
+        memset(term->screen.data(), ' ', term->height * term->width);
+        memset(term->colors.data(), colors, term->height * term->width);
     } else if (lines > 0) {
-        for (int i = lines; i < term->height; i++) {
-            term->screen[i - lines] = term->screen[i];
-            term->colors[i - lines] = term->colors[i];
-        }
-        for (int i = term->height; i < term->height + lines; i++) {
-            term->screen[i - lines] = std::vector<unsigned char>(term->width, ' ');
-            term->colors[i - lines] = std::vector<unsigned char>(term->width, colors);
-        }
+        memmove(term->screen.data(), term->screen.data() + lines * term->width, (term->height - lines) * term->width);
+        memset(term->screen.data() + (term->height - lines) * term->width, ' ', lines * term->width);
+        memmove(term->colors.data(), term->colors.data() + lines * term->width, (term->height - lines) * term->width);
+        memset(term->colors.data() + (term->height - lines) * term->width, colors, lines * term->width);
     } else if (lines < 0) {
-        for (int i = term->height - 1; i >= -lines; i--) {
-            term->screen[i] = term->screen[i + lines];
-            term->colors[i] = term->colors[i + lines];
-        }
-        for (int i = 0; i < -lines; i++) {
-            term->screen[i] = std::vector<unsigned char>(term->width, ' ');
-            term->colors[i] = std::vector<unsigned char>(term->width, colors);
-        }
+        memmove(term->screen.data() - lines * term->width, term->screen.data(), (term->height + lines) * term->width);
+        memset(term->screen.data(), ' ', -lines * term->width);
+        memmove(term->colors.data() - lines * term->width, term->colors.data(), (term->height + lines) * term->width);
+        memset(term->colors.data(), colors, -lines * term->width);
     }
     term->changed = true;
     return 0;
@@ -130,11 +125,11 @@ int monitor::getSize(lua_State *L) {
 int monitor::clear(lua_State *L) {
     if (selectedRenderer == 4) printf("TE:%d;\n", term->id);
     std::lock_guard<std::mutex> lock(term->locked);
-    if (term->mode != 0) {
-        term->pixels = vector2d<unsigned char>(term->width * Terminal::fontWidth, term->height * Terminal::fontHeight, 0x0F);
+    if (term->mode > 0) {
+        memset(term->pixels.data(), 0x0F, term->width * Terminal::fontWidth * term->height * Terminal::fontHeight);
     } else {
-        term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
-        term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
+        memset(term->screen.data(), ' ', term->height * term->width);
+        memset(term->colors.data(), colors, term->height * term->width);
     }
     term->changed = true;
     return 0;
@@ -142,9 +137,10 @@ int monitor::clear(lua_State *L) {
 
 int monitor::clearLine(lua_State *L) {
     if (selectedRenderer == 4) printf("TL:%d;\n", term->id);
+    if (term->blinkY < 0 || term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> lock(term->locked);
-    term->screen[term->blinkY] = std::vector<unsigned char>(term->width, ' ');
-    term->colors[term->blinkY] = std::vector<unsigned char>(term->width, colors);
+    memset(term->screen.data() + (term->blinkY * term->width), ' ', term->width);
+    memset(term->colors.data() + (term->blinkY * term->width), colors, term->width);
     term->changed = true;
     return 0;
 }

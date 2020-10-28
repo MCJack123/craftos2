@@ -867,16 +867,18 @@ int term_write(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
-    std::lock_guard<std::mutex> locked_g(term->locked);
     size_t str_sz = 0;
     const char * str = lua_tolstring(L, 1, &str_sz);
     #ifdef TESTING
     printf("%s\n", str);
     #endif
-    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {if (term->blinkX >= 0) {
-        term->screen[term->blinkY][term->blinkX] = str[i];
-        term->colors[term->blinkY][term->blinkX] = computer->colors;
-    }}
+    std::lock_guard<std::mutex> locked_g(term->locked);
+    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
+        if (term->blinkX >= 0) {
+            term->screen[term->blinkY][term->blinkX] = str[i];
+            term->colors[term->blinkY][term->blinkX] = computer->colors;
+        }
+    }
     term->changed = true;
     return 0;
 }
@@ -891,28 +893,20 @@ int term_scroll(lua_State *L) {
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
     int lines = lua_tointeger(L, 1);
-    if (lines >= term->height) {
+    if (lines >= term->height || -lines >= term->height) {
         // scrolling more than the height is equivalent to clearing the screen
-        term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
-        term->colors = vector2d<unsigned char>(term->width, term->height, computer->colors);
+        memset(term->screen.data(), ' ', term->height * term->width);
+        memset(term->colors.data(), computer->colors, term->height * term->width);
     } else if (lines > 0) {
-        for (int i = lines; i < term->height; i++) {
-            term->screen[i - lines] = term->screen[i];
-            term->colors[i - lines] = term->colors[i];
-        }
-        for (int i = term->height; i < term->height + lines; i++) {
-            term->screen[i - lines] = std::vector<unsigned char>(term->width, ' ');
-            term->colors[i - lines] = std::vector<unsigned char>(term->width, computer->colors);
-        }
+        memmove(term->screen.data(), term->screen.data() + lines * term->width, (term->height - lines) * term->width);
+        memset(term->screen.data() + (term->height - lines) * term->width, ' ', lines * term->width);
+        memmove(term->colors.data(), term->colors.data() + lines * term->width, (term->height - lines) * term->width);
+        memset(term->colors.data() + (term->height - lines) * term->width, computer->colors, lines * term->width);
     } else if (lines < 0) {
-        for (int i = term->height - 1; i >= -lines; i--) {
-            term->screen[i] = term->screen[i + lines];
-            term->colors[i] = term->colors[i + lines];
-        }
-        for (int i = 0; i < -lines; i++) {
-            term->screen[i] = std::vector<unsigned char>(term->width, ' ');
-            term->colors[i] = std::vector<unsigned char>(term->width, computer->colors);
-        }
+        memmove(term->screen.data() - lines * term->width, term->screen.data(), (term->height + lines) * term->width);
+        memset(term->screen.data(), ' ', -lines * term->width);
+        memmove(term->colors.data() - lines * term->width, term->colors.data(), (term->height + lines) * term->width);
+        memset(term->colors.data(), computer->colors, -lines * term->width);
     }
     term->changed = true;
     return 0;
@@ -992,10 +986,10 @@ int term_clear(lua_State *L) {
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
     if (term->mode > 0) {
-        term->pixels = vector2d<unsigned char>(term->width * Terminal::fontWidth, term->height * Terminal::fontHeight, 0x0F);
+        memset(term->pixels.data(), 0x0F, term->width * Terminal::fontWidth * term->height * Terminal::fontHeight);
     } else {
-        term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
-        term->colors = vector2d<unsigned char>(term->width, term->height, computer->colors);
+        memset(term->screen.data(), ' ', term->height * term->width);
+        memset(term->colors.data(), computer->colors, term->height * term->width);
     }
     term->changed = true;
     return 0;
@@ -1012,8 +1006,8 @@ int term_clearLine(lua_State *L) {
     Terminal * term = computer->term;
     if (term->blinkY < 0 || term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    term->screen[term->blinkY] = std::vector<unsigned char>(term->width, ' ');
-    term->colors[term->blinkY] = std::vector<unsigned char>(term->width, computer->colors);
+    memset(term->screen.data() + (term->blinkY * term->width), ' ', term->width);
+    memset(term->colors.data() + (term->blinkY * term->width), computer->colors, term->width);
     term->changed = true;
     return 0;
 }

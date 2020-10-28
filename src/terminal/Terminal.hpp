@@ -80,6 +80,7 @@ public:
         width = w;
         height = h;
     }
+    T* data() { return vec.data(); }
 };
 
 class Terminal {

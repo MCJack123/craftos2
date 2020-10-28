@@ -31,14 +31,13 @@ const wchar_t * base_path = L"%appdata%\\CraftOS-PC";
 std::wstring base_path_expanded;
 std::wstring rom_path_expanded;
 wchar_t expand_tmp[32767];
+static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 path_t wstr(std::string str) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     return converter.from_bytes(str);
 }
 
 std::string astr(path_t str) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     return converter.to_bytes(str);
 }
 
@@ -211,7 +210,6 @@ int recursiveCopy(std::wstring path, std::wstring toPath) {
 }
 
 void migrateData() {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     DWORD size = ExpandEnvironmentStringsW(L"%USERPROFILE%\\.craftos", expand_tmp, 32767);
     std::wstring oldpath = expand_tmp;
     struct_stat st;
