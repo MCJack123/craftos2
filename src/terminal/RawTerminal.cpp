@@ -328,7 +328,8 @@ void rawInputLoop() {
                     e.text.windowID = id;
                     e.text.text[0] = key;
                     e.text.text[1] = '\0';
-                    for (Computer * c : computers) {
+                    LockGuard lock(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.key.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.text.windowID = c->term->id;
@@ -341,7 +342,8 @@ void rawInputLoop() {
                     e.key.windowID = id;
                     e.key.keysym.sym = (SDL_Keycode)key;
                     if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
-                    for (Computer * c : computers) {
+                    LockGuard lock(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.key.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.key.windowID = c->term->id;
@@ -354,7 +356,8 @@ void rawInputLoop() {
                     e.key.windowID = id;
                     e.key.keysym.sym = (SDL_Keycode)key;
                     if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
-                    for (Computer * c : computers) {
+                    LockGuard lock(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.key.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.key.windowID = c->term->id;
@@ -369,7 +372,8 @@ void rawInputLoop() {
                 uint32_t x = 0, y = 0;
                 in.read((char*)&x, 4);
                 in.read((char*)&y, 4);
-                for (Computer * c : computers) {
+                LockGuard lock(computers);
+                for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
                         struct rawMouseProviderData * d = new struct rawMouseProviderData;
                         d->evtype = evtype;
@@ -380,7 +384,8 @@ void rawInputLoop() {
                     }
                 }
             } else if (type == CCPC_RAW_EVENT_DATA) {
-                for (Computer * c : computers) {
+                LockGuard lock(computers);
+                for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
                         std::stringstream * ss = new std::stringstream(in.str().substr(2));
                         termQueueProvider(c, rawEventProvider, ss);
@@ -391,7 +396,8 @@ void rawInputLoop() {
                 if (isClosing == 1) {
                     e.type = SDL_WINDOWEVENT;
                     e.window.event = SDL_WINDOWEVENT_CLOSE;
-                    for (Computer * c : computers) {
+                    LockGuard lock(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.window.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.window.windowID = c->term->id;
@@ -401,7 +407,8 @@ void rawInputLoop() {
                     }
                 } else if (isClosing == 2) {
                     e.type = SDL_QUIT;
-                    for (Computer * c : computers) {
+                    LockGuard lock(computers);
+                    for (Computer * c : *computers) {
                         std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
@@ -416,7 +423,8 @@ void rawInputLoop() {
                     e.window.event = SDL_WINDOWEVENT_RESIZED;
                     e.window.data1 = w;
                     e.window.data2 = h;
-                    for (Computer * c : computers) {
+                    LockGuard lock(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.window.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             c->termEventQueue.push(e);

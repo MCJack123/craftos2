@@ -395,7 +395,8 @@ bool HardwareSDLTerminal::pollEvents() {
             if (rawClient) {
                 sendRawEvent(e);
             } else {
-                for (Computer * c : computers) {
+                LockGuard lock(computers);
+                for (Computer * c : *computers) {
                     if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
                         ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
                         ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||

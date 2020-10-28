@@ -76,21 +76,24 @@ void trorInputLoop() {
             std::vector<std::string> args = split(payload, '-');
             for (std::string a : args) if (!a.empty()) trorExtensions.insert(a);
         } else if (code == "EV") {
-            for (Computer * c : computers)
+            LockGuard lock(computers);
+            for (Computer * c : *computers)
                 if (checkWindowID(c, id))
                     termQueueProvider(c, trorEvent, new std::string(payload));
         } else if (code == "SC") {
             SDL_Event e;
             memset(&e, 0, sizeof(SDL_Event));
             e.type = SDL_QUIT;
-            for (Computer * c : computers) {
+            LockGuard lock(computers);
+            for (Computer * c : *computers) {
                 std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                 c->termEventQueue.push(e);
                 c->event_lock.notify_all();
             }
         } else if (code == "TR") {
             int newWidth = std::stoi(payload.substr(0, payload.find(','))), newHeight = std::stoi(payload.substr(payload.find(',') + 1));
-            for (Computer * c : computers) {
+            LockGuard lock(computers);
+            for (Computer * c : *computers) {
                 if (id == c->term->id) {
                     c->term->screen.resize(newWidth, newHeight, ' ');
                     c->term->colors.resize(newWidth, newHeight, 0xF0);
@@ -114,7 +117,8 @@ void trorInputLoop() {
             e.type = SDL_WINDOWEVENT;
             e.window.event = SDL_WINDOWEVENT_CLOSE;
             e.window.windowID = id;
-            for (Computer * c : computers) {
+            LockGuard lock(computers);
+            for (Computer * c : *computers) {
                 if (checkWindowID(c, id)) {
                     std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                     c->termEventQueue.push(e);

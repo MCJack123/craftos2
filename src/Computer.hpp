@@ -57,7 +57,6 @@ struct Computer {
     bool mounter_initializing = false;
     std::queue<std::string> eventQueue;
     lua_State * paramQueue;
-    std::vector<double> alarms;
     std::unordered_map<std::string, peripheral*> peripherals;
     std::mutex peripherals_mutex;
     std::queue<std::pair<event_provider, void*> > event_provider_queue;
@@ -111,7 +110,7 @@ private:
     void loadPlugin(path_t path);
 };
 
-extern std::vector<Computer*> computers;
+extern ProtectedObject<std::vector<Computer*> > computers;
 extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
 extern path_t computerDir;
 extern void* computerThread(void* data);

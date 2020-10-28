@@ -53,7 +53,10 @@ computer::computer(lua_State *L, const char * side) {
         throw std::invalid_argument("\"side\" parameter must be a number (the computer's ID)");
     int id = atoi(&side[9]);
     comp = NULL;
-    for (Computer * c : computers) if (c->id == id) comp = c;
+    {
+        LockGuard lock(computers);
+        for (Computer * c : *computers) if (c->id == id) comp = c;
+    }
     if (comp == NULL) comp = (Computer*)queueTask([ ](void* arg)->void*{return startComputer(*(int*)arg);}, &id);
     if (comp == NULL) throw std::runtime_error("Failed to open computer");
     thiscomp = get_comp(L);

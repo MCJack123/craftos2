@@ -38,10 +38,13 @@ void debuggerThread(Computer * comp, debugger * dbg, std::string side) {
     comp->run(WS("debug/bios.lua"));
 #endif
     freedComputers.insert(comp);
-    for (auto it = computers.begin(); it != computers.end(); it++) {
-        if (*it == comp) {
-            it = computers.erase(it);
-            if (it == computers.end()) break;
+    {
+        LockGuard lock(computers);
+        for (auto it = computers->begin(); it != computers->end(); it++) {
+            if (*it == comp) {
+                it = computers->erase(it);
+                if (it == computers->end()) break;
+            }
         }
     }
     delete (library_t*)comp->debugger;
@@ -542,7 +545,10 @@ debugger::debugger(lua_State *L, const char * side) {
     }
     delete p;
     monitor->debugger = createDebuggerLibrary();
-    computers.push_back(monitor);
+    {
+        LockGuard lock(computers);
+        computers->push_back(monitor);
+    }
     compThread = new std::thread(debuggerThread, monitor, this, std::string(side));
     setThreadName(*compThread, std::string("Computer " + std::to_string(computer->id) + " Thread (Debugger)").c_str());
     computerThreads.push_back(compThread);

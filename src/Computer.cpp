@@ -42,8 +42,7 @@ extern int onboardingMode;
 extern bool forceCheckTimeout;
 extern std::string script_args;
 extern std::string script_file;
-std::vector<Computer*> computers;
-std::mutex computers_mutex;
+ProtectedObject<std::vector<Computer*> > computers;
 std::unordered_set<Computer*> freedComputers; 
 ProtectedObject<std::unordered_set<SDL_TimerID>> freedTimers;
 path_t computerDir;
@@ -205,8 +204,8 @@ library_t * getLibrary(std::string name) {
 }
 
 Computer * getComputerById(int id) {
-    std::lock_guard<std::mutex> lock(computers_mutex);
-    for (Computer * c : computers) if (c->id == id) return c;
+    LockGuard lock(computers);
+    for (Computer * c : *computers) if (c->id == id) return c;
     return NULL;
 }
 
@@ -652,19 +651,31 @@ void* computerThread(void* data) {
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);
+    try {
 #ifdef STANDALONE_ROM
-    comp->run(wstr(standaloneBIOS));
+        comp->run(wstr(standaloneBIOS));
 #else
-    comp->run(WS("bios.lua"));
+        comp->run(WS("bios.lua"));
 #endif
+    } catch (std::exception &e) {
+        fprintf(stderr, "Uncaught exception while executing computer %d: %s\n", comp->id, e.what());
+        queueTask([e](void*t)->void* {std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
+        if (comp->L != NULL) {
+            comp->event_lock.notify_all();
+            for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++)
+                if (libraries[i]->deinit != NULL) libraries[i]->deinit(comp);
+            lua_close(comp->L);   /* Cya, Lua */
+            comp->L = NULL;
+        }
+    }
     freedComputers.insert(comp);
     {
-        std::lock_guard<std::mutex> lock(computers_mutex);
-        for (auto it = computers.begin(); it != computers.end(); it++) {
+        LockGuard lock(computers);
+        for (auto it = computers->begin(); it != computers->end(); it++) {
             if (*it == comp) {
-                it = computers.erase(it);
-                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
-                if (it == computers.end()) break;
+                it = computers->erase(it);
+                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
+                if (it == computers->end()) break;
             }
         }
     }
@@ -688,7 +699,10 @@ Computer * startComputer(int id) {
         else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
         return NULL;
     }
-    computers.push_back(comp);
+    {
+        LockGuard lock(computers);
+        computers->push_back(comp);
+    }
     std::thread * th = new std::thread(computerThread, comp);
     setThreadName(*th, std::string("Computer " + std::to_string(id) + " Thread").c_str());
     computerThreads.push_back(th);

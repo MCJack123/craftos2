@@ -37,9 +37,10 @@
 extern void config_init();
 extern void config_save();
 extern void mainLoop();
-extern void awaitTasks();
+extern void awaitTasks(std::function<bool()> predicate = []()->bool{return true;});
 extern void http_server_stop();
 extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
+extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
 extern std::list<std::thread*> computerThreads;
 extern bool exiting;
 extern std::atomic_bool taskQueueReady;
@@ -467,7 +468,18 @@ int main(int argc, char*argv[]) {
     emscripten_set_main_loop(mainLoop, 60, 1);
     return 0;
 #else
-    mainLoop();
+    try {
+        mainLoop();
+    } catch (std::exception &e) {
+        fprintf(stderr, "Uncaught exception on main thread: %s\n", e.what());
+        if (selectedRenderer == 0 || selectedRenderer == 5) queueTask([e](void*t)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", (std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on main thread: ") + e.what() + "\". CraftOS-PC will now close.").c_str(), NULL); return NULL; }, NULL);
+        for (Computer * c : *computers) {
+            c->running = 0;
+            c->event_lock.notify_all();
+        }
+        exiting = true;
+        awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
+    }
 #endif
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
 #ifndef NO_MIXER

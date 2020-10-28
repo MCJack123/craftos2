@@ -80,8 +80,8 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     return retval;
 }
 
-void awaitTasks() {
-    while (true) {
+void awaitTasks(std::function<bool()> predicate = []()->bool{return true;}) {
+    while (predicate()) {
         if (taskQueue->size() > 0) {
             auto v = taskQueue->front();
             void* retval = std::get<1>(v)(std::get<2>(v));
@@ -96,7 +96,7 @@ void awaitTasks() {
 void mainLoop() {
     mainThreadID = std::this_thread::get_id();
 #ifndef __EMSCRIPTEN__
-    while (rawClient ? !exiting : computers.size() > 0) {
+    while (rawClient ? !exiting : computers->size() > 0) {
 #endif
         //bool res = false; // I forgot what this is for
         if (selectedRenderer == 0) /*res =*/ SDLTerminal::pollEvents();
@@ -162,26 +162,11 @@ int getNextEvent(lua_State *L, std::string filter) {
         }
         if (computer->running != 1) return 0;
         while (computer->eventQueue.size() == 0) {
-            if (computer->alarms.size() == 0) {
-                std::mutex m;
-                std::unique_lock<std::mutex> l(m);
-                while (computer->running == 1 && computer->alarms.size() == 0 && !termHasEvent(computer)) 
-                    computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return computer->alarms.size() != 0 || termHasEvent(computer) || computer->running != 1;});
-            }
+            std::mutex m;
+            std::unique_lock<std::mutex> l(m);
+            while (computer->running == 1 && !termHasEvent(computer)) 
+                computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return termHasEvent(computer) || computer->running != 1;});
             if (computer->running != 1) return 0;
-            if (computer->alarms.size() > 0 && computer->alarms.back() == -1) computer->alarms.pop_back();
-            if (computer->alarms.size() > 0) {
-                time_t t = time(NULL);
-                struct tm tm = *localtime(&t);
-                for (unsigned i = 0; i < computer->alarms.size(); i++) {
-                    if ((double)tm.tm_hour + ((double)tm.tm_min/60.0) + ((double)tm.tm_sec/3600.0) == computer->alarms[i]) {
-                        lua_pushinteger(param, i);
-                        computer->eventQueue.push("alarm");
-                        computer->alarms[i] = -1;
-                        param = lua_newthread(computer->paramQueue);
-                    }
-                }
-            }
             while (termHasEvent(computer) && computer->eventQueue.size() < 25) {
                 if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
                 const char * name = termGetEvent(param);
@@ -268,6 +253,7 @@ struct timer_data_t {
     Computer * comp;
     SDL_TimerID timer;
     std::mutex * lock;
+    bool isAlarm;
 };
 
 template<typename T>
@@ -289,9 +275,10 @@ const char * timer_event(lua_State *L, void* param) {
     lua_pushinteger(L, data->timer);
     runningTimerData->erase(data->timer);
     data->lock->unlock();
+    bool isAlarm = data->isAlarm;
     delete data->lock;
     delete data;
-    return "timer";
+    return isAlarm ? "alarm" : "timer";
 }
 
 Uint32 notifyEvent(Uint32 interval, void* param) {
@@ -336,6 +323,7 @@ int os_startTimer(lua_State *L) {
     struct timer_data_t * data = new struct timer_data_t;
     data->comp = computer;
     data->lock = new std::mutex;
+    data->isAlarm = false;
     queueTask([L](void*a)->void*{
         struct timer_data_t * data = (struct timer_data_t*)a;
         Uint32 time = lua_tonumber(L, 1) * 1000;
@@ -455,19 +443,46 @@ int os_day(lua_State *L) {
 
 int os_setAlarm(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    double time = lua_tonumber(L, 1);
+    if (time < 0.0 || time >= 24.0) luaL_error(L, "Number out of range");
     Computer * computer = get_comp(L);
-    computer->alarms.push_back(lua_tonumber(L, 1));
-    lua_pushinteger(L, computer->alarms.size() - 1);
-    computer->event_lock.notify_all();
+    double current_time = floor(((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - computer->system_start).count() + 300000LL) % 1200000LL) / 50.0) / 1000.0;
+    double delta_time;
+    if (time >= current_time) delta_time = time - current_time;
+    else delta_time = (time + 24.0) - current_time;
+    Uint32 real_time = delta_time * (1200000.0 / 24.0);
+    struct timer_data_t * data = new struct timer_data_t;
+    data->comp = computer;
+    data->lock = new std::mutex;
+    data->isAlarm = true;
+    queueTask([real_time](void*a)->void* {
+        struct timer_data_t * data = (struct timer_data_t*)a;
+        Uint32 time = real_time;
+        if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
+        data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
+        return NULL;
+    }, data);
+    runningTimerData->insert(std::make_pair(data->timer, data));
+    lua_pushinteger(L, data->timer);
+    computer->timerIDs.insert(data->timer);
     return 1;
 }
 
 int os_cancelAlarm(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    Computer * computer = get_comp(L);
-    unsigned id = lua_tointeger(L, 1);
-    if (id == computer->alarms.size() - 1) computer->alarms.pop_back();
-    else computer->alarms[id] = -1;
+    SDL_TimerID id = lua_tointeger(L, 1);
+    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+    timer_data_t * data = (*runningTimerData)[id];
+    runningTimerData->erase(id);
+    data->lock->lock();
+#ifdef __EMSCRIPTEN__
+    queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
+#else
+    SDL_RemoveTimer(id);
+#endif
+    data->lock->unlock();
+    delete data->lock;
+    delete data;
     return 0;
 }
 

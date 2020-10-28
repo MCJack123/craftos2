@@ -46,19 +46,23 @@ class ProtectedObject {
     friend class LockGuard;
     T obj;
     std::mutex mutex;
+    bool isLocked;
 public:
-    void lock() { mutex.lock(); }
-    void unlock() { mutex.unlock(); }
+    void lock() { mutex.lock(); isLocked = true; }
+    void unlock() { mutex.unlock(); isLocked = false; }
+    bool locked() { return isLocked; }
     std::mutex& getMutex() { return mutex; }
     T& operator*() { return obj; }
     T* operator->() { return &obj; }
 };
 
 class LockGuard : public std::lock_guard<std::mutex> {
+    bool * isLocked = NULL;
 public:
     template<typename T>
-    LockGuard(ProtectedObject<T> &obj) : std::lock_guard<std::mutex>(obj.mutex) {}
+    LockGuard(ProtectedObject<T> &obj) : std::lock_guard<std::mutex>(obj.mutex) {obj.isLocked = true; isLocked = &obj.isLocked;}
     LockGuard(std::mutex mtx) : std::lock_guard<std::mutex>(mtx) {}
+    ~LockGuard() {if (isLocked != NULL) *isLocked = false;}
 };
 
 #include "Computer.hpp"

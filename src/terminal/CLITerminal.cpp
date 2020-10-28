@@ -189,6 +189,7 @@ void pressControl(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)29;
+    LockGuard lock(computers);
     for (Computer * c : computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
@@ -206,6 +207,7 @@ void pressAlt(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)56;
+    LockGuard lock(computers);
     for (Computer * c : computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
@@ -292,12 +294,14 @@ extern bool rawClient;
 extern void sendRawEvent(SDL_Event e);
 #define sendEventToTermQueue(e, TYPE) \
     if (rawClient) {e.TYPE.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}\
-    else {for (Computer * c : computers) {if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
-        std::lock_guard<std::mutex> lock(c->termEventQueueMutex);\
-        e.TYPE.windowID = c->term->id;\
-        c->termEventQueue.push(e);\
-        c->event_lock.notify_all();\
-    }}}
+    else {LockGuard lock(computers);\
+        for (Computer * c : *computers) {if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
+            std::lock_guard<std::mutex> lock(c->termEventQueueMutex);\
+            e.TYPE.windowID = c->term->id;\
+            c->termEventQueue.push(e);\
+            c->event_lock.notify_all();\
+        }\
+    }}
 
 bool CLITerminal::pollEvents() {
     SDL_Event e;
@@ -328,6 +332,7 @@ bool CLITerminal::pollEvents() {
         // TODO: Fix this for raw client mode
         e.type = SDL_WINDOWEVENT;
         e.window.event = SDL_WINDOWEVENT_RESIZED;
+        LockGuard lock(computers);
         for (Computer * c : computers) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.window.data1 = COLS;
@@ -358,7 +363,8 @@ bool CLITerminal::pollEvents() {
                     e.window.event = SDL_WINDOWEVENT_CLOSE;
                     if (rawClient) {e.button.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}
                     else {
-                        for (Computer * c : computers) {
+                        LockGuard lock(computers);
+                        for (Computer * c : *computers) {
                             if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
                                 std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                                 e.button.windowID = *CLITerminal::selectedWindow;

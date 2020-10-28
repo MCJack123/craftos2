@@ -293,10 +293,10 @@ int termPanic(lua_State *L) {
     for (int i = 0; (status = lua_getstack(L, i, &ar)) && (status = lua_getinfo(L, "nSl", &ar)) && ar.what[0] == 'C'; i++);
     if (status && ar.what[0] != 'C') {
         fprintf(stderr, "An unexpected error occurred in a Lua function: %s:%s:%d: %s\n", checkstr(ar.short_src), checkstr(ar.name), ar.currentline, checkstr(lua_tostring(L, 1)));
-        if (dynamic_cast<SDLTerminal*>(comp->term) != NULL) queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(checkstr(ar.short_src)) + ":" + std::string(checkstr(ar.name)) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), dynamic_cast<SDLTerminal*>(comp->term)->win); return NULL;}, L);
+        if (dynamic_cast<SDLTerminal*>(comp->term) != NULL) queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(checkstr(ar.short_src)) + ":" + std::string(checkstr(ar.name)) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer will now shut down.").c_str(), dynamic_cast<SDLTerminal*>(comp->term)->win); return NULL;}, L);
     } else {
         fprintf(stderr, "An unexpected error occurred in a Lua function: (unknown): %s\n", checkstr(lua_tostring(L, 1)));
-        if (dynamic_cast<SDLTerminal*>(comp->term) != NULL) queueTask([comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: (unknown): " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer must now shut down.").c_str(), dynamic_cast<SDLTerminal*>(comp->term)->win); return NULL;}, L);
+        if (dynamic_cast<SDLTerminal*>(comp->term) != NULL) queueTask([comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: (unknown): " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer will now shut down.").c_str(), dynamic_cast<SDLTerminal*>(comp->term)->win); return NULL;}, L);
     }
     comp->event_lock.notify_all();
     for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
@@ -576,7 +576,7 @@ void termRenderLoop() {
                 error = true;
                 if (term->errorcount++ > 10) {
                     term->errorcount = 0;
-                    term->showMessage(SDL_MESSAGEBOX_ERROR, "Error rendering terminal", std::string(std::string("An error repeatedly occurred while attempting to render the terminal: ") + e.what() + ". This is likely a bug in CraftOS-PC. Please go to https://github.com/MCJack123/craftos2/issues/new and report this issue. The window will now close. Please note that CraftOS-PC may be left in an invalid state - you should restart the emulator.").c_str());
+                    term->showMessage(SDL_MESSAGEBOX_ERROR, "Error rendering terminal", std::string(std::string("An error repeatedly occurred while attempting to render the terminal: ") + e.what() + ". This is likely a bug in CraftOS-PC. Please go to https://www.craftos-pc.cc/bugreport and report this issue. The window will now close. Please note that CraftOS-PC may be left in an invalid state - you should restart the emulator.").c_str());
                     SDL_Event e;
                     e.type = SDL_WINDOWEVENT;
                     e.window.event = SDL_WINDOWEVENT_CLOSE;
