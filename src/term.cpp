@@ -293,10 +293,12 @@ int termPanic(lua_State *L) {
     for (int i = 0; (status = lua_getstack(L, i, &ar)) && (status = lua_getinfo(L, "nSl", &ar)) && ar.what[0] == 'C'; i++);
     if (status && ar.what[0] != 'C') {
         fprintf(stderr, "An unexpected error occurred in a Lua function: %s:%s:%d: %s\n", checkstr(ar.short_src), checkstr(ar.name), ar.currentline, checkstr(lua_tostring(L, 1)));
-        if (dynamic_cast<SDLTerminal*>(comp->term) != NULL) queueTask([ar, comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(checkstr(ar.short_src)) + ":" + std::string(checkstr(ar.name)) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer will now shut down.").c_str(), dynamic_cast<SDLTerminal*>(comp->term)->win); return NULL;}, L);
+        if (config.standardsMode) displayFailure(comp->term, "Error running computer", checkstr(lua_tostring(L, 1)));
+        else if (comp->term != NULL) queueTask([ar, comp](void* L)->void*{comp->term->showMessage(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: " + std::string(checkstr(ar.short_src)) + ":" + std::string(checkstr(ar.name)) + ":" + std::to_string(ar.currentline) + ": " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer will now shut down.").c_str()); return NULL;}, L);
     } else {
         fprintf(stderr, "An unexpected error occurred in a Lua function: (unknown): %s\n", checkstr(lua_tostring(L, 1)));
-        if (dynamic_cast<SDLTerminal*>(comp->term) != NULL) queueTask([comp](void* L)->void*{SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: (unknown): " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer will now shut down.").c_str(), dynamic_cast<SDLTerminal*>(comp->term)->win); return NULL;}, L);
+        if (config.standardsMode) displayFailure(comp->term, "Error running computer", checkstr(lua_tostring(L, 1)));
+        else if (comp->term != NULL) queueTask([comp](void* L)->void*{comp->term->showMessage(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: (unknown): " + std::string(!lua_isstring((lua_State*)L, 1) ? "(null)" : lua_tostring((lua_State*)L, 1)) + ". The computer will now shut down.").c_str()); return NULL;}, L);
     }
     comp->event_lock.notify_all();
     for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
@@ -403,38 +405,50 @@ void termHook(lua_State *L, lua_Debug *ar) {
         computer->debugger = NULL;
     }
     if (ar->event == LUA_HOOKCOUNT) {
-        if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > config.abortTimeout) {
+        if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > (config.standardsMode ? 7000 : config.abortTimeout)) {
             forceCheckTimeout = false;
             if (++computer->timeoutCheckCount >= 5) {
-                if (queueTask([computer](void*)->void*{
-                    if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
-                        SDL_MessageBoxData msg;
-                        SDL_MessageBoxButtonData buttons[] = {
-                            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
-                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
-                        };
-                        msg.flags = SDL_MESSAGEBOX_WARNING;
-                        msg.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
-                        msg.title = "Computer not responding";
-                        msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
-                        msg.numbuttons = 2;
-                        msg.buttons = buttons;
-                        msg.colorScheme = NULL;
-                        if (queueTask([ ](void* arg)->void*{int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num;}, &msg) != NULL) {
-                            computer->event_lock.notify_all();
-                            for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
-                                if (libraries[i]->deinit != NULL) libraries[i]->deinit(computer);
-                            lua_close(computer->L);   /* Cya, Lua */
-                            computer->L = NULL;
-                            computer->running = 2;
-                            return (void*)1;
-                        } else {
-                            computer->timeoutCheckCount = -15;
-                            return NULL;
+                if (config.standardsMode) {
+                    // In standards mode we give no second chances - just crash and burn
+                    displayFailure(computer->term, "Error running computer", "Too long without yielding");
+                    computer->event_lock.notify_all();
+                    for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++)
+                        if (libraries[i]->deinit != NULL) libraries[i]->deinit(computer);
+                    lua_close(computer->L);   /* Cya, Lua */
+                    computer->L = NULL;
+                    computer->running = 0;
+                    longjmp(computer->on_panic, 0);
+                } else {
+                    if (queueTask([computer](void*)->void* {
+                        if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
+                            SDL_MessageBoxData msg;
+                            SDL_MessageBoxButtonData buttons[] = {
+                                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
+                                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
+                            };
+                            msg.flags = SDL_MESSAGEBOX_WARNING;
+                            msg.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
+                            msg.title = "Computer not responding";
+                            msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
+                            msg.numbuttons = 2;
+                            msg.buttons = buttons;
+                            msg.colorScheme = NULL;
+                            if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
+                                computer->event_lock.notify_all();
+                                for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++)
+                                    if (libraries[i]->deinit != NULL) libraries[i]->deinit(computer);
+                                lua_close(computer->L);   /* Cya, Lua */
+                                computer->L = NULL;
+                                computer->running = 2;
+                                return (void*)1;
+                            } else {
+                                computer->timeoutCheckCount = -15;
+                                return NULL;
+                            }
                         }
-                    }
-                    return NULL;
-                }, NULL) != NULL) longjmp(computer->on_panic, 0);
+                        return NULL;
+                    }, NULL) != NULL) longjmp(computer->on_panic, 0);
+                }
             }
             luaL_where(L, 1);
             lua_pushstring(L, "Too long without yielding");
@@ -853,6 +867,24 @@ const char * termGetEvent(lua_State *L) {
         }
     }
     return NULL;
+}
+
+void displayFailure(Terminal * term, std::string message, std::string extra) {
+    if (!term) return;
+    std::lock_guard<std::mutex> lock(term->locked);
+    term->mode = 0;
+    memset(term->screen.data(), ' ', term->height * term->width);
+    memset(term->colors.data(), term->grayscale ? 0xF0 : 0xFE, term->height * term->width);
+    memcpy(term->screen.data(), message.c_str(), min(message.size(), (size_t)term->width));
+    int offset = term->width;
+    if (!extra.empty()) {
+        memcpy(term->screen.data() + offset, extra.c_str(), min(extra.size(), (size_t)term->width));
+        offset *= 2;
+    }
+    strcpy((char*)term->screen.data() + offset, "CraftOS-PC may be installed incorrectly");
+    term->canBlink = false;
+    term->errorMode = true;
+    term->changed = true;
 }
 
 int headlessCursorX = 1, headlessCursorY = 1;

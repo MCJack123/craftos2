@@ -49,6 +49,7 @@ extern Uint32 task_event_type;
 extern Uint32 render_event_type;
 extern std::unordered_map<int, unsigned char> keymap_cli;
 extern std::unordered_map<int, unsigned char> keymap;
+extern std::unordered_set<Terminal*> orphanedTerminals;
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
 
@@ -96,7 +97,7 @@ void awaitTasks(std::function<bool()> predicate = []()->bool{return true;}) {
 void mainLoop() {
     mainThreadID = std::this_thread::get_id();
 #ifndef __EMSCRIPTEN__
-    while (rawClient ? !exiting : computers->size() > 0) {
+    while (rawClient ? !exiting : !computers->empty() || !orphanedTerminals.empty()) {
 #endif
         //bool res = false; // I forgot what this is for
         if (selectedRenderer == 0) /*res =*/ SDLTerminal::pollEvents();
@@ -202,7 +203,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     lua_xmove(param, L, count);
     lua_remove(computer->paramQueue, 1);
     gotEvent(computer);
-    computer->eventTimeout = SDL_AddTimer(config.abortTimeout, eventTimeoutEvent, computer);
+    computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
     return count + 1;
 }
 

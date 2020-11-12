@@ -214,7 +214,6 @@ void config_init() {
     readConfigSetting(useVsync, Bool);
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION)-1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
-    if (config.standardsMode) config.abortTimeout = 7000;
     for (auto it = root.begin(); it != root.end(); it++)
         if (configSettings.find(it->first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), it->first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
             unknownOptions.insert(*it);

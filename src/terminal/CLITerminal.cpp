@@ -283,6 +283,7 @@ void CLITerminal::quit() {
 extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
 extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
+extern std::unordered_set<Terminal*> orphanedTerminals;
 
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
@@ -370,6 +371,13 @@ bool CLITerminal::pollEvents() {
                                 e.button.windowID = *CLITerminal::selectedWindow;
                                 c->termEventQueue.push(e);
                                 c->event_lock.notify_all();
+                            }
+                        }
+                        for (Terminal * t : orphanedTerminals) {
+                            if (t->id == *CLITerminal::selectedWindow) {
+                                orphanedTerminals.erase(t);
+                                delete t;
+                                break;
                             }
                         }
                     }

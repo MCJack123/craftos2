@@ -548,6 +548,7 @@ void SDLTerminal::quit() {
 extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
 extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
+extern std::unordered_set<Terminal*> orphanedTerminals;
 
 extern bool rawClient;
 extern void sendRawEvent(SDL_Event e);
@@ -619,6 +620,13 @@ bool SDLTerminal::pollEvents() {
                         std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
+                    }
+                }
+                for (Terminal * t : orphanedTerminals) {
+                    if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
+                        orphanedTerminals.erase(t);
+                        delete t;
+                        break;
                     }
                 }
             }

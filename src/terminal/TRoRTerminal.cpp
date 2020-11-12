@@ -40,6 +40,7 @@ extern std::thread * inputThread;
 extern bool exiting;
 
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
+extern std::unordered_set<Terminal*> orphanedTerminals;
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
@@ -123,6 +124,13 @@ void trorInputLoop() {
                     std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                     c->termEventQueue.push(e);
                     c->event_lock.notify_all();
+                }
+            }
+            for (Terminal * t : orphanedTerminals) {
+                if (t->id == id) {
+                    orphanedTerminals.erase(t);
+                    delete t;
+                    break;
                 }
             }
         }

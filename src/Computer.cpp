@@ -49,6 +49,7 @@ path_t computerDir;
 std::unordered_map<int, path_t> Computer::customDataDirs;
 std::list<path_t> Computer::customPlugins;
 std::list<std::tuple<std::string, std::string, int> > Computer::customMounts;
+std::unordered_set<Terminal*> orphanedTerminals;
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
@@ -65,6 +66,19 @@ library_t * libraries[] = {
 // Constructor
 Computer::Computer(int i, bool debug): isDebugger(debug) {
     id = i;
+    // Load config
+    config = getComputerConfig(id);
+    // Create the terminal
+    std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
+    if (selectedRenderer == 1) term = NULL;
+#ifndef NO_CLI
+    else if (selectedRenderer == 2) term = new CLITerminal(term_title);
+#endif
+    else if (selectedRenderer == 3) term = new RawTerminal(term_title);
+    else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
+    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
+    else term = new SDLTerminal(term_title);
+    if (term) term->grayscale = !config.isColor;
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
 #ifdef STANDALONE_ROM
@@ -72,11 +86,11 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     if (debug) addMount(this, WS("debug:"), "debug", true);
 #else
 #ifdef _WIN32
-    if (!addMount(this, (getROMPath() + WS("\\rom")).c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
-    if (debug) if (!addMount(this, (getROMPath() + WS("\\debug")).c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
+    if (!addMount(this, (getROMPath() + WS("\\rom")).c_str(), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, (getROMPath() + WS("\\debug")).c_str(), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount debugger ROM"); }
 #else
-    if (!addMount(this, (getROMPath() + WS("/rom")).c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
-    if (debug) if (!addMount(this, (getROMPath() + WS("/debug")).c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
+    if (!addMount(this, (getROMPath() + WS("/rom")).c_str(), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, (getROMPath() + WS("/debug")).c_str(), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount debugger ROM"); }
 #endif // _WIN32
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
@@ -97,19 +111,6 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif
     // Create the root directory
     createDirectory(dataDir.c_str());
-    // Load config
-    config = getComputerConfig(id);
-    // Create the terminal
-    std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
-    if (selectedRenderer == 1) term = NULL;
-#ifndef NO_CLI
-    else if (selectedRenderer == 2) term = new CLITerminal(term_title);
-#endif
-    else if (selectedRenderer == 3) term = new RawTerminal(term_title);
-    else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
-    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
-    else term = new SDLTerminal(term_title);
-    if (term) term->grayscale = !config.isColor;
 }
 
 extern void stopWebsocket(void*);
@@ -119,7 +120,10 @@ Computer::~Computer() {
     // Deinitialize any plugins that registered a destructor
     for (auto d : userdata_destructors) d.second(this, d.first, userdata[d.first]);
     // Destroy terminal
-    if (term != NULL) delete term;
+    if (term != NULL) {
+        if (term->errorMode) orphanedTerminals.insert(term);
+        else delete term;
+    }
     // Save config
     setComputerConfig(id, config);
     // Deinitialize all peripherals
@@ -582,7 +586,8 @@ void Computer::run(path_t bios_name) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
             fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(L, -1));
-            queueTask([bios_path_expanded](void* term)->void*{
+            if (::config.standardsMode) displayFailure(term, "Error loading bios.lua");
+            else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
                     SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
                     std::string(
@@ -598,7 +603,7 @@ void Computer::run(path_t bios_name) {
         status = LUA_YIELD;
         int narg = 0;
         running = 1;
-        eventTimeout = SDL_AddTimer(::config.abortTimeout, eventTimeoutEvent, this);
+        eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, this);
         while (status == LUA_YIELD && running == 1) {
             status = lua_resume(coro, narg);
             if (status == LUA_YIELD) {
@@ -695,7 +700,7 @@ std::list<std::thread*> computerThreads;
 Computer * startComputer(int id) {
     Computer * comp;
     try {comp = new Computer(id);} catch (std::exception &e) {
-        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
+        if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
         else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
         return NULL;
     }
