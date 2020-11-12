@@ -78,6 +78,48 @@ bool configLoadError = false;
 
 void config_save();
 
+// first: 0 = immediate, 1 = reboot, 2 = relaunch
+// second: 0 = boolean, 1 = number, 2 = string
+std::unordered_map<std::string, std::pair<int, int> > configSettings = {
+    {"http_enable", {1, 0}},
+    {"debug_enable", {1, 0}},
+    {"mount_mode", {0, 1}},
+    {"disable_lua51_features", {1, 0}},
+    {"default_computer_settings", {1, 2}},
+    {"logErrors", {0, 0}},
+    {"showFPS", {0, 0}},
+    {"computerSpaceLimit", {0, 1}},
+    {"maximumFilesOpen", {0, 1}},
+    {"abortTimeout", {0, 1}},
+    {"maxNotesPerTick", {2, 1}},
+    {"clockSpeed", {0, 1}},
+    {"ignoreHotkeys", {0, 0}},
+    {"checkUpdates", {2, 0}},
+    {"romReadOnly", {2, 0}},
+    {"useHDFont", {2, 0}},
+    {"configReadOnly", {0, 0}},
+    {"vanilla", {1, 0}},
+    {"initialComputer", {2, 1}},
+    {"maxRecordingTime", {0, 1}},
+    {"recordingFPS", {0, 1}},
+    {"showMountPrompt", {0, 0}},
+    {"maxOpenPorts", {0, 1}},
+    {"mouse_move_throttle", {0, 1}},
+    {"monitorsUseMouseEvents", {0, 0}},
+    {"defaultWidth", {2, 1}},
+    {"defaultHeight", {2, 1}},
+    {"standardsMode", {0, 0}},
+    {"isColor", {0, 0}},
+    {"startFullscreen", {2, 0}},
+    {"useHardwareRenderer", {2, 0}},
+    {"preferredHardwareDriver", {2, 2}},
+    {"useVsync", {2, 0}}
+};
+
+const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion"};
+
+std::unordered_map<std::string, Poco::Dynamic::Var> unknownOptions;
+
 void config_init() {
     createDirectory(getBasePath() + WS("/config"));
     config = {
@@ -170,9 +212,12 @@ void config_init() {
     readConfigSetting(useHardwareRenderer, Bool);
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
-    readConfigSetting(jit_ffi_enable, Bool);
-    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString() != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
+    // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
+    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION)-1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
     if (config.standardsMode) config.abortTimeout = 7000;
+    for (auto it = root.begin(); it != root.end(); it++)
+        if (configSettings.find(it->first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), it->first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
+            unknownOptions.insert(*it);
 }
 
 void config_save() {
@@ -213,8 +258,8 @@ void config_save() {
     root["useHardwareRenderer"] = config.useHardwareRenderer;
     root["preferredHardwareDriver"] = config.preferredHardwareDriver;
     root["useVsync"] = config.useVsync;
-    root["jit_ffi_enable"] = config.jit_ffi_enable;
     root["lastVersion"] = CRAFTOSPC_VERSION;
+    for (auto opt : unknownOptions) root[opt.first] = opt.second;
     std::ofstream out(getBasePath() + WS("/config/global.json"));
     out << root;
     out.close();
@@ -279,44 +324,6 @@ int config_get(lua_State *L) {
     } else lua_pushnil(L);
     return 1;
 }
-
-// first: 0 = immediate, 1 = reboot, 2 = relaunch
-// second: 0 = boolean, 1 = number, 2 = string
-std::unordered_map<std::string, std::pair<int, int> > configSettings = {
-    {"http_enable", {1, 0}},
-    {"debug_enable", {1, 0}},
-    {"mount_mode", {0, 1}},
-    {"disable_lua51_features", {1, 0}},
-    {"default_computer_settings", {1, 2}},
-    {"logErrors", {0, 0}},
-    {"showFPS", {0, 0}},
-    {"computerSpaceLimit", {0, 1}},
-    {"maximumFilesOpen", {0, 1}},
-    {"abortTimeout", {0, 1}},
-    {"maxNotesPerTick", {2, 1}},
-    {"clockSpeed", {0, 1}},
-    {"ignoreHotkeys", {0, 0}},
-    {"checkUpdates", {2, 0}},
-    {"romReadOnly", {2, 0}},
-    {"useHDFont", {2, 0}},
-    {"configReadOnly", {0, 0}},
-    {"vanilla", {1, 0}},
-    {"initialComputer", {2, 1}},
-    {"maxRecordingTime", {0, 1}},
-    {"recordingFPS", {0, 1}},
-    {"showMountPrompt", {0, 0}},
-    {"maxOpenPorts", {0, 1}},
-    {"mouse_move_throttle", {0, 1}},
-    {"monitorsUseMouseEvents", {0, 0}},
-    {"defaultWidth", {2, 1}},
-    {"defaultHeight", {2, 1}},
-    {"standardsMode", {0, 0}},
-    {"isColor", {0, 0}},
-    {"startFullscreen", {2, 0}},
-    {"useHardwareRenderer", {2, 0}},
-    {"preferredHardwareDriver", {2, 2}},
-    {"useVsync", {2, 0}}
-};
 
 const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
 

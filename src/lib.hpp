@@ -99,6 +99,7 @@ public:
     void operator=(bool v) { obj = v; updateParent(); }
     void operator=(const char * v) { obj = std::string(v); updateParent(); }
     void operator=(std::string v) { obj = v; updateParent(); }
+    void operator=(Poco::Dynamic::Var v) { obj = v; updateParent(); }
     bool asBool() { return obj.convert<bool>(); }
     int asInt() { return obj.convert<int>(); }
     float asFloat() { return obj.convert<float>(); }
