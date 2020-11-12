@@ -190,7 +190,7 @@ void pressControl(int sig) {
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)29;
     LockGuard lock(computers);
-    for (Computer * c : computers) {
+    for (Computer * c : *computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
@@ -208,7 +208,7 @@ void pressAlt(int sig) {
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)56;
     LockGuard lock(computers);
-    for (Computer * c : computers) {
+    for (Computer * c : *computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
@@ -333,7 +333,7 @@ bool CLITerminal::pollEvents() {
         e.type = SDL_WINDOWEVENT;
         e.window.event = SDL_WINDOWEVENT_RESIZED;
         LockGuard lock(computers);
-        for (Computer * c : computers) {
+        for (Computer * c : *computers) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.window.data1 = COLS;
             e.window.data2 = LINES - 1;
