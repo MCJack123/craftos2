@@ -112,7 +112,7 @@ $(ODIR)/apis_%.o: $(SDIR)/apis/%.cpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/apis_%_handle.o: $(SDIR)/apis/handles/%.cpp $(SDIR)/apis/handles/%.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
+$(ODIR)/apis_%_handle.o: $(SDIR)/apis/handles/%_handle.cpp $(SDIR)/apis/handles/%_handle.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
