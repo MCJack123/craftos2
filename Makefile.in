@@ -88,7 +88,7 @@ $(ODIR)/%.o: $(SDIR)/%.c
 	echo " [CC]    $@"
 	$(CC) -o $@ -c $(CPPFLAGS) $(CFLAGS) $<
 
-$(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
+$(ODIR)/%.o: $(SDIR)/%.cpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
