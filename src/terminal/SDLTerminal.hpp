@@ -29,7 +29,7 @@ inline SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
 class SDLTerminal: public Terminal {
     friend void mainLoop();
     friend int termPanic(lua_State *L);
-    friend int runRenderer();
+    friend static int runRenderer();
 protected:
     bool shouldScreenshot = false;
     bool shouldRecord = false;
