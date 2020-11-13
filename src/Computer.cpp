@@ -15,6 +15,7 @@ extern "C" {
 #include <configuration.hpp>
 #include <peripheral.hpp>
 #include "apis.hpp"
+#include "fs_standalone.hpp"
 #include "runtime.hpp"
 #include "termsupport.hpp"
 #include "platform.hpp"
