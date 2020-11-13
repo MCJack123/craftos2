@@ -20,6 +20,7 @@
 #include <Poco/Base64Encoder.h>
 #include <Computer.hpp>
 #include "platform.hpp"
+#include "fs_standalone.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "runtime.hpp"
 #include <sys/stat.h>
