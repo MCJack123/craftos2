@@ -11,7 +11,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #include "../platform.hpp"
-#include "../mounter.hpp"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -25,7 +24,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <wchar.h>
-#include "../http.hpp"
+#include "../util.hpp"
 
 const wchar_t * base_path = L"%appdata%\\CraftOS-PC";
 std::wstring base_path_expanded;

@@ -8,12 +8,13 @@
  * Copyright (c) 2019-2020 JackMacWindows. 
  */
 
-#include "peripheral.hpp"
+#include <peripheral.hpp>
 #include <unordered_set>
+#include <mutex>
 
 class modem: public peripheral {
 private:
-    friend const char * modem_message(lua_State *, void*);
+    friend std::string modem_message(lua_State *, void*);
     std::unordered_set<uint16_t> openPorts;
     std::unordered_set<void*> modemMessages;
     Computer * comp;

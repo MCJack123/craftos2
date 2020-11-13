@@ -61,7 +61,6 @@ int http_handle_close(lua_State *L) {
     return 0;
 }
 
-//extern char checkChar(char c);
 #define checkChar(c) c
 
 int http_handle_readAll(lua_State *L) {
@@ -196,14 +195,14 @@ void downloadSucceeded(emscripten_fetch_t *fetch) {
     ((http_data_t*)fetch->userData)->headers = emscripten_fetch_unpack_response_headers(headers_str);
     delete[] headers_str;
     fetch->dataOffset = 0;
-    termQueueProvider(((http_data_t*)fetch->userData)->comp, http_success, fetch);
+    queueEvent(((http_data_t*)fetch->userData)->comp, http_success, fetch);
 }
 
 void downloadFailed(emscripten_fetch_t *fetch) {
     if (fetch->userData == NULL) return;
     char * url = new char[strlen(fetch->url)-strlen("https://cors-anywhere.herokuapp.com/")+1];
     strcpy(url, &fetch->url[strlen("https://cors-anywhere.herokuapp.com/")]);
-    termQueueProvider(((http_data_t*)fetch->userData)->comp, http_failure, url);
+    queueEvent(((http_data_t*)fetch->userData)->comp, http_failure, url);
     delete (http_data_t*)fetch->userData;
     fetch->userData = NULL;
     emscripten_fetch_close(fetch);
@@ -280,7 +279,7 @@ void* checkThread(void* arg) {
     http_check_t * res = new http_check_t;
     res->url = param->url;
     res->status = status;
-    termQueueProvider(param->comp, http_check, res);
+    queueEvent(param->comp, http_check, res);
     delete param;
     return NULL;
 }

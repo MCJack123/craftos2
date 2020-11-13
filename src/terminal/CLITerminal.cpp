@@ -1,5 +1,5 @@
 /*
- * CLITerminal.cpp
+ * terminal/CLITerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the CLITerminal class.
@@ -12,8 +12,12 @@
 #ifndef NO_CLI
 #include "CLITerminal.hpp"
 #include "SDLTerminal.hpp"
+#include "RawTerminal.hpp"
 #include "../peripheral/monitor.hpp"
+#include "../termsupport.hpp"
+#include "../runtime.hpp"
 #include <thread>
+#include <unordered_map>
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
@@ -22,9 +26,7 @@
 #include <panel.h>
 #include <signal.h>
 
-extern void termRenderLoop();
 extern std::thread * renderThread;
-extern std::unordered_map<int, unsigned char> keymap_cli;
 std::set<unsigned> CLITerminal::currentIDs;
 std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
 bool CLITerminal::stopRender = false;
@@ -74,14 +76,14 @@ CLITerminal::~CLITerminal() {
     if (currentIDs.size() == 0) return;
     if (next == currentIDs.end()) next--;
     selectedWindow = next;
-    Terminal::renderTargetsLock.lock();
+    renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    Terminal::renderTargetsLock.unlock();
+    renderTargetsLock.unlock();
 }
 
 bool CLITerminal::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
@@ -172,20 +174,20 @@ void CLITerminal::setLabel(std::string label) {
     if (*selectedWindow == id) renderNavbar(label);
 }
 
-short original_colors[16][3];
-MEVENT me;
-WINDOW * tmpwin;
-std::set<int> lastch;
-bool resizeRefresh = false;
+static short original_colors[16][3];
+static MEVENT me;
+static WINDOW * tmpwin;
+static std::set<int> lastch;
+static bool resizeRefresh = false;
 
-void handle_winch(int sig) {
+static void handle_winch(int sig) {
     resizeRefresh = true;
     endwin();
     refresh();
     clear();
 }
 
-void pressControl(int sig) {
+static void pressControl(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)29;
@@ -203,7 +205,7 @@ void pressControl(int sig) {
     }
 }
 
-void pressAlt(int sig) {
+static void pressAlt(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)56;
@@ -280,11 +282,6 @@ void CLITerminal::quit() {
     SDL_Quit();
 }
 
-extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
-extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern std::unordered_set<Terminal*> orphanedTerminals;
-
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
@@ -292,7 +289,6 @@ extern std::unordered_set<Terminal*> orphanedTerminals;
 #endif
 
 extern bool rawClient;
-extern void sendRawEvent(SDL_Event e);
 #define sendEventToTermQueue(e, TYPE) \
     if (rawClient) {e.TYPE.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}\
     else {LockGuard lock(computers);\

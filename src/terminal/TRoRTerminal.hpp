@@ -10,7 +10,7 @@
 
 #ifndef TERMINAL_TRORTERMINAL_HPP
 #define TERMINAL_TRORTERMINAL_HPP
-#include "Terminal.hpp"
+#include <Terminal.hpp>
 #include <set>
 
 class TRoRTerminal: public Terminal {
@@ -18,11 +18,11 @@ class TRoRTerminal: public Terminal {
 public:
     static void init();
     static void quit();
-    static void showGlobalMessage(Uint32 flags, const char * title, const char * message);
+    static void showGlobalMessage(uint32_t flags, const char * title, const char * message);
     TRoRTerminal(std::string title);
     ~TRoRTerminal() override;
     void render() override {}
-    void showMessage(Uint32 flags, const char * title, const char * message) override;
+    void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
     bool resize(int w, int h) override {return false;}
 };

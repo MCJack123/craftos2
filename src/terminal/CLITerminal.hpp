@@ -11,7 +11,7 @@
 #ifndef NO_CLI
 #ifndef TERMINAL_CLITERMINAL_HPP
 #define TERMINAL_CLITERMINAL_HPP
-#include "Terminal.hpp"
+#include <Terminal.hpp>
 #include <string>
 #include <ncurses.h>
 #include <vector>

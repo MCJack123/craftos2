@@ -1,5 +1,5 @@
 /*
- * RawTerminal.cpp
+ * terminal/RawTerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the RawTerminal class.
@@ -10,8 +10,8 @@
 
 #include "RawTerminal.hpp"
 #include "SDLTerminal.hpp"
-#include "../lib.hpp"
-#include "../term.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 #include "../peripheral/monitor.hpp"
 #include <iostream>
 #include <sstream>
@@ -112,11 +112,8 @@
 */
 
 extern bool rawClient;
-extern bool exiting;
-extern std::thread * renderThread;
-extern void termRenderLoop();
 std::set<unsigned> RawTerminal::currentIDs;
-std::thread * inputThread;
+static std::thread * inputThread;
 
 enum {
     CCPC_RAW_TERMINAL_DATA = 0,
@@ -127,7 +124,7 @@ enum {
     CCPC_RAW_MESSAGE_DATA
 };
 
-void sendRawData(uint8_t type, uint8_t id, std::function<void(std::ostream&)> callback) {
+static void sendRawData(uint8_t type, uint8_t id, std::function<void(std::ostream&)> callback) {
     std::stringstream output;
     output.put(type);
     output.put(id);
@@ -142,7 +139,7 @@ void sendRawData(uint8_t type, uint8_t id, std::function<void(std::ostream&)> ca
     std::cout.flush();
 }
 
-void parseIBTTag(std::istream& in, lua_State *L) {
+static void parseIBTTag(std::istream& in, lua_State *L) {
     char type = in.get();
     if (type == 0) {
         uint32_t num = 0;
@@ -171,14 +168,8 @@ void parseIBTTag(std::istream& in, lua_State *L) {
     }
 }
 
-extern int selectedRenderer;
-extern std::unordered_map<int, unsigned char> keymap;
 extern std::map<uint8_t, Terminal*> rawClientTerminals;
 extern std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
-extern int buttonConvert(Uint8 button);
-extern int buttonConvert2(Uint32 state);
-extern int convertX(SDLTerminal *term, int x);
-extern int convertY(SDLTerminal *term, int y);
 
 void sendRawEvent(SDL_Event e) {
     if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (selectedRenderer != 0 || keymap.find(e.key.keysym.sym) != keymap.end())) 
@@ -253,9 +244,6 @@ void sendRawEvent(SDL_Event e) {
         });
 }
 
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern std::unordered_set<Terminal*> orphanedTerminals;
-
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
@@ -269,7 +257,7 @@ struct rawMouseProviderData {
     uint32_t y;
 };
 
-const char * rawMouseProvider(lua_State *L, void* data) {
+static std::string rawMouseProvider(lua_State *L, void* data) {
     struct rawMouseProviderData * d = (struct rawMouseProviderData*)data;
     lua_pushinteger(L, d->button);
     lua_pushinteger(L, d->x);
@@ -283,7 +271,7 @@ const char * rawMouseProvider(lua_State *L, void* data) {
     return retval;
 }
 
-const char * rawEventProvider(lua_State *L, void* data) {
+static std::string rawEventProvider(lua_State *L, void* data) {
     std::stringstream& in = *(std::stringstream*)data;
     uint8_t paramCount = in.get();
     char c;
@@ -294,7 +282,7 @@ const char * rawEventProvider(lua_State *L, void* data) {
     return name.c_str();
 }
 
-void rawInputLoop() {
+static void rawInputLoop() {
     while (!exiting) {
         unsigned char c = std::cin.get();
         if (c == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
@@ -381,7 +369,7 @@ void rawInputLoop() {
                         d->button = button;
                         d->x = x;
                         d->y = y;
-                        termQueueProvider(c, rawMouseProvider, d);
+                        queueEvent(c, rawMouseProvider, d);
                     }
                 }
             } else if (type == CCPC_RAW_EVENT_DATA) {
@@ -389,7 +377,7 @@ void rawInputLoop() {
                 for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
                         std::stringstream * ss = new std::stringstream(in.str().substr(2));
-                        termQueueProvider(c, rawEventProvider, ss);
+                        queueEvent(c, rawEventProvider, ss);
                     }
                 }
             } else if (type == CCPC_RAW_TERMINAL_CHANGE) {
@@ -496,14 +484,14 @@ RawTerminal::~RawTerminal() {
     });
     auto pos = currentIDs.find(id);
     if (pos != currentIDs.end()) currentIDs.erase(pos);
-    Terminal::renderTargetsLock.lock();
+    renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    Terminal::renderTargetsLock.unlock();
+    renderTargetsLock.unlock();
 }
 
 void RawTerminal::render() {

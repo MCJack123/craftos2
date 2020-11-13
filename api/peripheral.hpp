@@ -10,11 +10,9 @@
  */
 
 class peripheral;
-#ifndef PERIPHERAL_HPP
-#define PERIPHERAL_HPP
-#include "../lib.hpp"
-extern library_t peripheral_lib;
-extern void peripheral_update(Computer *comp);
+#ifndef CRAFTOS_PC_PERIPHERAL_HPP
+#define CRAFTOS_PC_PERIPHERAL_HPP
+#include "lib.hpp"
 
 // This function type is used to create a new instance of a peripheral. It takes
 // the Lua state and side that should be passed to the constructor, and returns
@@ -38,16 +36,16 @@ public:
     // and correctly frees the object with delete. This is necessary when loading
     // a peripheral class from a plugin.
     // An example of this would be to define a static void function in the class:
-    // static void deinit(peripheral * p) {delete (myperipheral*)p;}
+    //   static void deinit(peripheral * p) {delete (myperipheral*)p;}
     // then return that from getDestructor:
-    // destructor getDestructor() {return deinit;}
+    //   destructor getDestructor() {return deinit;}
     virtual destructor getDestructor()=0;
     // This is the main function that is used to call methods on peripherals.
     // The function should act like a normal Lua function, except that it also
     // gets the method name as a parameter. If you're defining the function calls
     // separately in the class, you just need to convert the method name string
     // into the proper function calls: 
-    // if (m == "a") return a(L); else if (m == "b") return b(L); ...
+    //   if (m == "a") return a(L); else if (m == "b") return b(L); ...
     virtual int call(lua_State *L, const char * method)=0;
     // This function is called every render tick on the render thread. This can
     // be used for anything that requires a constant update cycle.
@@ -62,4 +60,5 @@ public:
     // The state this function is called with is the computer's global state.
     virtual void reinitialize(lua_State *L) {};
 };
+inline peripheral::~peripheral() {}
 #endif

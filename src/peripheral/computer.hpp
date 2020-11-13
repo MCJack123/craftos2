@@ -10,8 +10,9 @@
 
 #ifndef PERIPHERAL_COMPUTER_HPP
 #define PERIPHERAL_COMPUTER_HPP
-#include "peripheral.hpp"
-#include "../Computer.hpp"
+#include <peripheral.hpp>
+#include <Computer.hpp>
+#include "../util.hpp"
 
 class computer: public peripheral {
 private:

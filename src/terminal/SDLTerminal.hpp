@@ -10,13 +10,21 @@
 
 #ifndef TERMINAL_SDLTERMINAL_HPP
 #define TERMINAL_SDLTERMINAL_HPP
-#include "Terminal.hpp"
+#include <Terminal.hpp>
 #include <SDL2/SDL.h>
 #include <string>
 #include <vector>
 #include <ctime>
 #include <mutex>
 #include "../platform.hpp"
+
+inline SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
+    rect->x = x;
+    rect->y = y;
+    rect->w = w;
+    rect->h = h;
+    return rect;
+}
 
 class SDLTerminal: public Terminal {
     friend void mainLoop();
@@ -61,7 +69,7 @@ public:
     void record(std::string path = ""); // asynchronous; captures on next render
     void stopRecording();
     void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
-    void showMessage(Uint32 flags, const char * title, const char * message) override;
+    void showMessage(uint32_t flags, const char * title, const char * message) override;
     void toggleFullscreen();
     void setLabel(std::string label) override;
     virtual bool resizeWholeWindow(int w, int h);

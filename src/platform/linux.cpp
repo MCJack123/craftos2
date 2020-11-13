@@ -1,5 +1,5 @@
 /*
- * platform_linux.cpp
+ * platform/linux.cpp
  * CraftOS-PC 2
  * 
  * This file implements functions specific to Linux.
@@ -32,7 +32,6 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <sstream>
-#include "../mounter.hpp"
 #include "../platform.hpp"
 
 #ifdef CUSTOM_ROM_DIR
@@ -103,7 +102,7 @@ std::string getMCSavePath() {
 }
 
 void setThreadName(std::thread &t, std::string name) {
-    pthread_setname_np(*(pthread_t*)t.native_handle(), name.c_str());
+    pthread_setname_np(t.native_handle(), name.c_str());
 }
 
 int createDirectory(std::string path) {

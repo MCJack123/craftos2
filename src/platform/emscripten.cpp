@@ -1,3 +1,14 @@
+/*
+ * platform/emscripten.cpp
+ * CraftOS-PC 2
+ *
+ * This file implements functions specific to the Emscripten/WASM platform.
+ *
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019-2020 JackMacWindows.
+ */
+
+#ifdef __EMSCRIPTEN__
 #include "../platform.hpp"
 #include <unistd.h>
 #include <sys/stat.h>
@@ -73,3 +84,5 @@ void migrateData() {}
 void copyImage(SDL_Surface* surf) {}
 
 void setupCrashHandler() {}
+
+#endif

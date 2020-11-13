@@ -1,5 +1,5 @@
 /*
- * TRoRTerminal.cpp
+ * terminal/TRoRTerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the TRoRTerminal class.
@@ -12,7 +12,8 @@
 #include "TRoRTerminal.hpp"
 #include "SDLTerminal.hpp"
 #include "../peripheral/monitor.hpp"
-#include "../term.hpp"
+#include "../termsupport.hpp"
+#include "../runtime.hpp"
 #include <stdio.h>
 #include <iostream>
 #include <thread>
@@ -22,32 +23,27 @@ CraftOS-PC adds the "ccpcTerm" extension to add some extra features. Even if the
 client doesn't support "ccpcTerm", the ID of the window is always sent in the 
 metadata field. If the client sends a packet without an ID in the metadata, it
 is assumed to be meant for the first window (ID 0).
-| Code | Payload | Description |
-|------|---------|-------------|
-| `TN` | `<title>` | Alerts the client to a newly opened window. |
-| `TQ` | None    | Alerts the client or server that the window has been closed. Clients and servers MAY send this at any time. |
-| `TZ` | `<title>` | Alerts the client that the window's title has changed. |
+| Code | Payload       | Description |
+|------|---------------|-------------|
+| `TN` | `<title>`     | Alerts the client to a newly opened window. |
+| `TQ` | None          | Alerts the client or server that the window has been closed. Clients and servers MAY send this at any time. |
+| `TZ` | `<title>`     | Alerts the client that the window's title has changed. |
 | `TA` | `"<title>","<message>"` | Shows a message on the client's screen. The title and message will both be in quotes and separated by a comma. The client SHOULD NOT split the string at the first comma since there may be commas before the separator. |
-| `TR` | `<w>,<h>` | With the CraftOS-PC extension, clients MAY send a resize message to the server as well. |
-| `SC` | `<message>` | With the CraftOS-PC extension, clients MAY send a close message to the server as well. |
+| `TR` | `<w>,<h>`     | With the CraftOS-PC extension, clients MAY send a resize message to the server as well. |
+| `SC` | `<message>`   | With the CraftOS-PC extension, clients MAY send a close message to the server as well. |
 */
 
 std::set<unsigned> TRoRTerminal::currentIDs;
-std::unordered_set<std::string> trorExtensions;
-extern std::thread * renderThread;
-extern void termRenderLoop();
-extern std::thread * inputThread;
-extern bool exiting;
+static std::unordered_set<std::string> trorExtensions;
+static std::thread * inputThread;
 
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern std::unordered_set<Terminal*> orphanedTerminals;
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
 #define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
 #endif
 
-const char * trorEvent(lua_State *L, void* userp) {
+static std::string trorEvent(lua_State *L, void* userp) {
     std::string * str = (std::string*)userp;
     if (luaL_loadstring(L, ("return " + *str).c_str())) {
         std::cerr << "Could not load function (" << *str << ")\n";
@@ -63,7 +59,7 @@ const char * trorEvent(lua_State *L, void* userp) {
     return name.c_str();
 }
 
-void trorInputLoop() {
+static void trorInputLoop() {
     std::string tmps;
     while (!exiting) {
         std::string line;
@@ -80,7 +76,7 @@ void trorInputLoop() {
             LockGuard lock(computers);
             for (Computer * c : *computers)
                 if (checkWindowID(c, id))
-                    termQueueProvider(c, trorEvent, new std::string(payload));
+                    queueEvent(c, trorEvent, new std::string(payload));
         } else if (code == "SC") {
             SDL_Event e;
             memset(&e, 0, sizeof(SDL_Event));
@@ -171,14 +167,14 @@ TRoRTerminal::~TRoRTerminal() {
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TQ:%d;\n", id);
     auto pos = currentIDs.find(id);
     if (pos != currentIDs.end()) currentIDs.erase(pos);
-    Terminal::renderTargetsLock.lock();
+    renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    Terminal::renderTargetsLock.unlock();
+    renderTargetsLock.unlock();
 }
 
 void TRoRTerminal::showMessage(Uint32 flags, const char * title, const char * message) {

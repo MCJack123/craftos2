@@ -40,9 +40,7 @@ extern "C" {
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #include "../platform.hpp"
-#include "../mounter.hpp"
-#include "../http.hpp"
-#include "../os.hpp"
+#include "../util.hpp"
 
 extern bool exiting;
 std::string rom_path_expanded;

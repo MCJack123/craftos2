@@ -10,10 +10,11 @@
 
 #ifndef PERIPHERAL_DEBUGGER_HPP
 #define PERIPHERAL_DEBUGGER_HPP
-#include "peripheral.hpp"
+#include <peripheral.hpp>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <unordered_map>
 
 #define DEBUGGER_BREAK_TYPE_NONSTOP 0
 #define DEBUGGER_BREAK_TYPE_LINE    1
@@ -27,7 +28,7 @@
 
 class debugger: public peripheral {
     friend int debugger_lib_getInfo(lua_State *L);
-    friend void debuggerThread(Computer*, debugger*, std::string);
+    friend void debuggerThread(Computer*, void*, std::string);
 private:
     bool deleteThis = false;
     Computer * monitor;

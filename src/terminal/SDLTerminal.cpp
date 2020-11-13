@@ -1,5 +1,5 @@
 /*
- * SDLTerminal.cpp
+ * terminal/SDLTerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the SDLTerminal class.
@@ -10,14 +10,16 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "SDLTerminal.hpp"
+#include "RawTerminal.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
 #include <sstream>
 #include <assert.h>
-#include "../config.hpp"
+#include <configuration.hpp>
 #include "../gif.hpp"
-#include "../os.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 #include "../peripheral/monitor.hpp"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -45,33 +47,13 @@ extern "C" {
     extern struct favicon favicon;
 }
 
-// from Terminal.hpp
-Color defaultPalette[16] = {
-    {0xf0, 0xf0, 0xf0},
-    {0xf2, 0xb2, 0x33},
-    {0xe5, 0x7f, 0xd8},
-    {0x99, 0xb2, 0xf2},
-    {0xde, 0xde, 0x6c},
-    {0x7f, 0xcc, 0x19},
-    {0xf2, 0xb2, 0xcc},
-    {0x4c, 0x4c, 0x4c},
-    {0x99, 0x99, 0x99},
-    {0x4c, 0x99, 0xb2},
-    {0xb2, 0x66, 0xe5},
-    {0x33, 0x66, 0xcc},
-    {0x7f, 0x66, 0x4c},
-    {0x57, 0xa6, 0x4e},
-    {0xcc, 0x4c, 0x4c},
-    {0x11, 0x11, 0x11}
-};
-
 int SDLTerminal::fontScale = 2;
-std::list<Terminal*> Terminal::renderTargets;
-std::mutex Terminal::renderTargetsLock;
+/* export */ std::list<Terminal*> renderTargets;
+/* export */ std::mutex renderTargetsLock;
 #ifdef __EMSCRIPTEN__
-std::list<Terminal*>::iterator Terminal::renderTarget = Terminal::renderTargets.end();
+/* export */ std::list<Terminal*>::iterator renderTarget = Terminal::renderTargets.end();
 SDL_Window *SDLTerminal::win = NULL;
-int nextWindowID = 1;
+static int nextWindowID = 1;
 
 extern "C" {
     void EMSCRIPTEN_KEEPALIVE nextRenderTarget() {
@@ -181,14 +163,14 @@ SDLTerminal::~SDLTerminal() {
 #ifdef __EMSCRIPTEN__
     onWindowDestroy(id);
 #endif
-    Terminal::renderTargetsLock.lock();
+    renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    Terminal::renderTargetsLock.unlock();
+    renderTargetsLock.unlock();
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
         SDL_FreeSurface(bmp);
@@ -242,14 +224,6 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         if (SDL_BlitScaled(bmp, &srcrect, surf, &destrect) != 0) return false;
     }
     return true;
-}
-
-SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
-    rect->x = x;
-    rect->y = y;
-    rect->w = w;
-    rect->h = h;
-    return rect;
 }
 
 static unsigned char circlePix[] = {
@@ -391,7 +365,7 @@ void SDLTerminal::render() {
     }
 }
 
-void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {
+static void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y) {
     SDL_Rect viewport;
     float scale_x, scale_y;
     SDL_RenderGetViewport(renderer, &viewport);
@@ -477,7 +451,7 @@ void SDLTerminal::record(std::string path) {
     changed = true;
 }
 
-uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
+static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
     for (size_t i = 0; i < num; i++) memcpy(&ptr[i], &value, 4);
     return &ptr[num];
 }
@@ -494,8 +468,15 @@ void SDLTerminal::stopRecording() {
         uint32_t* ipixels = new uint32_t[w * h];
         uint32_t* lp = ipixels;
         for (unsigned i = 2; i*4 < s.size(); i++) {
+#ifdef __APPLE__
+            // macOS has memset_pattern4, which is much more efficient than my C implementation, so use that if available
+            uint32_t c = ((uint32_t*)&s[0])[i] & 0xFFFFFF;
+            memset_pattern4(lp, &c, min(((((uint32_t*)&s[0])[i] & 0xFF000000) >> 24) + 1, (unsigned int)((w * h) - (lp - ipixels))) * 4);
+            lp += min(((((uint32_t*)&s[0])[i] & 0xFF000000) >> 24) + 1, (unsigned int)((w * h) - (lp - ipixels)));
+#else
             uint32_t c = ((uint32_t*)&s[0])[i];
             lp = memset_int(lp, c & 0xFFFFFF, min(((c & 0xFF000000) >> 24) + 1, (unsigned int)((w*h) - (lp - ipixels))));
+#endif
         }
         GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 100 / config.recordingFPS);
         delete[] ipixels;
@@ -523,8 +504,6 @@ void SDLTerminal::setLabel(std::string label) {
 }
 
 extern Uint32 task_event_type, render_event_type;
-extern std::thread * renderThread;
-extern void termRenderLoop();
 
 void SDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -545,13 +524,7 @@ void SDLTerminal::quit() {
     SDL_Quit();
 }
 
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern std::unordered_set<Terminal*> orphanedTerminals;
-
 extern bool rawClient;
-extern void sendRawEvent(SDL_Event e);
 
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
@@ -590,7 +563,7 @@ bool SDLTerminal::pollEvents() {
                 }
             }
 #else
-            for (Terminal* term : Terminal::renderTargets) {
+            for (Terminal* term : renderTargets) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);

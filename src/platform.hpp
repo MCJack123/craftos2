@@ -2,8 +2,8 @@
  * platform.hpp
  * CraftOS-PC 2
  * 
- * This file defines functions that differ based on the platform the program is
- * built for.
+ * This file defines functions that have implementations that differ based on
+ * the platform the program is built for.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
@@ -14,11 +14,13 @@
 extern "C" {
 #include <lua.h>
 }
-#include "Computer.hpp"
 #include <thread>
+#include <SDL2/SDL.h>
+#include <string>
+#include <lib.hpp>
 
 #ifdef WIN32
-typedef std::wstring path_t;
+//typedef std::wstring path_t;
 #define pathstream_t std::wstringstream
 #define platform_stat _wstat
 #define platform_access _waccess
@@ -40,7 +42,7 @@ extern std::string astr(path_t str);
 extern char* basename(char* path);
 extern char* dirname(char* path);
 #else
-typedef std::string path_t;
+//typedef std::string path_t;
 #define pathstream_t std::stringstream
 #define platform_stat stat
 #define platform_access access

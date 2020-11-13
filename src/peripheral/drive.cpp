@@ -12,7 +12,7 @@
 #include "drive.hpp"
 #include "../platform.hpp"
 #include "../terminal/SDLTerminal.hpp"
-#include "../os.hpp"
+#include "../runtime.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
 
@@ -110,8 +110,6 @@ int drive::getDiskID(lua_State *L) {
     return 1;
 }
 
-#include <cassert>
-
 int drive::insertDisk(lua_State *L, bool init) {
     Computer * comp = get_comp(L);
     int arg = init * 2 + 1;
@@ -182,7 +180,7 @@ int drive::insertDisk(lua_State *L, bool init) {
 #endif
     } else {
         if (init) throw std::invalid_argument("bad argument (expected string or number)");
-        else bad_argument(L, "string or number", arg);
+        else luaL_typerror(L, arg, "string or number");
     }
     return 0;
 }
@@ -226,19 +224,20 @@ int drive::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-const char * drive_keys[12] = {
-    "isDiskPresent",
-    "getDiskLabel",
-    "setDiskLabel",
-    "hasData",
-    "getMountPath",
-    "hasAudio",
-    "getAudioTitle",
-    "playAudio",
-    "stopAudio",
-    "ejectDisk",
-    "getDiskID",
-    "insertDisk"
+static luaL_Reg drive_reg[] = {
+    {"isDiskPresent", NULL},
+    {"getDiskLabel", NULL},
+    {"setDiskLabel", NULL},
+    {"hasData", NULL},
+    {"getMountPath", NULL},
+    {"hasAudio", NULL},
+    {"getAudioTitle", NULL},
+    {"playAudio", NULL},
+    {"stopAudio", NULL},
+    {"ejectDisk", NULL},
+    {"getDiskID", NULL},
+    {"insertDisk", NULL},
+    {NULL, NULL}
 };
 
-library_t drive::methods = {"drive", 12, drive_keys, NULL, nullptr, nullptr};
+library_t drive::methods = {"drive", drive_reg, nullptr, nullptr};

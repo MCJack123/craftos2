@@ -10,28 +10,28 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "modem.hpp"
-#include "../term.hpp"
+#include "../runtime.hpp"
+#include "../apis.hpp"
+#include <configuration.hpp>
 #include <list>
 #include <unordered_map>
 
-std::unordered_map<int, std::list<modem*>> network;
+static std::unordered_map<int, std::list<modem*>> network;
 
 int modem::isOpen(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    lua_pushboolean(L, openPorts.find(lua_tointeger(L, 1)) != openPorts.end());
+    lua_pushboolean(L, openPorts.find(luaL_checkinteger(L, 1)) != openPorts.end());
     return 1;
 }
 
 int modem::open(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    luaL_checknumber(L, 1); // argument error > too many open channels
     if (openPorts.size() >= (size_t)config.maxOpenPorts) luaL_error(L, "Too many open channels");
     openPorts.insert(lua_tointeger(L, 1));
     return 0;
 }
 
 int modem::close(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    openPorts.erase(lua_tointeger(L, 1));
+    openPorts.erase(luaL_checkinteger(L, 1));
     return 0;
 }
 
@@ -41,11 +41,10 @@ int modem::closeAll(lua_State *L) {
 }
 
 int modem::transmit(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (lua_isnone(L, 3)) bad_argument(L, "value", 3);
+    luaL_checkinteger(L, 2);
+    luaL_checkany(L, 3);
     lua_settop(L, 3);
-    uint16_t port = lua_tointeger(L, 1);
+    uint16_t port = luaL_checkinteger(L, 1);
     std::lock_guard<std::mutex> lock(eventQueueMutex);
     if (idsToDelete.size() > 0) {
         for (int i : idsToDelete) {
@@ -97,26 +96,26 @@ int modem::getNamesRemote(lua_State *L) {
 }
 
 int modem::getTypeRemote(lua_State *L) {
-    if (strcmp(peripheral_lib.keys[1], "getType") == 0) return peripheral_lib.values[1](L);
-    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "getType") == 0) return peripheral_lib.values[i](L);
+    if (strcmp(peripheral_lib.functions[1].name, "getType") == 0) return peripheral_lib.functions[1].func(L);
+    for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "getType") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
 }
 
 int modem::isPresentRemote(lua_State *L) {
-    if (strcmp(peripheral_lib.keys[0], "isPresent") == 0) return peripheral_lib.values[0](L);
-    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "isPresent") == 0) return peripheral_lib.values[i](L);
+    if (strcmp(peripheral_lib.functions[0].name, "isPresent") == 0) return peripheral_lib.functions[0].func(L);
+    for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "isPresent") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
 }
 
 int modem::getMethodsRemote(lua_State *L) {
-    if (strcmp(peripheral_lib.keys[2], "getMethods") == 0) return peripheral_lib.values[2](L);
-    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "getMethods") == 0) return peripheral_lib.values[i](L);
+    if (strcmp(peripheral_lib.functions[2].name, "getMethods") == 0) return peripheral_lib.functions[2].func(L);
+    for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "getMethods") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
 }
 
 int modem::callRemote(lua_State *L) {
-    if (strcmp(peripheral_lib.keys[3], "call") == 0) return peripheral_lib.values[3](L);
-    for (int i = 0; i < peripheral_lib.count; i++) if (strcmp(peripheral_lib.keys[i], "call") == 0) return peripheral_lib.values[i](L);
+    if (strcmp(peripheral_lib.functions[3].name, "call") == 0) return peripheral_lib.functions[3].func(L);
+    for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "call") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
 }
 
@@ -167,7 +166,7 @@ extern "C" {
     extern void _lua_unlock(lua_State *L);
 }
 
-const char * modem_message(lua_State *message, void* data) {
+static std::string modem_message(lua_State *message, void* data) {
     struct modem_message_data * d = (struct modem_message_data*)data;
     if (d->sender == NULL) {
         fprintf(stderr, "Modem message event is missing sender, skipping event");
@@ -215,7 +214,7 @@ void modem::receive(uint16_t port, uint16_t replyPort, int id, modem * sender) {
     d->m = this;
     d->sender = sender;
     modemMessages.insert((void*)d);
-    termQueueProvider(comp, modem_message, d);
+    queueEvent(comp, modem_message, d);
 }
 
 modem::modem(lua_State *L, const char * side) {
@@ -265,18 +264,19 @@ int modem::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-const char * modem_keys[11] = {
-    "isOpen",
-    "open",
-    "close",
-    "closeAll",
-    "transmit",
-    "isWireless",
-    "getNamesRemote",
-    "getTypeRemote",
-    "isPresentRemote",
-    "getMethodsRemote",
-    "callRemote"
+static luaL_Reg modem_reg[] = {
+    {"isOpen", NULL},
+    {"open", NULL},
+    {"close", NULL},
+    {"closeAll", NULL},
+    {"transmit", NULL},
+    {"isWireless", NULL},
+    {"getNamesRemote", NULL},
+    {"getTypeRemote", NULL},
+    {"isPresentRemote", NULL},
+    {"getMethodsRemote", NULL},
+    {"callRemote", NULL},
+    {NULL, NULL}
 };
 
-library_t modem::methods = {"modem", 11, modem_keys, NULL, nullptr, nullptr};
+library_t modem::methods = {"modem", modem_reg, nullptr, nullptr};

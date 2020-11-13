@@ -10,16 +10,12 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "monitor.hpp"
-#include "../os.hpp"
+#include "../runtime.hpp"
 #include "../terminal/SDLTerminal.hpp"
 #include "../terminal/CLITerminal.hpp"
 #include "../terminal/RawTerminal.hpp"
 #include "../terminal/TRoRTerminal.hpp"
 #include "../terminal/HardwareSDLTerminal.hpp"
-
-extern int log2i(int);
-extern unsigned char htoi(char c);
-extern int selectedRenderer;
 
 monitor::monitor(lua_State *L, const char * side) {
 #ifndef NO_CLI
@@ -43,11 +39,10 @@ monitor::monitor(lua_State *L, const char * side) {
 monitor::~monitor() {delete term;}
 
 int monitor::write(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (selectedRenderer == 4) printf("TW:%d;%s\n", term->id, lua_tostring(L, 1));
+    if (selectedRenderer == 4) printf("TW:%d;%s\n", term->id, luaL_checkstring(L, 1));
     if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
     size_t str_sz;
-    const char * str = lua_tolstring(L, 1, &str_sz);
+    const char * str = luaL_checklstring(L, 1, &str_sz);
     std::lock_guard<std::mutex> lock(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
         if (term->blinkX >= 0) {
@@ -60,11 +55,10 @@ int monitor::write(lua_State *L) {
 }
 
 int monitor::scroll(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (selectedRenderer == 4) printf("TS:%d;%d\n", term->id, (int)lua_tointeger(L, 1));
-    int lines = lua_tointeger(L, 1);
+    if (selectedRenderer == 4) printf("TS:%d;%d\n", term->id, (int)luaL_checkinteger(L, 1));
+    int lines = luaL_checkinteger(L, 1);
     std::lock_guard<std::mutex> lock(term->locked);
-    if (lines >= term->height || -lines >= term->height) {
+    if (lines >= term->height || -lines >= (int)term->height) {
         // scrolling more than the height is equivalent to clearing the screen
         memset(term->screen.data(), ' ', term->height * term->width);
         memset(term->colors.data(), colors, term->height * term->width);
@@ -84,12 +78,12 @@ int monitor::scroll(lua_State *L) {
 }
 
 int monitor::setCursorPos(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (selectedRenderer == 4) printf("TC:%d;%d,%d\n", term->id, (int)lua_tointeger(L, 1), (int)lua_tointeger(L, 2));
+    if (selectedRenderer == 4) printf("TC:%d;%d,%d\n", term->id, (int)luaL_checkinteger(L, 1), (int)luaL_checkinteger(L, 2));
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
     std::lock_guard<std::mutex> lock(term->locked);
-    term->blinkX = lua_tointeger(L, 1) - 1;
-    term->blinkY = lua_tointeger(L, 2) - 1;
+    term->blinkX = x - 1;
+    term->blinkY = y - 1;
     if (term->blinkX >= term->width) term->blinkX = term->width - 1;
     if (term->blinkY >= term->height) term->blinkY = term->height - 1;
     if (term->blinkX < 0) term->blinkX = 0;
@@ -98,7 +92,7 @@ int monitor::setCursorPos(lua_State *L) {
 }
 
 int monitor::setCursorBlink(lua_State *L) {
-    if (!lua_isboolean(L, 1)) bad_argument(L, "boolean", 1);
+    luaL_checktype(L, 1, LUA_TBOOLEAN);
     std::lock_guard<std::mutex> lock(term->locked);
     term->canBlink = lua_toboolean(L, 1);
     if (selectedRenderer == 4) printf("TB:%d;%s\n", term->id, lua_toboolean(L, 1) ? "true" : "false");
@@ -146,10 +140,9 @@ int monitor::clearLine(lua_State *L) {
 }
 
 int monitor::setTextColor(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (selectedRenderer == 4 && lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < 16) 
+    if (selectedRenderer == 4 && luaL_checkinteger(L, 1) >= 0 && luaL_checkinteger(L, 1) < 16)
         printf("TF:%d;%c\n", term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
-    int c = log2i(lua_tointeger(L, 1));
+    int c = log2i(luaL_checkinteger(L, 1));
     if (c < 0 || c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
     colors = (colors & 0xf0) | c;
     if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = c;
@@ -157,10 +150,9 @@ int monitor::setTextColor(lua_State *L) {
 }
 
 int monitor::setBackgroundColor(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (selectedRenderer == 4 && lua_tointeger(L, 1) >= 0 && lua_tointeger(L, 1) < 16) 
+    if (selectedRenderer == 4 && luaL_checkinteger(L, 1) >= 0 && luaL_checkinteger(L, 1) < 16)
         printf("TK:%d;%c\n", term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
-    int c = log2i(lua_tointeger(L, 1));
+    int c = log2i(luaL_checkinteger(L, 1));
     if (c < 0 || c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
     colors = (colors & 0x0f) | (c << 4);
     return 0;
@@ -182,13 +174,10 @@ int monitor::getBackgroundColor(lua_State *L) {
 }
 
 int monitor::blit(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
-    if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
     size_t str_sz, fg_sz, bg_sz;
-    const char * str = lua_tolstring(L, 1, &str_sz);
-    const char * fg = lua_tolstring(L, 2, &fg_sz);
-    const char * bg = lua_tolstring(L, 3, &bg_sz);
+    const char * str = luaL_checklstring(L, 1, &str_sz);
+    const char * fg = luaL_checklstring(L, 2, &fg_sz);
+    const char * bg = luaL_checklstring(L, 3, &bg_sz);
     if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
     std::lock_guard<std::mutex> lock(term->locked);
     for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
@@ -204,10 +193,9 @@ int monitor::blit(lua_State *L) {
 }
 
 int monitor::getPaletteColor(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     int color;
-    if (term->mode == 2) color = lua_tointeger(L, 1);
-    else color = log2i(lua_tointeger(L, 1));
+    if (term->mode == 2) color = luaL_checkinteger(L, 1);
+    else color = log2i(luaL_checkinteger(L, 1));
     if (color < 0 || color > 255) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
     lua_pushnumber(L, term->palette[color].r/255.0);
     lua_pushnumber(L, term->palette[color].g/255.0);
@@ -216,15 +204,14 @@ int monitor::getPaletteColor(lua_State *L) {
 }
 
 int monitor::setPaletteColor(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    luaL_checkinteger(L, 2);
     if (!lua_isnoneornil(L, 3)) {
-        if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
-        if (!lua_isnumber(L, 4)) bad_argument(L, "number", 4);
+        luaL_checkinteger(L, 3);
+        luaL_checkinteger(L, 4);
     }
     int color;
-    if (term->mode == 2) color = lua_tointeger(L, 1);
-    else color = log2i(lua_tointeger(L, 1));
+    if (term->mode == 2) color = luaL_checkinteger(L, 1);
+    else color = log2i(luaL_checkinteger(L, 1));
     if (color < 0 || color > 255) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
     std::lock_guard<std::mutex> lock(term->locked);
     if (lua_isnoneornil(L, 3)) {
@@ -244,7 +231,7 @@ int monitor::setPaletteColor(lua_State *L) {
 }
 
 int monitor::setGraphicsMode(lua_State *L) {
-    if (!lua_isnumber(L, 1) && !lua_isboolean(L, 1)) bad_argument(L, "number", 1);
+    if (!lua_isnumber(L, 1) && !lua_isboolean(L, 1)) luaL_typerror(L, 1, "number");
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument %1 (invalid mode %d)", lua_tointeger(L, 1));
     std::lock_guard<std::mutex> lock(term->locked);
@@ -264,26 +251,23 @@ int monitor::getGraphicsMode(lua_State *L) {
 }
 
 int monitor::setPixel(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (!lua_isnumber(L, 3)) bad_argument(L, "number", 3);
+    luaL_checkinteger(L, 3);
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
-    int x = lua_tointeger(L, 1);
-    int y = lua_tointeger(L, 2);
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
     std::lock_guard<std::mutex> lock(term->locked);
     int color = term->mode == 1 ? log2i(lua_tointeger(L, 3)) : lua_tointeger(L, 3);
     if (x >= term->width * 6 || y >= term->height * 9 || x < 0 || y < 0) return 0;
-    if (color < 0 || color >(term->mode == 2 ? 255 : 15)) return luaL_error(L, "bad argument #3 (invalid color %d)", color);
+    if (color < 0 || color > (term->mode == 2 ? 255 : 15)) return luaL_error(L, "bad argument #3 (invalid color %d)", color);
+    term->pixels[y][x] = color;
     term->changed = true;
     return 0;
 }
 
 int monitor::getPixel(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
-    int x = lua_tointeger(L, 1);
-    int y = lua_tointeger(L, 2);
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
     if (x > term->width * term->fontWidth || y > term->height * term->fontHeight || x < 0 || y < 0) lua_pushnil(L);
     else if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[lua_tointeger(L, 2)][lua_tointeger(L, 1)]);
@@ -292,7 +276,7 @@ int monitor::getPixel(lua_State *L) {
 }
 
 int monitor::setTextScale(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    luaL_checkinteger(L, 1);
     SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
     if (sdlterm != NULL) {
         std::lock_guard<std::mutex> lock(sdlterm->locked);
@@ -311,11 +295,9 @@ int monitor::getTextScale(lua_State *L) {
 }
 
 int monitor::drawPixels(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    if (!lua_istable(L, 3)) bad_argument(L, "table", 3);
+    int init_x = luaL_checkinteger(L, 1), init_y = luaL_checkinteger(L, 2);
+    luaL_checktype(L, 3, LUA_TTABLE);
     std::lock_guard<std::mutex> lock(term->locked);
-    int init_x = lua_tointeger(L, 1), init_y = lua_tointeger(L, 2);
     if (init_x < 0 || init_y < 0) luaL_error(L, "Invalid initial position");
     for (unsigned y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < (unsigned)term->height * Terminal::fontHeight; y++) {
         lua_pushinteger(L, y);
@@ -377,38 +359,39 @@ int monitor::call(lua_State *L, const char * method) {
 
 void monitor::update() {}
 
-const char * monitor_keys[31] = {
-    "write",
-    "scroll",
-    "setCursorPos",
-    "setCursorBlink",
-    "getCursorPos",
-    "getCursorBlink",
-    "getSize",
-    "clear",
-    "clearLine",
-    "setTextColour",
-    "setTextColor",
-    "setBackgroundColour",
-    "setBackgroundColor",
-    "isColour",
-    "isColor",
-    "getTextColour",
-    "getTextColor",
-    "getBackgroundColour",
-    "getBackgroundColor",
-    "blit",
-    "getPaletteColor",
-    "getPaletteColour",
-    "setPaletteColor",
-    "setPaletteColour",
-    "setGraphicsMode",
-    "getGraphicsMode",
-    "setPixel",
-    "getPixel",
-    "setTextScale",
-    "getTextScale",
-    "drawPixels"
+static luaL_Reg monitor_reg[] = {
+    {"write", NULL},
+    {"scroll", NULL},
+    {"setCursorPos", NULL},
+    {"setCursorBlink", NULL},
+    {"getCursorPos", NULL},
+    {"getCursorBlink", NULL},
+    {"getSize", NULL},
+    {"clear", NULL},
+    {"clearLine", NULL},
+    {"setTextColour", NULL},
+    {"setTextColor", NULL},
+    {"setBackgroundColour", NULL},
+    {"setBackgroundColor", NULL},
+    {"isColour", NULL},
+    {"isColor", NULL},
+    {"getTextColour", NULL},
+    {"getTextColor", NULL},
+    {"getBackgroundColour", NULL},
+    {"getBackgroundColor", NULL},
+    {"blit", NULL},
+    {"getPaletteColor", NULL},
+    {"getPaletteColour", NULL},
+    {"setPaletteColor", NULL},
+    {"setPaletteColour", NULL},
+    {"setGraphicsMode", NULL},
+    {"getGraphicsMode", NULL},
+    {"setPixel", NULL},
+    {"getPixel", NULL},
+    {"setTextScale", NULL},
+    {"getTextScale", NULL},
+    {"drawPixels", NULL},
+    {NULL, NULL}
 };
 
-library_t monitor::methods = {"monitor", 31, monitor_keys, NULL, nullptr, nullptr};
+library_t monitor::methods = {"monitor", monitor_reg, nullptr, nullptr};

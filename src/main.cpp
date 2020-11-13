@@ -9,11 +9,12 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "Computer.hpp"
-#include "config.hpp"
+#include <Computer.hpp>
+#include <configuration.hpp>
 #include "peripheral/drive.hpp"
 #include "peripheral/speaker.hpp"
 #include "platform.hpp"
+#include "runtime.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/SDLTerminal.hpp"
@@ -34,15 +35,11 @@
 #include <emscripten/emscripten.h>
 #endif
 
-extern void config_init();
-extern void config_save();
 extern void mainLoop();
 extern void awaitTasks(std::function<bool()> predicate = []()->bool{return true;});
 extern void http_server_stop();
-extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
 extern std::list<std::thread*> computerThreads;
-extern bool exiting;
+extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
 extern std::unordered_map<path_t, void*> loadedPlugins;
@@ -60,7 +57,7 @@ extern void* kernel32handle;
 #endif
 
 #ifndef __EMSCRIPTEN__
-void update_thread() {
+static void update_thread() {
     try {
         Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
         Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", Poco::Net::HTTPMessage::HTTP_1_1);
@@ -129,7 +126,7 @@ inline Terminal * createTerminal(std::string title) {
 
 extern std::thread::id mainThreadID;
 
-int runRenderer() {
+static int runRenderer() {
     if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 5) HardwareSDLTerminal::init();
     else {
@@ -305,7 +302,7 @@ int main(int argc, char*argv[]) {
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
         else if (arg == "--args") script_args = argv[++i];
-        else if (arg == "--plugin") Computer::customPlugins.push_back(wstr(argv[++i]));
+        else if (arg == "--plugin") customPlugins.push_back(wstr(argv[++i]));
         else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
         else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
         else if (arg == "--computers-dir" || arg == "-C") computerDir = wstr(argv[++i]);
@@ -329,7 +326,7 @@ int main(int argc, char*argv[]) {
                 std::cerr << "Could not parse mount path string\n";
                 return 1;
             }
-            Computer::customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
+            customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
         } else if (arg == "--renderer" || arg == "-r") {
             if (++i == argc) {
                 checkTTY();
@@ -440,7 +437,7 @@ int main(int argc, char*argv[]) {
 #else
     if (computerDir.empty()) computerDir = getBasePath() + WS("/computer");
 #endif
-    if (!customDataDir.empty()) Computer::customDataDirs[id] = customDataDir;
+    if (!customDataDir.empty()) customDataDirs[id] = customDataDir;
     setupCrashHandler();
     migrateData();
     config_init();

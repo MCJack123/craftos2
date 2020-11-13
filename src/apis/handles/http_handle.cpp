@@ -1,5 +1,5 @@
 /*
- * http_handle.cpp
+ * apis/handles/http_handle.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for HTTP handles.
@@ -11,7 +11,7 @@
 #define CRAFTOSPC_INTERNAL
 #ifndef __EMSCRIPTEN__
 #include "http_handle.hpp"
-#include "lib.hpp"
+#include "../../util.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -238,21 +238,19 @@ int req_getRequestHeaders(lua_State *L) {
 }
 
 int res_write(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
     size_t len = 0;
-    const char * buf = lua_tolstring(L, 1, &len);
+    const char * buf = luaL_checklstring(L, 1, &len);
     res->body += std::string(buf, len);
     return 0;
 }
 
 int res_writeLine(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
     size_t len = 0;
-    const char * buf = lua_tolstring(L, 1, &len);
+    const char * buf = luaL_checklstring(L, 1, &len);
     res->body += std::string(buf, len);
     res->body += "\n";
     return 0;
@@ -274,19 +272,16 @@ int res_close(lua_State *L) {
 }
 
 int res_setStatusCode(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
-    res->res->setStatus((HTTPResponse::HTTPStatus)lua_tointeger(L, 1));
+    res->res->setStatus((HTTPResponse::HTTPStatus)luaL_checkinteger(L, 1));
     return 0;
 }
 
 int res_setResponseHeader(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
-    res->res->set(lua_tostring(L, 1), lua_tostring(L, 2));
+    res->res->set(luaL_checkstring(L, 1), luaL_checkstring(L, 2));
     return 0;
 }
 

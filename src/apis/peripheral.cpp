@@ -1,5 +1,5 @@
 /*
- * peripheral/peripheral.cpp
+ * apis/peripheral.cpp
  * CraftOS-PC 2
  * 
  * This file defines the functions in the peripheral API.
@@ -9,24 +9,24 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "peripheral.hpp"
+#include <Computer.hpp>
+#include <peripheral.hpp>
+#include "../util.hpp"
 #include <unordered_map>
 #include <string>
+#include <mutex>
 
-peripheral::~peripheral(){}
-
-int peripheral_isPresent(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+static int peripheral_isPresent(lua_State *L) {
+    luaL_checkstring(L, 1);
     Computer * computer = get_comp(L);
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
     lua_pushboolean(L, computer->peripherals.find(std::string(lua_tostring(L, -1))) != computer->peripherals.end());
     return 1;
 }
 
-int peripheral_getType(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+static int peripheral_getType(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::string side(lua_tostring(L, 1));
+    std::string side(luaL_checkstring(L, 1));
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
     if (computer->peripherals.find(side) != computer->peripherals.end())
         lua_pushstring(L, computer->peripherals[side]->getMethods().name);
@@ -34,28 +34,25 @@ int peripheral_getType(lua_State *L) {
     return 1;
 }
 
-int peripheral_getMethods(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+static int peripheral_getMethods(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::string side(lua_tostring(L, 1));
+    std::string side(luaL_checkstring(L, 1));
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
     if (computer->peripherals.find(side) == computer->peripherals.end()) return 0;
     library_t methods = computer->peripherals[side]->getMethods();
     lua_newtable(L);
-    for (int i = 0; i < methods.count; i++) {
+    for (int i = 0; methods.functions[i].name; i++) {
         lua_pushinteger(L, i+1);
-        lua_pushstring(L, methods.keys[i]);
+        lua_pushstring(L, methods.functions[i].name);
         lua_settable(L, -3);
     }
     return 1;
 }
 
-int peripheral_call(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
+static int peripheral_call(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::string side(lua_tostring(L, 1));
-    std::string func(lua_tostring(L, 2));
+    std::string side(luaL_checkstring(L, 1));
+    std::string func(luaL_checkstring(L, 2));
     peripheral * p;
     {
         std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
@@ -72,18 +69,12 @@ void peripheral_update(Computer *comp) {
     for (auto p : comp->peripherals) p.second->update();
 }
 
-const char * peripheral_keys[4] = {
-    "isPresent",
-    "getType",
-    "getMethods",
-    "call"
+static luaL_Reg peripheral_reg[] = {
+    {"isPresent", peripheral_isPresent},
+    {"getType", peripheral_getType},
+    {"getMethods", peripheral_getMethods},
+    {"call", peripheral_call},
+    {NULL, NULL}
 };
 
-lua_CFunction peripheral_values[4] = {
-    peripheral_isPresent,
-    peripheral_getType,
-    peripheral_getMethods,
-    peripheral_call
-};
-
-library_t peripheral_lib = {"peripheral", 4, peripheral_keys, peripheral_values, nullptr, nullptr};
+library_t peripheral_lib = {"peripheral", peripheral_reg, nullptr, nullptr};

@@ -1,5 +1,5 @@
 /*
- * fs_handle.cpp
+ * apis/handles/fs_handle.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for file handles.
@@ -10,7 +10,7 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "fs_handle.hpp"
-#include "lib.hpp"
+#include "../../util.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -354,7 +354,7 @@ int fs_handle_writeString(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
-    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "string", 1);
+    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     std::wstring wstr;
@@ -369,7 +369,7 @@ int fs_handle_writeLine(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
-    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "string", 1);
+    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     std::wstring wstr;
@@ -391,7 +391,7 @@ int fs_handle_writeByte(lua_State *L) {
     } else if (lua_isstring(L, 1)) {
         FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
         fwrite(lua_tostring(L, 1), lua_strlen(L, 1), 1, fp);
-    } else bad_argument(L, "number or string", 1);
+    } else luaL_typerror(L, 1, "number or string");
     return 0;
 }
 
@@ -408,10 +408,8 @@ int fs_handle_flush(lua_State *L) {
 int fs_handle_seek(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
-    if (!lua_isstring(L, 1) && !lua_isnoneornil(L, 1)) bad_argument(L, "string or nil", 1);
-    if (!lua_isnumber(L, 2) && !lua_isnoneornil(L, 2)) bad_argument(L, "number or nil", 2);
-    const char * whence = lua_isstring(L, 1) ? lua_tostring(L, 1) : "cur";
-    size_t offset = lua_isnumber(L, 2) ? lua_tointeger(L, 2) : 0;
+    const char * whence = luaL_optstring(L, 1, "cur");
+    size_t offset = luaL_optnumber(L, 2, 0);
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
     int origin = 0;
     if (strcmp(whence, "set") == 0) origin = SEEK_SET;
@@ -430,10 +428,8 @@ int fs_handle_seek(lua_State *L) {
 int fs_handle_istream_seek(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
-    if (!lua_isstring(L, 1) && !lua_isnoneornil(L, 1)) bad_argument(L, "string or nil", 1);
-    if (!lua_isnumber(L, 2) && !lua_isnoneornil(L, 2)) bad_argument(L, "number or nil", 2);
-    const char * whence = lua_isstring(L, 1) ? lua_tostring(L, 1) : "cur";
-    size_t offset = lua_isnumber(L, 2) ? lua_tointeger(L, 2) : 0;
+    const char * whence = luaL_optstring(L, 1, "cur");
+    size_t offset = luaL_optnumber(L, 2, 0);
     std::istream * fp = (std::iostream*)lua_touserdata(L, lua_upvalueindex(1));
     std::ios::seekdir origin;
     if (strcmp(whence, "set") == 0) origin = std::ios::beg;

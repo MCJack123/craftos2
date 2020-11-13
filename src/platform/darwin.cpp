@@ -1,5 +1,5 @@
 /*
- * platform_darwin.cpp
+ * platform/darwin.cpp
  * CraftOS-PC 2
  * 
  * This file implements functions specific to macOS when run from the Terminal.
@@ -32,7 +32,6 @@ extern "C" {
 #include <sstream>
 #include <png++/png.hpp>
 #include <ApplicationServices/ApplicationServices.h>
-#include "../mounter.hpp"
 #include "../platform.hpp"
 
 #ifdef CUSTOM_ROM_DIR

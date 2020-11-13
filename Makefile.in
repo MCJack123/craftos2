@@ -1,7 +1,7 @@
 CC=@CC@
 CXX=@CXX@
 CFLAGS=@CFLAGS@
-CPPFLAGS=@CPPFLAGS@
+CPPFLAGS=@CPPFLAGS@ -I@srcdir@/api
 CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=craftos2-lua/src/liblua.a @LIBS@
@@ -19,8 +19,10 @@ ifneq (/usr,$(PREFIX))
 CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)/share/craftos\"
 endif
 SDIR=@srcdir@/src
+IDIR=@srcdir@/api
 ODIR=obj
-_OBJ=Computer.o config.o favicon.o font.o fs_handle.o fs.o gif.o @HTTP_TARGET@ lib.o main.o mounter.o os.o periphemu.o peripheral.o term.o speaker_sounds.o \
+_OBJ=Computer.o configuration.o favicon.o font.o gif.o main.o runtime.o speaker_sounds.o termsupport.o \
+	 apis_config.o apis_fs.o apis_fs_handle.o @HTTP_TARGET@ apis_mounter.o apis_os.o apis_periphemu.o apis_peripheral.o apis_redstone.o apis_term.o \
 	 peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o peripheral_speaker.o \
 	 terminal_SDLTerminal.o terminal_CLITerminal.o terminal_RawTerminal.o terminal_TRoRTerminal.o terminal_HardwareSDLTerminal.o @OBJS@
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
@@ -66,7 +68,7 @@ endif
 $(ODIR):
 	mkdir $@
 
-$(ODIR)/main.o: $(SDIR)/main.cpp $(SDIR)/Computer.hpp $(SDIR)/lib.hpp
+$(ODIR)/main.o: $(SDIR)/main.cpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
@@ -78,11 +80,7 @@ $(ODIR)/platform.o: $(SDIR)/platform.cpp $(SDIR)/platform.hpp $(SDIR)/platform/l
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/peripheral.o: $(SDIR)/peripheral/peripheral.cpp $(SDIR)/peripheral/peripheral.hpp $(SDIR)/lib.hpp
-	echo " [CXX]   $@"
-	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
-
-$(ODIR)/http_emscripten.o: $(SDIR)/http_emscripten.cpp $(SDIR)/lib.hpp
+$(ODIR)/http_emscripten.o: $(SDIR)/http_emscripten.cpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
@@ -90,15 +88,15 @@ $(ODIR)/%.o: $(SDIR)/%.c
 	echo " [CC]    $@"
 	$(CC) -o $@ -c $(CPPFLAGS) $(CFLAGS) $<
 
-$(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(SDIR)/lib.hpp $(SDIR)/Computer.hpp
+$(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(SDIR)/peripheral/peripheral.hpp
+$(ODIR)/peripheral_%.o: $(SDIR)/peripheral/%.cpp $(SDIR)/peripheral/%.hpp $(IDIR)/peripheral.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/peripheral_computer.o: $(SDIR)/peripheral/computer_p.cpp $(SDIR)/peripheral/computer.hpp $(SDIR)/peripheral/peripheral.hpp
+$(ODIR)/peripheral_computer.o: $(SDIR)/peripheral/computer_p.cpp $(SDIR)/peripheral/computer.hpp $(IDIR)/peripheral.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
@@ -106,7 +104,15 @@ $(ODIR)/speaker_sounds.o: $(SDIR)/peripheral/speaker_sounds.cpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
-$(ODIR)/terminal_%.o: $(SDIR)/terminal/%.cpp $(SDIR)/terminal/%.hpp $(SDIR)/terminal/Terminal.hpp
+$(ODIR)/terminal_%.o: $(SDIR)/terminal/%.cpp $(SDIR)/terminal/%.hpp $(IDIR)/Terminal.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
+	echo " [CXX]   $@"
+	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
+
+$(ODIR)/apis_%.o: $(SDIR)/apis/%.cpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
+	echo " [CXX]   $@"
+	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
+
+$(ODIR)/apis_%_handle.o: $(SDIR)/apis/handles/%.cpp $(SDIR)/apis/handles/%.hpp $(IDIR)/Computer.hpp $(IDIR)/lib.hpp $(SDIR)/util.hpp
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 

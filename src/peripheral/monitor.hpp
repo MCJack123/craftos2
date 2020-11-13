@@ -9,10 +9,12 @@
  */
 #ifndef PERIPHERAL_MONITOR_HPP
 #define PERIPHERAL_MONITOR_HPP
-#include "peripheral.hpp"
-#include "../terminal/Terminal.hpp"
+#include <peripheral.hpp>
+#include <Terminal.hpp>
 #include <chrono>
+#ifdef scroll
 #undef scroll
+#endif
 
 class monitor : public peripheral {
 private:

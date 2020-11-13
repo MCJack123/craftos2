@@ -1,5 +1,5 @@
 /*
- * HardwareSDLTerminal.cpp
+ * terminal/HardwareSDLTerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the HardwareSDLTerminal class.
@@ -10,13 +10,15 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "HardwareSDLTerminal.hpp"
+#include "RawTerminal.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
 #include <assert.h>
-#include "../config.hpp"
+#include <configuration.hpp>
 #include "../gif.hpp"
-#include "../os.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 #include "../peripheral/monitor.hpp"
 #define rgb(color) ((color.r << 16) | (color.g << 8) | color.b)
 
@@ -321,8 +323,6 @@ bool HardwareSDLTerminal::resize(int w, int h) {
 extern uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num);
 
 extern Uint32 task_event_type, render_event_type;
-extern std::thread * renderThread;
-extern void termRenderLoop();
 
 void HardwareSDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -346,13 +346,7 @@ void HardwareSDLTerminal::quit() {
     SDL_Quit();
 }
 
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern std::unordered_set<Terminal*> orphanedTerminals;
-
 extern bool rawClient;
-extern void sendRawEvent(SDL_Event e);
 
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *HardwareSDLTerminal::renderTarget || findMonitorFromWindowID(c, (*HardwareSDLTerminal::renderTarget)->id, tmps) != NULL)
@@ -383,7 +377,7 @@ bool HardwareSDLTerminal::pollEvents() {
             SDL_RenderPresent(HardwareSDLTerminal::ren);
             SDL_UpdateWindowSurface(SDLTerminal::win);
 #else
-            for (Terminal* term : Terminal::renderTargets) {
+            for (Terminal* term : renderTargets) {
                 HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);

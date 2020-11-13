@@ -10,10 +10,10 @@
 
 #ifndef NO_MIXER
 #define CRAFTOSPC_INTERNAL
+#include <configuration.hpp>
 #include "speaker.hpp"
-#include "../config.hpp"
 #include "../platform.hpp"
-#include "../mounter.hpp"
+#include "../runtime.hpp"
 #include <SDL2/SDL_mixer.h>
 #include <cmath>
 #include <fstream>
@@ -239,32 +239,32 @@ typedef struct sound_file {
 } sound_file_t;
 
 extern std::unordered_map<std::string, std::pair<unsigned char *, unsigned int> > speaker_sounds;
-std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;
-std::mt19937 RNG;
+static std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;
+static std::mt19937 RNG;
 
 /* Adding custom sounds:
  * Custom sounds can be added with this folder structure:
  * <ROM root dir>
  * - rom/, bios.lua, etc.
  * - sounds/
- *   - <domain, e.g. minecraft>/
+ *   - <namespace, e.g. minecraft>/
  *     - sounds.json
  *     - sounds/
  *       - <sound files/folders as described in sounds.json>
  * 
  * sounds.json uses the same format as Minecraft, meaning that MC assets can be
- * copied directly into the domain folder. See https://minecraft.gamepedia.com/Sounds.json
+ * copied directly into the namespace folder. See https://minecraft.gamepedia.com/Sounds.json
  * for more info.
  */
 
-Mix_Music * currentlyPlayingMusic = NULL;
-speaker * musicSpeaker = NULL;
-void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
+static Mix_Music * currentlyPlayingMusic = NULL;
+static speaker * musicSpeaker = NULL;
+static void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
 
-void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
-void emptyEffect(int c, void* stream, int len, void* udata) {}
+static void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
+static void emptyEffect(int c, void* stream, int len, void* udata) {}
 
-bool playSoundEvent(std::string name, float volume, float speed, unsigned int channel) {
+static bool playSoundEvent(std::string name, float volume, float speed, unsigned int channel) {
     if (name.find(":") == std::string::npos) name = "minecraft:" + name;
     if (soundEvents.find(name) == soundEvents.end()) return false;
     unsigned randMax = 0;
@@ -336,12 +336,9 @@ bool playSoundEvent(std::string name, float volume, float speed, unsigned int ch
 }
 
 int speaker::playNote(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
-    if (!lua_isnoneornil(L, 3) && !lua_isnumber(L, 3)) bad_argument(L, "number or nil", 3);
-    std::string inst = lua_tostring(L, 1);
-    float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
-    int pitch = lua_isnumber(L, 3) ? lua_tointeger(L, 3) : 1;
+    std::string inst = luaL_checkstring(L, 1);
+    float volume = luaL_optnumber(L, 2, 1.0);
+    int pitch = luaL_optnumber(L, 3, 1.0);
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
     if (pitch < 0 || pitch > 24) luaL_error(L, "invalid pitch %d", pitch);
     if (speaker_sounds.find(inst) == speaker_sounds.end()) luaL_error(L, "invalid instrument %s", inst.c_str());
@@ -394,12 +391,9 @@ int speaker::playSound(lua_State *L) {
     luaL_error(L, "Sounds are not available on standalone builds");
     return 0;
 #else
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
-    if (!lua_isnoneornil(L, 3) && !lua_isnumber(L, 3)) bad_argument(L, "number or nil", 3);
-    std::string inst = lua_tostring(L, 1);
-    float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
-    float speed = lua_isnumber(L, 3) ? lua_tonumber(L, 3) : 1.0;
+    std::string inst = luaL_checkstring(L, 1);
+    float volume = luaL_optnumber(L, 2, 1.0);
+    float speed = luaL_optnumber(L, 3, 1.0);
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
     if (speed < 0.0 || speed > 2.0) luaL_error(L, "invalid speed %f", speed);
     if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastTickReset).count() >= 50) {
@@ -458,11 +452,9 @@ int speaker::listSounds(lua_State *L) {
 }
 
 int speaker::playLocalMusic(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
-    path_t path = fixpath(get_comp(L), lua_tostring(L, 1), true);
+    path_t path = fixpath(get_comp(L), luaL_checkstring(L, 1), true);
+    float volume = luaL_optnumber(L, 2, 1.0);
     if (path.empty()) luaL_error(L, "%s: File does not exist", lua_tostring(L, 1));
-    float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
     Mix_Music * mus = Mix_LoadMUS(astr(path).c_str());
     if (mus == NULL) luaL_error(L, "%s: Could not load music file: %s", lua_tostring(L, 1), Mix_GetError());
@@ -476,8 +468,7 @@ int speaker::playLocalMusic(lua_State *L) {
 }
 
 int speaker::setSoundFont(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    Mix_SetSoundFonts(astr(fixpath(get_comp(L), lua_tostring(L, 1), true)).c_str());
+    Mix_SetSoundFonts(astr(fixpath(get_comp(L), luaL_checkstring(L, 1), true)).c_str());
     return 0;
 }
 
@@ -579,16 +570,17 @@ void speakerQuit() {
     Mix_HaltChannel(-1); // automatically frees chunks
 }
 
-const char * speaker_names[] = {
-    "playNote",
-    "playSound",
-    "listSounds",
-    "playLocalMusic",
-    "setSoundFont",
-    "stopSounds"
+static luaL_Reg speaker_reg[] = {
+    {"playNote", NULL},
+    {"playSound", NULL},
+    {"listSounds", NULL},
+    {"playLocalMusic", NULL},
+    {"setSoundFont", NULL},
+    {"stopSounds", NULL},
+    {NULL, NULL}
 };
 
-library_t speaker::methods = {"speaker", 6, speaker_names, NULL, nullptr, nullptr};
+library_t speaker::methods = {"speaker", speaker_reg, nullptr, nullptr};
 unsigned int speaker::nextChannelGroup = 1;
 
 #endif

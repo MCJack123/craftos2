@@ -1,5 +1,5 @@
 # Initialize
-AC_INIT([CraftOS-PC], [2.4])
+AC_INIT([CraftOS-PC], [2.5])
 AC_CONFIG_SRCDIR([src/main.cpp])
 m4_include([m4/find_cxx.m4])
 m4_include([m4/find_cxx11.m4])
@@ -79,7 +79,7 @@ if test "x$enable_wasm" = "xyes"; then
     LDFLAGS="$LDFLAGS -s USE_PTHREADS=1 --embed-file $with_wasm_rom@/craftos --shared-memory"
     LIBS="$LIBS -lPocoJSON -lPocoUtil -lPocoFoundation"
     AC_SUBST(OUT_TARGET, craftos.html)
-    AC_SUBST(HTTP_TARGET, "http_emscripten.o")
+    AC_SUBST(HTTP_TARGET, "apis_http_emscripten.o")
 else
     AX_CXX_CHECK_LIB(PocoFoundation, [Poco::ASCIIEncoding], [], [AC_MSG_ERROR([Could not find Poco Foundation library.])])
     AX_CXX_CHECK_LIB(PocoUtil, [Poco::Util::Timer], [], [AC_MSG_ERROR([Could not find Poco Util library.])])
@@ -89,7 +89,7 @@ else
     AX_CXX_CHECK_LIB(PocoNet, [Poco::Net::HTTPRequest], [], [AC_MSG_ERROR([Could not find Poco Net library.])])
     AX_CXX_CHECK_LIB(PocoNetSSL, [Poco::Net::HTTPSClientSession], [], [AC_MSG_ERROR([Could not find Poco NetSSL library.])])
     AC_SUBST(OUT_TARGET, craftos)
-    AC_SUBST(HTTP_TARGET, "http_handle.o http.o")
+    AC_SUBST(HTTP_TARGET, "apis_http_handle.o apis_http.o")
 fi
 
 # Find standalone ROM if supplied

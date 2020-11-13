@@ -14,8 +14,8 @@
 #ifndef NO_MIXER
 #include <SDL2/SDL_mixer.h>
 #endif
-#include "peripheral.hpp"
-#include "../mounter.hpp"
+#include <peripheral.hpp>
+#include "../util.hpp"
 
 enum class disk_type {
     DISK_TYPE_NONE,

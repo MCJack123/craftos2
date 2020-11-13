@@ -10,9 +10,10 @@
 
 #ifndef TERMINAL_RAWTERMINAL_HPP
 #define TERMINAL_RAWTERMINAL_HPP
-#include "Terminal.hpp"
+#include <Terminal.hpp>
 #include <thread>
 #include <set>
+#include <SDL2/SDL.h>
 
 class RawTerminal: public Terminal {
     static std::set<unsigned> currentIDs;
@@ -27,5 +28,7 @@ public:
     void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
 };
+
+extern void sendRawEvent(SDL_Event e);
 
 #endif

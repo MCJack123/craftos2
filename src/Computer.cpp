@@ -9,35 +9,30 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "Computer.hpp"
+extern "C" {
+#include <lualib.h>
+}
+#include <configuration.hpp>
+#include <peripheral.hpp>
+#include "apis.hpp"
+#include "runtime.hpp"
+#include "termsupport.hpp"
 #include "platform.hpp"
-#include "term.hpp"
-#include "config.hpp"
-#include "fs.hpp"
-#include "fs_standalone.hpp"
-#include "http.hpp"
-#include "mounter.hpp"
-#include "os.hpp"
-#include "redstone.hpp"
-#include "peripheral/peripheral.hpp"
 #include "peripheral/computer.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
-#include "periphemu.hpp"
 #include <unordered_set>
 #include <thread>
 #include <dirent.h>
 #include <sys/stat.h>
 
-#define PLUGIN_VERSION 4
-
 extern std::string asciify(std::string);
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
+extern void stopWebsocket(void*);
 extern int term_benchmark(lua_State *L);
-extern int selectedRenderer;
 extern int onboardingMode;
 extern bool forceCheckTimeout;
 extern std::string script_args;
@@ -46,9 +41,9 @@ ProtectedObject<std::vector<Computer*> > computers;
 std::unordered_set<Computer*> freedComputers; 
 ProtectedObject<std::unordered_set<SDL_TimerID>> freedTimers;
 path_t computerDir;
-std::unordered_map<int, path_t> Computer::customDataDirs;
-std::list<path_t> Computer::customPlugins;
-std::list<std::tuple<std::string, std::string, int> > Computer::customMounts;
+std::unordered_map<int, path_t> customDataDirs;
+std::list<path_t> customPlugins;
+std::list<std::tuple<std::string, std::string, int> > customMounts;
 std::unordered_set<Terminal*> orphanedTerminals;
 
 // Basic CraftOS libraries
@@ -67,9 +62,9 @@ library_t * libraries[] = {
 Computer::Computer(int i, bool debug): isDebugger(debug) {
     id = i;
     // Load config
-    config = getComputerConfig(id);
+    computer_configuration _config = getComputerConfig(id);
     // Create the terminal
-    std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
+    std::string term_title = _config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(_config.label);
     if (selectedRenderer == 1) term = NULL;
 #ifndef NO_CLI
     else if (selectedRenderer == 2) term = new CLITerminal(term_title);
@@ -78,7 +73,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
     else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
     else term = new SDLTerminal(term_title);
-    if (term) term->grayscale = !config.isColor;
+    if (term) term->grayscale = !_config.isColor;
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
 #ifdef STANDALONE_ROM
@@ -111,9 +106,8 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif
     // Create the root directory
     createDirectory(dataDir.c_str());
+    config = new computer_configuration(_config);
 }
-
-extern void stopWebsocket(void*);
 
 // Destructor
 Computer::~Computer() {
@@ -125,7 +119,8 @@ Computer::~Computer() {
         else delete term;
     }
     // Save config
-    setComputerConfig(id, config);
+    setComputerConfig(id, *config);
+    delete config;
     // Deinitialize all peripherals
     for (auto p : peripherals) p.second->getDestructor()(p.second);
     for (std::list<Computer*>::iterator c = referencers.begin(); c != referencers.end(); c++) {
@@ -155,17 +150,13 @@ Computer::~Computer() {
     }
 }
 
-extern int fs_getName(lua_State *L);
-
 extern "C" {
     extern int db_errorfb (lua_State *L);
 
-    int db_breakpoint(lua_State *L) {
-        if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-        if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    /* export */ int db_breakpoint(lua_State *L) {
         Computer * computer = get_comp(L);
         int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
-        computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, lua_tostring(L, 1), false, false)), lua_tointeger(L, 2));
+        computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, luaL_checkstring(L, 1), false, false)), luaL_checkinteger(L, 2));
         if (!computer->hasBreakpoints) forceCheckTimeout = true;
         computer->hasBreakpoints = true;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
@@ -174,10 +165,9 @@ extern "C" {
         return 1;
     }
 
-    int db_unsetbreakpoint(lua_State *L) {
-        if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    /* export */ int db_unsetbreakpoint(lua_State *L) {
         Computer * computer = get_comp(L);
-        if (computer->breakpoints.find(lua_tointeger(L, 1)) != computer->breakpoints.end()) {
+        if (computer->breakpoints.find(luaL_checkinteger(L, 1)) != computer->breakpoints.end()) {
             computer->breakpoints.erase(lua_tointeger(L, 1));
             if (computer->breakpoints.size() == 0) {
                 computer->hasBreakpoints = false;
@@ -189,13 +179,13 @@ extern "C" {
         return 1;
     }
 
-    void setcompmask(lua_State *L, int mask) {
+    /* export */ void setcompmask(lua_State *L, int mask) {
         Computer * comp = get_comp(L);
         comp->hookMask = mask;
     }
 }
 
-library_t * getLibrary(std::string name) {
+static library_t * getLibrary(std::string name) {
     if (name == "config") return &config_lib;
     else if (name == "fs") return &fs_lib; 
     else if (name == "mounter") return &mounter_lib; 
@@ -207,7 +197,7 @@ library_t * getLibrary(std::string name) {
     else return NULL;
 }
 
-Computer * getComputerById(int id) {
+static Computer * getComputerById(int id) {
     LockGuard lock(computers);
     for (Computer * c : *computers) if (c->id == id) return c;
     return NULL;
@@ -228,9 +218,10 @@ static void pluginError(lua_State *L, const char * name, const char * err) {
 
 extern void config_save();
 
-std::unordered_map<path_t, void*> loadedPlugins;
+/* export */ std::unordered_map<path_t, void*> loadedPlugins;
 
-void Computer::loadPlugin(path_t path) {
+void Computer_loadPlugin(Computer * self, path_t path) {
+    lua_State *L = self->L;
     size_t pos = path.find_last_of(WS("/\\"));
     if (pos == std::string::npos) pos = 0; else pos++;
     std::string api_name = astr(path.substr(pos).substr(0, path.substr(pos).find_first_of('.')));
@@ -306,7 +297,7 @@ void Computer::loadPlugin(path_t path) {
 
                 lua_getfield(L, -1, "register_termQueueProvider");
                 if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&termQueueProvider);
+                    lua_pushlightuserdata(L, (void*)&queueEvent);
                     lua_pushstring(L, "termQueueProvider");
                     lua_call(L, 2, 0);
                 } else lua_pop(L, 1);
@@ -368,79 +359,79 @@ const char * file_reader(lua_State *L, void * ud, size_t *size) {
 }
 
 // Main computer loop
-void Computer::run(path_t bios_name) {
-    if (config.startFullscreen && dynamic_cast<SDLTerminal*>(term) != NULL) ((SDLTerminal*)term)->toggleFullscreen();
-    running = 1;
-    if (L != NULL) lua_close(L);
-    setjmp(on_panic);
-    while (running) {
+void runComputer(Computer * self, path_t bios_name) {
+    if (self->config->startFullscreen && dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->toggleFullscreen();
+    self->running = 1;
+    if (self->L != NULL) lua_close(self->L);
+    setjmp(self->on_panic);
+    while (self->running) {
         int status;
-        if (term != NULL) {
+        if (self->term != NULL) {
             // Initialize terminal contents
-            std::lock_guard<std::mutex> lock(term->locked);
-            term->blinkX = 0;
-            term->blinkY = 0;
-            term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
-            term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
-            term->pixels = vector2d<unsigned char>(term->width * Terminal::fontWidth, term->height * Terminal::fontHeight, 0x0F);
-            memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
-            term->mode = 0;
+            std::lock_guard<std::mutex> lock(self->term->locked);
+            self->term->blinkX = 0;
+            self->term->blinkY = 0;
+            self->term->screen = vector2d<unsigned char>(self->term->width, self->term->height, ' ');
+            self->term->colors = vector2d<unsigned char>(self->term->width, self->term->height, 0xF0);
+            self->term->pixels = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
+            memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
+            self->term->mode = 0;
         }
-        colors = 0xF0;
+        self->colors = 0xF0;
 
         /*
         * All Lua contexts are held in this structure. We work with it almost
         * all the time.
         */
-        L = luaL_newstate();
+        self->L = luaL_newstate();
 
-        coro = lua_newthread(L);
-        paramQueue = lua_newthread(L);
-        while (!eventQueue.empty()) eventQueue.pop();
+        self->coro = lua_newthread(self->L);
+        self->paramQueue = lua_newthread(self->L);
+        while (!self->eventQueue.empty()) self->eventQueue.pop();
 
         // Reinitialize any peripherals that were connected before rebooting
-        for (auto p : peripherals) p.second->reinitialize(L);
+        for (auto p : self->peripherals) p.second->reinitialize(self->L);
 
         // Push reference to this to the registry
-        lua_pushinteger(L, 1);
-        lua_pushlightuserdata(L, this);
-        lua_settable(L, LUA_REGISTRYINDEX);
+        lua_pushinteger(self->L, 1);
+        lua_pushlightuserdata(self->L, self);
+        lua_settable(self->L, LUA_REGISTRYINDEX);
         if (::config.debug_enable) {
-            lua_newtable(L);
-            lua_newtable(L);
-            lua_pushstring(L, "v");
-            lua_setfield(L, -2, "__mode");
-            lua_setmetatable(L, -2);
-            lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
+            lua_newtable(self->L);
+            lua_newtable(self->L);
+            lua_pushstring(self->L, "v");
+            lua_setfield(self->L, -2, "__mode");
+            lua_setmetatable(self->L, -2);
+            lua_setfield(self->L, LUA_REGISTRYINDEX, "_coroutine_stack");
         }
 
         // Load libraries
-        luaL_openlibs(coro);
-        lua_getglobal(L, "os");
-        lua_getfield(L, -1, "date");
-        lua_setglobal(L, "os_date");
-        lua_pop(L, 1);
-        if (debugger != NULL && !isDebugger) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else if (::config.debug_enable && !isDebugger) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
-        lua_atpanic(L, termPanic);
-        for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
-        if (::config.http_enable) load_library(this, coro, http_lib);
-        if (isDebugger) load_library(this, coro, *((library_t*)debugger));
-        lua_getglobal(coro, "redstone");
-        lua_setglobal(coro, "rs");
-        lua_getglobal(L, "os");
-        lua_getglobal(L, "os_date");
-        lua_setfield(L, -2, "date");
-        lua_pop(L, 1);
-        lua_pushnil(L);
-        lua_setglobal(L, "os_date");
+        luaL_openlibs(self->coro);
+        lua_getglobal(self->L, "os");
+        lua_getfield(self->L, -1, "date");
+        lua_setglobal(self->L, "os_date");
+        lua_pop(self->L, 1);
+        if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        else lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
+        lua_atpanic(self->L, termPanic);
+        for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(self, self->coro, *libraries[i]);
+        if (config.http_enable) load_library(self, self->coro, http_lib);
+        if (self->isDebugger) load_library(self, self->coro, *((library_t*)self->debugger));
+        lua_getglobal(self->coro, "redstone");
+        lua_setglobal(self->coro, "rs");
+        lua_getglobal(self->L, "os");
+        lua_getglobal(self->L, "os_date");
+        lua_setfield(self->L, -2, "date");
+        lua_pop(self->L, 1);
+        lua_pushnil(self->L);
+        lua_setglobal(self->L, "os_date");
 
         // Load any plugins available
-        if (!::config.vanilla) {
+        if (!config.vanilla) {
 #ifndef STANDALONE_ROM
-            lua_newtable(L);
-            lua_setfield(L, LUA_REGISTRYINDEX, "plugin_info");
+            lua_newtable(self->L);
+            lua_setfield(self->L, LUA_REGISTRYINDEX, "plugin_info");
             struct_dirent *dir;
             path_t plugin_path = getPlugInPath();
             platform_DIR * d = platform_opendir(plugin_path.c_str());
@@ -449,101 +440,97 @@ void Computer::run(path_t bios_name) {
                 for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
                     if (platform_stat((plugin_path + WS("/") + path_t(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
                     if (path_t(dir->d_name) == WS(".DS_Store") || path_t(dir->d_name) == WS("desktop.ini")) continue;
-                    loadPlugin(plugin_path + WS("/") + dir->d_name);
+                    Computer_loadPlugin(self, plugin_path + WS("/") + dir->d_name);
                 }
                 platform_closedir(d);
             }
 #endif
-            for (path_t path : customPlugins) loadPlugin(path);
+            for (path_t path : customPlugins) Computer_loadPlugin(self, path);
         }
 
         // Delete unwanted globals
-        lua_pushnil(L);
-        lua_setglobal(L, "dofile");
-        lua_pushnil(L);
-        lua_setglobal(L, "loadfile");
-        lua_pushnil(L);
-        lua_setglobal(L, "module");
-        lua_pushnil(L);
-        lua_setglobal(L, "require");
-        lua_pushnil(L);
-        lua_setglobal(L, "package");
-        lua_pushnil(L);
-        lua_setglobal(L, "print");
-        if (!::config.debug_enable) {
-            lua_pushnil(L);
-            lua_setglobal(L, "collectgarbage");
-            lua_pushnil(L);
-            lua_setglobal(L, "debug");
-            lua_pushnil(L);
-            lua_setglobal(L, "newproxy");
+        lua_pushnil(self->L);
+        lua_setglobal(self->L, "dofile");
+        lua_pushnil(self->L);
+        lua_setglobal(self->L, "loadfile");
+        lua_pushnil(self->L);
+        lua_setglobal(self->L, "module");
+        lua_pushnil(self->L);
+        lua_setglobal(self->L, "require");
+        lua_pushnil(self->L);
+        lua_setglobal(self->L, "package");
+        lua_pushnil(self->L);
+        lua_setglobal(self->L, "print");
+        if (!config.debug_enable) {
+            lua_pushnil(self->L);
+            lua_setglobal(self->L, "collectgarbage");
+            lua_pushnil(self->L);
+            lua_setglobal(self->L, "debug");
+            lua_pushnil(self->L);
+            lua_setglobal(self->L, "newproxy");
         }
-        if (::config.vanilla) {
-            lua_pushnil(L);
-            lua_setglobal(L, "config");
-            lua_pushnil(L);
-            lua_setglobal(L, "mounter");
-            lua_pushnil(L);
-            lua_setglobal(L, "periphemu");
-            lua_getglobal(L, "term");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "getGraphicsMode");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "setGraphicsMode");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "getPixel");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "setPixel");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "drawPixels");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "screenshot");
-            lua_pop(L, 1);
-            if (::config.http_enable) {
-                lua_getglobal(L, "http");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "addListener");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "removeListener");
-                lua_pop(L, 1);
+        if (config.vanilla) {
+            lua_pushnil(self->L);
+            lua_setglobal(self->L, "config");
+            lua_pushnil(self->L);
+            lua_setglobal(self->L, "mounter");
+            lua_pushnil(self->L);
+            lua_setglobal(self->L, "periphemu");
+            lua_getglobal(self->L, "term");
+            lua_pushnil(self->L);
+            lua_setfield(self->L, -2, "getGraphicsMode");
+            lua_pushnil(self->L);
+            lua_setfield(self->L, -2, "setGraphicsMode");
+            lua_pushnil(self->L);
+            lua_setfield(self->L, -2, "getPixel");
+            lua_pushnil(self->L);
+            lua_setfield(self->L, -2, "setPixel");
+            lua_pushnil(self->L);
+            lua_setfield(self->L, -2, "drawPixels");
+            lua_pushnil(self->L);
+            lua_setfield(self->L, -2, "screenshot");
+            lua_pop(self->L, 1);
+            if (config.http_enable) {
+                lua_getglobal(self->L, "http");
+                lua_pushnil(self->L);
+                lua_setfield(self->L, -2, "addListener");
+                lua_pushnil(self->L);
+                lua_setfield(self->L, -2, "removeListener");
+                lua_pop(self->L, 1);
             }
-            if (::config.debug_enable) {
-                lua_getglobal(L, "debug");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "setbreakpoint");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "unsetbreakpoint");
-                lua_pop(L, 1);
+            if (config.debug_enable) {
+                lua_getglobal(self->L, "debug");
+                lua_pushnil(self->L);
+                lua_setfield(self->L, -2, "setbreakpoint");
+                lua_pushnil(self->L);
+                lua_setfield(self->L, -2, "unsetbreakpoint");
+                lua_pop(self->L, 1);
             }
         }
 
         // Set default globals
-        lua_pushstring(L, ::config.default_computer_settings.c_str());
-        lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
-        lua_pushboolean(L, ::config.disable_lua51_features);
-        lua_setglobal(L, "_CC_DISABLE_LUA51_FEATURES");
+        lua_pushstring(self->L, ::config.default_computer_settings.c_str());
+        lua_setglobal(self->L, "_CC_DEFAULT_SETTINGS");
+        lua_pushboolean(self->L, ::config.disable_lua51_features);
+        lua_setglobal(self->L, "_CC_DISABLE_LUA51_FEATURES");
 #if CRAFTOSPC_INDEV == true && defined(CRAFTOSPC_COMMIT)
-        lua_pushstring(L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION "@" CRAFTOSPC_COMMIT ")");
+        lua_pushstring(self->L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION "@" CRAFTOSPC_COMMIT ")");
 #else
-        lua_pushstring(L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION ")");
+        lua_pushstring(self->L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION ")");
 #endif
-        lua_setglobal(L, "_HOST");
+        lua_setglobal(self->L, "_HOST");
         if (selectedRenderer == 1) {
-            lua_pushboolean(L, true);
-            lua_setglobal(L, "_HEADLESS");
+            lua_pushboolean(self->L, true);
+            lua_setglobal(self->L, "_HEADLESS");
         }
         if (onboardingMode == 1) {
-            lua_pushboolean(L, true);
-            lua_setglobal(L, "_CCPC_FIRST_RUN");
+            lua_pushboolean(self->L, true);
+            lua_setglobal(self->L, "_CCPC_FIRST_RUN");
             onboardingMode = 0;
         } else if (onboardingMode == 2) {
-            lua_pushboolean(L, true);
-            lua_setglobal(L, "_CCPC_UPDATED_VERSION");
+            lua_pushboolean(self->L, true);
+            lua_setglobal(self->L, "_CCPC_UPDATED_VERSION");
             onboardingMode = 0;
-            if (std::string(CRAFTOSPC_VERSION) == "v2.4.1" && !::config.romReadOnly) {
-                ::config.romReadOnly = true;
-                config_save();
-            }
         }
         if (!script_file.empty()) {
             std::string script;
@@ -558,15 +545,15 @@ void Computer::run(path_t bios_name) {
                 }
                 fclose(in);
             }
-            lua_pushlstring(L, script.c_str(), script.size());
-            lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
+            lua_pushlstring(self->L, script.c_str(), script.size());
+            lua_setglobal(self->L, "_CCPC_STARTUP_SCRIPT");
         }
         if (!script_args.empty()) {
-            lua_pushlstring(L, script_args.c_str(), script_args.length());
-            lua_setglobal(L, "_CCPC_STARTUP_ARGS");
+            lua_pushlstring(self->L, script_args.c_str(), script_args.length());
+            lua_setglobal(self->L, "_CCPC_STARTUP_ARGS");
         }
-        lua_pushcfunction(L, term_benchmark);
-        lua_setfield(L, LUA_REGISTRYINDEX, "benchmark");
+        lua_pushcfunction(self->L, term_benchmark);
+        lua_setfield(self->L, LUA_REGISTRYINDEX, "benchmark");
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
@@ -579,14 +566,14 @@ void Computer::run(path_t bios_name) {
         path_t bios_path_expanded = getROMPath() + WS("/") + bios_name;
 #endif
         FILE * bios_file = platform_fopen(bios_path_expanded.c_str(), "r");
-        status = lua_load(coro, file_reader, bios_file, "@bios.lua");
+        status = lua_load(self->coro, file_reader, bios_file, "@bios.lua");
         fclose(bios_file);
 #endif
-        if (status || !lua_isfunction(coro, -1)) {
+        if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(L, -1));
-            if (::config.standardsMode) displayFailure(term, "Error loading bios.lua");
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(self->L, -1));
+            if (::config.standardsMode) displayFailure(self->term, "Error loading bios.lua");
             else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
                     SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
@@ -595,48 +582,48 @@ void Computer::run(path_t bios_name) {
                     ).c_str()
                 ); 
                 return NULL;
-            }, term);
+            }, self->term);
             return;
         }
 
         /* Ask Lua to run our little script */
         status = LUA_YIELD;
         int narg = 0;
-        running = 1;
-        eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, this);
-        while (status == LUA_YIELD && running == 1) {
-            status = lua_resume(coro, narg);
+        self->running = 1;
+        self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
+        while (status == LUA_YIELD && self->running == 1) {
+            status = lua_resume(self->coro, narg);
             if (status == LUA_YIELD) {
-                if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
-                else narg = getNextEvent(coro, "");
+                if (lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_strlen(self->coro, -1)));
+                else narg = getNextEvent(self->coro, "");
             } else if (status != 0) {
                 // Catch runtime error
-                running = 0;
-                lua_pushcfunction(coro, termPanic);
-                if (lua_isstring(coro, -2)) lua_pushvalue(coro, -2);
-                else lua_pushnil(coro);
-                lua_call(coro, 1, 0);
+                self->running = 0;
+                lua_pushcfunction(self->coro, termPanic);
+                if (lua_isstring(self->coro, -2)) lua_pushvalue(self->coro, -2);
+                else lua_pushnil(self->coro);
+                lua_call(self->coro, 1, 0);
                 break;
-            } else running = 0;
+            } else self->running = 0;
         }
         
         // Shutdown threads
-        event_lock.notify_all();
+        self->event_lock.notify_all();
         for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
-            if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
-        lua_close(L);   /* Cya, Lua */
-        L = NULL;
+            if (libraries[i]->deinit != NULL) libraries[i]->deinit(self);
+        lua_close(self->L);   /* Cya, Lua */
+        self->L = NULL;
     }
 }
 
 // Gets the next event for the given computer
-bool Computer::getEvent(SDL_Event* e) {
-    std::lock_guard<std::mutex> lock(termEventQueueMutex);
-    if (termEventQueue.size() == 0) return false;
-    SDL_Event& front = termEventQueue.front();
+bool Computer_getEvent(Computer * self, SDL_Event* e) {
+    std::lock_guard<std::mutex> lock(self->termEventQueueMutex);
+    if (self->termEventQueue.size() == 0) return false;
+    SDL_Event& front = self->termEventQueue.front();
     if (&front == NULL || e == NULL) return false;
     memcpy(e, &front, sizeof(SDL_Event));
-    termEventQueue.pop();
+    self->termEventQueue.pop();
     return true;
 }
 
@@ -658,9 +645,9 @@ void* computerThread(void* data) {
         freedComputers.erase(comp);
     try {
 #ifdef STANDALONE_ROM
-        comp->run(wstr(standaloneBIOS));
+        runComputer(comp, wstr(standaloneBIOS));
 #else
-        comp->run(WS("bios.lua"));
+        runComputer(comp, WS("bios.lua"));
 #endif
     } catch (std::exception &e) {
         fprintf(stderr, "Uncaught exception while executing computer %d: %s\n", comp->id, e.what());
@@ -694,7 +681,7 @@ void* computerThread(void* data) {
     return NULL;
 }
 
-std::list<std::thread*> computerThreads;
+/* export */ std::list<std::thread*> computerThreads;
 
 // Spin up a new computer
 Computer * startComputer(int id) {

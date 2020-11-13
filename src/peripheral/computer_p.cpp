@@ -10,7 +10,7 @@
 
 #define CRAFTOSPC_INTERNAL
 #include "computer.hpp"
-#include "../os.hpp"
+#include "../runtime.hpp"
 #include <regex>
 #include <unordered_set>
 #include <cstring>
@@ -44,7 +44,7 @@ int computer::reboot(lua_State *L) {
 
 int computer::getLabel(lua_State *L) {
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
-    lua_pushlstring(L, comp->config.label.c_str(), comp->config.label.length());
+    lua_pushlstring(L, comp->config->label.c_str(), comp->config->label.length());
     return 1;
 }
 
@@ -85,13 +85,14 @@ int computer::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-const char * computer_keys[6] = {
-    "turnOn",
-    "shutdown",
-    "reboot",
-    "getID",
-    "isOn",
-    "getLabel"
+static luaL_Reg computer_reg[] = {
+    {"turnOn", NULL},
+    {"shutdown", NULL},
+    {"reboot", NULL},
+    {"getID", NULL},
+    {"isOn", NULL},
+    {"getLabel", NULL},
+    {NULL, NULL}
 };
 
-library_t computer::methods = {"computer", 6, computer_keys, NULL, nullptr, nullptr};
+library_t computer::methods = {"computer", computer_reg, nullptr, nullptr};
