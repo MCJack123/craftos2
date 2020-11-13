@@ -126,7 +126,7 @@ int drive::insertDisk(lua_State *L, bool init) {
         createDirectory((computerDir + WS("\\disk\\") + to_path_t(id)).c_str());
         addMount(comp, (computerDir + WS("\\disk\\") + to_path_t(id)).c_str(), mount_path.c_str(), false);
 #else
-        assert(createDirectory((computerDir + "/disk/" + std::to_string(id)).c_str()) == 0);
+        createDirectory((computerDir + "/disk/" + std::to_string(id)).c_str());
         addMount(comp, (computerDir + "/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
 #endif
         comp->mounter_initializing = false;
