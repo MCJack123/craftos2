@@ -9,8 +9,10 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "modem.hpp"
+#include <string>
 #include "../runtime.hpp"
+static std::string modem_message(lua_State *message, void* data);
+#include "modem.hpp"
 #include "../apis.hpp"
 #include <configuration.hpp>
 #include <list>
