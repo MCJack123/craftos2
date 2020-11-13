@@ -13,6 +13,7 @@
 #define CRAFTOS_PC_TERMINAL_HPP
 
 #include <cstdint>
+#include <cstring>
 #include <vector>
 #include <string>
 #include <chrono>
