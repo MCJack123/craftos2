@@ -80,7 +80,7 @@ public:
             if (idx >= size) throw std::out_of_range("Vector2D index out of range");
             return val(vec, ypos + idx);
         }
-        void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + max((int)v.size(), size), vec->begin() + ypos);}
+        void operator=(std::vector<T> v) {std::copy(v.begin(), v.begin() + (v.size() > size ? v.size() : size), vec->begin() + ypos);}
         void operator=(row v) {std::copy(v.vec->begin() + v.ypos, v.vec->begin() + v.ypos + v.size, vec->begin() + ypos);}
     };
     vector2d(int w, int h, T v): width(w), height(h), vec((size_t)w*h, v) {}
@@ -93,7 +93,7 @@ public:
         else {
             std::vector<T> newvec(w * h);
             for (int y = 0; y < height && y < h; y++) {
-                std::copy(vec.begin() + (y * width), vec.begin() + (y * width) + min(w, width), newvec.begin() + (y * w));
+                std::copy(vec.begin() + (y * width), vec.begin() + (y * width) + (w < width ? w : width), newvec.begin() + (y * w));
                 if (w > width) std::fill(newvec.begin() + (y * w) + width, newvec.begin() + ((y + 1) * w), v);
             }
             vec = newvec;
