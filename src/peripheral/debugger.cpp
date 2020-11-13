@@ -9,9 +9,11 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include "../runtime.hpp"
+static void debuggerThread(Computer * comp, void * dbgv, std::string side);
+static int debugger_lib_getInfo(lua_State *L);
 #include "debugger.hpp"
 #include "../fs_standalone.hpp"
-#include "../runtime.hpp"
 #include "../termsupport.hpp"
 #include "../terminal/CLITerminal.hpp"
 #include "../platform.hpp"
@@ -19,7 +21,6 @@
 #include <thread>
 #include <unordered_set>
 #include <cassert>
-
 
 extern std::list<std::thread*> computerThreads;
 extern std::unordered_set<Computer*> freedComputers;

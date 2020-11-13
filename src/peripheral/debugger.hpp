@@ -15,6 +15,7 @@
 #include <condition_variable>
 #include <thread>
 #include <unordered_map>
+#include <atomic>
 
 #define DEBUGGER_BREAK_TYPE_NONSTOP 0
 #define DEBUGGER_BREAK_TYPE_LINE    1
