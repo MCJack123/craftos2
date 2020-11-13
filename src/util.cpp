@@ -22,8 +22,10 @@
 #include "platform.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "runtime.hpp"
-#ifdef WIN32
+#include <sys/stat.h>
+#include <errno.h>
 #include <dirent.h>
+#ifdef WIN32
 #define PATH_SEP L"\\"
 #define PATH_SEPC '\\'
 #else
