@@ -9,7 +9,6 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-static void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata);
 #include "printer.hpp"
 #include "../platform.hpp"
 #include <cstring>
@@ -120,7 +119,7 @@ static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
     {HPDF_INVALID_FONT, "An invalid font-handle was specified."},
 };
 
-static void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata) {
+void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata) {
     lua_State *L = ((printer*)userdata)->currentState;
     if (L) luaL_error(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
     else {
