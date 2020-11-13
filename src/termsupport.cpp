@@ -649,7 +649,7 @@ static std::string utf8_to_string(const char *utf8str, const std::locale& loc)
     return std::string(buf.data(), buf.size());
 }
 
-Uint32 mouseDebounce(Uint32 interval, void* param);
+static Uint32 mouseDebounce(Uint32 interval, void* param);
 
 static std::string mouse_move(lua_State *L, void* param) {
     Computer * computer = get_comp(L);
