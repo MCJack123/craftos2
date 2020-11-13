@@ -16,6 +16,7 @@
 #include <ncurses.h>
 #include <vector>
 #include <set>
+#undef scroll
 
 class CLITerminal: public Terminal {
     friend void mainLoop();
