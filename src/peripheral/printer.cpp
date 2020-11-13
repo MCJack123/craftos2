@@ -9,6 +9,7 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+static void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata);
 #include "printer.hpp"
 #include "../platform.hpp"
 #include <cstring>
