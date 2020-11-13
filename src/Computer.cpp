@@ -557,7 +557,7 @@ void runComputer(Computer * self, path_t bios_name) {
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
-        status = luaL_loadstring(coro, astr(bios_name).c_str());
+        status = luaL_loadstring(self->coro, astr(bios_name).c_str());
         path_t bios_path_expanded = WS("standalone ROM");
 #else
 #ifdef WIN32
