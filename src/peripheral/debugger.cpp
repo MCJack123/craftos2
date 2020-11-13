@@ -9,8 +9,10 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "../runtime.hpp"
+#include <string>
+class Computer;
 static void debuggerThread(Computer * comp, void * dbgv, std::string side);
+#include "../runtime.hpp"
 static int debugger_lib_getInfo(lua_State *L);
 #include "debugger.hpp"
 #include "../fs_standalone.hpp"
