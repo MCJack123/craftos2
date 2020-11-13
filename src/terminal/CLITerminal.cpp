@@ -10,6 +10,8 @@
 
 #define CRAFTOSPC_INTERNAL
 #ifndef NO_CLI
+static void pressControl(int sig);
+static void pressAlt(int sig);
 #include "CLITerminal.hpp"
 #include "SDLTerminal.hpp"
 #include "RawTerminal.hpp"
@@ -154,7 +156,7 @@ bool CLITerminal::resize(int w, int h) {
     return true;
 }
 
-void CLITerminal::showMessage(Uint32 flags, const char * title, const char * message) {
+void CLITerminal::showMessage(uint32_t flags, const char * title, const char * message) {
     fprintf(stderr, "%s: %s\n", title, message);
 }
 
@@ -315,7 +317,7 @@ bool CLITerminal::pollEvents() {
         lastch.clear();
         nodelay(tmpwin, TRUE);
         keypad(tmpwin, TRUE);
-        while (ch == ERR && taskQueue.size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
+        while (ch == ERR && taskQueue->size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
     }
     if (resizeRefresh) {
         resizeRefresh = false;
@@ -340,14 +342,14 @@ bool CLITerminal::pollEvents() {
             c->event_lock.notify_all();
         }
     }
-    while (taskQueue.size() > 0) {
-        auto v = taskQueue.front();
+    while (taskQueue->size() > 0) {
+        auto v = taskQueue->front();
         void* retval = std::get<1>(v)(std::get<2>(v));
         if (!std::get<3>(v)) {
             LockGuard lock2(taskQueueReturns);
             (*taskQueueReturns)[std::get<0>(v)] = retval;
         }
-        taskQueue.pop();
+        taskQueue->pop();
     }
     if (ch == KEY_SLEFT) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); } 
     else if (ch == KEY_SRIGHT) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } 

@@ -42,7 +42,7 @@ public:
     void render() override;
     bool resize(int w, int h) override;
     void getMouse(int *x, int *y);
-    void showMessage(Uint32 flags, const char * title, const char * message) override;
+    void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
 };
 
