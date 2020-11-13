@@ -32,9 +32,10 @@
 #ifndef NO_CLI
 #include <signal.h>
 #endif
-#ifdef WIN32
+#include <sys/stat.h>
+#include <errno.h>
 #include <dirent.h>
-#else
+#ifndef WIN32
 #include <libgen.h>
 #endif
 
@@ -47,13 +48,9 @@ ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
 bool forceCheckTimeout = false;
-extern int selectedRenderer;
 extern bool rawClient;
 extern Uint32 task_event_type;
 extern Uint32 render_event_type;
-extern std::unordered_map<int, unsigned char> keymap_cli;
-extern std::unordered_map<int, unsigned char> keymap;
-extern std::unordered_set<Terminal*> orphanedTerminals;
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
 

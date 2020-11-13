@@ -9,6 +9,7 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+static int runRenderer();
 #include <Computer.hpp>
 #include <configuration.hpp>
 #include "peripheral/drive.hpp"
