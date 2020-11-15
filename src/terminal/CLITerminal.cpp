@@ -23,6 +23,7 @@ static void pressAlt(int sig);
 #include "CLITerminal.hpp"
 #include "SDLTerminal.hpp"
 #include "RawTerminal.hpp"
+#include "../main.hpp"
 #include "../peripheral/monitor.hpp"
 #include "../termsupport.hpp"
 #include "../runtime.hpp"
