@@ -15,6 +15,7 @@
 #include <Poco/Base64Decoder.h>
 #include <Poco/Base64Encoder.h>
 #include <sys/stat.h>
+#include "fs_standalone.hpp"
 #include "platform.hpp"
 #include "runtime.hpp"
 #include "terminal/SDLTerminal.hpp"
