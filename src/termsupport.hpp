@@ -10,6 +10,7 @@
 
 #ifndef TERMSUPPORT_HPP
 #define TERMSUPPORT_HPP
+#include <atomic>
 #include "peripheral/monitor.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "util.hpp"
