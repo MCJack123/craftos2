@@ -10,6 +10,7 @@
 
 #ifndef RUNTIME_HPP
 #define RUNTIME_HPP
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <SDL2/SDL.h>
