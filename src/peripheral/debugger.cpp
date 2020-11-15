@@ -16,17 +16,9 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side);
 static int debugger_lib_getInfo(lua_State *L);
 #include "debugger.hpp"
 #include "../fs_standalone.hpp"
-#include "../termsupport.hpp"
-#include "../terminal/CLITerminal.hpp"
 #include "../platform.hpp"
-#include <sstream>
-#include <thread>
-#include <unordered_set>
-#include <cassert>
-
-extern std::list<std::thread*> computerThreads;
-extern std::unordered_set<Computer*> freedComputers;
-extern std::thread::id mainThreadID;
+#include "../terminal/CLITerminal.hpp"
+#include "../termsupport.hpp"
 
 static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
     debugger * dbg = (debugger*)dbgv;
@@ -566,7 +558,6 @@ debugger::~debugger() {
         breakNotify.notify_all(); 
         std::this_thread::yield();
     }
-    assert(thread == NULL);
     if (compThread->joinable()) compThread->join();
     computer->shouldDeinitDebugger = true;
 }

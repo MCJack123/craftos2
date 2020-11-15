@@ -14,23 +14,22 @@
 extern "C" {
 #include <lua.h>
 }
-#include <string>
-#include <vector>
-#include <tuple>
+#include <csetjmp>
+#include <condition_variable>
+#include <functional>
 #include <list>
-#include <queue>
 #include <map>
+#include <queue>
+#include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
-#include <atomic>
-#include <condition_variable>
-#include <csetjmp>
-#include <functional>
+#include <vector>
 #include <SDL2/SDL.h>
-#include "peripheral.hpp"
-#include "Terminal.hpp"
 #include "configuration.hpp"
 #include "lib.hpp"
+#include "peripheral.hpp"
+#include "Terminal.hpp"
 
 /// This is the type for functions that return event information. This type is used by queueEvent.
 typedef std::string (*event_provider)(lua_State *L, void* data);

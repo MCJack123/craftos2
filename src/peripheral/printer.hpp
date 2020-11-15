@@ -8,9 +8,11 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#include <peripheral.hpp>
+#ifndef PERIPHERAL_PRINTER_HPP
+#define PERIPHERAL_PRINTER_HPP
 #include <string>
 #include <vector>
+#include <peripheral.hpp>
 
 #define PRINT_TYPE_PDF 0
 #define PRINT_TYPE_HTML 1
@@ -192,3 +194,5 @@ public:
     void update() {}
     library_t getMethods() {return methods;}
 };
+
+#endif

@@ -12,32 +12,30 @@
 extern "C" {
 #include <lualib.h>
 }
+#include <dirent.h>
+#include <thread>
+#include <unordered_set>
 #include <configuration.hpp>
 #include <peripheral.hpp>
+#include <sys/stat.h>
 #include "apis.hpp"
 #include "fs_standalone.hpp"
-#include "runtime.hpp"
-#include "termsupport.hpp"
-#include "platform.hpp"
+#include "main.hpp"
 #include "peripheral/computer.hpp"
+#include "platform.hpp"
+#include "runtime.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
-#include <unordered_set>
-#include <thread>
-#include <dirent.h>
-#include <sys/stat.h>
+#include "termsupport.hpp"
 
-extern std::string asciify(std::string);
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
 extern void stopWebsocket(void*);
 extern int term_benchmark(lua_State *L);
 extern int onboardingMode;
 extern bool forceCheckTimeout;
-extern std::string script_args;
-extern std::string script_file;
 ProtectedObject<std::vector<Computer*> > computers;
 std::unordered_set<Computer*> freedComputers; 
 ProtectedObject<std::unordered_set<SDL_TimerID>> freedTimers;
@@ -216,8 +214,6 @@ static void pluginError(lua_State *L, const char * name, const char * err) {
     lua_settable(L, -3);
     lua_pop(L, 1);
 }
-
-extern void config_save();
 
 /* export */ std::unordered_map<path_t, void*> loadedPlugins;
 
@@ -627,11 +623,6 @@ bool Computer_getEvent(Computer * self, SDL_Event* e) {
     self->termEventQueue.pop();
     return true;
 }
-
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern std::atomic_bool taskQueueReady;
-extern std::condition_variable taskQueueNotify;
-extern bool exiting;
 
 // Thread wrapper for running a computer
 void* computerThread(void* data) {

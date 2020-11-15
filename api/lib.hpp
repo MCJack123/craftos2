@@ -15,8 +15,8 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
-#include <string>
 #include <functional>
+#include <string>
 
 #ifndef CRAFTOS_PC_COMPUTER_HPP
 struct Computer;

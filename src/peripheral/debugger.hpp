@@ -10,12 +10,12 @@
 
 #ifndef PERIPHERAL_DEBUGGER_HPP
 #define PERIPHERAL_DEBUGGER_HPP
-#include <peripheral.hpp>
-#include <mutex>
+#include <atomic>
 #include <condition_variable>
+#include <mutex>
 #include <thread>
 #include <unordered_map>
-#include <atomic>
+#include <peripheral.hpp>
 
 #define DEBUGGER_BREAK_TYPE_NONSTOP 0
 #define DEBUGGER_BREAK_TYPE_LINE    1

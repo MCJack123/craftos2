@@ -10,18 +10,15 @@
 
 #define CRAFTOSPC_INTERNAL
 #ifndef __EMSCRIPTEN__
-#include "http_handle.hpp"
-#include "../../util.hpp"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <assert.h>
+#include <cstdlib>
 #include <codecvt>
 #include <locale>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPServerResponse.h>
 #include <Poco/Net/HTTPServerRequest.h>
+#include "http_handle.hpp"
+#include "../../util.hpp"
 
 using namespace Poco::Net;
 
@@ -55,8 +52,6 @@ int http_handle_close(lua_State *L) {
     free(handle->url);
     return 0;
 }
-
-#define checkChar(c) c
 
 int http_handle_readAll(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
@@ -132,7 +127,7 @@ http_handle_readCharDone:
         return 1;
     }
     char retval[2];
-    retval[0] = checkChar(handle->stream->get());
+    retval[0] = handle->stream->get();
     lua_pushstring(L, retval);
     return 1;
 }

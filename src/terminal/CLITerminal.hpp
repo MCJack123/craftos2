@@ -1,5 +1,5 @@
 /*
- * CLITerminal.hpp
+ * terminal/CLITerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the CLITerminal class.
@@ -11,11 +11,11 @@
 #ifndef NO_CLI
 #ifndef TERMINAL_CLITERMINAL_HPP
 #define TERMINAL_CLITERMINAL_HPP
-#include <Terminal.hpp>
-#include <string>
-#include <ncurses.h>
-#include <vector>
 #include <set>
+#include <string>
+#include <vector>
+#include <ncurses.h>
+#include <Terminal.hpp>
 #undef scroll
 
 class CLITerminal: public Terminal {

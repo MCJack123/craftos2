@@ -1,5 +1,5 @@
 /*
- * term.cpp
+ * apis/term.cpp
  * CraftOS-PC 2
  *
  * This file implements the methods for the term API.

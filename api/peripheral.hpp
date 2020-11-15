@@ -1,9 +1,8 @@
 /*
- * peripheral/peripheral.hpp
+ * peripheral.hpp
  * CraftOS-PC 2
  * 
- * This file defines the peripheral API, and creates the base class for
- * peripherals to inherit.
+ * This file creates the base class for all peripherals to inherit.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.

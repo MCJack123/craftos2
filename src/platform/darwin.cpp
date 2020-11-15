@@ -12,26 +12,25 @@
 extern "C" {
 #include <lua.h>
 }
-#include <stdlib.h>
-#include <string.h>
-#include <wordexp.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/statvfs.h>
-#include <sys/utsname.h>
-#include <libgen.h>
-#include <pthread.h>
-#include <glob.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <ApplicationServices/ApplicationServices.h>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <execinfo.h>
-#include <signal.h>
-#include <string>
-#include <vector>
-#include <sstream>
+#include <libgen.h>
 #include <png++/png.hpp>
-#include <ApplicationServices/ApplicationServices.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+#include <wordexp.h>
 #include "../platform.hpp"
 
 #ifdef CUSTOM_ROM_DIR

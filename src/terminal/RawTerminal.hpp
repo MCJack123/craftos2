@@ -1,5 +1,5 @@
 /*
- * RawTerminal.hpp
+ * terminal/RawTerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the RawTerminal class.
@@ -10,10 +10,9 @@
 
 #ifndef TERMINAL_RAWTERMINAL_HPP
 #define TERMINAL_RAWTERMINAL_HPP
-#include <Terminal.hpp>
-#include <thread>
 #include <set>
 #include <SDL2/SDL.h>
+#include <Terminal.hpp>
 
 class RawTerminal: public Terminal {
     static std::set<unsigned> currentIDs;

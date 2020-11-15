@@ -2,7 +2,8 @@
  * main.cpp
  * CraftOS-PC 2
  * 
- * This file controls the Lua VM, loads the CraftOS BIOS, and sends events back.
+ * This file handles command-line flags, sets up the runtime, and starts the
+ * first computer.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
@@ -10,6 +11,9 @@
 
 #define CRAFTOSPC_INTERNAL
 static int runRenderer();
+#include <functional>
+#include <iomanip>
+#include <thread>
 #include <Computer.hpp>
 #include <configuration.hpp>
 #include "peripheral/drive.hpp"
@@ -21,29 +25,24 @@ static int runRenderer();
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
-#include <functional>
-#include <thread>
-#include <iomanip>
+#include "termsupport.hpp"
+#include <Poco/Checksum.h>
+#include <Poco/JSON/Parser.h>
 #ifndef __EMSCRIPTEN__
 #include <Poco/Net/HTTPSClientSession.h>
-#include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
-#endif
-#include <Poco/JSON/Parser.h>
-#include <Poco/Checksum.h>
-#ifdef __EMSCRIPTEN__
+#else
 #include <emscripten/emscripten.h>
 #endif
 
-extern void mainLoop();
 extern void awaitTasks(std::function<bool()> predicate = []()->bool{return true;});
 extern void http_server_stop();
-extern std::list<std::thread*> computerThreads;
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern std::atomic_bool taskQueueReady;
-extern std::condition_variable taskQueueNotify;
 extern std::unordered_map<path_t, void*> loadedPlugins;
+#ifdef WIN32
+extern void* kernel32handle;
+#endif
+
 int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
 std::string overrideHardwareDriver;
@@ -53,9 +52,6 @@ std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
-#ifdef WIN32
-extern void* kernel32handle;
-#endif
 
 #ifndef __EMSCRIPTEN__
 static void update_thread() {
@@ -125,7 +121,6 @@ inline Terminal * createTerminal(std::string title) {
     else return new SDLTerminal(title);
 }
 
-extern std::thread::id mainThreadID;
 
 static int runRenderer() {
     if (selectedRenderer == 0) SDLTerminal::init();

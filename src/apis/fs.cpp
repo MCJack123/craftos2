@@ -9,24 +9,21 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "handles/fs_handle.hpp"
-#include "../fs_standalone.hpp"
-#include "../platform.hpp"
-#include "../runtime.hpp"
-#include <configuration.hpp>
-#include <Computer.hpp>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <dirent.h>
-#include <stdbool.h>
-#include <assert.h>
-#include <sstream>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+#include <codecvt>
 #include <iterator>
 #include <regex>
-#include <codecvt>
+#include <sstream>
+#include <Computer.hpp>
+#include <configuration.hpp>
+#include <dirent.h>
+#include <sys/stat.h>
+#include "../fs_standalone.hpp"
+#include "handles/fs_handle.hpp"
+#include "../platform.hpp"
+#include "../runtime.hpp"
 #ifdef WIN32
 #include <io.h>
 #define access(p, m) _access(p, m)
@@ -37,8 +34,8 @@
 #define PATH_SEP L"\\"
 #define PATH_SEPC '\\'
 #else
-#include <unistd.h>
 #include <libgen.h>
+#include <unistd.h>
 #define PATH_SEP "/"
 #define PATH_SEPC '/'
 #endif
@@ -46,8 +43,6 @@
 #define S_ISDIR(m) 1 // silence errors in IntelliSense (which isn't very intelligent for its name)
 #define W_OK 2
 #endif
-
-extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
 
 #define err(L, idx, err) luaL_error(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).c_str(), err)
 
@@ -654,13 +649,11 @@ static int fs_find(lua_State *L) {
         lua_settable(L, -3);
     }
     lua_getglobal(L, "table");
-    assert(lua_istable(L, -1));
     lua_pushstring(L, "sort");
     lua_gettable(L, -2);
-    assert(lua_isfunction(L, -1));
     lua_pushvalue(L, -3);
     // L: [path, retval, table api, table.sort, retval]
-    assert(lua_pcall(L, 1, 0, 0) == 0);
+    lua_pcall(L, 1, 0, 0);
     // L: [path, retval, table api]
     lua_pop(L, 1);
     return 1;

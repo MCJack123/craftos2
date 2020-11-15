@@ -11,12 +11,12 @@
 
 #ifndef FS_STANDALONE_HPP
 #define FS_STANDALONE_HPP
-#include <map>
-#include <sstream>
-#include <string>
 #include <algorithm>
 #include <codecvt>
 #include <locale>
+#include <map>
+#include <sstream>
+#include <string>
 
 struct FileEntry {
     bool isDir;

@@ -8,9 +8,10 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#include "../util.hpp"
-#include "../runtime.hpp"
 #include <Computer.hpp>
+#include "../main.hpp"
+#include "../runtime.hpp"
+#include "../util.hpp"
 
 static int os_getComputerID(lua_State *L) { lua_pushinteger(L, get_comp(L)->id); return 1; }
 
@@ -281,7 +282,6 @@ static int os_cancelAlarm(lua_State *L) {
     return 0;
 }
 
-extern int returnValue;
 static int os_shutdown(lua_State *L) {
     get_comp(L)->running = 0;
     if (selectedRenderer == 1 && lua_isnumber(L, 1)) returnValue = lua_tointeger(L, 1);

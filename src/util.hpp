@@ -16,28 +16,17 @@ extern "C" {
 #include <lauxlib.h>
 }
 #include <functional>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
 #include <Poco/JSON/JSON.h>
 #include <Poco/JSON/Parser.h>
-#include <peripheral.hpp>
-#include <Terminal.hpp>
 #include <Computer.hpp>
-#include "platform.hpp"
+#include <Terminal.hpp>
 
 #define CRAFTOSPC_VERSION    "v2.5"
 #define CRAFTOSPC_CC_VERSION "1.94.0"
 #define CRAFTOSPC_INDEV      true
-
-// The library_t structure is used to hold information about an API.
-/*typedef struct library {
-    const char * name;  // The name of the API
-    luaL_Reg * functions; // The list of functions used in the API
-    std::function<void(Computer*)> init;   // A function to call when opening the API
-    std::function<void(Computer*)> deinit; // A function to call when closing the API
-    ~library() {}
-} library_t;*/
 
 template<typename T>
 class ProtectedObject {
@@ -125,14 +114,15 @@ inline std::string asciify(std::string str) {
 
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
-extern void* getCompCache_glob;
-extern Computer * getCompCache_comp;
-extern Computer * _get_comp(lua_State *L);
 extern std::list<Terminal*> renderTargets;
 extern std::mutex renderTargetsLock;
 #ifdef __EMSCRIPTEN__
 extern std::list<Terminal*>::iterator renderTarget;
 #endif
+
+extern void* getCompCache_glob;
+extern Computer * getCompCache_comp;
+extern Computer * _get_comp(lua_State *L);
 #define get_comp(L) (*(void**)(((ptrdiff_t)L) + sizeof(void*)*3 + 3 + alignof(void*) - ((sizeof(void*)*3 + 3) % alignof(void*))) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
 
 template<typename T>
@@ -148,6 +138,7 @@ extern void HTTPDownload(std::string url, std::function<void(std::istream&)> cal
 extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
 extern bool fixpath_ro(Computer *comp, const char * path);
 extern path_t fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL);
+extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
 extern void registerPeripheral(std::string name, peripheral_init initializer);
 extern void peripheral_update(Computer *comp);
 extern struct computer_configuration getComputerConfig(int id);

@@ -11,14 +11,13 @@
 #include <fstream>
 #include <unordered_map>
 #include <configuration.hpp>
-#include "util.hpp"
+#include "platform.hpp"
+#include "runtime.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
-#include "platform.hpp"
 
 struct configuration config;
-extern int selectedRenderer;
 int onboardingMode = 0;
 
 #ifdef __EMSCRIPTEN__

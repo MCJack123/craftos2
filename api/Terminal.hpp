@@ -14,10 +14,10 @@
 
 #include <cstdint>
 #include <cstring>
-#include <vector>
-#include <string>
 #include <chrono>
 #include <mutex>
+#include <string>
+#include <vector>
 
 // A structure that represents one RGB color.
 typedef struct {

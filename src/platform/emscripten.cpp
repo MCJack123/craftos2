@@ -9,11 +9,11 @@
  */
 
 #ifdef __EMSCRIPTEN__
-#include "../platform.hpp"
-#include <unistd.h>
-#include <sys/stat.h>
-#include <stdio.h>
+#include <cstdio>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include "../platform.hpp"
 
 void setThreadName(std::thread &t, std::string name) {}
 

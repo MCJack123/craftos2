@@ -10,17 +10,17 @@
 
 #ifndef NO_MIXER
 #define CRAFTOSPC_INTERNAL
+#include <cmath>
+#include <algorithm>
+#include <fstream>
+#include <random>
 #include <configuration.hpp>
-#include "speaker.hpp"
+#include <dirent.h>
+#include <SDL2/SDL_mixer.h>
+#include <sys/stat.h>
 #include "../platform.hpp"
 #include "../runtime.hpp"
-#include <SDL2/SDL_mixer.h>
-#include <cmath>
-#include <fstream>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <algorithm>
-#include <random>
+#include "speaker.hpp"
 
 #ifndef MIX_INIT_MID
 #define MIX_INIT_MID 0
@@ -259,8 +259,8 @@ static std::mt19937 RNG;
 
 static Mix_Music * currentlyPlayingMusic = NULL;
 static speaker * musicSpeaker = NULL;
-static void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
 
+static void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
 static void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
 static void emptyEffect(int c, void* stream, int len, void* udata) {}
 

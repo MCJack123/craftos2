@@ -8,9 +8,11 @@
  * Copyright (c) 2019-2020 JackMacWindows. 
  */
 
-#include <peripheral.hpp>
-#include <unordered_set>
+#ifndef PERIPHERAL_MODEM_HPP
+#define PERIPHERAL_MODEM_HPP
 #include <mutex>
+#include <unordered_set>
+#include <peripheral.hpp>
 
 class modem: public peripheral {
 private:
@@ -47,3 +49,5 @@ public:
     void update() {}
     void reinitialize(lua_State *L);
 };
+
+#endif

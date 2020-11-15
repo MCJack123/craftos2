@@ -12,23 +12,21 @@
 #ifndef NO_CLI
 static void pressControl(int sig);
 static void pressAlt(int sig);
+#include <cerrno>
+#include <csignal>
+#include <cstdio>
+#include <cstring>
+#include <thread>
+#include <unordered_map>
+#include <ncurses.h>
+#include <panel.h>
 #include "CLITerminal.hpp"
 #include "SDLTerminal.hpp"
 #include "RawTerminal.hpp"
 #include "../peripheral/monitor.hpp"
 #include "../termsupport.hpp"
 #include "../runtime.hpp"
-#include <thread>
-#include <unordered_map>
-#include <errno.h>
-#include <string.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <ncurses.h>
-#include <panel.h>
-#include <signal.h>
 
-extern std::thread * renderThread;
 std::set<unsigned> CLITerminal::currentIDs;
 std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
 bool CLITerminal::stopRender = false;
@@ -290,7 +288,6 @@ void CLITerminal::quit() {
 #define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
 #endif
 
-extern bool rawClient;
 #define sendEventToTermQueue(e, TYPE) \
     if (rawClient) {e.TYPE.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}\
     else {LockGuard lock(computers);\

@@ -9,17 +9,17 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "printer.hpp"
-#include "../platform.hpp"
 #include <cstring>
+#include "../platform.hpp"
+#include "printer.hpp"
 
 #if PRINT_TYPE == PRINT_TYPE_PDF
-#include <unordered_map>
-#include <stdexcept>
 #include <cmath>
+#include <stdexcept>
+#include <unordered_map>
+#include "../runtime.hpp"
 #include "../terminal/RawTerminal.hpp"
 #include "../terminal/TRoRTerminal.hpp"
-#include "../runtime.hpp"
 static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
     {HPDF_ARRAY_COUNT_ERR, "Internal error. Data consistency was lost."},
     {HPDF_ARRAY_ITEM_NOT_FOUND, "Internal error. Data consistency was lost."},

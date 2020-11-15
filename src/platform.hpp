@@ -11,16 +11,13 @@
 
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
-extern "C" {
-#include <lua.h>
-}
-#include <thread>
-#include <SDL2/SDL.h>
 #include <string>
+#include <thread>
 #include <lib.hpp>
+#include <SDL2/SDL.h>
 
+// Filesystem definitions (UTF-16 vs. not Windows)
 #ifdef WIN32
-//typedef std::wstring path_t;
 #define pathstream_t std::wstringstream
 #define platform_stat _wstat
 #define platform_access _waccess

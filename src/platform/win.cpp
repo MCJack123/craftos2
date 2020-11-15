@@ -1,5 +1,5 @@
 /*
- * platform_win.cpp
+ * platform/win.cpp
  * CraftOS-PC 2
  * 
  * This file implements functions specific to Windows.
@@ -9,21 +9,17 @@
  */
 
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 #include "../platform.hpp"
 #include <vector>
 #include <string>
-#include <sstream>
 #include <fstream>
 #include <cstring>
 #include <codecvt>
-#include <unordered_map>
 #include <processenv.h>
-#include <shlwapi.h>
+#include <Shlwapi.h>
 #include <dirent.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <wchar.h>
 #include "../util.hpp"
 
 const wchar_t * base_path = L"%appdata%\\CraftOS-PC";

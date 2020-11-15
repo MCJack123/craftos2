@@ -1,5 +1,5 @@
 /*
- * mounter.cpp
+ * apis/mounter.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the mounter API.
@@ -9,19 +9,13 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "../fs_standalone.hpp"
-#include "../runtime.hpp"
-#include "../platform.hpp"
-#include "../terminal/SDLTerminal.hpp"
-#include <string>
-#include <vector>
-#include <list>
-#include <sstream>
-#include <map>
-#include <tuple>
 #include <algorithm>
+#include <sstream>
 #include <sys/stat.h>
-#include <cassert>
+#include "../fs_standalone.hpp"
+#include "../platform.hpp"
+#include "../runtime.hpp"
+#include "../terminal/SDLTerminal.hpp"
 #ifdef WIN32
 #include <dirent.h>
 #define PATH_SEP L"\\"
@@ -29,8 +23,6 @@
 #include <libgen.h>
 #define PATH_SEP "/"
 #endif
-
-extern std::string script_file;
 
 static int mounter_mount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");

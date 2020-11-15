@@ -1,31 +1,24 @@
 /*
- * lib.cpp
+ * util.cpp
  * CraftOS-PC 2
  * 
- * This file implements convenience functions for libraries.
+ * This file implements some commonly-used functions.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "util.hpp"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <math.h>
 #include <sstream>
+#include <Computer.hpp>
+#include <dirent.h>
 #include <Poco/Base64Decoder.h>
 #include <Poco/Base64Encoder.h>
-#include <Computer.hpp>
-#include "platform.hpp"
-#include "fs_standalone.hpp"
-#include "terminal/SDLTerminal.hpp"
-#include "runtime.hpp"
 #include <sys/stat.h>
-#include <errno.h>
-#include <dirent.h>
+#include "platform.hpp"
+#include "runtime.hpp"
+#include "terminal/SDLTerminal.hpp"
+#include "util.hpp"
 #ifdef WIN32
 #define PATH_SEP L"\\"
 #define PATH_SEPC '\\'

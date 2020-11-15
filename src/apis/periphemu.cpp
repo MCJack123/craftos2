@@ -9,6 +9,9 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include <algorithm>
+#include <Computer.hpp>
+#include <Terminal.hpp>
 #include "../peripheral/computer.hpp"
 #include "../peripheral/debugger.hpp"
 #include "../peripheral/drive.hpp"
@@ -18,12 +21,6 @@
 #include "../peripheral/speaker.hpp"
 #include "../runtime.hpp"
 #include "../util.hpp"
-#include <peripheral.hpp>
-#include <Terminal.hpp>
-#include <Computer.hpp>
-#include <unordered_map>
-#include <string>
-#include <algorithm>
 
 static std::unordered_map<std::string, peripheral_init> initializers = {
     {"monitor", &monitor::init},

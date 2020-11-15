@@ -7,11 +7,12 @@
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
+
 #ifndef PERIPHERAL_MONITOR_HPP
 #define PERIPHERAL_MONITOR_HPP
+#include <chrono>
 #include <peripheral.hpp>
 #include <Terminal.hpp>
-#include <chrono>
 #ifdef scroll
 #undef scroll
 #endif

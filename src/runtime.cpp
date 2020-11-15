@@ -10,31 +10,28 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
+#include <cerrno>
+#include <cstring>
 #include <chrono>
 #include <queue>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
-#include <algorithm>
-#include <unordered_set>
-#include <cassert>
+#include <configuration.hpp>
+#include <dirent.h>
+#include <sys/stat.h>
+#include "main.hpp"
 #include "runtime.hpp"
 #include "platform.hpp"
-#include "termsupport.hpp"
-#include <configuration.hpp>
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
+#include "termsupport.hpp"
 #ifndef NO_CLI
-#include <signal.h>
+#include <csignal>
 #endif
-#include <sys/stat.h>
-#include <errno.h>
-#include <dirent.h>
 #ifndef WIN32
 #include <libgen.h>
 #endif
@@ -48,9 +45,7 @@ ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
 bool forceCheckTimeout = false;
-extern bool rawClient;
-extern Uint32 task_event_type;
-extern Uint32 render_event_type;
+
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
 

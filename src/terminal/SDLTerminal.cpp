@@ -9,18 +9,18 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "SDLTerminal.hpp"
+
+#include <sstream>
+#include <configuration.hpp>
 #include "RawTerminal.hpp"
+#include "SDLTerminal.hpp"
+#include "../gif.hpp"
+#include "../main.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
-#include <sstream>
-#include <assert.h>
-#include <configuration.hpp>
-#include "../gif.hpp"
-#include "../runtime.hpp"
-#include "../termsupport.hpp"
-#include "../peripheral/monitor.hpp"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
@@ -358,7 +358,7 @@ void SDLTerminal::render() {
             if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
-        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); assert(false); }
+        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); }
         if (gotResizeEvent) return;
         if (SDL_BlitSurface(circle, NULL, surf, setRect(&rect, (newwidth * newcharWidth * dpiScale + 2 * newcharScale * (2/ newfontScale) * dpiScale) - 10, 2 * newcharScale * (2/ newfontScale) * dpiScale, 10, 10)) != 0) return;
         SDL_FreeSurface(circle);
@@ -503,8 +503,6 @@ void SDLTerminal::setLabel(std::string label) {
     queueTask([label](void*win)->void*{SDL_SetWindowTitle((SDL_Window*)win, label.c_str()); return NULL;}, win, true);
 }
 
-extern Uint32 task_event_type, render_event_type;
-
 void SDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
@@ -523,8 +521,6 @@ void SDLTerminal::quit() {
     delete renderThread;
     SDL_Quit();
 }
-
-extern bool rawClient;
 
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)

@@ -1,5 +1,5 @@
 /*
- * HardwareSDLTerminal.hpp
+ * terminal/HardwareSDLTerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the HardwareSDLTerminal class.

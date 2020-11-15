@@ -10,9 +10,9 @@
  */
 
 #ifndef NO_MIXER // don't build this unless we have to
+#include <string>
 #include <unordered_map>
 #include <utility>
-#include <string>
 
 /*
 

@@ -9,20 +9,17 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <codecvt>
+#include <locale>
+#include <string>
 #include "fs_handle.hpp"
 #include "../../util.hpp"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <assert.h>
-
-#include <codecvt>
-#include <string>
-#include <locale>
-#include <iostream>
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
-#include "os.hpp"
+#include "../../runtime.hpp"
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -65,8 +62,6 @@ int fs_handle_istream_close(lua_State *L) {
 #endif
     return 0;
 }
-
-#define checkChar(c) c
 
 std::string makeASCIISafe(const char * retval, size_t len) {
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;

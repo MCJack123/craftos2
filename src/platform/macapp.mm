@@ -1,5 +1,5 @@
 /*
- * platform_macapp.mm
+ * platform/macapp.mm
  * CraftOS-PC 2
  * 
  * This file implements functions specific to macOS app binaries.
@@ -11,36 +11,35 @@
 extern "C" {
 #include <lua.h>
 }
-#include <stdlib.h>
-#include <string.h>
-#include <wordexp.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/statvfs.h>
-#include <sys/utsname.h>
-#include <libgen.h>
-#include <pthread.h>
-#include <glob.h>
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <execinfo.h>
-#include <signal.h>
-#include <string>
-#include <vector>
-#include <sstream>
-#include <fstream>
+#include <libgen.h>
+#include <pthread.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+#include <wordexp.h>
+#include <png++/png.hpp>
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
-#include <png++/png.hpp>
-#import <Foundation/Foundation.h>
-#import <AppKit/AppKit.h>
 #include "../platform.hpp"
 #include "../util.hpp"
+#import <AppKit/AppKit.h>
+#import <Foundation/Foundation.h>
 
 extern bool exiting;
 std::string rom_path_expanded;

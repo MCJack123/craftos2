@@ -9,17 +9,16 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include <configuration.hpp>
 #include "HardwareSDLTerminal.hpp"
 #include "RawTerminal.hpp"
+#include "../gif.hpp"
+#include "../main.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
-#include <assert.h>
-#include <configuration.hpp>
-#include "../gif.hpp"
-#include "../runtime.hpp"
-#include "../termsupport.hpp"
-#include "../peripheral/monitor.hpp"
 #define rgb(color) ((color.r << 16) | (color.g << 8) | color.b)
 
 extern "C" {
@@ -35,7 +34,6 @@ extern "C" {
 #endif
 }
 
-extern std::string overrideHardwareDriver;
 #ifdef __APPLE__
 extern float getBackingScaleFactor(SDL_Window *win);
 #endif
@@ -299,7 +297,7 @@ void HardwareSDLTerminal::render() {
             if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
-        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); assert(false); }
+        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); }
         SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, circle);
         if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, 2 * charScale * fontScale * dpiScale, 10, 10)) != 0) return;
         SDL_FreeSurface(circle);
@@ -319,10 +317,6 @@ bool HardwareSDLTerminal::resize(int w, int h) {
     while (gotResizeEvent) std::this_thread::yield();
     return true;
 }
-
-extern uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num);
-
-extern Uint32 task_event_type, render_event_type;
 
 void HardwareSDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -345,8 +339,6 @@ void HardwareSDLTerminal::quit() {
     delete renderThread;
     SDL_Quit();
 }
-
-extern bool rawClient;
 
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *HardwareSDLTerminal::renderTarget || findMonitorFromWindowID(c, (*HardwareSDLTerminal::renderTarget)->id, tmps) != NULL)

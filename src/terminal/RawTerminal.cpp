@@ -8,16 +8,16 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#include "RawTerminal.hpp"
-#include "SDLTerminal.hpp"
-#include "../runtime.hpp"
-#include "../termsupport.hpp"
-#include "../peripheral/monitor.hpp"
+#include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <iomanip>
-#include <algorithm>
 #include <Poco/Checksum.h>
+#include "RawTerminal.hpp"
+#include "SDLTerminal.hpp"
+#include "../main.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 
 /* Data spec
   
@@ -111,7 +111,6 @@
 
 */
 
-extern bool rawClient;
 std::set<unsigned> RawTerminal::currentIDs;
 static std::thread * inputThread;
 
@@ -167,9 +166,6 @@ static void parseIBTTag(std::istream& in, lua_State *L) {
         lua_pushnil(L);
     }
 }
-
-extern std::map<uint8_t, Terminal*> rawClientTerminals;
-extern std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 
 void sendRawEvent(SDL_Event e) {
     if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (selectedRenderer != 0 || keymap.find(e.key.keysym.sym) != keymap.end())) 

@@ -10,18 +10,18 @@
 
 #define CRAFTOSPC_INTERNAL
 #include <cstring>
-#include <fstream>
-#include <string>
-#include <unordered_map>
 #include <Computer.hpp>
 #include <configuration.hpp>
 #include "../runtime.hpp"
-#include "../terminal/SDLTerminal.hpp"
 #include "../terminal/RawTerminal.hpp"
-#include "../terminal/TRoRTerminal.hpp"
+#include "../terminal/SDLTerminal.hpp"
 #include "../util.hpp"
 
 #define getConfigSetting(n, type) else if (strcmp(name, #n) == 0) lua_push##type(L, config.n)
+#define setConfigSetting(n, type) else if (strcmp(name, #n) == 0) config.n = lua_to##type(L, 2)
+#define setConfigSettingI(n) else if (strcmp(name, #n) == 0) config.n = luaL_checkinteger(L, 2)
+
+static const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
 
 static int config_get(lua_State *L) {
     Computer * computer = get_comp(L);
@@ -74,11 +74,6 @@ static int config_get(lua_State *L) {
     } else lua_pushnil(L);
     return 1;
 }
-
-static const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
-
-#define setConfigSetting(n, type) else if (strcmp(name, #n) == 0) config.n = lua_to##type(L, 2)
-#define setConfigSettingI(n) else if (strcmp(name, #n) == 0) config.n = luaL_checkinteger(L, 2)
 
 static int config_set(lua_State *L) {
     if (config.configReadOnly) luaL_error(L, "Configuration is read-only");

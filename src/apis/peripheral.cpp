@@ -12,9 +12,6 @@
 #include <Computer.hpp>
 #include <peripheral.hpp>
 #include "../util.hpp"
-#include <unordered_map>
-#include <string>
-#include <mutex>
 
 static int peripheral_isPresent(lua_State *L) {
     luaL_checkstring(L, 1);

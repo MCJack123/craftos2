@@ -1,5 +1,5 @@
 /*
- * TRoRTerminal.hpp
+ * terminal/TRoRTerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the TRoRTerminal class.
@@ -10,8 +10,8 @@
 
 #ifndef TERMINAL_TRORTERMINAL_HPP
 #define TERMINAL_TRORTERMINAL_HPP
-#include <Terminal.hpp>
 #include <set>
+#include <Terminal.hpp>
 
 class TRoRTerminal: public Terminal {
     static std::set<unsigned> currentIDs;

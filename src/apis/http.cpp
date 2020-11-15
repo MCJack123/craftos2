@@ -12,19 +12,14 @@
 #ifdef __EMSCRIPTEN__
 #include "http_emscripten.cpp"
 #else
-#include "handles/http_handle.hpp"
-#include "../platform.hpp"
-#include <configuration.hpp>
-#include <Computer.hpp>
-#include "../util.hpp"
-#include "../runtime.hpp"
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <algorithm>
 #include <cctype>
-#include <functional>
+#include <cstdlib>
+#include <cstring>
+#include <algorithm>
 #include <chrono>
+#include <functional>
+#include <Computer.hpp>
+#include <configuration.hpp>
 #include <Poco/URI.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
@@ -37,6 +32,10 @@
 #include <Poco/Net/HTTPServerRequest.h>
 #include <Poco/Net/HTTPServerResponse.h>
 #include <Poco/Net/HTTPServer.h>
+#include "handles/http_handle.hpp"
+#include "../platform.hpp"
+#include "../runtime.hpp"
+#include "../util.hpp"
 
 using namespace Poco::Net;
 
@@ -640,8 +639,7 @@ static std::string websocket_success(lua_State *L, void* userp) {
     lua_settable(L, -3);
 
     lua_pushstring(L, "receive");
-    assert(luaL_loadstring(L, websocket_receive) == 0);
-    assert(lua_isfunction(L, -1));
+    luaL_loadstring(L, websocket_receive);
     lua_pushstring(L, ws->url.c_str());
     lua_pushlightuserdata(L, ws);
     lua_pushcclosure(L, websocket_isOpen, 1);
@@ -740,7 +738,6 @@ public:
         std::unordered_map<std::string, std::string> headers;
         Factory(Computer *c, bool b, std::unordered_map<std::string, std::string> h): comp(c), binary(b), headers(h) {}
         virtual HTTPRequestHandler* createRequestHandler(const HTTPServerRequest&) {
-            assert(srv != NULL);
             return new websocket_server(comp, binary, srv, headers);
         }
     };

@@ -11,8 +11,8 @@
 #ifndef NO_MIXER
 #ifndef PERIPHERAL_SPEAKER_HPP
 #define PERIPHERAL_SPEAKER_HPP
-#include <peripheral.hpp>
 #include <chrono>
+#include <peripheral.hpp>
 
 class speaker: public peripheral {
     static library_t methods;

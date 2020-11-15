@@ -9,14 +9,14 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include <iostream>
+#include <cstdio>
+#include <thread>
 #include "TRoRTerminal.hpp"
 #include "SDLTerminal.hpp"
 #include "../peripheral/monitor.hpp"
-#include "../termsupport.hpp"
 #include "../runtime.hpp"
-#include <stdio.h>
-#include <iostream>
-#include <thread>
+#include "../termsupport.hpp"
 
 /*
 CraftOS-PC adds the "ccpcTerm" extension to add some extra features. Even if the

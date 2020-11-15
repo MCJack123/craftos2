@@ -9,12 +9,12 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include <dirent.h>
+#include <sys/stat.h>
 #include "drive.hpp"
 #include "../platform.hpp"
-#include "../terminal/SDLTerminal.hpp"
 #include "../runtime.hpp"
-#include <sys/stat.h>
-#include <dirent.h>
+#include "../terminal/SDLTerminal.hpp"
 
 int drive::isDiskPresent(lua_State *L) {
     lua_pushboolean(L, diskType != disk_type::DISK_TYPE_NONE);

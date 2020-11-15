@@ -77,7 +77,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 * ncurses
   * Can be disabled with `--without-ncurses`, will disable CLI support
 * SDL_mixer 2.0+
-  * Can be disabled with `--without-sdl_mixer`, will disable audio disc support
+  * Can be disabled with `--without-sdl_mixer`, will disable audio disc and speaker support
   * For MP3 support, libmpg123 is required
   * For FLAC support, libFLAC is required
   * For SF2 support, SDL_mixer must be built manually with fluidsynth support

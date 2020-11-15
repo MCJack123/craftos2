@@ -9,14 +9,18 @@
  */
 
 #define CRAFTOSPC_INTERNAL
-#include <string>
 #include "../runtime.hpp"
 static std::string modem_message(lua_State *message, void* data);
 #include "modem.hpp"
-#include "../apis.hpp"
-#include <configuration.hpp>
 #include <list>
 #include <unordered_map>
+#include <configuration.hpp>
+#include "../apis.hpp"
+
+extern "C" {
+    extern void _lua_lock(lua_State *L);
+    extern void _lua_unlock(lua_State *L);
+}
 
 static std::unordered_map<int, std::list<modem*>> network;
 
@@ -161,11 +165,6 @@ static void xcopy(lua_State *L, lua_State *T, int t) {
         lua_settable(T, w);
         lua_pop(L, 1);
     }
-}
-
-extern "C" {
-    extern void _lua_lock(lua_State *L);
-    extern void _lua_unlock(lua_State *L);
 }
 
 static std::string modem_message(lua_State *message, void* data) {

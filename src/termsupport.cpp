@@ -1,45 +1,35 @@
 /*
- * term.cpp
+ * termsupport.cpp
  * CraftOS-PC 2
  * 
- * This file implements the methods for the term API.
+ * This file implements some helper functions for terminal interaction.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
 #define CRAFTOSPC_INTERNAL
-#include "termsupport.hpp"
-#include "runtime.hpp"
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+#include <chrono>
+#include <codecvt>
+#include <locale>
+#include <queue>
+#include <unordered_map>
+#include <Computer.hpp>
 #include <configuration.hpp>
-#include "platform.hpp"
-#include "apis.hpp"
 #include <Terminal.hpp>
+#include "apis.hpp"
+#include "runtime.hpp"
+#include "peripheral/monitor.hpp"
+#include "peripheral/debugger.hpp"
 #include "terminal/SDLTerminal.hpp"
+#include "termsupport.hpp"
 #ifndef NO_CLI
 #include "terminal/CLITerminal.hpp"
 #endif
-#include "peripheral/monitor.hpp"
-#include "peripheral/debugger.hpp"
-#include <Computer.hpp>
-#include <unordered_map>
-#include <errno.h>
-#include <string.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <math.h>
-#include <chrono>
-#include <algorithm>
-#include <queue>
-#include <tuple>
-#include <locale>
-#include <codecvt>
-#include <cassert>
 
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern int selectedRenderer;
-extern bool exiting;
-extern std::unordered_set<Computer*> freedComputers;
 std::thread * renderThread;
 /* export */ std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
@@ -312,7 +302,6 @@ static bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, con
         dbg->breakNotify.notify_all();
         std::this_thread::yield();
     }
-    assert(dbg->didBreak);
     std::unique_lock<std::mutex> lock(dbg->breakMutex);
     while (dbg->didBreak) dbg->breakNotify.wait_for(lock, std::chrono::milliseconds(500));
     bool retval = !dbg->running;

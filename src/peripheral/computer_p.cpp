@@ -9,13 +9,10 @@
  */
 
 #define CRAFTOSPC_INTERNAL
+#include <cstring>
+#include <regex>
 #include "computer.hpp"
 #include "../runtime.hpp"
-#include <regex>
-#include <unordered_set>
-#include <cstring>
-
-extern std::unordered_set<Computer*> freedComputers;
 
 int computer::turnOn(lua_State *L) {return 0;}
 

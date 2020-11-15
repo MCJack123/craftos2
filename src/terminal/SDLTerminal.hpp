@@ -1,5 +1,5 @@
 /*
- * SDLTerminal.hpp
+ * terminal/SDLTerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the SDLTerminal class, which is the default renderer.
@@ -10,12 +10,12 @@
 
 #ifndef TERMINAL_SDLTERMINAL_HPP
 #define TERMINAL_SDLTERMINAL_HPP
-#include <Terminal.hpp>
-#include <SDL2/SDL.h>
-#include <string>
-#include <vector>
 #include <ctime>
 #include <mutex>
+#include <string>
+#include <vector>
+#include <SDL2/SDL.h>
+#include <Terminal.hpp>
 #include "../platform.hpp"
 
 inline SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
