@@ -24,20 +24,22 @@ extern "C" {
 
 static std::unordered_map<int, std::list<modem*>> network;
 
+// todo: probably check port range
+
 int modem::isOpen(lua_State *L) {
-    lua_pushboolean(L, openPorts.find(luaL_checkinteger(L, 1)) != openPorts.end());
+    lua_pushboolean(L, openPorts.find((uint16_t)luaL_checkinteger(L, 1)) != openPorts.end());
     return 1;
 }
 
 int modem::open(lua_State *L) {
     luaL_checknumber(L, 1); // argument error > too many open channels
     if (openPorts.size() >= (size_t)config.maxOpenPorts) luaL_error(L, "Too many open channels");
-    openPorts.insert(lua_tointeger(L, 1));
+    openPorts.insert((uint16_t)lua_tointeger(L, 1));
     return 0;
 }
 
 int modem::close(lua_State *L) {
-    openPorts.erase(luaL_checkinteger(L, 1));
+    openPorts.erase((uint16_t)luaL_checkinteger(L, 1));
     return 0;
 }
 
@@ -50,9 +52,9 @@ int modem::transmit(lua_State *L) {
     luaL_checkinteger(L, 2);
     luaL_checkany(L, 3);
     lua_settop(L, 3);
-    uint16_t port = luaL_checkinteger(L, 1);
+    const uint16_t port = (uint16_t)luaL_checkinteger(L, 1);
     std::lock_guard<std::mutex> lock(eventQueueMutex);
-    if (idsToDelete.size() > 0) {
+    if (!idsToDelete.empty()) {
         for (int i : idsToDelete) {
             lua_pushinteger(eventQueue, i);
             lua_pushnil(eventQueue);
@@ -60,7 +62,7 @@ int modem::transmit(lua_State *L) {
         }
         idsToDelete.clear();
     }
-    int id = lua_objlen(eventQueue, 1) + 1;
+    const int id = (int)lua_objlen(eventQueue, 1) + 1;
     int * refc = new int(0);
     lua_pushinteger(eventQueue, id);
     lua_newtable(eventQueue);
@@ -70,7 +72,7 @@ int modem::transmit(lua_State *L) {
     lua_setfield(eventQueue, -2, "data");
     lua_settable(eventQueue, 1);
     for (modem* m : network[netID]) if (m != this && m->openPorts.find(port) != m->openPorts.end()) {
-        m->receive(port, lua_tointeger(L, 2), id, this);
+        m->receive(port, (uint16_t)lua_tointeger(L, 2), id, this);
         (*refc)++;
     }
     if (*refc == 0) {
@@ -91,7 +93,7 @@ int modem::getNamesRemote(lua_State *L) {
     lua_newtable(L);
     int i = 1;
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
-    for (auto p : comp->peripherals) {
+    for (const auto& p : comp->peripherals) {
         if (p.first != "top" && p.first != "bottom" && p.first != "left" && p.first != "right" && p.first != "front" && p.first != "back") {
             lua_pushinteger(L, i++);
             lua_pushstring(L, p.first.c_str());
@@ -152,9 +154,8 @@ static void xcopy1(lua_State *L, lua_State *T, int n) {
 
 /* table is in the stack at index 't' */
 static void xcopy(lua_State *L, lua_State *T, int t) {
-    int w;
     lua_newtable(T);
-    w = lua_gettop(T);
+    int w = lua_gettop(T);
     lua_pushnil(L); /* first key */
     while (lua_next(L, t-(t<0)) != 0) {
         xcopy1(L, T, -2);
@@ -219,7 +220,7 @@ void modem::receive(uint16_t port, uint16_t replyPort, int id, modem * sender) {
 }
 
 modem::modem(lua_State *L, const char * side) {
-    if (lua_isnumber(L, 3)) netID = lua_tointeger(L, 3);
+    if (lua_isnumber(L, 3)) netID = (int)lua_tointeger(L, 3);
     comp = get_comp(L);
     eventQueue = lua_newthread(comp->L);
     lua_newtable(eventQueue);
@@ -235,7 +236,7 @@ void modem::reinitialize(lua_State *L) {
 }
 
 modem::~modem() {
-    for (std::list<modem*>::iterator it = network[netID].begin(); it != network[netID].end(); it++) {if (*it == this) {network[netID].erase(it); return;}}
+    for (std::list<modem*>::iterator it = network[netID].begin(); it != network[netID].end(); ++it) {if (*it == this) {network[netID].erase(it); return;}}
     std::lock_guard<std::mutex> lock(eventQueueMutex);
     for (void* d : modemMessages) {
         ((struct modem_message_data*)d)->sender = NULL;
@@ -250,7 +251,7 @@ modem::~modem() {
 }
 
 int modem::call(lua_State *L, const char * method) {
-    std::string m(method);
+    const std::string m(method);
     if (m == "isOpen") return isOpen(L);
     else if (m == "open") return open(L);
     else if (m == "close") return close(L);

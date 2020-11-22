@@ -77,13 +77,13 @@ static void update_thread() {
             msg.flags = SDL_MESSAGEBOX_INFORMATION;
             msg.window = NULL;
             msg.title = "Update available!";
-            std::string message = (std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
+            const std::string message = (std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
             msg.message = message.c_str();
             msg.numbuttons = 4;
             msg.buttons = buttons;
             msg.colorScheme = NULL;
             int* choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
-            int choice = *choicep;
+            const int choice = *choicep;
             delete choicep;
             switch (choice) {
                 case 0:
@@ -111,7 +111,7 @@ static void update_thread() {
 }
 #endif
 
-inline Terminal * createTerminal(std::string title) {
+inline Terminal * createTerminal(const std::string& title) {
 #ifndef NO_CLI
     if (selectedRenderer == 2) return new CLITerminal(title);
     else
@@ -131,8 +131,8 @@ static int runRenderer() {
     }
     std::thread inputThread([](){
         while (!exiting) {
-            unsigned char c = std::cin.get();
-            if (c == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
+            unsigned char c1 = (unsigned char)std::cin.get();
+            if (c1 == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
                 char size[5];
                 std::cin.read(size, 4);
                 long sizen = strtol(size, NULL, 16);
@@ -150,8 +150,8 @@ static int runRenderer() {
                 }
                 std::stringstream in(b64decode(tmp));
                 delete[] tmp;
-                uint8_t type = in.get();
-                uint8_t id = in.get();
+                uint8_t type = (uint8_t)in.get();
+                uint8_t id = (uint8_t)in.get();
                 switch (type) {
                 case 0: {
                     if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
@@ -163,17 +163,17 @@ static int runRenderer() {
                         in.read((char*)&height, 2);
                         in.read((char*)&term->blinkX, 2);
                         in.read((char*)&term->blinkY, 2);
-                        in.seekg(in.tellg()+std::streamoff(4)); // reserved
+                        in.seekg(in.tellg()+(std::streamoff)4); // reserved
                         if (term->mode == 0) {
-                            unsigned char c = in.get();
-                            unsigned char n = in.get();
+                            unsigned char c = (unsigned char)in.get();
+                            unsigned char n = (unsigned char)in.get();
                             for (int y = 0; y < height; y++) {
                                 for (int x = 0; x < width; x++) {
                                     term->screen[y][x] = c;
                                     n--;
                                     if (n == 0) {
-                                        c = in.get();
-                                        n = in.get();
+                                        c = (unsigned char)in.get();
+                                        n = (unsigned char)in.get();
                                     }
                                 }
                             }
@@ -182,23 +182,23 @@ static int runRenderer() {
                                     term->colors[y][x] = c;
                                     n--;
                                     if (n == 0) {
-                                        c = in.get();
-                                        n = in.get();
+                                        c = (unsigned char)in.get();
+                                        n = (unsigned char)in.get();
                                     }
                                 }
                             }
                             in.putback(n);
                             in.putback(c);
                         } else {
-                            unsigned char c = in.get();
-                            unsigned char n = in.get();
+                            unsigned char c = (unsigned char)in.get();
+                            unsigned char n = (unsigned char)in.get();
                             for (int y = 0; y < height * 9; y++) {
                                 for (int x = 0; x < width * 6; x++) {
                                     term->pixels[y][x] = c;
                                     n--;
                                     if (n == 0) {
-                                        c = in.get();
-                                        n = in.get();
+                                        c = (unsigned char)in.get();
+                                        n = (unsigned char)in.get();
                                     }
                                 }
                             }
@@ -207,22 +207,22 @@ static int runRenderer() {
                         }
                         if (term->mode != 2) {
                             for (int i = 0; i < 16; i++) {
-                                term->palette[i].r = in.get();
-                                term->palette[i].g = in.get();
-                                term->palette[i].b = in.get();
+                                term->palette[i].r = (uint8_t)in.get();
+                                term->palette[i].g = (uint8_t)in.get();
+                                term->palette[i].b = (uint8_t)in.get();
                             }
                         } else {
                             for (int i = 0; i < 256; i++) {
-                                term->palette[i].r = in.get();
-                                term->palette[i].g = in.get();
-                                term->palette[i].b = in.get();
+                                term->palette[i].r = (uint8_t)in.get();
+                                term->palette[i].g = (uint8_t)in.get();
+                                term->palette[i].b = (uint8_t)in.get();
                             }
                         }
                         term->changed = true;
                     }
                     break;
                 } case 4: {
-                    uint8_t quit = in.get();
+                    uint8_t quit = (uint8_t)in.get();
                     if (quit == 1) {
                         queueTask([id](void*)->void*{
                             rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
@@ -247,7 +247,7 @@ static int runRenderer() {
                     in.read((char*)&height, 2);
                     std::string title;
                     char c;
-                    while ((c = in.get())) title += c;
+                    while ((c = (char)in.get())) title += c;
                     if (rawClientTerminals.find(id) == rawClientTerminals.end()) {
                         rawClientTerminals[id] = (Terminal*)queueTask([](void*t)->void*{return createTerminal(*(std::string*)t);}, &title);
                         rawClientTerminalIDs[rawClientTerminals[id]->id] = id;
@@ -259,11 +259,11 @@ static int runRenderer() {
                     std::string title, message;
                     char c;
                     in.read((char*)&flags, 4);
-                    while ((c = in.get())) title += c;
-                    while ((c = in.get())) message += c;
+                    while ((c = (char)in.get())) title += c;
+                    while ((c = (char)in.get())) message += c;
                     if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
                     else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
-                }}
+                } default: {}}
             }
         }
     });
@@ -375,7 +375,7 @@ int main(int argc, char*argv[]) {
 #ifdef __EMSCRIPTEN__
             std::cout << " wasm";
 #endif
-#if PRINT_TYPE == 0
+#if !defined(PRINT_TYPE) || PRINT_TYPE == 0
             std::cout << " print_pdf";
 #elif PRINT_TYPE == 1
             std::cout << " print_html";
@@ -452,8 +452,8 @@ int main(int argc, char*argv[]) {
 #ifndef NO_MIXER
     speakerInit();
 #endif
-#if !defined(__EMSCRIPTEN__)
-    if (!CRAFTOSPC_INDEV && (selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
+#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+    if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
     startComputer(manualID ? id : config.initialComputer);
@@ -494,7 +494,7 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 4) TRoRTerminal::quit();
     else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
-    for (auto p : loadedPlugins) SDL_UnloadObject(p.second);
+    for (const auto& p : loadedPlugins) SDL_UnloadObject(p.second);
 #ifdef WIN32
     if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
 #endif

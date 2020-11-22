@@ -42,7 +42,6 @@ typedef struct library {
     luaL_Reg * functions; // The list of functions used in the API
     std::function<void(Computer*)> init;   // A function to call when opening the API
     std::function<void(Computer*)> deinit; // A function to call when closing the API
-    ~library() {}
 } library_t;
 
 /**

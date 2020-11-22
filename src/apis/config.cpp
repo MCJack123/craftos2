@@ -68,7 +68,7 @@ static int config_get(lua_State *L) {
         lua_pushstring(L, config.preferredHardwareDriver.c_str());
     getConfigSetting(useVsync, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
-        if (config.customFontPath == "") lua_pushboolean(L, false);
+        if (config.customFontPath.empty()) lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
         else lua_pushnil(L);
     } else lua_pushnil(L);
@@ -103,11 +103,11 @@ static int config_set(lua_State *L) {
             buttons[1].text = "Allow";
             data.buttons = buttons;
             data.colorScheme = NULL;
-            queueTask([data](void*selected)->void* {SDL_ShowMessageBox(&data, (int*)selected); return NULL; }, &selected);
+            queueTask([data](void*s)->void* {SDL_ShowMessageBox(&data, (int*)s); return NULL; }, &selected);
             delete message;
         }
         if (selected) {
-            if (lua_type(L, 2) == LUA_TNUMBER) config.mount_mode = lua_tointeger(L, 2);
+            if (lua_type(L, 2) == LUA_TNUMBER) config.mount_mode = (int)lua_tointeger(L, 2);
             else if (lua_type(L, 2) == LUA_TSTRING) {
                 const char * mode = lua_tostring(L, 2);
                 if (strcmp(mode, "none") == 0) config.mount_mode = MOUNT_MODE_NONE;
@@ -176,7 +176,7 @@ static int config_list(lua_State *L) {
 }
 
 static int config_getType(lua_State *L) {
-    std::string name = luaL_checkstring(L, 1);
+    const std::string name = luaL_checkstring(L, 1);
     if (configSettings.find(name) == configSettings.end()) lua_pushnil(L);
     else {
         switch (configSettings[name].second) {

@@ -146,7 +146,7 @@ void CLITerminal::getMouse(int *x, int *y) {
     *y = -1;
 }
 
-bool CLITerminal::resize(int w, int h) {
+bool CLITerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
     gotResizeEvent = (newWidth != width || newHeight != height);

@@ -33,7 +33,7 @@ struct computer_configuration getComputerConfig(int id) {
     Poco::JSON::Object::Ptr p;
     try { p = root.parse(in); } catch (Poco::JSON::JSONException &e) {
         cfg.loadFailure = true;
-        std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
+        const std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
@@ -51,7 +51,7 @@ struct computer_configuration getComputerConfig(int id) {
     return cfg;
 }
 
-void setComputerConfig(int id, struct computer_configuration cfg) {
+void setComputerConfig(int id, const computer_configuration& cfg) {
     if (cfg.loadFailure) return;
     Value root;
     if (!cfg.label.empty()) root["label"] = b64encode(cfg.label);
@@ -69,8 +69,6 @@ void setComputerConfig(int id, struct computer_configuration cfg) {
 #define readConfigSetting(name, type) if (root.isMember(#name)) config.name = root[#name].as##type()
 
 bool configLoadError = false;
-
-void config_save();
 
 // first: 0 = immediate, 1 = reboot, 2 = relaunch
 // second: 0 = boolean, 1 = number, 2 = string
@@ -166,7 +164,7 @@ void config_init() {
         p = root.parse(in);
     } catch (Poco::JSON::JSONException &e) {
         configLoadError = true;
-        std::string message = "An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
+        const std::string message = "An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
@@ -212,9 +210,9 @@ void config_init() {
     readConfigSetting(useVsync, Bool);
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
-    for (auto it = root.begin(); it != root.end(); it++)
-        if (configSettings.find(it->first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), it->first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
-            unknownOptions.insert(*it);
+    for (const auto& e : root)
+        if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
+            unknownOptions.insert(e);
 }
 
 void config_save() {
@@ -256,7 +254,7 @@ void config_save() {
     root["preferredHardwareDriver"] = config.preferredHardwareDriver;
     root["useVsync"] = config.useVsync;
     root["lastVersion"] = CRAFTOSPC_VERSION;
-    for (auto opt : unknownOptions) root[opt.first] = opt.second;
+    for (const auto& opt : unknownOptions) root[opt.first] = opt.second;
     std::ofstream out(getBasePath() + WS("/config/global.json"));
     out << root;
     out.close();

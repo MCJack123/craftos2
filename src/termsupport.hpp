@@ -31,7 +31,6 @@ extern int buttonConvert(Uint8 button);
 extern int buttonConvert2(Uint32 state);
 extern int convertX(SDLTerminal *term, int x);
 extern int convertY(SDLTerminal *term, int y);
-extern int termHasEvent(Computer * computer);
 extern void termRenderLoop();
 extern void termHook(lua_State *L, lua_Debug *ar);
 extern int termPanic(lua_State *L);

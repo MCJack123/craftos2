@@ -134,7 +134,7 @@ extern std::string b64decode(std::string orig);
 extern std::vector<std::string> split(std::string strToSplit, char delimeter);
 extern std::vector<std::wstring> split(std::wstring strToSplit, wchar_t delimeter);
 extern void load_library(Computer *comp, lua_State *L, library_t lib);
-extern void HTTPDownload(std::string url, std::function<void(std::istream&)> callback);
+extern void HTTPDownload(const std::string& url, const std::function<void(std::istream&)>& callback);
 extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
 extern bool fixpath_ro(Computer *comp, const char * path);
 extern path_t fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL);
@@ -142,7 +142,7 @@ extern std::set<std::string> getMounts(Computer * computer, const char * comp_pa
 extern void registerPeripheral(std::string name, peripheral_init initializer);
 extern void peripheral_update(Computer *comp);
 extern struct computer_configuration getComputerConfig(int id);
-extern void setComputerConfig(int id, struct computer_configuration cfg);
+extern void setComputerConfig(int id, const computer_configuration& cfg);
 extern void config_init();
 extern void config_save();
 

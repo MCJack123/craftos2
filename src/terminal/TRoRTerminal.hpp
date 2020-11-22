@@ -24,7 +24,7 @@ public:
     void render() override {}
     void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
-    bool resize(int w, int h) override {return false;}
+    bool resize(unsigned w, unsigned h) override {return false;}
 };
 
 #endif

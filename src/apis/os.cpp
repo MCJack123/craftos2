@@ -31,11 +31,11 @@ static int os_setComputerLabel(lua_State *L) {
 
 static int os_queueEvent(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::string name = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
+    const std::string name = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param = lua_newthread(computer->paramQueue);
     lua_remove(L, 1);
-    int count = lua_gettop(L);
+    const int count = lua_gettop(L);
     lua_checkstack(param, count);
     lua_xmove(L, param, count);
     computer->eventQueue.push(name);
@@ -45,7 +45,7 @@ static int os_queueEvent(lua_State *L) {
 
 static int os_clock(lua_State *L) {
     Computer * computer = get_comp(L);
-    lua_pushnumber(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - computer->system_start).count() / 1000.0);
+    lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - computer->system_start).count() / 1000.0);
     return 1;
 }
 
@@ -69,13 +69,13 @@ static ProtectedObject<std::unordered_map<SDL_TimerID, struct timer_data_t*> > r
 static std::string timer_event(lua_State *L, void* param) {
     struct timer_data_t * data = (struct timer_data_t*)param;
     bool found = false;
-    for (auto i : *runningTimerData) if (i.second == param) { found = true; break; }
-    if (!found) return NULL;
+    for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
+    if (!found) return "";
     data->lock->lock();
     lua_pushinteger(L, data->timer);
     runningTimerData->erase(data->timer);
     data->lock->unlock();
-    bool isAlarm = data->isAlarm;
+    const bool isAlarm = data->isAlarm;
     delete data->lock;
     delete data;
     return isAlarm ? "alarm" : "timer";
@@ -84,7 +84,7 @@ static std::string timer_event(lua_State *L, void* param) {
 static Uint32 notifyEvent(Uint32 interval, void* param) {
     struct timer_data_t * data = (struct timer_data_t*)param;
     bool found = false;
-    for (auto i : *runningTimerData) if (i.second == param) { found = true; break; }
+    for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
     if (!found) return 0;
     data->lock->lock();
     if (exiting || data->comp == NULL) {
@@ -125,7 +125,7 @@ static int os_startTimer(lua_State *L) {
     data->isAlarm = false;
     queueTask([L](void*a)->void* {
         struct timer_data_t * data = (struct timer_data_t*)a;
-        Uint32 time = lua_tonumber(L, 1) * 1000;
+        Uint32 time = (Uint32)(lua_tonumber(L, 1) * 1000);
         if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
         data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
         return NULL;
@@ -137,7 +137,7 @@ static int os_startTimer(lua_State *L) {
 }
 
 static int os_cancelTimer(lua_State *L) {
-    SDL_TimerID id = luaL_checkinteger(L, 1);
+    const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
     if (runningTimerData->find(id) == runningTimerData->end()) return 0;
     timer_data_t * data = (*runningTimerData)[id];
     runningTimerData->erase(id);
@@ -168,9 +168,8 @@ static int getfield(lua_State *L, const char *key, int d) {
 }
 
 static int getboolfield(lua_State *L, const char *key) {
-    int res;
     lua_getfield(L, -1, key);
-    res = lua_isnil(L, -1) ? -1 : lua_toboolean(L, -1);
+    const int res = lua_isnil(L, -1) ? -1 : lua_toboolean(L, -1);
     lua_pop(L, 1);
     return res;
 }
@@ -192,17 +191,17 @@ static int os_time(lua_State *L) {
     std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     if (tmp == "ingame") {
-        lua_pushnumber(L, floor(((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50.0) / 1000.0);
+        lua_pushnumber(L, floor((double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50.0) / 1000.0);
         return 1;
     } else if (tmp != "utc" && tmp != "local") luaL_error(L, "Unsupported operation");
     time_t t = time(NULL);
     struct tm rightNow;
     if (tmp == "utc") rightNow = *gmtime(&t);
     else rightNow = *localtime(&t);
-    int hour = rightNow.tm_hour;
-    int minute = rightNow.tm_min;
-    int second = rightNow.tm_sec;
-    int milli = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 1000;
+    const int hour = rightNow.tm_hour;
+    const int minute = rightNow.tm_min;
+    const int second = rightNow.tm_sec;
+    const int milli = (int)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 1000LL;
     lua_pushnumber(L, (double)hour + ((double)minute / 60.0) + ((double)second / 3600.0) + (milli / 3600000.0));
     return 1;
 }
@@ -214,12 +213,12 @@ static int os_epoch(lua_State *L) {
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     } else if (tmp == "local") {
         time_t t = time(NULL);
-        long long off = (long long)mktime(localtime(&t)) - t;
+        const long long off = (long long)mktime(localtime(&t)) - t;
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000));
     } else if (tmp == "ingame") {
-        double m_time = ((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
-        double m_day = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1;
-        lua_Integer epoch = m_day * 86400000 + (int)(m_time * 3600000.0f);
+        const double m_time = (double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
+        const double m_day = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1;
+        lua_Integer epoch = (lua_Integer)(m_day * 86400000) + (lua_Integer)(m_time * 3600000.0);
         if (config.standardsMode) epoch = (lua_Integer)floor(epoch / 200) * 200;
         lua_pushinteger(L, epoch);
     } else luaL_error(L, "Unsupported operation");
@@ -240,14 +239,14 @@ static int os_day(lua_State *L) {
 }
 
 static int os_setAlarm(lua_State *L) {
-    double time = luaL_checknumber(L, 1);
+    const double time = luaL_checknumber(L, 1);
     if (time < 0.0 || time >= 24.0) luaL_error(L, "Number out of range");
     Computer * computer = get_comp(L);
-    double current_time = floor(((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - computer->system_start).count() + 300000LL) % 1200000LL) / 50.0) / 1000.0;
+    const double current_time = floor((double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - computer->system_start).count() + 300000LL) % 1200000LL) / 50.0) / 1000.0;
     double delta_time;
     if (time >= current_time) delta_time = time - current_time;
     else delta_time = (time + 24.0) - current_time;
-    Uint32 real_time = delta_time * (1200000.0 / 24.0);
+    Uint32 real_time = (Uint32)(delta_time * 50000.0);
     struct timer_data_t * data = new struct timer_data_t;
     data->comp = computer;
     data->lock = new std::mutex;
@@ -266,7 +265,7 @@ static int os_setAlarm(lua_State *L) {
 }
 
 static int os_cancelAlarm(lua_State *L) {
-    SDL_TimerID id = luaL_checkinteger(L, 1);
+    const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
     if (runningTimerData->find(id) == runningTimerData->end()) return 0;
     timer_data_t * data = (*runningTimerData)[id];
     runningTimerData->erase(id);
@@ -284,7 +283,7 @@ static int os_cancelAlarm(lua_State *L) {
 
 static int os_shutdown(lua_State *L) {
     get_comp(L)->running = 0;
-    if (selectedRenderer == 1 && lua_isnumber(L, 1)) returnValue = lua_tointeger(L, 1);
+    if (selectedRenderer == 1 && lua_isnumber(L, 1)) returnValue = (int)lua_tointeger(L, 1);
     return 0;
 }
 

@@ -63,13 +63,12 @@ public:
     std::unordered_map<std::string, std::unordered_map<std::string, profile_entry > > profile;
     bool isProfiling = false;
     static void deinit(peripheral * p) {delete (debugger*)p;}
-    destructor getDestructor() {return deinit;}
+    destructor getDestructor() const override {return deinit;}
     debugger(lua_State *L, const char * side);
     ~debugger();
-    void update(){}
-    int call(lua_State *L, const char * method);
-    library_t getMethods() {return methods;}
-    void reinitialize(lua_State *L);
+    int call(lua_State *L, const char * method) override;
+    library_t getMethods() const override {return methods;}
+    void reinitialize(lua_State *L) override;
 };
 
 #endif

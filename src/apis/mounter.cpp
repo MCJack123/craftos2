@@ -38,19 +38,19 @@ static int mounter_unmount(lua_State *L) {
     const char * comp_path = luaL_checkstring(L, 1);
     std::vector<std::string> elems = split(comp_path, '/');
     std::list<std::string> pathc;
-    for (std::string s : elems) {
+    for (const std::string& s : elems) {
         if (s == "..") { 
-            if (pathc.size() < 1) luaL_error(L, "Not a directory");
+            if (pathc.empty()) luaL_error(L, "Not a directory");
             else pathc.pop_back();
         } 
-        else if (s != "." && s != "") pathc.push_back(s);
+        else if (s != "." && !s.empty()) pathc.push_back(s);
     }
     if (pathc.front() == "rom" && config.romReadOnly) {
         lua_pushboolean(L, false);
         return 1;
     }
     bool found = false;
-    for (auto it = computer->mounts.begin(); it != computer->mounts.end(); it++) {
+    for (auto it = computer->mounts.begin(); it != computer->mounts.end(); ++it) {
         if (pathc.size() == std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin())) {
             it = computer->mounts.erase(it);
             if (it == computer->mounts.end()) break;
@@ -66,7 +66,7 @@ static int mounter_list(lua_State *L) {
     lua_newtable(L); // table
     for (auto m : computer->mounts) {
         std::stringstream ss;
-        for (std::string s : std::get<0>(m)) ss << (ss.tellp() == 0 ? "" : "/") << s;
+        for (const std::string& s : std::get<0>(m)) ss << (ss.tellp() == 0 ? "" : "/") << s;
         lua_pushstring(L, ss.str().c_str()); // table, key
         lua_gettable(L, -2); // table, value
         if (lua_isnil(L, -1)) {
@@ -89,15 +89,15 @@ static int mounter_isReadOnly(lua_State *L) {
     const char * comp_path = luaL_checkstring(L, 1);
     std::vector<std::string> elems = split(comp_path, '/');
     std::list<std::string> pathc;
-    for (std::string s : elems) {
+    for (const std::string& s : elems) {
         if (s == "..") {
-            if (pathc.size() < 1) luaL_error(L, "Not a directory");
+            if (pathc.empty()) luaL_error(L, "Not a directory");
             else pathc.pop_back();
-        } else if (s != "." && s != "") pathc.push_back(s);
+        } else if (s != "." && !s.empty()) pathc.push_back(s);
     }
-    for (auto it = computer->mounts.begin(); it != computer->mounts.end(); it++) {
-        if (std::get<0>(*it).size() == pathc.size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin())) {
-            lua_pushboolean(L, std::get<2>(*it));
+    for (const auto& e : computer->mounts) {
+        if (std::get<0>(e).size() == pathc.size() && std::equal(std::get<0>(e).begin(), std::get<0>(e).end(), pathc.begin())) {
+            lua_pushboolean(L, std::get<2>(e));
             return 1;
         }
     }
@@ -110,7 +110,7 @@ extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char *
         luaL_error(L, "Unsupported mode");
     if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
     struct_stat st;
-    path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
+    const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
     if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename)) 
         { errno = EACCES; return NULL; }
     if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
@@ -126,7 +126,7 @@ extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char *
 }
 
 extern "C" int mounter_fclose(lua_State *L, FILE * stream) {
-    int retval = fclose(stream);
+    const int retval = fclose(stream);
     if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
     return retval;
 }

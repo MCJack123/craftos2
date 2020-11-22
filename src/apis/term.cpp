@@ -25,14 +25,14 @@ static int term_write(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TW:%d;%s\n", get_comp(L)->term->id, luaL_checkstring(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz = 0;
     const char * str = luaL_checklstring(L, 1, &str_sz);
 #ifdef TESTING
     printf("%s\n", str);
 #endif
     std::lock_guard<std::mutex> locked_g(term->locked);
-    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
+    for (size_t i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             term->screen[term->blinkY][term->blinkX] = str[i];
             term->colors[term->blinkY][term->blinkX] = computer->colors;
@@ -49,9 +49,9 @@ static int term_scroll(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TS:%d;%d\n", get_comp(L)->term->id, (int)luaL_checkinteger(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    int lines = luaL_checkinteger(L, 1);
+    const lua_Integer lines = luaL_checkinteger(L, 1);
     std::lock_guard<std::mutex> locked_g(term->locked);
-    if (lines >= term->height || -lines >= (int)term->height) {
+    if (lines > 0 ? (unsigned)lines >= term->height : (unsigned)-lines >= term->height) {
         // scrolling more than the height is equivalent to clearing the screen
         memset(term->screen.data(), ' ', term->height * term->width);
         memset(term->colors.data(), computer->colors, term->height * term->width);
@@ -75,8 +75,8 @@ static int term_setCursorPos(lua_State *L) {
         if (luaL_checkinteger(L, 1) < headlessCursorX) printf("\r");
         else if (lua_tointeger(L, 1) > headlessCursorX) for (int i = headlessCursorX; i < lua_tointeger(L, 1); i++) printf(" ");
         if (luaL_checkinteger(L, 2) != headlessCursorY) printf("\n");
-        headlessCursorX = lua_tointeger(L, 1);
-        headlessCursorY = lua_tointeger(L, 2);
+        headlessCursorX = (int)lua_tointeger(L, 1);
+        headlessCursorY = (int)lua_tointeger(L, 2);
         fflush(stdout);
         return 0;
     } else if (selectedRenderer == 4) printf("TC:%d;%d,%d\n", get_comp(L)->term->id, (int)luaL_checkinteger(L, 1), (int)luaL_checkinteger(L, 2));
@@ -85,8 +85,8 @@ static int term_setCursorPos(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    term->blinkX = lua_tointeger(L, 1) - 1;
-    term->blinkY = lua_tointeger(L, 2) - 1;
+    term->blinkX = (int)lua_tointeger(L, 1) - 1;
+    term->blinkY = (int)lua_tointeger(L, 2) - 1;
     term->changed = true;
     return 0;
 }
@@ -160,7 +160,7 @@ static int term_clearLine(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TL:%d;\n", get_comp(L)->term->id);
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    if (term->blinkY < 0 || term->blinkY >= term->height) return 0;
+    if (term->blinkY < 0 || (unsigned)term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
     memset(term->screen.data() + (term->blinkY * term->width), ' ', term->width);
     memset(term->colors.data() + (term->blinkY * term->width), computer->colors, term->width);
@@ -172,11 +172,11 @@ static int term_setTextColor(lua_State *L) {
     if (selectedRenderer == 4 && luaL_checkinteger(L, 1) >= 0 && luaL_checkinteger(L, 1) < 16)
         printf("TF:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
-    unsigned int c = log2i(luaL_checkinteger(L, 1));
-    if (c < 0 || c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
+    const unsigned int c = log2i((int)luaL_checkinteger(L, 1));
+    if (c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
     //if ((computer->config->isColor || computer->isDebugger) || ((c & 7) - 1) >= 6) {
-    computer->colors = (computer->colors & 0xf0) | c;
-    if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = c;
+    computer->colors = (computer->colors & 0xf0) | (unsigned char)c;
+    if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = (char)c;
     //}
     return 0;
 }
@@ -185,10 +185,10 @@ static int term_setBackgroundColor(lua_State *L) {
     if (selectedRenderer == 4 && luaL_checkinteger(L, 1) >= 0 && luaL_checkinteger(L, 1) < 16)
         printf("TK:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
-    unsigned int c = log2i(luaL_checkinteger(L, 1));
-    if (c < 0 || c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
+    const unsigned int c = log2i((int)luaL_checkinteger(L, 1));
+    if (c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
     //if ((computer->config->isColor || computer->isDebugger) || ((c & 7) - 1) >= 6)
-    computer->colors = (computer->colors & 0x0f) | (c << 4);
+    computer->colors = (computer->colors & 0x0f) | (unsigned char)(c << 4);
     return 0;
 }
 
@@ -220,17 +220,17 @@ static int term_blit(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     if (term == NULL) return 0;
-    if (term->blinkX >= term->width || term->blinkY >= term->height || term->blinkY < 0) return 0;
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz, fg_sz, bg_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
     const char * fg = luaL_checklstring(L, 2, &fg_sz);
     const char * bg = luaL_checklstring(L, 3, &bg_sz);
     if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
     std::lock_guard<std::mutex> locked_g(term->locked);
-    for (unsigned i = 0; i < str_sz && term->blinkX < term->width; i++, term->blinkX++) {
+    for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             if ((computer->config->isColor || computer->isDebugger) || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6)
-                computer->colors = htoi(bg[i]) << 4 | (computer->colors & 0xF);
+                computer->colors = (unsigned char)(htoi(bg[i]) << 4) | (computer->colors & 0xF);
             if ((computer->config->isColor || computer->isDebugger) || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) {
                 computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
                 if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i]);
@@ -261,8 +261,8 @@ static int term_getPaletteColor(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     int color;
-    if (term->mode == 2) color = luaL_checkinteger(L, 1);
-    else color = log2i(luaL_checkinteger(L, 1));
+    if (term->mode == 2) color = (int)luaL_checkinteger(L, 1);
+    else color = log2i((int)luaL_checkinteger(L, 1));
     if (color < 0 || color > 255) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
     lua_pushnumber(L, term->palette[color].r / 255.0);
     lua_pushnumber(L, term->palette[color].g / 255.0);
@@ -275,19 +275,19 @@ static int term_setPaletteColor(lua_State *L) {
     if (selectedRenderer == 1 || !(computer->config->isColor || computer->isDebugger)) return 0;
     Terminal * term = computer->term;
     int color;
-    if (term->mode == 2) color = luaL_checkinteger(L, 1);
-    else color = log2i(luaL_checkinteger(L, 1));
+    if (term->mode == 2) color = (int)luaL_checkinteger(L, 1);
+    else color = log2i((int)luaL_checkinteger(L, 1));
     if (color < 0 || color > 255) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
     std::lock_guard<std::mutex> lock(term->locked);
     if (lua_isnoneornil(L, 3)) {
-        unsigned int rgb = luaL_checkinteger(L, 2);
+        const unsigned int rgb = (unsigned int)luaL_checkinteger(L, 2);
         term->palette[color].r = rgb >> 16 & 0xFF;
         term->palette[color].g = rgb >> 8 & 0xFF;
         term->palette[color].b = rgb & 0xFF;
     } else {
-        term->palette[color].r = (int)(luaL_checknumber(L, 2) * 255);
-        term->palette[color].g = (int)(luaL_checknumber(L, 3) * 255);
-        term->palette[color].b = (int)(luaL_checknumber(L, 4) * 255);
+        term->palette[color].r = (uint8_t)(luaL_checknumber(L, 2) * 255);
+        term->palette[color].g = (uint8_t)(luaL_checknumber(L, 3) * 255);
+        term->palette[color].b = (uint8_t)(luaL_checknumber(L, 4) * 255);
     }
     if (selectedRenderer == 4 && color < 16)
         printf("TM:%d;%d,%f,%f,%f\n", term->id, color, term->palette[color].r / 255.0, term->palette[color].g / 255.0, term->palette[color].b / 255.0);
@@ -301,7 +301,7 @@ static int term_setGraphicsMode(lua_State *L) {
     if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config->isColor || computer->isDebugger)) return 0;
     if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument %1 (invalid mode %d)", lua_tointeger(L, 1));
     std::lock_guard<std::mutex> lock(computer->term->locked);
-    computer->term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : lua_tointeger(L, 1);
+    computer->term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : (int)lua_tointeger(L, 1);
     computer->term->changed = true;
     return 0;
 }
@@ -322,12 +322,12 @@ static int term_setPixel(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
-    int color = term->mode == 2 ? luaL_checkinteger(L, 3) : log2i(luaL_checkinteger(L, 3));
-    if (x >= term->width * 6 || y >= term->height * 9 || x < 0 || y < 0) return 0;
-    if (color < 0 || color >(term->mode == 2 ? 255 : 15)) return luaL_error(L, "bad argument #3 (invalid color %d)", color);
-    term->pixels[y][x] = color;
+    const int x = (int)luaL_checkinteger(L, 1);
+    const int y = (int)luaL_checkinteger(L, 2);
+    const int color = term->mode == 2 ? (int)luaL_checkinteger(L, 3) : log2i((int)luaL_checkinteger(L, 3));
+    if (x < 0 || y < 0 || (unsigned)x >= term->width * Terminal::fontWidth || (unsigned)y >= term->height * Terminal::fontHeight) return 0;
+    if (color < 0 || color > (term->mode == 2 ? 255 : 15)) return luaL_error(L, "bad argument #3 (invalid color %d)", color);
+    term->pixels[y][x] = (unsigned char)color;
     term->changed = true;
     return 0;
 }
@@ -339,9 +339,9 @@ static int term_getPixel(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
-    if (x > term->width * term->fontWidth || y > term->height * term->fontHeight || x < 0 || y < 0) lua_pushnil(L);
+    const int x = (int)luaL_checkinteger(L, 1);
+    const int y = (int)luaL_checkinteger(L, 2);
+    if (x < 0 || y < 0 || (unsigned)x > term->width * Terminal::fontWidth || (unsigned)y > term->height * Terminal::fontHeight) lua_pushnil(L);
     else if (term->mode == 1) lua_pushinteger(L, 2 ^ term->pixels[y][x]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[y][x]);
     else return 0;
@@ -353,7 +353,7 @@ static int term_drawPixels(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
-    int init_x = luaL_checkinteger(L, 1), init_y = luaL_checkinteger(L, 2);
+    const int init_x = (int)luaL_checkinteger(L, 1), init_y = (int)luaL_checkinteger(L, 2);
     if (init_x < 0 || init_y < 0) luaL_error(L, "Invalid initial position");
     for (unsigned y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < (unsigned)term->height * Terminal::fontHeight; y++) {
         lua_pushinteger(L, y);
@@ -367,8 +367,8 @@ static int term_drawPixels(lua_State *L) {
             for (unsigned x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < (unsigned)term->width * Terminal::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
-                if (term->mode == 1) term->pixels[init_y + y - 1][init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
-                else term->pixels[init_y + y - 1][init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                if (term->mode == 1) term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
+                else term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
                 lua_pop(L, 1);
             }
         }
@@ -392,9 +392,9 @@ static int term_screenshot(lua_State *L) {
 }
 
 static int term_nativePaletteColor(lua_State *L) {
-    int color = log2i(luaL_checkinteger(L, 1));
+    const int color = log2i((int)luaL_checkinteger(L, 1));
     if (color < 0 || color > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
-    Color c = defaultPalette[color];
+    const Color c = defaultPalette[color];
     lua_pushnumber(L, c.r / 255.0);
     lua_pushnumber(L, c.g / 255.0);
     lua_pushnumber(L, c.b / 255.0);

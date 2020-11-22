@@ -40,7 +40,7 @@ static std::thread * inputThread;
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
-#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
+#define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
 
 static std::string trorEvent(lua_State *L, void* userp) {
@@ -56,7 +56,7 @@ static std::string trorEvent(lua_State *L, void* userp) {
     lua_call(L, 0, LUA_MULTRET);
     std::string name = lua_tostring(L, 1);
     lua_remove(L, 1);
-    return name.c_str();
+    return name;
 }
 
 static void trorInputLoop() {
@@ -68,10 +68,10 @@ static void trorInputLoop() {
         std::string code = line.substr(0, 2);
         std::string meta = line.substr(3, line.find(';') - 3);
         std::string payload = line.substr(line.find(';') + 1);
-        unsigned id = meta.empty() ? 0 : std::stoi(meta);
+        const unsigned id = meta.empty() ? 0 : std::stoi(meta);
         if (code == "SP") {
             std::vector<std::string> args = split(payload, '-');
-            for (std::string a : args) if (!a.empty()) trorExtensions.insert(a);
+            for (const std::string& a : args) if (!a.empty()) trorExtensions.insert(a);
         } else if (code == "EV") {
             LockGuard lock(computers);
             for (Computer * c : *computers)
@@ -81,17 +81,18 @@ static void trorInputLoop() {
             SDL_Event e;
             memset(&e, 0, sizeof(SDL_Event));
             e.type = SDL_QUIT;
-            LockGuard lock(computers);
+            LockGuard lockc(computers);
             for (Computer * c : *computers) {
                 std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                 c->termEventQueue.push(e);
                 c->event_lock.notify_all();
             }
         } else if (code == "TR") {
-            int newWidth = std::stoi(payload.substr(0, payload.find(','))), newHeight = std::stoi(payload.substr(payload.find(',') + 1));
-            LockGuard lock(computers);
+            const int newWidth = std::stoi(payload.substr(0, payload.find(','))), newHeight = std::stoi(payload.substr(payload.find(',') + 1));
+            LockGuard lockc(computers);
             for (Computer * c : *computers) {
                 if (id == c->term->id) {
+                    std::lock_guard<std::mutex> lock(c->term->locked);
                     c->term->screen.resize(newWidth, newHeight, ' ');
                     c->term->colors.resize(newWidth, newHeight, 0xF0);
                     c->term->pixels.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
@@ -100,6 +101,7 @@ static void trorInputLoop() {
                 } else {
                     monitor * m = findMonitorFromWindowID(c, id, tmps);
                     if (m != NULL) {
+                        std::lock_guard<std::mutex> lock(m->term->locked);
                         m->term->screen.resize(newWidth, newHeight, ' ');
                         m->term->colors.resize(newWidth, newHeight, 0xF0);
                         m->term->pixels.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
@@ -114,7 +116,7 @@ static void trorInputLoop() {
             e.type = SDL_WINDOWEVENT;
             e.window.event = SDL_WINDOWEVENT_CLOSE;
             e.window.windowID = id;
-            LockGuard lock(computers);
+            LockGuard lockc(computers);
             for (Computer * c : *computers) {
                 if (checkWindowID(c, id)) {
                     std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
@@ -165,11 +167,11 @@ TRoRTerminal::TRoRTerminal(std::string title): Terminal(config.defaultWidth, con
 
 TRoRTerminal::~TRoRTerminal() {
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TQ:%d;\n", id);
-    auto pos = currentIDs.find(id);
+    const auto pos = currentIDs.find(id);
     if (pos != currentIDs.end()) currentIDs.erase(pos);
     renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
-    for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;

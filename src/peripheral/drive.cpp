@@ -56,8 +56,8 @@ int drive::getAudioTitle(lua_State *L) {
         lua_pushnil(L);
         return 1;
     }
-    int lastdot = path.find_last_of('.');
-    int start = path.find('\\') != std::string::npos ? path.find_last_of('\\') + 1 : path.find_last_of('/') + 1;
+    const int lastdot = (int)path.find_last_of('.');
+    const int start = path.find('\\') != std::string::npos ? (int)path.find_last_of('\\') + 1 : (int)path.find_last_of('/') + 1;
     lua_pushstring(L, astr(path.substr(start, lastdot > start ? lastdot - start : UINT32_MAX)).c_str());
     return 1;
 }
@@ -88,12 +88,12 @@ int drive::ejectDisk(lua_State *L) {
     else if (diskType == disk_type::DISK_TYPE_AUDIO) stopAudio(L);
     else {
         Computer * computer = get_comp(L);
-        for (auto it = computer->mounts.begin(); it != computer->mounts.end(); it++) {
+        for (auto it = computer->mounts.begin(); it != computer->mounts.end(); ++it) {
             if (1 == std::get<0>(*it).size() && std::get<0>(*it).front() == mount_path) {
                 computer->mounts.erase(it);
                 if (mount_path == "disk") computer->usedDriveMounts.erase(0);
                 else {
-                    int n = std::stoi(mount_path.substr(4)) - 1;
+                    const int n = std::stoi(mount_path.substr(4)) - 1;
                     computer->usedDriveMounts.erase(n);
                 }
                 break;
@@ -112,19 +112,19 @@ int drive::getDiskID(lua_State *L) {
 
 int drive::insertDisk(lua_State *L, bool init) {
     Computer * comp = get_comp(L);
-    int arg = init * 2 + 1;
+    const int arg = init * 2 + 1;
     if (diskType != disk_type::DISK_TYPE_NONE) lua_pop(L, ejectDisk(L));
     if (lua_isnumber(L, arg)) {
         id = lua_tointeger(L, arg);
         diskType = disk_type::DISK_TYPE_DISK;
         int i;
-        for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
+        for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++) {}
         comp->usedDriveMounts.insert(i);
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
         comp->mounter_initializing = true;
 #ifdef WIN32
-        createDirectory((computerDir + WS("\\disk\\") + to_path_t(id)).c_str());
-        addMount(comp, (computerDir + WS("\\disk\\") + to_path_t(id)).c_str(), mount_path.c_str(), false);
+        createDirectory(computerDir + WS("\\disk\\") + to_path_t(id));
+        addMount(comp, computerDir + WS("\\disk\\") + to_path_t(id), mount_path.c_str(), false);
 #else
         createDirectory((computerDir + "/disk/" + std::to_string(id)).c_str());
         addMount(comp, (computerDir + "/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
@@ -136,7 +136,7 @@ int drive::insertDisk(lua_State *L, bool init) {
 #ifndef STANDALONE_ROM
         if (path.substr(0, 9) == WS("treasure:")) {
 #ifdef WIN32
-            for (int i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
+            for (size_t i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
             path = getROMPath() + WS("\\treasure\\") + path.substr(9);
 #else
             path = getROMPath() + WS("/treasure/") + path.substr(9);
@@ -156,10 +156,10 @@ int drive::insertDisk(lua_State *L, bool init) {
         if (S_ISDIR(st.st_mode)) {
             diskType = disk_type::DISK_TYPE_MOUNT;
             int i;
-            for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++);
+            for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++) {}
             comp->usedDriveMounts.insert(i);
             mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
-            if (!addMount(comp, path.c_str(), mount_path.c_str(), false)) {
+            if (!addMount(comp, path, mount_path.c_str(), false)) {
                 diskType = disk_type::DISK_TYPE_NONE;
                 comp->usedDriveMounts.erase(i);
                 mount_path.clear();
@@ -208,7 +208,7 @@ drive::~drive() {
 }
 
 int drive::call(lua_State *L, const char * method) {
-    std::string m(method);
+    const std::string m(method);
     if (m == "isDiskPresent") return isDiskPresent(L);
     else if (m == "getDiskLabel") return getDiskLabel(L);
     else if (m == "setDiskLabel") return setDiskLabel(L);

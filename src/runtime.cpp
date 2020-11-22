@@ -29,12 +29,18 @@
 #include "terminal/RawTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
+#ifdef WIN32
+#define R_OK 0x04
+#define W_OK 0x02
+#endif
 #ifndef NO_CLI
 #include <csignal>
 #endif
 #ifndef WIN32
 #include <libgen.h>
 #endif
+
+#define termHasEvent(computer) ((computer)->running == 1 && (!(computer)->event_provider_queue.empty() || (computer)->lastResizeEvent || !(computer)->termEventQueue.empty()))
 
 void gettingEvent(Computer *comp);
 void gotEvent(Computer *comp);
@@ -51,7 +57,7 @@ std::atomic_bool taskQueueReady(false);
 
 monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
-    for (auto p : comp->peripherals) {
+    for (const auto& p : comp->peripherals) {
         if (p.second != NULL && strcmp(p.second->getMethods().name, "monitor") == 0) {
             monitor * m = (monitor*)p.second;
             if (m->term->id == id) {
@@ -93,7 +99,7 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
 
 void awaitTasks(std::function<bool()> predicate = []()->bool{return true;}) {
     while (predicate()) {
-        if (taskQueue->size() > 0) {
+        if (!taskQueue->empty()) {
             auto v = taskQueue->front();
             void* retval = std::get<1>(v)(std::get<2>(v));
             (*taskQueueReturns)[std::get<0>(v)] = retval;
@@ -118,7 +124,7 @@ void mainLoop() {
         else {
             std::unique_lock<std::mutex> lock(taskQueue.getMutex());
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
-            while (taskQueue->size() > 0) {
+            while (!taskQueue->empty()) {
                 auto v = taskQueue->front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
                 if (!std::get<3>(v)) {
@@ -172,7 +178,7 @@ int getNextEvent(lua_State *L, std::string filter) {
             }
         }
         if (computer->running != 1) return 0;
-        while (computer->eventQueue.size() == 0) {
+        while (computer->eventQueue.empty()) {
             std::mutex m;
             std::unique_lock<std::mutex> l(m);
             while (computer->running == 1 && !termHasEvent(computer)) 
@@ -203,7 +209,7 @@ int getNextEvent(lua_State *L, std::string filter) {
         if (lua_gettop(computer->paramQueue) > 0) lua_remove(computer->paramQueue, 1);
         return 0;
     }
-    int count = lua_gettop(param);
+    const int count = lua_gettop(param);
     if (!lua_checkstack(L, count + 1)) {
         fprintf(stderr, "Could not allocate enough space in the stack for %d elements, skipping event \"%s\"\n", count, ev.c_str());
         if (lua_gettop(computer->paramQueue) > 0) lua_remove(computer->paramQueue, 1);
@@ -227,10 +233,12 @@ bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool rea
         ) return false;
     std::vector<std::string> elems = split(comp_path, '/');
     std::list<std::string> pathc;
-    for (std::string s : elems) {
-        if (s == "..") { if (pathc.size() < 1) return false; else pathc.pop_back(); } else if (s != "." && s != "") pathc.push_back(s);
+    for (const std::string& s : elems) {
+        if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); } else if (s != "." && !s.empty()) pathc.push_back(s);
     }
-    if (pathc.front() == "rom" && !comp->mounter_initializing && config.romReadOnly) return false;
+    if (!pathc.empty() && pathc.front() == "rom" && !comp->mounter_initializing && config.romReadOnly) return false;
+    struct_stat st;
+    if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     /*for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++)
         if (pathc.size() == std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
             return std::get<1>(*it) == std::string(real_path);*/
@@ -253,7 +261,7 @@ bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool rea
         buttons[1].text = "Allow";
         data.buttons = buttons;
         data.colorScheme = NULL;
-        queueTask([data](void*selected)->void* {SDL_ShowMessageBox(&data, (int*)selected); return NULL; }, &selected);
+        queueTask([data](void*selected_)->void* {SDL_ShowMessageBox(&data, (int*)selected_); return NULL; }, &selected);
         delete message;
     }
     if (!selected) return false;

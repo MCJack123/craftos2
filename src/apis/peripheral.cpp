@@ -23,7 +23,7 @@ static int peripheral_isPresent(lua_State *L) {
 
 static int peripheral_getType(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::string side(luaL_checkstring(L, 1));
+    const std::string side(luaL_checkstring(L, 1));
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
     if (computer->peripherals.find(side) != computer->peripherals.end())
         lua_pushstring(L, computer->peripherals[side]->getMethods().name);
@@ -33,10 +33,10 @@ static int peripheral_getType(lua_State *L) {
 
 static int peripheral_getMethods(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::string side(luaL_checkstring(L, 1));
+    const std::string side(luaL_checkstring(L, 1));
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
     if (computer->peripherals.find(side) == computer->peripherals.end()) return 0;
-    library_t methods = computer->peripherals[side]->getMethods();
+    const library_t methods = computer->peripherals[side]->getMethods();
     lua_newtable(L);
     for (int i = 0; methods.functions[i].name; i++) {
         lua_pushinteger(L, i+1);
@@ -48,8 +48,8 @@ static int peripheral_getMethods(lua_State *L) {
 
 static int peripheral_call(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::string side(luaL_checkstring(L, 1));
-    std::string func(luaL_checkstring(L, 2));
+    const std::string side(luaL_checkstring(L, 1));
+    const std::string func(luaL_checkstring(L, 2));
     peripheral * p;
     {
         std::lock_guard<std::mutex> lock(computer->peripherals_mutex);

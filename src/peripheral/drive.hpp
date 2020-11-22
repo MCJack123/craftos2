@@ -51,12 +51,11 @@ public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new drive(L, side);}
     static void deinit(peripheral * p) {delete (drive*)p;}
-    destructor getDestructor() {return deinit;}
-    library_t getMethods() { return methods; }
+    destructor getDestructor() const override {return deinit;}
+    library_t getMethods() const override { return methods; }
     drive(lua_State *L, const char * side);
     ~drive();
-    int call(lua_State *L, const char * method);
-    void update() {}
+    int call(lua_State *L, const char * method) override;
 };
 
 extern void driveInit();

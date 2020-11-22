@@ -123,12 +123,13 @@ void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userda
     lua_State *L = ((printer*)userdata)->currentState;
     if (L) luaL_error(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
     else {
-        std::string e = "Error printing to PDF: " + std::string(pdf_errors[error_no]) + " (" + std::to_string(error_no) + ", " + std::to_string(detail_no) + ")";
+        const std::string e = "Error printing to PDF: " + std::string(pdf_errors[error_no]) + " (" + std::to_string(error_no) + ", " + std::to_string(detail_no) + ")";
         switch (selectedRenderer) {
             case 0: case 5: SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str(), NULL); break;
             case 1: case 2: fprintf(stderr, "%s\n", e.c_str()); break;
             case 3: RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str()); break;
             case 4: TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str()); break;
+            default: break;
         }
         throw std::runtime_error(e);
     }
@@ -144,6 +145,12 @@ printer::printer(lua_State *L, const char * side) {
 #if PRINT_TYPE == PRINT_TYPE_PDF
     currentState = NULL;
     out = HPDF_New(pdf_error_handler, this);
+    try {
+        if (HPDF_SaveToFile(out, outPath.c_str()) != HPDF_OK) throw std::runtime_error("Couldn't open output file");
+    } catch (...) {
+        HPDF_Free(out);
+        throw;
+    }
 #else
     createDirectory(outPath.c_str());
 #endif
@@ -160,7 +167,7 @@ int printer::write(lua_State *L) {
     if (cursorY >= height) return 0;
     size_t str_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
-    unsigned i = 0;
+    unsigned i;
     for (i = 0; i < str_sz && i + cursorX < width; i++) 
         body[cursorY][i+cursorX] = str[i] == '\n' ? '?' : str[i];
     cursorX += (int)i;
@@ -168,8 +175,8 @@ int printer::write(lua_State *L) {
 }
 
 int printer::setCursorPos(lua_State *L) {
-    cursorX = (luaL_checkinteger(L, 1)-1);
-    cursorY = (luaL_checkinteger(L, 2)-1);
+    cursorX = (int)luaL_checkinteger(L, 1)-1;
+    cursorY = (int)luaL_checkinteger(L, 2)-1;
     return 0;
 }
 
@@ -210,12 +217,12 @@ int printer::endPage(lua_State *L) {
     currentState = L;
     try {
         HPDF_Page_BeginText(page);
-        HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 12.0);
+        HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 24.0);
         for (unsigned i = 0; i < body.size(); i++) {
             char * str = new char[width + 1];
             memcpy(str, &body[i][0], width);
             str[width] = 0;
-            HPDF_Page_TextOut(page, 72, HPDF_Page_GetHeight(page) - (72 + ((i + 1) * 15)), (const char *)str);
+            HPDF_Page_TextOut(page, 72, HPDF_Page_GetHeight(page) - (HPDF_REAL)((i + 1) * 30 + 72), (const char *)str);
             delete[] str;
         }
         HPDF_Page_EndText(page);
@@ -262,7 +269,7 @@ int printer::getPaperLevel(lua_State *L) {
 }
 
 int printer::call(lua_State *L, const char * method) {
-    std::string m(method);
+    const std::string m(method);
     if (m == "write") return write(L);
     else if (m == "setCursorPos") return setCursorPos(L);
     else if (m == "getCursorPos") return getCursorPos(L);

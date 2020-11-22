@@ -43,14 +43,14 @@ protected:
     std::mutex renderlock;
     bool overridden = false;
 public:
-    static int fontScale;
-    int charScale = 2;
-    int dpiScale = 1;
-    int charWidth = fontWidth * 2/fontScale * charScale;
-    int charHeight = fontHeight * 2/fontScale * charScale;
+    static unsigned fontScale;
+    unsigned charScale = 2;
+    unsigned dpiScale = 1;
+    unsigned charWidth = fontWidth * 2/fontScale * charScale;
+    unsigned charHeight = fontHeight * 2/fontScale * charScale;
     int lastFPS = 0;
     int currentFPS = 0;
-    int lastSecond = time(0);
+    time_t lastSecond = time(0);
     std::chrono::system_clock::time_point lastScreenshotTime;
     unsigned char cursorColor = 0;
 
@@ -61,9 +61,9 @@ public:
     ~SDLTerminal() override;
     void setPalette(Color * p);
     void setCharScale(int scale);
-    bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
+    virtual bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
-    bool resize(int w, int h) override;
+    bool resize(unsigned w, unsigned h) override;
     void getMouse(int *x, int *y);
     void screenshot(std::string path = ""); // asynchronous; captures on next render
     void record(std::string path = ""); // asynchronous; captures on next render

@@ -99,35 +99,34 @@ int http_handle_readLine(lua_State *L) {
 int http_handle_readChar(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed || !handle->stream->good()) return 0;
-    uint32_t codepoint = 0;
-    char c = handle->stream->get();
+    uint32_t codepoint;
+    const char c = (char)handle->stream->get();
     if (c < 0) {
         if (c & 64) {
-            char c2 = handle->stream->get();
-            if (c2 >= 0 || c2 & 64) {codepoint = 1<<31; goto http_handle_readCharDone;}
-            if (c & 32) {
-                char c3 = handle->stream->get();
-                if (c3 >= 0 || c3 & 64) {codepoint = 1<<31; goto http_handle_readCharDone;}
-                if (c & 16) {
-                    if (c & 8) {codepoint = 1<<31; goto http_handle_readCharDone;}
-                    char c4 = handle->stream->get();
-                    if (c4 >= 0 || c4 & 64) {codepoint = 1<<31; goto http_handle_readCharDone;}
-                    codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+            const char c2 = (char)handle->stream->get();
+            if (c2 >= 0 || c2 & 64) codepoint = 1U<<31;
+            else if (c & 32) {
+                const char c3 = (char)handle->stream->get();
+                if (c3 >= 0 || c3 & 64) codepoint = 1U<<31;
+                else if (c & 16) {
+                    if (c & 8) codepoint = 1U<<31;
+                    else {
+                        const char c4 = (char)handle->stream->get();
+                        if (c4 >= 0 || c4 & 64) codepoint = 1U<<31;
+                        else codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                    }
                 } else {
                     codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
                 }
-            } else {
-                codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
-            }
-        } else {codepoint = 1<<31; goto http_handle_readCharDone;}
-    } else codepoint = c;
-http_handle_readCharDone:
+            } else codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
+        } else codepoint = 1U<<31;
+    } else codepoint = (unsigned char)c;
     if (codepoint > 255) {
         lua_pushstring(L, "?");
         return 1;
     }
     char retval[2];
-    retval[0] = handle->stream->get();
+    retval[0] = (char)codepoint;
     lua_pushstring(L, retval);
     return 1;
 }
@@ -138,7 +137,7 @@ int http_handle_readByte(lua_State *L) {
     if (!lua_isnumber(L, 1)) {
         lua_pushinteger(L, handle->stream->get());
     } else {
-        int c = lua_tointeger(L, 1);
+        const size_t c = lua_tointeger(L, 1);
         char * retval = new char[c+1];
         handle->stream->read(retval, c);
         lua_pushstring(L, retval);
@@ -157,9 +156,9 @@ int http_handle_getResponseHeaders(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed) return 0;
     lua_newtable(L);
-    for (auto it = handle->handle->begin(); it != handle->handle->end(); it++) {
-        lua_pushstring(L, it->first.c_str());
-        lua_pushstring(L, it->second.c_str());
+    for (const auto& h : *handle->handle) {
+        lua_pushstring(L, h.first.c_str());
+        lua_pushstring(L, h.second.c_str());
         lua_settable(L, -3);
     }
     return 1;
@@ -169,7 +168,7 @@ int req_read(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return 0;
     char tmp[2];
-    tmp[0] = req->stream().get();
+    tmp[0] = (char)req->stream().get();
     lua_pushstring(L, tmp);
     return 1;
 }
@@ -224,9 +223,9 @@ int req_getRequestHeaders(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return 0;
     lua_newtable(L);
-    for (auto h = req->begin(); h != req->end(); h++) {
-        lua_pushstring(L, h->first.c_str());
-        lua_pushstring(L, h->second.c_str());
+    for (const auto& h : *req) {
+        lua_pushstring(L, h.first.c_str());
+        lua_pushstring(L, h.second.c_str());
         lua_settable(L, -3);
     }
     return 1;
@@ -254,7 +253,7 @@ int res_writeLine(lua_State *L) {
 int res_close(lua_State *L) {
     struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
-    std::string body((const std::string)res->body);
+    const std::string body((const std::string)res->body);
     try {
         res->res->setContentLength(body.size());
         res->res->send().write(body.c_str(), body.size());

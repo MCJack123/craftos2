@@ -63,7 +63,7 @@ computer::computer(lua_State *L, const char * side) {
 computer::~computer() {
     if (thiscomp->peripherals_mutex.try_lock()) thiscomp->peripherals_mutex.unlock();
     else return;
-    for (auto it = comp->referencers.begin(); it != comp->referencers.end(); it++) {
+    for (auto it = comp->referencers.begin(); it != comp->referencers.end(); ++it) {
         if (*it == thiscomp) {
             it = comp->referencers.erase(it);
             if (it == comp->referencers.end()) break;
@@ -72,7 +72,7 @@ computer::~computer() {
 }
 
 int computer::call(lua_State *L, const char * method) {
-    std::string m(method);
+    const std::string m(method);
     if (m == "turnOn") return turnOn(L);
     else if (m == "shutdown") return shutdown(L);
     else if (m == "reboot") return reboot(L);

@@ -33,7 +33,7 @@ static std::unordered_map<std::string, peripheral_init> initializers = {
 #endif
 };
 
-void registerPeripheral(std::string name, peripheral_init initializer) {
+void registerPeripheral(std::string name, const peripheral_init initializer) {
     initializers[name] = initializer;
 }
 
@@ -54,7 +54,7 @@ static std::string peripheral_detach(lua_State *L, void* arg) {
 static int periphemu_create(lua_State* L) {
     if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_typerror(L, 1, "string or number");
     Computer * computer = get_comp(L);
-    std::string type = luaL_checkstring(L, 2);
+    const std::string type = luaL_checkstring(L, 2);
     std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
     if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
     computer->peripherals_mutex.lock();
@@ -89,7 +89,7 @@ static int periphemu_create(lua_State* L) {
 
 static int periphemu_remove(lua_State* L) {
     Computer * computer = get_comp(L);
-    std::string side = luaL_checkstring(L, 1);
+    const std::string side = luaL_checkstring(L, 1);
     peripheral * p;
     {
         std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
@@ -117,7 +117,7 @@ static int periphemu_names(lua_State *L) {
     lua_pushstring(L, "debugger");
     lua_settable(L, -3);
     int i = 2;
-    for (auto entry : initializers) {
+    for (const auto& entry : initializers) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, entry.first.c_str());
         lua_settable(L, -3);

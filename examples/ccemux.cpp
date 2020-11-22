@@ -13,7 +13,7 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
-#include "../src/Computer.hpp"
+#include <CraftOS-PC.hpp>
 #include <chrono>
 #include <string>
 #include <SDL2/SDL.h>
@@ -34,7 +34,7 @@ void bad_argument(lua_State *L, const char * type, int pos) {
 }
 
 lua_CFunction getLibraryFunction(library_t * lib, const char * name) {
-    for (int i = 0; i < lib->count; i++) if (std::string(lib->keys[i]) == std::string(name)) return lib->values[i];
+    for (int i = 0; lib->functions[i].name; i++) if (std::string(lib->functions[i].name) == std::string(name)) return lib->functions[i].func;
     return NULL;
 }
 
@@ -80,6 +80,7 @@ int ccemux_openDataDir(lua_State *L) {
     Computer *comp = get_comp(L);
 #ifdef WIN32
     ShellExecuteA(NULL, "explore", comp->dataDir.c_str(), NULL, NULL, SW_SHOW);
+    lua_pushboolean(L, true);
 #elif defined(__APPLE__)
     system(("open '" + comp->dataDir + "'").c_str());
     lua_pushboolean(L, true);
@@ -96,6 +97,7 @@ int ccemux_openConfig(lua_State *L) {
     const char * basePath = lua_tostring(L, lua_upvalueindex(1));
 #ifdef WIN32
     ShellExecuteA(NULL, "open", (std::string(basePath) + "/config/global.json").c_str(), NULL, NULL, SW_SHOW);
+    lua_pushboolean(L, true);
 #elif defined(__APPLE__)
     system(("open '" + std::string(basePath) + "/config/global.json'").c_str());
     lua_pushboolean(L, true);

@@ -357,8 +357,6 @@ int monitor::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-void monitor::update() {}
-
 static luaL_Reg monitor_reg[] = {
     {"write", NULL},
     {"scroll", NULL},
