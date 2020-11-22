@@ -38,6 +38,7 @@
 #endif
 #ifndef WIN32
 #include <libgen.h>
+#include <unistd.h>
 #endif
 
 #define termHasEvent(computer) ((computer)->running == 1 && (!(computer)->event_provider_queue.empty() || (computer)->lastResizeEvent || !(computer)->termEventQueue.empty()))
