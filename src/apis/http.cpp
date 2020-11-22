@@ -272,7 +272,7 @@ static void downloadThread(void* arg) {
         delete handle->session;
         delete handle;
         param->url = new char[location.size() + 1];
-        strcpy_s(param->url, location.size() + 1, location.c_str());
+        strcpy(param->url, location.c_str());
         return downloadThread(param);
     }
     handle->closed = false;
@@ -326,7 +326,7 @@ static int http_request(lua_State *L) {
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
     param->url = new char[lua_strlen(L, 1) + 1]; 
-    strcpy_s(param->url, lua_strlen(L, 1) + 1, lua_tostring(L, 1));
+    strcpy(param->url, lua_tostring(L, 1));
     param->old_url = param->url;
     param->postData = NULL;
     param->isBinary = false;
@@ -861,7 +861,7 @@ static int http_websocket(lua_State *L) {
     if (!lua_isnoneornil(L, 3) && !lua_isboolean(L, 3)) luaL_error(L, "bad argument #3 (expected boolean or nil, got %s)", lua_typename(L, lua_type(L, 3)));
     if (lua_isstring(L, 1)) {
         char* url = new char[lua_strlen(L, 1) + 1];
-        strcpy_s(url, lua_strlen(L, 1) + 1, lua_tostring(L, 1));
+        strcpy(url, lua_tostring(L, 1));
         std::unordered_map<std::string, std::string> headers;
         if (lua_istable(L, 2)) {
             lua_pushvalue(L, 2);
