@@ -50,7 +50,7 @@ static Color defaultPalette[16] = {
 class window_exception: public std::exception {
     std::string err;
 public:
-    const char * what() const {return err.c_str();}
+    const char * what() const noexcept override {return err.c_str();}
     window_exception(const std::string& error): err(error) {err = "Could not create new terminal: " + err;}
     window_exception(): err("Unknown error") {}
 };
