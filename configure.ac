@@ -48,12 +48,12 @@ fi
 
 # Check language
 AC_LANG([C++])
-CXXFLAGS="$CXXFLAGS -std=c++11"
+CXXFLAGS="$CXXFLAGS -std=c++14"
 CPPFLAGS="$CPPFLAGS -Icraftos2-lua/include -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
-AX_CHECK_COMPILE_FLAG([-std=c++11], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++11.])])
+AX_CHECK_COMPILE_FLAG([-std=c++14], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++14.])])
 
 # Find required libraries
 

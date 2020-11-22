@@ -52,7 +52,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 ## Building
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
-* Compiler supporting C++11
+* Compiler supporting C++14
   * Linux: G++ 4.9+, make
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
