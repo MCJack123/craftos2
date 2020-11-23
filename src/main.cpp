@@ -53,7 +53,7 @@ std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
 
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void update_thread() {
     try {
         Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));

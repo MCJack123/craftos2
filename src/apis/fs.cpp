@@ -61,9 +61,9 @@ static int fs_list(lua_State *L) {
             try {
                 FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
                 gotdir = true;
-                if (d.isDir) for (auto p : d.dir) entries.insert(p.first);
+                if (d.isDir) for (const auto& p : d.dir) entries.insert(p.first);
                 else gotdir = false;
-            } catch (std::exception &e) {continue;}
+            } catch (...) {continue;}
         } else {
 #endif
         platform_DIR * d = platform_opendir(path.c_str());
@@ -100,7 +100,7 @@ static int fs_exists(lua_State *L) {
 #ifdef STANDALONE_ROM
     if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
         bool found = true;
-        try {(path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);} catch (std::exception &e) {found = false;}
+        try {(path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);} catch (...) {found = false;}
         lua_pushboolean(L, found);
     } else if (path == WS(":bios.lua")) {
         lua_pushboolean(L, true);
@@ -122,7 +122,7 @@ static int fs_isDir(lua_State *L) {
 #ifdef STANDALONE_ROM
     if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
         try {lua_pushboolean(L, (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path).isDir);} 
-        catch (std::exception &e) {lua_pushboolean(L, false);}
+        catch (...) {lua_pushboolean(L, false);}
     } else {
 #endif
     struct_stat st;
@@ -180,7 +180,7 @@ static int fs_getSize(lua_State *L) {
             FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
             if (d.isDir) err(L, 1, "Is a directory");
             lua_pushinteger(L, d.data.size());
-        } catch (std::exception &e) {err(L, 1, "No such file");}
+        } catch (...) {err(L, 1, "No such file");}
     } else if (path == WS(":bios.lua")) {
         lua_pushinteger(L, standaloneBIOS.size());
     } else {
@@ -301,7 +301,7 @@ static int fs_copy(lua_State *L) {
             if (tofp == NULL) err(L, 2, "Cannot write file");
             fwrite(d.data.c_str(), d.data.size(), 1, tofp);
             fclose(tofp);
-        } catch (std::exception &e) {err(L, 1, "No such file");}
+        } catch (...) {err(L, 1, "No such file");}
     } else {
 #endif
     /*if (isFSCaseSensitive == -1) {
@@ -382,7 +382,7 @@ static int fs_open(lua_State *L) {
                     return 2; 
                 }
                 fp = new std::stringstream(d.data);
-            } catch (std::exception &e) {
+            } catch (...) {
                 lua_pushnil(L);
                 lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
                 return 2;
@@ -591,7 +591,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
                 try {
                     FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
                     if (d.isDir) for (auto p : d.dir) if (std::regex_match(p.first, std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(opt + (opt == "" ? "" : "/") + p.first);
-                } catch (std::exception &e) {continue;}
+                } catch (...) {continue;}
             } else {
 #endif
             platform_DIR * d = platform_opendir(path.c_str());
@@ -694,7 +694,7 @@ static int fs_attributes(lua_State *L) {
             lua_setfield(L, -2, "size");
             lua_pushboolean(L, d.isDir);
             lua_setfield(L, -2, "isDir");
-        } catch (std::exception &e) {err(L, 1, "No such file");}
+        } catch (...) {err(L, 1, "No such file");}
     } else {
 #endif
     struct_stat st;

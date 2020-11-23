@@ -123,7 +123,9 @@ path_t fixpath_mkdir(Computer * comp, std::string path, bool md, std::string * m
     return fixpath(comp, path.c_str(), false, true, mountPath);
 }
 
+#ifdef STANDALONE_ROM
 static bool nothrow(std::function<void()> f) { try { f(); return true; } catch (...) { return false; } }
+#endif
 
 path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
     std::vector<std::string> elems = split(path, '/');
@@ -165,7 +167,7 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
 #ifdef STANDALONE_ROM
                 (p == WS("rom:") && nothrow([&sstmp]() {standaloneROM.path(sstmp.str()); })) || (p == WS("debug:") && nothrow([&sstmp]() {standaloneDebug.path(sstmp.str()); })) ||
 #endif
-                    (platform_stat((sstmp.str()).c_str(), &st) == 0)) {
+                    (platform_stat(sstmp.str().c_str(), &st) == 0)) {
                     if (getAllResults && found) ss << "\n";
                     ss << sstmp.str();
                     found = true;

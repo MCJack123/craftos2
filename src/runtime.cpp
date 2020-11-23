@@ -239,7 +239,12 @@ bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool rea
     }
     if (!pathc.empty() && pathc.front() == "rom" && !comp->mounter_initializing && config.romReadOnly) return false;
     struct_stat st;
-    if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
+    if (
+#ifdef STANDALONE_ROM
+        !(comp->mounter_initializing && (real_path == WS("rom:") || real_path == WS("debug:"))) && 
+#endif
+        (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0)
+        ) return false;
     /*for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++)
         if (pathc.size() == std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
             return std::get<1>(*it) == std::string(real_path);*/

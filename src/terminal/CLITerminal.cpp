@@ -124,8 +124,8 @@ void CLITerminal::render() {
             }
             lastPaletteChecksum = checksum;
         }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+        for (unsigned y = 0; y < height; y++) {
+            for (unsigned x = 0; x < width; x++) {
                 move(y, x);
                 addch((screen[y][x] ? screen[y][x] : ' ') | COLOR_PAIR(colors[y][x]));
                 if (stopRender) {stopRender = false; return;}

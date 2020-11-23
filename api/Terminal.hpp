@@ -64,19 +64,19 @@ class vector2d {
 public:
     class row {
         std::vector<T> * vec;
-        int ypos;
-        int size;
+        unsigned ypos;
+        unsigned size;
         class val {
             std::vector<T> * vec;
-            int pos;
+            unsigned pos;
         public:
-            val(std::vector<T> *v, int p): vec(v), pos(p) {}
+            val(std::vector<T> *v, unsigned p): vec(v), pos(p) {}
             operator T() {return (*vec)[pos];}
-            T& operator=(T val) {return (*vec)[pos] = val;}
+            val& operator=(T val) {(*vec)[pos] = val; return *this;}
             T* operator&() {return &(*vec)[pos];}
         };
     public:
-        row(std::vector<T> *v, int y, int s): vec(v), ypos(y), size(s) {}
+        row(std::vector<T> *v, unsigned y, unsigned s): vec(v), ypos(y), size(s) {}
         val operator[](unsigned idx) { 
             if (idx >= size) throw std::out_of_range("Vector2D index out of range");
             return val(vec, ypos + idx);
@@ -93,7 +93,7 @@ public:
         if (w == width) vec.resize(width * h);
         else {
             std::vector<T> newvec(w * h);
-            for (int y = 0; y < height && y < h; y++) {
+            for (unsigned y = 0; y < height && y < h; y++) {
                 std::copy(vec.begin() + (y * width), vec.begin() + (y * width) + (w < width ? w : width), newvec.begin() + (y * w));
                 if (w > width) std::fill(newvec.begin() + (y * w) + width, newvec.begin() + ((y + 1) * w), v);
             }
