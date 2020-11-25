@@ -33,7 +33,7 @@ extern "C" {
 #include "peripheral/peripheral.hpp"
 #include "terminal/Terminal.hpp"
 #include "config.hpp"
-#ifdef WIN32
+#ifdef _WIN32
 typedef std::wstring path_t;
 #else
 typedef std::string path_t;
