@@ -37,12 +37,12 @@ typedef std::string path_t;
 
 // The library_t structure is used to hold information about an API.
 struct Computer;
-typedef struct library {
+struct library_t {
     const char * name;  // The name of the API
     luaL_Reg * functions; // The list of functions used in the API
     std::function<void(Computer*)> init;   // A function to call when opening the API
     std::function<void(Computer*)> deinit; // A function to call when closing the API
-} library_t;
+};
 
 /**
  * Returns the associated Computer object pointer for a Lua state.

@@ -8,7 +8,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #ifndef __EMSCRIPTEN__
 #include <cstdlib>
 #include <codecvt>
@@ -22,16 +21,16 @@
 
 using namespace Poco::Net;
 
-typedef struct http_handle {
+struct http_handle_t {
     bool closed;
-    char * url;
+    std::string url;
     HTTPClientSession * session;
     HTTPResponse * handle;
     std::istream * stream;
     bool isBinary;
     std::string failureReason;
-    http_handle(std::istream * s) : stream(s) {}
-} http_handle_t;
+    http_handle_t(std::istream * s) : stream(s) {}
+};
 
 struct http_res {
     std::string body;
@@ -49,7 +48,6 @@ int http_handle_close(lua_State *L) {
     handle->closed = true;
     delete handle->handle;
     delete handle->session;
-    free(handle->url);
     return 0;
 }
 
@@ -138,9 +136,9 @@ int http_handle_readByte(lua_State *L) {
         lua_pushinteger(L, handle->stream->get());
     } else {
         const size_t c = lua_tointeger(L, 1);
-        char * retval = new char[c+1];
+        char * retval = new char[c];
         handle->stream->read(retval, c);
-        lua_pushstring(L, retval);
+        lua_pushlstring(L, retval, c);
     }
     return 1;
 }
@@ -232,7 +230,7 @@ int req_getRequestHeaders(lua_State *L) {
 }
 
 int res_write(lua_State *L) {
-    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
     size_t len = 0;
     const char * buf = luaL_checklstring(L, 1, &len);
@@ -241,7 +239,7 @@ int res_write(lua_State *L) {
 }
 
 int res_writeLine(lua_State *L) {
-    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
     size_t len = 0;
     const char * buf = luaL_checklstring(L, 1, &len);
@@ -251,7 +249,7 @@ int res_writeLine(lua_State *L) {
 }
 
 int res_close(lua_State *L) {
-    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
     const std::string body((const std::string)res->body);
     try {
@@ -266,14 +264,14 @@ int res_close(lua_State *L) {
 }
 
 int res_setStatusCode(lua_State *L) {
-    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
     res->res->setStatus((HTTPResponse::HTTPStatus)luaL_checkinteger(L, 1));
     return 0;
 }
 
 int res_setResponseHeader(lua_State *L) {
-    struct http_res * res = (struct http_res*)lua_touserdata(L, lua_upvalueindex(1));
+    struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
     res->res->set(luaL_checkstring(L, 1), luaL_checkstring(L, 2));
     return 0;

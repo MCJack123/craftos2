@@ -8,8 +8,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
-
 #include <sstream>
 #include <configuration.hpp>
 #include "RawTerminal.hpp"
@@ -411,7 +409,7 @@ void SDLTerminal::screenshot(std::string path) {
         screenshotPath += WS("/screenshots/");
 #endif
         createDirectory(screenshotPath);
-        char * tstr = new char[24];
+        char tstr[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
         tstr[23] = '\0';
 #ifdef NO_PNG
@@ -419,7 +417,6 @@ void SDLTerminal::screenshot(std::string path) {
 #else
         screenshotPath += wstr(std::string(tstr)) + WS(".png");
 #endif
-        delete[] tstr;
     }
     shouldScreenshot = true;
 }
@@ -439,10 +436,9 @@ void SDLTerminal::record(std::string path) {
         recordingPath += WS("/screenshots/");
 #endif
         createDirectory(recordingPath);
-        char * tstr = new char[24];
+        char tstr[20];
         strftime(tstr, 20, "%F_%H.%M.%S", nowt);
         recordingPath += wstr(std::string(tstr)) + WS(".gif");
-        delete[] tstr;
     }
     changed = true;
 }

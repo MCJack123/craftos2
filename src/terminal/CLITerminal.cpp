@@ -8,7 +8,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #ifndef NO_CLI
 static void pressControl(int sig);
 static void pressAlt(int sig);

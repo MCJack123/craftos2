@@ -8,7 +8,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #include <string>
 class Computer;
 static void debuggerThread(Computer * comp, void * dbgv, std::string side);

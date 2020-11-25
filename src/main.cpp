@@ -9,7 +9,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 static int runRenderer();
 #include <functional>
 #include <iomanip>

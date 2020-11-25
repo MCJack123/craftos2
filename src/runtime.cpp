@@ -9,7 +9,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #include <cerrno>
 #include <cstring>
 #include <chrono>
@@ -245,9 +244,6 @@ bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool rea
 #endif
         (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0)
         ) return false;
-    /*for (auto it = comp->mounts.begin(); it != comp->mounts.end(); it++)
-        if (pathc.size() == std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin()))
-            return std::get<1>(*it) == std::string(real_path);*/
     int selected = 1;
     if (!comp->mounter_initializing && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
         SDL_MessageBoxData data;

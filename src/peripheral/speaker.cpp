@@ -9,7 +9,6 @@
  */
 
 #ifndef NO_MIXER
-#define CRAFTOSPC_INTERNAL
 #include <cmath>
 #include <algorithm>
 #include <fstream>
@@ -229,14 +228,14 @@ void setupForNextPlayback(float& speed, Mix_Chunk* chunk, int channel, bool loop
 #pragma endregion
 #endif
 
-typedef struct sound_file {
+struct sound_file_t {
     std::string name;
     float volume = 1.0;
     float pitch = 1.0;
     int weight = 1;
     bool isEvent = false;
     bool isMusic = false;
-} sound_file_t;
+};
 
 extern std::unordered_map<std::string, std::pair<unsigned char *, unsigned int> > speaker_sounds;
 static std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;

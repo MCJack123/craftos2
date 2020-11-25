@@ -8,7 +8,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #include "../runtime.hpp"
 static std::string modem_message(lua_State *message, void* data);
 #include "modem.hpp"
@@ -169,7 +168,7 @@ static void xcopy(lua_State *L, lua_State *T, int t) {
 }
 
 static std::string modem_message(lua_State *message, void* data) {
-    struct modem_message_data * d = (struct modem_message_data*)data;
+    struct modem_message_data * d = (modem_message_data*)data;
     if (d->sender == NULL) {
         fprintf(stderr, "Modem message event is missing sender, skipping event");
         delete d;
@@ -239,8 +238,8 @@ modem::~modem() {
     for (std::list<modem*>::iterator it = network[netID].begin(); it != network[netID].end(); ++it) {if (*it == this) {network[netID].erase(it); return;}}
     std::lock_guard<std::mutex> lock(eventQueueMutex);
     for (void* d : modemMessages) {
-        ((struct modem_message_data*)d)->sender = NULL;
-        lua_pushinteger(eventQueue, ((struct modem_message_data*)d)->id);
+        ((modem_message_data*)d)->sender = NULL;
+        lua_pushinteger(eventQueue, ((modem_message_data*)d)->id);
         lua_gettable(eventQueue, 1);
         lua_getfield(eventQueue, -1, "refcount");
         delete (int*)lua_touserdata(eventQueue, -1);

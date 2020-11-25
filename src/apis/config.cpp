@@ -8,7 +8,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #include <cstring>
 #include <Computer.hpp>
 #include <configuration.hpp>

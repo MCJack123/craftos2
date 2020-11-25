@@ -67,7 +67,7 @@ public:
 static ProtectedObject<std::unordered_map<SDL_TimerID, struct timer_data_t*> > runningTimerData;
 
 static std::string timer_event(lua_State *L, void* param) {
-    struct timer_data_t * data = (struct timer_data_t*)param;
+    struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
     if (!found) return "";
@@ -82,7 +82,7 @@ static std::string timer_event(lua_State *L, void* param) {
 }
 
 static Uint32 notifyEvent(Uint32 interval, void* param) {
-    struct timer_data_t * data = (struct timer_data_t*)param;
+    struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
     if (!found) return 0;
@@ -124,7 +124,7 @@ static int os_startTimer(lua_State *L) {
     data->lock = new std::mutex;
     data->isAlarm = false;
     queueTask([L](void*a)->void* {
-        struct timer_data_t * data = (struct timer_data_t*)a;
+        struct timer_data_t * data = (timer_data_t*)a;
         Uint32 time = (Uint32)(lua_tonumber(L, 1) * 1000);
         if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
         data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
@@ -252,7 +252,7 @@ static int os_setAlarm(lua_State *L) {
     data->lock = new std::mutex;
     data->isAlarm = true;
     queueTask([real_time](void*a)->void* {
-        struct timer_data_t * data = (struct timer_data_t*)a;
+        struct timer_data_t * data = (timer_data_t*)a;
         Uint32 time = real_time;
         if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
         data->timer = SDL_AddTimer(time + 3, notifyEvent, data);

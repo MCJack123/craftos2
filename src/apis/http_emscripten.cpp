@@ -1,5 +1,5 @@
 /*
- * http_emscripten.cpp
+ * apis/http_emscripten.cpp
  * CraftOS-PC 2
  * 
  * This file implements the http API for the Emscripten platform, which does not
@@ -11,37 +11,36 @@
 
 #define CRAFTOSPC_INTERNAL
 #ifdef __EMSCRIPTEN__
-
-#include "http.hpp"
-#include "term.hpp"
-#include "os.hpp"
-#include "platform.hpp"
+#include "../util.hpp"
+#include "../runtime.hpp"
+#include "../platform.hpp"
 #include <unordered_map>
 #include <thread>
 #include <emscripten/emscripten.h>
 #include <emscripten/fetch.h>
 
-typedef struct {
-    char * url;
-    std::string status;
-} http_check_t;
 
-typedef struct {
+struct http_check_t {
+    std::string url;
+    std::string status;
+};
+
+struct http_data_t {
     bool isBinary;
     Computer * comp;
     char** headers;
-} http_data_t;
+};
 
-typedef struct {
+struct http_param_t {
     Computer *comp;
-    char * url;
-    char * postData;
+    std::string url;
+    std::string postData;
     std::unordered_map<std::string, std::string> headers;
     std::string method;
-    char * old_url;
+    std::string old_url;
     bool isBinary;
     bool redirect;
-} http_param_t;
+};
 
 void HTTPDownload(std::string url, std::function<void(std::istream&)> callback) {
 
@@ -130,7 +129,7 @@ int http_handle_getResponseHeaders(lua_State *L) {
     return 1;
 }
 
-const char * http_success(lua_State *L, void* data) {
+std::string http_success(lua_State *L, void* data) {
     emscripten_fetch_t ** handle = new emscripten_fetch_t*;
     *handle = (emscripten_fetch_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
@@ -182,7 +181,7 @@ const char * http_success(lua_State *L, void* data) {
     return "http_success";
 }
 
-const char * http_failure(lua_State *L, void* data) {
+std::string http_failure(lua_State *L, void* data) {
     lua_pushstring(L, (char*)data);
     delete[] (char*)data;
     return "http_failure";
@@ -213,7 +212,7 @@ int http_request(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    luaL_checkstring(L, 1);
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
     if (lua_isstring(L, 5) && strlen(lua_tostring(L, 5)) > 31) luaL_error(L, "invalid method '%s'", lua_tostring(L, 5));
@@ -255,13 +254,12 @@ int http_request(lua_State *L) {
     return 1;
 }
 
-const char * http_check(lua_State *L, void* data) {
+std::string http_check(lua_State *L, void* data) {
     http_check_t * res = (http_check_t*)data;
-    lua_pushstring(L, res->url);
+    lua_pushlstring(L, res->url.c_str(), res->url.size());
     lua_pushboolean(L, res->status.empty());
     if (res->status.empty()) lua_pushnil(L);
     else lua_pushstring(L, res->status.c_str());
-    delete[] res->url;
     delete res;
     return "http_check";
 }
@@ -272,10 +270,11 @@ void* checkThread(void* arg) {
 #endif
     http_param_t * param = (http_param_t*)arg;
     std::string status;
-    if (strstr(param->url, ":") == NULL) status = "Must specify http or https";
-    else if (strstr(param->url, "://") == NULL) status = "URL malformed";
-    else if (strncmp(param->url, "http", strstr(param->url, "://") - param->url) != 0 && strncmp(param->url, "https", strstr(param->url, "://") - param->url) != 0) status = "Invalid protocol '" + std::string(param->url).substr(0, strstr(param->url, "://") - param->url) + "'";
-    else if (strstr(param->url, "192.168.") != NULL || strstr(param->url, "10.0.") != NULL || strstr(param->url, "127.") != NULL || strstr(param->url, "localhost") != NULL) status = "Domain not permitted";
+    if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
+    else if (param->url.find("://") == std::string::npos) status = "URL malformed";
+    else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
+    // Replace this when implementing the HTTP white/blacklist
+    else if (param->url.find("192.168.") != std::string::npos || param->url.find("10.0.") != std::string::npos || param->url.find("127.") != std::string::npos || param->url.find("localhost") != std::string::npos) status = "Domain not permitted";
     http_check_t * res = new http_check_t;
     res->url = param->url;
     res->status = status;
@@ -289,11 +288,10 @@ int http_checkURL(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    luaL_checkstring(L, 1);
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    param->url = new char[lua_strlen(L, 1) + 1];
-    strcpy(param->url, lua_tostring(L, 1));
+    param->url = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
     std::thread th(checkThread, param);
     setThreadName(th, "HTTP Check Thread");
     th.detach();
@@ -315,22 +313,15 @@ int http_websocket(lua_State *L) {
 
 void stopWebsocket(void*n){}
 
-const char * http_keys[5] = {
-    "request",
-    "checkURL",
-    "addListener",
-    "removeListener",
-    "websocket"
+luaL_Reg http_reg[] = {
+    {"request", http_request},
+    {"checkURL", http_checkURL},
+    {"addListener", http_addListener},
+    {"removeListener", http_removeListener},
+    {"websocket", http_websocket},
+    {NULL, NULL}
 };
 
-lua_CFunction http_values[5] = {
-    http_request,
-    http_checkURL,
-    http_addListener,
-    http_removeListener,
-    http_websocket
-};
-
-library_t http_lib = {"http", 5, http_keys, http_values, nullptr, nullptr};
+library_t http_lib = {"http", http_reg, nullptr, nullptr};
 
 #endif

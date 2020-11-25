@@ -8,7 +8,6 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #include <dirent.h>
 #include <sys/stat.h>
 #include "drive.hpp"

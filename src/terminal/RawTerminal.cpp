@@ -254,7 +254,7 @@ struct rawMouseProviderData {
 };
 
 static std::string rawMouseProvider(lua_State *L, void* data) {
-    struct rawMouseProviderData * d = (struct rawMouseProviderData*)data;
+    struct rawMouseProviderData * d = (rawMouseProviderData*)data;
     lua_pushinteger(L, d->button);
     lua_pushinteger(L, d->x);
     lua_pushinteger(L, d->y);
