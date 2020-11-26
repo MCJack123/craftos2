@@ -21,7 +21,7 @@ extern "C" {
 #include <lauxlib.h>
 }
 
-#define CRAFTOSPC_VERSION    "v2.4.4"
+#define CRAFTOSPC_VERSION    "v2.4.4.1"
 #define CRAFTOSPC_CC_VERSION "1.93.1"
 #define CRAFTOSPC_INDEV      false
 
