@@ -110,7 +110,7 @@ HardwareSDLTerminal::~HardwareSDLTerminal() {
 extern bool operator!=(Color lhs, Color rhs);
 
 bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
-    SDL_Rect srcrect = SDLTerminal::getCharacterRect(c);
+    SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
         (int)(x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale), 
         (int)(y * charHeight * dpiScale + 2 * charScale * 2/fontScale * dpiScale), 

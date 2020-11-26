@@ -193,7 +193,7 @@ void updateNow(std::string tag_name) {
     win.maxSize = {480, 103};
     win.releasedWhenClosed = YES;
     [win makeKeyAndOrderFront:NSApp];
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + ([[NSFileManager defaultManager] isReadableFileAtPath:[NSString stringWithCString:(getROMPath() + "/rom/apis/command/commands.lua").c_str() encoding:NSUTF8StringEncoding]] ? "/CraftOS-PC-CCT-Edition.dmg" : "/CraftOS-PC.dmg"), [win](std::istream& in) {
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC.dmg", [win](std::istream& in) {
         @autoreleasepool {
             NSString *tempFileTemplate = [NSTemporaryDirectory() stringByAppendingPathComponent:@"CraftOS-PC.dmg"];
             const char *tempFileTemplateCString = [tempFileTemplate fileSystemRepresentation];
