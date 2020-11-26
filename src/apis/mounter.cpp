@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <sstream>
 #include <sys/stat.h>
-#include "../fs_standalone.hpp"
+#include <FileEntry.hpp>
 #include "../platform.hpp"
 #include "../runtime.hpp"
 #include "../terminal/SDLTerminal.hpp"
@@ -21,6 +21,12 @@
 #else
 #include <libgen.h>
 #define PATH_SEP "/"
+#endif
+
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
 #endif
 
 static int mounter_mount(lua_State *L) {

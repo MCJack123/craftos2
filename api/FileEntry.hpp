@@ -1,16 +1,16 @@
 /*
- * fs_standalone.hpp
+ * FileEntry.hpp
  * CraftOS-PC 2
  * 
- * This file defines a FileEntry class that holds data for a standalone ROM. It
- * also provides variables with the ROM contents if enabled.
+ * This file defines a FileEntry class that holds data for virtual filesystems,
+ * including the standalone ROM.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#ifndef FS_STANDALONE_HPP
-#define FS_STANDALONE_HPP
+#ifndef CRAFTOS_PC_FILEENTRY_HPP
+#define CRAFTOS_PC_FILEENTRY_HPP
 #include <algorithm>
 #include <codecvt>
 #include <locale>
@@ -18,6 +18,9 @@
 #include <sstream>
 #include <string>
 
+/**
+ * todo
+ */
 struct FileEntry {
     bool isDir;
     bool error = false;
@@ -43,11 +46,5 @@ struct FileEntry {
         return this->path(converter.to_bytes(path));
     }
 };
-
-#ifdef STANDALONE_ROM
-extern FileEntry standaloneROM;
-extern FileEntry standaloneDebug;
-extern std::string standaloneBIOS;
-#endif
 
 #endif

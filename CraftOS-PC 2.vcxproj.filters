@@ -113,9 +113,6 @@
     <ClInclude Include="src\platform.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\fs_standalone.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\terminal\CLITerminal.hpp">
       <Filter>Header Files\terminal</Filter>
     </ClInclude>
@@ -170,9 +167,6 @@
     <ClInclude Include="src\apis.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\apis\redstone.cpp">
-      <Filter>Source Files\apis</Filter>
-    </ClInclude>
     <ClInclude Include="src\util.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -195,6 +189,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="api\CraftOS-PC.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="api\FileEntry.hpp">
       <Filter>Header Files\api</Filter>
     </ClInclude>
   </ItemGroup>
@@ -317,6 +314,12 @@
       <Filter>Source Files\platform</Filter>
     </ClCompile>
     <ClCompile Include="src\util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\redstone.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

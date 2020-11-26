@@ -19,7 +19,7 @@
 #include <configuration.hpp>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "../fs_standalone.hpp"
+#include <FileEntry.hpp>
 #include "handles/fs_handle.hpp"
 #include "../platform.hpp"
 #include "../runtime.hpp"
@@ -39,6 +39,12 @@
 #endif
 
 #define err(L, idx, err) luaL_error(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).c_str(), err)
+
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
+#endif
 
 static path_t ignored_files[4] = {
     WS("."),

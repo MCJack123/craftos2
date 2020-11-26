@@ -14,7 +14,7 @@
 #include <Poco/Base64Decoder.h>
 #include <Poco/Base64Encoder.h>
 #include <sys/stat.h>
-#include "fs_standalone.hpp"
+#include <FileEntry.hpp>
 #include "platform.hpp"
 #include "runtime.hpp"
 #include "terminal/SDLTerminal.hpp"
@@ -26,6 +26,12 @@
 #include <libgen.h>
 #define PATH_SEP "/"
 #define PATH_SEPC '/'
+#endif
+
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
 #endif
 
 char computer_key = 'C';

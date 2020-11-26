@@ -37,7 +37,6 @@ static int runRenderer();
 
 extern void awaitTasks(std::function<bool()> predicate = []()->bool{return true;});
 extern void http_server_stop();
-extern std::unordered_map<path_t, void*> loadedPlugins;
 #ifdef WIN32
 extern void* kernel32handle;
 #endif
@@ -51,6 +50,7 @@ std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
+std::unordered_map<path_t, std::string> globalPluginErrors;
 
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void update_thread() {
@@ -451,6 +451,7 @@ int main(int argc, char*argv[]) {
 #ifndef NO_MIXER
     speakerInit();
 #endif
+    globalPluginErrors = initializePlugins();
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
     if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
@@ -474,6 +475,7 @@ int main(int argc, char*argv[]) {
     }
 #endif
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
+    deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();
 #endif
@@ -493,7 +495,6 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 4) TRoRTerminal::quit();
     else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
-    for (const auto& p : loadedPlugins) SDL_UnloadObject(p.second);
 #ifdef WIN32
     if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
 #endif

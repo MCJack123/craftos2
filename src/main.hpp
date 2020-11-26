@@ -15,6 +15,7 @@
 #include <map>
 #include <unordered_map>
 #include <Terminal.hpp>
+#include "platform.hpp"
 
 extern bool rawClient;
 extern std::string overrideHardwareDriver;
@@ -23,5 +24,6 @@ extern std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 extern std::string script_file;
 extern std::string script_args;
 extern int returnValue;
+extern std::unordered_map<path_t, std::string> globalPluginErrors;
 
 #endif

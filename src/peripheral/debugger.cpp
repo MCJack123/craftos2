@@ -14,10 +14,16 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side);
 #include "../runtime.hpp"
 static int debugger_lib_getInfo(lua_State *L);
 #include "debugger.hpp"
-#include "../fs_standalone.hpp"
+#include <FileEntry.hpp>
 #include "../platform.hpp"
 #include "../terminal/CLITerminal.hpp"
 #include "../termsupport.hpp"
+
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
+#endif
 
 static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
     debugger * dbg = (debugger*)dbgv;

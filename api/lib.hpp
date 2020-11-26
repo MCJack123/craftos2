@@ -29,7 +29,7 @@ struct Computer;
 /// To abstract this difference in implementation, a path_t type is used to allow the correct
 /// string type to be used on each platform. Since the type only changes when the platform changes,
 /// this should not have a negative impact on ABI stability.
-#ifdef WIN32
+#ifdef _WIN32
 typedef std::wstring path_t;
 #else
 typedef std::string path_t;

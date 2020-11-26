@@ -9,19 +9,11 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
-#include "../src/Computer.hpp"
-
-// change this to the latest version when compiling (see DOCUMENTATION.md for more details)
-#define PLUGIN_VERSION 4
-
-void bad_argument(lua_State *L, const char * type, int pos) {
-    lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
-    lua_error(L);
-}
+#include <CraftOS-PC.hpp>
 
 // add your functions here...
 
-struct luaL_reg M[] = {
+static luaL_reg M[] = {
     // add functions here as {name, function}...
     {NULL, NULL}
 };
@@ -39,10 +31,10 @@ int luaopen_myplugin(lua_State *L) {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-int plugin_info(lua_State *L) {
-    lua_newtable(L);
-    lua_pushinteger(L, PLUGIN_VERSION);
-    lua_setfield(L, -2, "version");
-    return 1;
+PluginInfo plugin_init(PluginFunctions * func, path_t path) {
+    PluginInfo info;
+    info.apiName = "myplugin"; // replace "myplugin" with the API name
+    // configure any other information, or save the functions here...
+    return info;
 }
 }

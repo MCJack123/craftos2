@@ -22,23 +22,125 @@ extern "C" {
 #else
 #include <stdlib.h>
 #endif
-#define libFunc(lib, name) getLibraryFunction(getLibrary(lib), name)
+#define libFunc(lib, name) getLibraryFunction(functions->getLibrary(lib), name)
 
-#define PLUGIN_VERSION 4
+static const PluginFunctions * functions;
 
-library_t * (*getLibrary)(std::string);
+/*
+ * The following files were borrowed from CCEmuX, which is licensed under the MIT license.
+ *
+ * MIT License
+ * 
+ * Copyright (c) 2018 CLGD
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
-void bad_argument(lua_State *L, const char * type, int pos) {
-    lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
-    lua_error(L);
-}
+static FileEntry emuROM = {{"programs", {{"emu.lua", "local args = { ... }\
+\
+if ccemux then\
+    local function help()\
+        print(\"Usages:\")\
+        print(\"emu close - close this computer\")\
+        print(\"emu open [id] - open another computer\")\
+        print(\"emu data [id] - opens the data folder\")\
+        print(\"emu config - opens the config editor\")\
+        print(\"Run 'help emu' for additional information\")\
+    end\
+\
+    if #args == 0 then\
+        help()\
+    else\
+        if args[1] == \"close\" then\
+            ccemux.closeEmu()\
+        elseif args[1] == \"open\" then\
+            print(\"Opened computer ID \" .. ccemux.openEmu(tonumber(args[2])))\
+        elseif args[1] == \"data\" then\
+            local id = nil\
+            if args[2] ~= nil then\
+                id = tonumber(args[2])\
+                if id == nil then\
+                    printError(\"Expected a computer ID\")\
+                    return\
+                end\
+            end\
+            if ccemux.openDataDir(id) then\
+                print(\"Opened data folder\")\
+            else\
+                print(\"Unable to open data folder\")\
+            end\
+        elseif args[1] == \"config\" then\
+            local ok, err = ccemux.openConfig()\
+            if ok then\
+                print(\"Opened config editor\")\
+            else\
+                print(err)\
+            end\
+        else\
+            printError(\"Unrecognized subcommand: \" .. args[1])\
+            help()\
+        end\
+    end\
+else\
+    printError(\"CCEmuX API is disabled or unavailable.\")\
+end"}}}, {"help", {{"emu.txt", "USAGE\
+\
+* emu close\
+Closes the current emulated computer, without affecting the others. Can be called from within programs via ccemux.closeEmu().\
+\
+* emu open [id]\
+Opens a new emulated computer, with the given ID (if specified) or with the next ID. Can be called from within programs via ccemux.openEmu() or ccemux.openEmu(id)\
+\
+* emu data\
+This will open the CraftOS-PC data dir (where config files and computer save folders are stored) in your default file browser. Can be called from within programs via ccemux.openDataDir(). Note that it may fail on some Linux systems (i.e. if you don't have a DE installed)\
+\
+* emu config\
+Opens an interface to edit the CraftOS-PC configuration. Note that not all rendering backends support this."}}}, {"autorun", {{"emu.lua", "-- Setup completion functions\
+local function completeMultipleChoice(text, options, addSpaces)\
+    local tResults = {}\
+    for n = 1, #options do\
+        local sOption = options[n]\
+        if #sOption + (addSpaces and 1 or 0) > #text and sOption:sub(1, #text) == text then\
+            local sResult = sOption:sub(#text + 1)\
+            if addSpaces then\
+                table.insert(tResults, sResult .. \" \")\
+            else\
+                table.insert(tResults, sResult)\
+            end\
+        end\
+    end\
+    return tResults\
+end\
+\
+local commands = { \"close\", \"open\", \"data\", \"config\" }\
+shell.setCompletionFunction(\"rom/programs/emu.lua\", function(shell, index, text, previous)\
+    if index == 1 then\
+        return completeMultipleChoice(text, commands, true)\
+    end\
+end)"}}}};
 
-lua_CFunction getLibraryFunction(library_t * lib, const char * name) {
+static lua_CFunction getLibraryFunction(library_t * lib, const char * name) {
     for (int i = 0; lib->functions[i].name; i++) if (std::string(lib->functions[i].name) == std::string(name)) return lib->functions[i].func;
     return NULL;
 }
 
-int ccemux_getVersion(lua_State *L) {
+static int ccemux_getVersion(lua_State *L) {
     libFunc("os", "about")(L);
     lua_getglobal(L, "string");
     lua_pushstring(L, "match");
@@ -49,11 +151,11 @@ int ccemux_getVersion(lua_State *L) {
     return 1;
 }
 
-int ccemux_openEmu(lua_State *L) {
+static int ccemux_openEmu(lua_State *L) {
     int id = 1;
     if (lua_isnumber(L, 1)) id = (int)lua_tointeger(L, 1);
     else {
-        library_t * plib = getLibrary("peripheral");
+        library_t * plib = functions->getLibrary("peripheral");
         for (; id < 256; id++) { // don't search forever
             lua_pushcfunction(L, getLibraryFunction(plib, "isPresent"));
             lua_pushfstring(L, "computer_%d", id);
@@ -71,15 +173,14 @@ int ccemux_openEmu(lua_State *L) {
     return 1;
 }
 
-int ccemux_closeEmu(lua_State *L) {
+static int ccemux_closeEmu(lua_State *L) {
     return libFunc("os", "shutdown")(L);
 }
 
-int ccemux_openDataDir(lua_State *L) {
-    const char * basePath = lua_tostring(L, lua_upvalueindex(1));
+static int ccemux_openDataDir(lua_State *L) {
     Computer *comp = get_comp(L);
 #ifdef WIN32
-    ShellExecuteA(NULL, "explore", comp->dataDir.c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteW(NULL, L"explore", comp->dataDir.c_str(), NULL, NULL, SW_SHOW);
     lua_pushboolean(L, true);
 #elif defined(__APPLE__)
     system(("open '" + comp->dataDir + "'").c_str());
@@ -93,16 +194,15 @@ int ccemux_openDataDir(lua_State *L) {
     return 1;
 }
 
-int ccemux_openConfig(lua_State *L) {
-    const char * basePath = lua_tostring(L, lua_upvalueindex(1));
+static int ccemux_openConfig(lua_State *L) {
 #ifdef WIN32
-    ShellExecuteA(NULL, "open", (std::string(basePath) + "/config/global.json").c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteW(NULL, L"open", (functions->getBasePath() + L"/config/global.json").c_str(), NULL, NULL, SW_SHOW);
     lua_pushboolean(L, true);
 #elif defined(__APPLE__)
-    system(("open '" + std::string(basePath) + "/config/global.json'").c_str());
+    system(("open '" + functions->getBasePath() + "/config/global.json'").c_str());
     lua_pushboolean(L, true);
 #elif defined(__linux__)
-    system(("xdg-open '" + std::string(basePath) + "/config/global.json'").c_str());
+    system(("xdg-open '" + functions->getBasePath() + "/config/global.json'").c_str());
     lua_pushboolean(L, true);
 #else
     lua_pushboolean(L, false);
@@ -110,30 +210,27 @@ int ccemux_openConfig(lua_State *L) {
     return 1;
 }
 
-int ccemux_milliTime(lua_State *L) {
+static int ccemux_milliTime(lua_State *L) {
     lua_pushinteger(L, std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count());
     return 1;
 }
 
-int ccemux_nanoTime(lua_State *L) {
+static int ccemux_nanoTime(lua_State *L) {
     lua_pushinteger(L, std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()).time_since_epoch().count());
     return 1;
 }
 
-int ccemux_echo(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    printf("%s\n", lua_tostring(L, 1));
+static int ccemux_echo(lua_State *L) {
+    printf("%s\n", luaL_checkstring(L, 1));
     return 0;
 }
 
-int ccemux_setClipboard(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    SDL_SetClipboardText(lua_tostring(L, 1));
+static int ccemux_setClipboard(lua_State *L) {
+    SDL_SetClipboardText(luaL_checkstring(L, 1));
     return 0;
 }
 
-int ccemux_attach(lua_State *L) {
-    int args = lua_gettop(L);
+static int ccemux_attach(lua_State *L) {
     if (lua_isstring(L, 2) && std::string(lua_tostring(L, 2)) == "disk_drive") {
         lua_pushstring(L, "drive");
         lua_replace(L, 2);
@@ -145,52 +242,42 @@ int ccemux_attach(lua_State *L) {
     return libFunc("periphemu", "create")(L);
 }
 
-int ccemux_detach(lua_State *L) {
+static int ccemux_detach(lua_State *L) {
     return libFunc("periphemu", "remove")(L);
 }
+
+static struct luaL_reg M[] = {
+    {"getVersion", ccemux_getVersion},
+    {"openEmu", ccemux_openEmu},
+    {"closeEmu", ccemux_closeEmu},
+    {"openDataDir", ccemux_openDataDir},
+    {"openConfig", ccemux_openConfig},
+    {"milliTime", ccemux_milliTime},
+    {"nanoTime", ccemux_nanoTime},
+    {"echo", ccemux_echo},
+    {"setClipboard", ccemux_setClipboard},
+    {"attach", ccemux_attach},
+    {"detach", ccemux_detach},
+    {NULL, NULL}
+};
 
 extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
 int luaopen_ccemux(lua_State *L) {
-    struct luaL_reg M[] = {
-        {"getVersion", ccemux_getVersion},
-        {"openEmu", ccemux_openEmu},
-        {"closeEmu", ccemux_closeEmu},
-        {"openDataDir", ccemux_openDataDir},
-        {"openConfig", ccemux_openConfig},
-        {"milliTime", ccemux_milliTime},
-        {"nanoTime", ccemux_nanoTime},
-        {"echo", ccemux_echo},
-        {"setClipboard", ccemux_setClipboard},
-        {"attach", ccemux_attach},
-        {"detach", ccemux_detach},
-        {NULL, NULL}
-    };
-    lua_newtable(L);
-    for (int i = 0; M[i].name != NULL && M[i].func != NULL; i++) {
-        lua_pushstring(L, M[i].name);
-        if (std::string(M[i].name) == "openDataDir" || std::string(M[i].name) == "openConfig") {
-            lua_pushvalue(L, 3);
-            lua_pushcclosure(L, M[i].func, 1);
-        } else lua_pushcfunction(L, M[i].func);
-        lua_settable(L, -3);
-    }
+    luaL_register(L, lua_tostring(L, 1), M);
+    if (functions->addVirtualMount != NULL) functions->addVirtualMount(get_comp(L), emuROM, "/rom");
     return 1;
 }
-
-int register_getLibrary(lua_State *L) {getLibrary = (library_t*(*)(std::string))lua_touserdata(L, 1); return 0;}
 
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-int plugin_info(lua_State *L) {
-    lua_newtable(L);
-    lua_pushinteger(L, PLUGIN_VERSION);
-    lua_setfield(L, -2, "version");
-    lua_pushcfunction(L, register_getLibrary);
-    lua_setfield(L, -2, "register_getLibrary");
-    return 1;
+PluginInfo plugin_init(const PluginFunctions * func, path_t path) {
+    functions = func;
+    PluginInfo retval;
+    retval.apiName = "ccemux";
+    return retval;
 }
 }

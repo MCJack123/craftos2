@@ -18,7 +18,7 @@ extern "C" {
 #include <peripheral.hpp>
 #include <sys/stat.h>
 #include "apis.hpp"
-#include "fs_standalone.hpp"
+#include <FileEntry.hpp>
 #include "main.hpp"
 #include "peripheral/computer.hpp"
 #include "platform.hpp"
@@ -29,6 +29,18 @@ extern "C" {
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
+
+#ifdef WIN32
+#define PATH_SEPC '\\'
+#else
+#define PATH_SEPC '/'
+#endif
+
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
+#endif
 
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
 extern void stopWebsocket(void*);
@@ -180,169 +192,6 @@ extern "C" {
     }
 }
 
-static library_t * getLibrary(std::string name) {
-    if (name == "config") return &config_lib;
-    else if (name == "fs") return &fs_lib; 
-    else if (name == "mounter") return &mounter_lib; 
-    else if (name == "os") return &os_lib; 
-    else if (name == "peripheral") return &peripheral_lib; 
-    else if (name == "periphemu") return &periphemu_lib; 
-    else if (name == "redstone" || name == "rs") return &rs_lib; 
-    else if (name == "term") return &term_lib; 
-    else return NULL;
-}
-
-static Computer * getComputerById(int id) {
-    LockGuard lock(computers);
-    for (Computer * c : *computers) if (c->id == id) return c;
-    return NULL;
-}
-
-static void pluginError(lua_State *L, const char * name, const char * err) {
-    lua_getglobal(L, "_CCPC_PLUGIN_ERRORS");
-    if (lua_isnil(L, -1)) {
-        lua_newtable(L);
-        lua_pushvalue(L, -1);
-        lua_setglobal(L, "_CCPC_PLUGIN_ERRORS");
-    }
-    lua_pushstring(L, name);
-    lua_pushstring(L, err);
-    lua_settable(L, -3);
-    lua_pop(L, 1);
-}
-
-/* export */ std::unordered_map<path_t, void*> loadedPlugins;
-
-void Computer_loadPlugin(Computer * self, path_t path) {
-    lua_State *L = self->L;
-    size_t pos = path.find_last_of(WS("/\\"));
-    if (pos == std::string::npos) pos = 0; else pos++;
-    std::string api_name = astr(path.substr(pos).substr(0, path.substr(pos).find_first_of('.')));
-    bool isLuaLib = false;
-    void* handle;
-    if (loadedPlugins.find(path) != loadedPlugins.end()) handle = loadedPlugins[path];
-    else {
-        handle = SDL_LoadObject(astr(path).c_str());
-        if (handle == NULL) {
-            fprintf(stderr, "The plugin \"%s\" is not a valid plugin file.\n", api_name.c_str());
-            pluginError(L, api_name.c_str(), "Not a valid plugin");
-            return;
-        }
-        loadedPlugins[path] = handle;
-    }
-    if (api_name.substr(0, 4) == "lua_") {
-        api_name = api_name.substr(4);
-        isLuaLib = true;
-    } else {
-        const lua_CFunction info = (lua_CFunction)SDL_LoadFunction(handle, "plugin_info");
-        if (info == NULL) {
-            fprintf(stderr, "The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str());
-            pluginError(L, api_name.c_str(), "Missing plugin info");
-        } else {
-            lua_pushcfunction(L, info);
-            lua_pushstring(L, CRAFTOSPC_VERSION);
-            const int ok = lua_pcall(L, 1, 1, 0);
-            if (ok != 0) {
-                fprintf(stderr, "The plugin \"%s\" ran into an error while initializing, and will not be loaded: %s\n", api_name.c_str(), lua_tostring(L, -1));
-                pluginError(L, api_name.c_str(), lua_tostring(L, -1));
-                lua_pop(L, 1);
-                SDL_UnloadObject(handle);
-                return;
-            } else if (!lua_istable(L, -1)) {
-                fprintf(stderr, "The plugin \"%s\" returned invalid info (%s). Use at your own risk.\n", api_name.c_str(), lua_typename(L, lua_type(L, -1)));
-                pluginError(L, api_name.c_str(), "Invalid plugin info");
-            } else {
-                lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
-                lua_pushvalue(L, -2);
-                lua_setfield(L, -2, api_name.c_str());
-                lua_pop(L, 1);
-
-                lua_getfield(L, -1, "version");
-                if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) != PLUGIN_VERSION) {
-                    fprintf(stderr, "The plugin \"%s\" is built for an older version of CraftOS-PC (%td), and will not be loaded.\n", api_name.c_str(), lua_tointeger(L, -1));
-                    pluginError(L, api_name.c_str(), "Old plugin API");
-                    lua_pop(L, 1);
-                    SDL_UnloadObject(handle);
-                    return;
-                }
-                lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_getLibrary");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&getLibrary);
-                    lua_pushstring(L, "getLibrary");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_registerPeripheral");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&registerPeripheral);
-                    lua_pushstring(L, "registerPeripheral");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_addMount");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&addMount);
-                    lua_pushstring(L, "addMount");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_termQueueProvider");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&queueEvent);
-                    lua_pushstring(L, "termQueueProvider");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_startComputer");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&startComputer);
-                    lua_pushstring(L, "startComputer");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_queueTask");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&queueTask);
-                    lua_pushstring(L, "queueTask");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_getComputerById");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&getComputerById);
-                    lua_pushstring(L, "getComputerById");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "get_selectedRenderer");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushinteger(L, selectedRenderer);
-                    lua_pushstring(L, "selectedRenderer");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-            }
-            lua_pop(L, 1);
-        }
-    }
-    const lua_CFunction luaopen = (lua_CFunction)SDL_LoadFunction(handle, ("luaopen_" + api_name).c_str());
-    if (luaopen == NULL) {
-        fprintf(stderr, "Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); 
-        pluginError(L, api_name.c_str(), "Missing API opener");
-        SDL_UnloadObject(handle);
-        return;
-    }
-    lua_pushcfunction(L, luaopen);
-    lua_pushstring(L, api_name.c_str());
-    if (!isLuaLib) {
-        lua_pushstring(L, astr(getROMPath()).c_str());
-        lua_pushstring(L, astr(getBasePath()).c_str());
-        lua_call(L, 3, 1);
-    } else lua_call(L, 1, 1);
-    lua_setglobal(L, api_name.c_str());
-}
-
 char file_read_tmp[4096];
 
 const char * file_reader(lua_State *L, void * ud, size_t *size) {
@@ -422,23 +271,22 @@ void runComputer(Computer * self, path_t bios_name) {
 
         // Load any plugins available
         if (!config.vanilla) {
-#ifndef STANDALONE_ROM
-            lua_newtable(self->L);
-            lua_setfield(self->L, LUA_REGISTRYINDEX, "plugin_info");
-            struct_dirent *dir;
-            path_t plugin_path = getPlugInPath();
-            platform_DIR * d = platform_opendir(plugin_path.c_str());
-            struct_stat st;
-            if (d) {
-                for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
-                    if (platform_stat((plugin_path + WS("/") + path_t(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
-                    if (path_t(dir->d_name) == WS(".DS_Store") || path_t(dir->d_name) == WS("desktop.ini")) continue;
-                    Computer_loadPlugin(self, plugin_path + WS("/") + dir->d_name);
+            if (!globalPluginErrors.empty()) {
+                lua_getglobal(self->L, "_CCPC_PLUGIN_ERRORS");
+                if (lua_isnil(self->L, -1)) {
+                    lua_newtable(self->L);
+                    lua_pushvalue(self->L, -1);
+                    lua_setglobal(self->L, "_CCPC_PLUGIN_ERRORS");
                 }
-                platform_closedir(d);
+                for (const auto& err : globalPluginErrors) {
+                    path_t bname = err.first.substr(err.first.find_last_of(PATH_SEPC) + 1);
+                    lua_pushstring(self->L, astr(bname.substr(0, bname.find_first_of('.'))).c_str());
+                    lua_pushstring(self->L, err.second.c_str());
+                    lua_settable(self->L, -3);
+                }
+                lua_pop(self->L, 1);
             }
-#endif
-            for (const path_t& path : customPlugins) Computer_loadPlugin(self, path);
+            loadPlugins(self);
         }
 
         // Delete unwanted globals

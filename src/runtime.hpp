@@ -16,8 +16,6 @@
 #include <SDL2/SDL.h>
 #include "util.hpp"
 
-typedef std::string (*event_provider)(lua_State *L, void* data);
-
 extern ProtectedObject<std::vector<Computer*> > computers;
 extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
 extern bool exiting;
@@ -34,11 +32,13 @@ extern int getNextEvent(lua_State* L, std::string filter);
 extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
 extern void runComputer(Computer * self, path_t bios_name);
 extern bool Computer_getEvent(Computer * self, SDL_Event* e);
-extern void Computer_loadPlugin(Computer * self, path_t path);
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 extern void queueEvent(Computer *comp, event_provider p, void* data);
 extern bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool read_only);
 extern void mainLoop();
+extern std::unordered_map<path_t, std::string> initializePlugins();
+extern void loadPlugins(Computer * comp);
+extern void deinitializePlugins();
 
 #endif

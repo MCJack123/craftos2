@@ -32,7 +32,10 @@ extern "C" {
 #include "Terminal.hpp"
 
 /// This is the type for functions that return event information. This type is used by queueEvent.
-typedef std::string (*event_provider)(lua_State *L, void* data);
+typedef std::function<std::string(lua_State *, void*)> event_provider;
+
+/// This is the type for functions that are called for SDL event hooks.
+typedef std::function<std::string(lua_State *, Computer *, SDL_EventType, void*)> sdl_event_handler;
 
 /// Used to store information about the last mouse event.
 extern "C" struct mouse_event_data {

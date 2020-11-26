@@ -4,7 +4,7 @@
 // Generates an fs_standalone.cpp file that can be used for standalone builds
 const fs = require("fs");
 let out = fs.openSync("fs_standalone.cpp", "w")
-fs.writeSync(out, '#include "fs_standalone.hpp"\n\nFileEntry standaloneROM(')
+fs.writeSync(out, '#include <FileEntry.hpp>\n\nFileEntry standaloneROM(')
 let ioapi = `--- Emulates Lua's standard [io library][io].
 --
 -- [io]: https://www.lua.org/manual/5.1/manual.html#5.7

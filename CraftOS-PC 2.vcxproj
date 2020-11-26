@@ -359,6 +359,7 @@
     <ClInclude Include="api\Computer.hpp" />
     <ClInclude Include="api\configuration.hpp" />
     <ClInclude Include="api\CraftOS-PC.hpp" />
+    <ClInclude Include="api\FileEntry.hpp" />
     <ClInclude Include="api\lib.hpp" />
     <ClInclude Include="api\peripheral.hpp" />
     <ClInclude Include="api\Terminal.hpp" />
@@ -366,7 +367,7 @@
     <ClInclude Include="src\apis\handles\fs_handle.hpp" />
     <ClInclude Include="src\apis\handles\http_handle.hpp" />
     <ClCompile Include="src\apis\redstone.cpp" />
-    <ClInclude Include="src\fs_standalone.hpp" />
+    <ClInclude Include="src\FileEntry.hpp" />
     <ClInclude Include="src\gif.hpp" />
     <ClInclude Include="src\main.hpp" />
     <ClInclude Include="src\runtime.hpp" />
@@ -407,6 +408,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\gif.cpp" />
+    <ClCompile Include="src\plugin.cpp" />
     <ClCompile Include="src\util.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\runtime.cpp" />
