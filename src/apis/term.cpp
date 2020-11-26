@@ -349,13 +349,14 @@ static int term_getPixel(lua_State *L) {
 }
 
 static int term_drawPixels(lua_State *L) {
-    luaL_checktype(L, 1, LUA_TTABLE);
+    luaL_checktype(L, 3, LUA_TTABLE);
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> lock(term->locked);
     const int init_x = (int)luaL_checkinteger(L, 1), init_y = (int)luaL_checkinteger(L, 2);
     if (init_x < 0 || init_y < 0) luaL_error(L, "Invalid initial position");
-    for (unsigned y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < (unsigned)term->height * Terminal::fontHeight; y++) {
+    const unsigned width = (unsigned)luaL_optinteger(L, 4, 0), height = (unsigned)luaL_optinteger(L, 5, lua_objlen(L, 3));
+    for (unsigned y = 1; y <= height && init_y + y - 1 < (unsigned)term->height * Terminal::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3);
         if (lua_isstring(L, -1)) {
@@ -364,11 +365,13 @@ static int term_drawPixels(lua_State *L) {
             if (init_x + str_sz - 1 < (size_t)term->width * Terminal::fontWidth)
                 memcpy(&term->pixels[init_y + y - 1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
-            for (unsigned x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < (unsigned)term->width * Terminal::fontWidth; x++) {
+            for (unsigned x = 1; x <= (width ? width : lua_objlen(L, -1)) && init_x + x - 1 < (unsigned)term->width * Terminal::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
-                if (term->mode == 1) term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
-                else term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                if (lua_isnumber(L, -1)) {
+                    if (term->mode == 1) term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
+                    else term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                }
                 lua_pop(L, 1);
             }
         }
