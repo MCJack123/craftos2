@@ -14,10 +14,10 @@
 #include <algorithm>
 #include <codecvt>
 #include <locale>
+#include <map>
 #include <regex>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 
 /**
  * The FileEntry structure holds a virtual file or directory of files for use
@@ -42,11 +42,11 @@ struct FileEntry {
     bool isDir; // Whether the entry is a directory
     bool error = false; // Whether a failure occurred
     std::string data; // If this entry is a file, this contains the file data
-    std::unordered_map<std::string, FileEntry> dir; // If this entry is a directory, this contains the inner files & directories
+    std::map<std::string, FileEntry> dir; // If this entry is a directory, this contains the inner files & directories
     FileEntry(std::string d): isDir(false), data(d) {}  // File constructor
     FileEntry(const char * d): isDir(false), data(d) {} // File constructor
-    FileEntry(std::unordered_map<std::string, FileEntry> d): isDir(true), dir(d) {} // Directory constructor
-    FileEntry(std::initializer_list<std::unordered_map<std::string, FileEntry>::value_type > il): isDir(true), dir(il) {} // Directory constructor
+    FileEntry(std::map<std::string, FileEntry> d): isDir(true), dir(d) {} // Directory constructor
+    FileEntry(std::initializer_list<std::map<std::string, FileEntry>::value_type > il): isDir(true), dir(il) {} // Directory constructor
     FileEntry(const FileEntry &f) {isDir = f.isDir; if (isDir) dir = f.dir; else data = f.data;} // Copy constructor
     ~FileEntry() = default;
     FileEntry& operator=(const FileEntry& rhs) {isDir = rhs.isDir; if (isDir) dir = rhs.dir; else data = rhs.data; return *this;}

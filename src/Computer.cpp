@@ -18,7 +18,6 @@ extern "C" {
 #include <peripheral.hpp>
 #include <sys/stat.h>
 #include "apis.hpp"
-#include <FileEntry.hpp>
 #include "main.hpp"
 #include "peripheral/computer.hpp"
 #include "platform.hpp"
