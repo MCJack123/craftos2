@@ -27,6 +27,7 @@ extern "C" {
 #include <vector>
 #include <SDL2/SDL.h>
 #include "configuration.hpp"
+#include "FileEntry.hpp"
 #include "lib.hpp"
 #include "peripheral.hpp"
 #include "Terminal.hpp"
@@ -35,7 +36,7 @@ extern "C" {
 typedef std::function<std::string(lua_State *, void*)> event_provider;
 
 /// This is the type for functions that are called for SDL event hooks.
-typedef std::function<std::string(lua_State *, Computer *, SDL_EventType, void*)> sdl_event_handler;
+typedef std::function<std::string(lua_State *, Computer *, SDL_Event *, void*)> sdl_event_handler;
 
 /// Used to store information about the last mouse event.
 extern "C" struct mouse_event_data {
@@ -99,6 +100,7 @@ struct Computer {
     std::list<Computer*> referencers; // A list of computers that have attached this computer as a peripheral (used to notify attachers when this computer shuts down)
     int files_open = 0; // The number of files currently open
     bool mounter_initializing = false; // Set to true when the computer is initializing to allow mounting the ROM
+    std::unordered_map<unsigned, const FileEntry *> virtualMounts; // Maps virtual mount IDs to virtual filesystem references
 
     // The constructor is marked private to avoid having to implement it in this file.
     // It isn't necessary to construct a Computer directly; just use the startComputer function instead.

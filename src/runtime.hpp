@@ -36,6 +36,7 @@ extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 extern void queueEvent(Computer *comp, event_provider p, void* data);
 extern bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool read_only);
+extern bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path);
 extern void mainLoop();
 extern std::unordered_map<path_t, std::string> initializePlugins();
 extern void loadPlugins(Computer * comp);

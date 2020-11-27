@@ -19,8 +19,10 @@ extern "C" {
 #include <SDL2/SDL.h>
 #ifdef _WIN32
 #include <windows.h>
+#define COMP_DIR L"\\computer\\"
 #else
 #include <stdlib.h>
+#define COMP_DIR "/computer/"
 #endif
 #define libFunc(lib, name) getLibraryFunction(functions->getLibrary(lib), name)
 
@@ -52,87 +54,87 @@ static const PluginFunctions * functions;
  * SOFTWARE.
  */
 
-static FileEntry emuROM = {{"programs", {{"emu.lua", "local args = { ... }\
-\
-if ccemux then\
-    local function help()\
-        print(\"Usages:\")\
-        print(\"emu close - close this computer\")\
-        print(\"emu open [id] - open another computer\")\
-        print(\"emu data [id] - opens the data folder\")\
-        print(\"emu config - opens the config editor\")\
-        print(\"Run 'help emu' for additional information\")\
-    end\
-\
-    if #args == 0 then\
-        help()\
-    else\
-        if args[1] == \"close\" then\
-            ccemux.closeEmu()\
-        elseif args[1] == \"open\" then\
-            print(\"Opened computer ID \" .. ccemux.openEmu(tonumber(args[2])))\
-        elseif args[1] == \"data\" then\
-            local id = nil\
-            if args[2] ~= nil then\
-                id = tonumber(args[2])\
-                if id == nil then\
-                    printError(\"Expected a computer ID\")\
-                    return\
-                end\
-            end\
-            if ccemux.openDataDir(id) then\
-                print(\"Opened data folder\")\
-            else\
-                print(\"Unable to open data folder\")\
-            end\
-        elseif args[1] == \"config\" then\
-            local ok, err = ccemux.openConfig()\
-            if ok then\
-                print(\"Opened config editor\")\
-            else\
-                print(err)\
-            end\
-        else\
-            printError(\"Unrecognized subcommand: \" .. args[1])\
-            help()\
-        end\
-    end\
-else\
-    printError(\"CCEmuX API is disabled or unavailable.\")\
-end"}}}, {"help", {{"emu.txt", "USAGE\
-\
-* emu close\
-Closes the current emulated computer, without affecting the others. Can be called from within programs via ccemux.closeEmu().\
-\
-* emu open [id]\
-Opens a new emulated computer, with the given ID (if specified) or with the next ID. Can be called from within programs via ccemux.openEmu() or ccemux.openEmu(id)\
-\
-* emu data\
-This will open the CraftOS-PC data dir (where config files and computer save folders are stored) in your default file browser. Can be called from within programs via ccemux.openDataDir(). Note that it may fail on some Linux systems (i.e. if you don't have a DE installed)\
-\
-* emu config\
-Opens an interface to edit the CraftOS-PC configuration. Note that not all rendering backends support this."}}}, {"autorun", {{"emu.lua", "-- Setup completion functions\
-local function completeMultipleChoice(text, options, addSpaces)\
-    local tResults = {}\
-    for n = 1, #options do\
-        local sOption = options[n]\
-        if #sOption + (addSpaces and 1 or 0) > #text and sOption:sub(1, #text) == text then\
-            local sResult = sOption:sub(#text + 1)\
-            if addSpaces then\
-                table.insert(tResults, sResult .. \" \")\
-            else\
-                table.insert(tResults, sResult)\
-            end\
-        end\
-    end\
-    return tResults\
-end\
-\
-local commands = { \"close\", \"open\", \"data\", \"config\" }\
-shell.setCompletionFunction(\"rom/programs/emu.lua\", function(shell, index, text, previous)\
-    if index == 1 then\
-        return completeMultipleChoice(text, commands, true)\
-    end\
+static FileEntry emuROM = {{"programs", {{"emu.lua", "local args = { ... }\n\
+\n\
+if ccemux then\n\
+    local function help()\n\
+        print(\"Usages:\")\n\
+        print(\"emu close - close this computer\")\n\
+        print(\"emu open [id] - open another computer\")\n\
+        print(\"emu data [id] - opens the data folder\")\n\
+        print(\"emu config - opens the config editor\")\n\
+        print(\"Run 'help emu' for additional information\")\n\
+    end\n\
+\n\
+    if #args == 0 then\n\
+        help()\n\
+    else\n\
+        if args[1] == \"close\" then\n\
+            ccemux.closeEmu()\n\
+        elseif args[1] == \"open\" then\n\
+            print(\"Opened computer ID \" .. ccemux.openEmu(tonumber(args[2])))\n\
+        elseif args[1] == \"data\" then\n\
+            local id = nil\n\
+            if args[2] ~= nil then\n\
+                id = tonumber(args[2])\n\
+                if id == nil then\n\
+                    printError(\"Expected a computer ID\")\n\
+                    return\n\
+                end\n\
+            end\n\
+            if ccemux.openDataDir(id) then\n\
+                print(\"Opened data folder\")\n\
+            else\n\
+                print(\"Unable to open data folder\")\n\
+            end\n\
+        elseif args[1] == \"config\" then\n\
+            local ok, err = ccemux.openConfig()\n\
+            if ok then\n\
+                print(\"Opened config editor\")\n\
+            else\n\
+                print(err)\n\
+            end\n\
+        else\n\
+            printError(\"Unrecognized subcommand: \" .. args[1])\n\
+            help()\n\
+        end\n\
+    end\n\
+else\n\
+    printError(\"CCEmuX API is disabled or unavailable.\")\n\
+end"}}}, {"help", {{"emu.txt", "USAGE\n\
+\n\
+* emu close\n\
+Closes the current emulated computer, without affecting the others. Can be called from within programs via ccemux.closeEmu().\n\
+\n\
+* emu open [id]\n\
+Opens a new emulated computer, with the given ID (if specified) or with the next ID. Can be called from within programs via ccemux.openEmu() or ccemux.openEmu(id)\n\
+\n\
+* emu data\n\
+This will open the CraftOS-PC data dir (where config files and computer save folders are stored) in your default file browser. Can be called from within programs via ccemux.openDataDir(). Note that it may fail on some Linux systems (i.e. if you don't have a DE installed)\n\
+\n\
+* emu config\n\
+Opens an interface to edit the CraftOS-PC configuration. Note that not all rendering backends support this."}}}, {"autorun", {{"emu.lua", "-- Setup completion functions\n\
+local function completeMultipleChoice(text, options, addSpaces)\n\
+    local tResults = {}\n\
+    for n = 1, #options do\n\
+        local sOption = options[n]\n\
+        if #sOption + (addSpaces and 1 or 0) > #text and sOption:sub(1, #text) == text then\n\
+            local sResult = sOption:sub(#text + 1)\n\
+            if addSpaces then\n\
+                table.insert(tResults, sResult .. \" \")\n\
+            else\n\
+                table.insert(tResults, sResult)\n\
+            end\n\
+        end\n\
+    end\n\
+    return tResults\n\
+end\n\
+\n\
+local commands = { \"close\", \"open\", \"data\", \"config\" }\n\
+shell.setCompletionFunction(\"rom/programs/emu.lua\", function(shell, index, text, previous)\n\
+    if index == 1 then\n\
+        return completeMultipleChoice(text, commands, true)\n\
+    end\n\
 end)"}}}};
 
 static lua_CFunction getLibraryFunction(library_t * lib, const char * name) {
@@ -179,14 +181,15 @@ static int ccemux_closeEmu(lua_State *L) {
 
 static int ccemux_openDataDir(lua_State *L) {
     Computer *comp = get_comp(L);
+    const path_t p = luaL_optinteger(L, 1, comp->id) == comp->id ? comp->dataDir : functions->getBasePath() + COMP_DIR + to_path_t(lua_tointeger(L, 1));
 #ifdef WIN32
-    ShellExecuteW(NULL, L"explore", comp->dataDir.c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteW(NULL, L"explore", p.c_str(), NULL, NULL, SW_SHOW);
     lua_pushboolean(L, true);
 #elif defined(__APPLE__)
-    system(("open '" + comp->dataDir + "'").c_str());
+    system(("open '" + p + "'").c_str());
     lua_pushboolean(L, true);
 #elif defined(__linux__)
-    system(("xdg-open '" + comp->dataDir + "'").c_str());
+    system(("xdg-open '" + p + "'").c_str());
     lua_pushboolean(L, true);
 #else
     lua_pushboolean(L, false);
@@ -267,14 +270,14 @@ _declspec(dllexport)
 #endif
 int luaopen_ccemux(lua_State *L) {
     luaL_register(L, lua_tostring(L, 1), M);
-    if (functions->addVirtualMount != NULL) functions->addVirtualMount(get_comp(L), emuROM, "/rom");
+    functions->addVirtualMount(get_comp(L), emuROM, "/rom");
     return 1;
 }
 
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-PluginInfo plugin_init(const PluginFunctions * func, path_t path) {
+PluginInfo plugin_init(const PluginFunctions * func, const path_t& path) {
     functions = func;
     PluginInfo retval;
     retval.apiName = "ccemux";

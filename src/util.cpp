@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#include <regex>
 #include <sstream>
 #include <Computer.hpp>
 #include <dirent.h>
@@ -128,9 +129,7 @@ path_t fixpath_mkdir(Computer * comp, std::string path, bool md, std::string * m
     return fixpath(comp, path.c_str(), false, true, mountPath);
 }
 
-#ifdef STANDALONE_ROM
 static bool nothrow(std::function<void()> f) { try { f(); return true; } catch (...) { return false; } }
-#endif
 
 path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
     std::vector<std::string> elems = split(path, '/');
@@ -169,9 +168,7 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
                 sstmp << p;
                 for (const std::string& s : pathc) sstmp << PATH_SEP << wstr(s);
                 if (
-#ifdef STANDALONE_ROM
-                (p == WS("rom:") && nothrow([&sstmp]() {standaloneROM.path(sstmp.str()); })) || (p == WS("debug:") && nothrow([&sstmp]() {standaloneDebug.path(sstmp.str()); })) ||
-#endif
+                    (std::regex_match(p, pathregex(WS("\\d+:"))) && nothrow([&sstmp, comp, p]() {comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str()); })) ||
                     (platform_stat(sstmp.str().c_str(), &st) == 0)) {
                     if (getAllResults && found) ss << "\n";
                     ss << sstmp.str();
@@ -190,10 +187,7 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
                 sstmp << p;
                 for (const std::string& s : pathc) sstmp << PATH_SEP << wstr(s);
                 if (
-#ifdef STANDALONE_ROM
-                    (p == WS("rom:") && (nothrow([&sstmp, back]() {standaloneROM.path(sstmp.str() + WS("/") + wstr(back)); }) || (nothrow([&sstmp]() {standaloneROM.path(sstmp.str()); }) && standaloneROM.path(sstmp.str()).isDir))) ||
-                    (p == WS("debug:") && (nothrow([&sstmp, back]() {standaloneDebug.path(sstmp.str() + WS("/") + wstr(back)); }) || (nothrow([&sstmp]() {standaloneDebug.path(sstmp.str()); }) && standaloneDebug.path(sstmp.str()).isDir))) ||
-#endif
+                    (std::regex_match(p, pathregex(WS("\\d+:"))) && (nothrow([&sstmp, back, comp, p]() {comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str() + WS("/") + wstr(back)); }) || (nothrow([&sstmp, comp, p]() {comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str()); }) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str()).isDir))) ||
                     (platform_stat((sstmp.str() + PATH_SEP + wstr(back)).c_str(), &st) == 0) || (platform_stat(sstmp.str().c_str(), &st) == 0 && S_ISDIR(st.st_mode))
                     ) {
                     if (getAllResults && found) ss << "\n";

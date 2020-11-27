@@ -18,8 +18,8 @@
 #include <Computer.hpp>
 #include <configuration.hpp>
 #include <dirent.h>
-#include <sys/stat.h>
 #include <FileEntry.hpp>
+#include <sys/stat.h>
 #include "handles/fs_handle.hpp"
 #include "../platform.hpp"
 #include "../runtime.hpp"
@@ -61,30 +61,26 @@ static int fs_list(lua_State *L) {
     bool gotdir = false;
     std::set<std::string> entries;
     for (const path_t& path : possible_paths) {
-#ifdef STANDALONE_ROM
-        if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
+        if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
             try {
-                FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
+                const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
                 gotdir = true;
                 if (d.isDir) for (const auto& p : d.dir) entries.insert(p.first);
                 else gotdir = false;
             } catch (...) {continue;}
         } else {
-#endif
-        platform_DIR * d = platform_opendir(path.c_str());
-        if (d) {
-            gotdir = true;
-            while ((dir = platform_readdir(d)) != NULL) {
-                bool found = false;
-                for (const path_t& ign : ignored_files) 
-                    if (pathcmp(dir->d_name, ign.c_str()) == 0) found = true;
-                if (!found) entries.insert(astr(dir->d_name));
+            platform_DIR * d = platform_opendir(path.c_str());
+            if (d) {
+                gotdir = true;
+                while ((dir = platform_readdir(d)) != NULL) {
+                    bool found = false;
+                    for (const path_t& ign : ignored_files) 
+                        if (pathcmp(dir->d_name, ign.c_str()) == 0) found = true;
+                    if (!found) entries.insert(astr(dir->d_name));
+                }
+                platform_closedir(d);
             }
-            platform_closedir(d);
         }
-#ifdef STANDALONE_ROM
-        }
-#endif
     }
     if (!gotdir) err(L, 1, "Not a directory");
     std::set<std::string> mounts = getMounts(get_comp(L), lua_tostring(L, 1));
@@ -102,19 +98,17 @@ static int fs_list(lua_State *L) {
 
 static int fs_exists(lua_State *L) {
     const path_t path = fixpath(get_comp(L), luaL_checkstring(L, 1), true);
-#ifdef STANDALONE_ROM
-    if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
+    if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
         bool found = true;
-        try {(path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);} catch (...) {found = false;}
+        try {get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));} catch (...) {found = false;}
         lua_pushboolean(L, found);
+#ifdef STANDALONE_ROM
     } else if (path == WS(":bios.lua")) {
         lua_pushboolean(L, true);
+#endif
     } else {
-#endif
-    lua_pushboolean(L, !path.empty());
-#ifdef STANDALONE_ROM
+        lua_pushboolean(L, !path.empty());
     }
-#endif
     return 1;
 }
 
@@ -124,17 +118,13 @@ static int fs_isDir(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-#ifdef STANDALONE_ROM
-    if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
-        try {lua_pushboolean(L, (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path).isDir);} 
+    if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
+        try {lua_pushboolean(L, get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1)).isDir);} 
         catch (...) {lua_pushboolean(L, false);}
     } else {
-#endif
-    struct_stat st;
-    lua_pushboolean(L, platform_stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
-#ifdef STANDALONE_ROM
+        struct_stat st;
+        lua_pushboolean(L, platform_stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
     }
-#endif
     return 1;
 }
 
@@ -179,23 +169,21 @@ static int fs_getDrive(lua_State *L) {
 static int fs_getSize(lua_State *L) {
     const path_t path = fixpath(get_comp(L), luaL_checkstring(L, 1), true);
     if (path.empty()) err(L, 1, "No such file");
-#ifdef STANDALONE_ROM
-    if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
+    if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
         try {
-            FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
+            const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
             if (d.isDir) err(L, 1, "Is a directory");
             lua_pushinteger(L, d.data.size());
         } catch (...) {err(L, 1, "No such file");}
+#ifdef STANDALONE_ROM
     } else if (path == WS(":bios.lua")) {
         lua_pushinteger(L, standaloneBIOS.size());
+#endif
     } else {
-#endif
-    struct_stat st;
-    if (platform_stat(path.c_str(), &st) != 0) err(L, 1, "No such file"); // redundant since v2.3?
-    lua_pushinteger(L, S_ISDIR(st.st_mode) ? 0 : st.st_size);
-#ifdef STANDALONE_ROM
+        struct_stat st;
+        if (platform_stat(path.c_str(), &st) != 0) err(L, 1, "No such file"); // redundant since v2.3?
+        lua_pushinteger(L, S_ISDIR(st.st_mode) ? 0 : st.st_size);
     }
-#endif
     return 1;
 }
 
@@ -297,10 +285,9 @@ static int fs_copy(lua_State *L) {
     const path_t toPath = fixpath_mkdir(get_comp(L), lua_tostring(L, 2));
     if (fromPath.empty()) err(L, 1, "No such file");
     if (toPath.empty()) err(L, 2, "Invalid path");
-#ifdef STANDALONE_ROM
-    if (fromPath.substr(0, 4) == WS("rom:") || fromPath.substr(0, 6) == WS("debug:")) {
+    if (std::regex_search(fromPath, pathregex(WS("^\\d+:")))) {
         try {
-            FileEntry &d = (fromPath.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(fromPath);
+            const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul(fromPath.substr(0, fromPath.find_first_of(':')))]->path(fromPath.substr(fromPath.find_first_of(':') + 1));
             if (d.isDir) err(L, 1, "Is a directory");
             FILE * tofp = platform_fopen(toPath.c_str(), "w");
             if (tofp == NULL) err(L, 2, "Cannot write file");
@@ -308,35 +295,32 @@ static int fs_copy(lua_State *L) {
             fclose(tofp);
         } catch (...) {err(L, 1, "No such file");}
     } else {
-#endif
-    /*if (isFSCaseSensitive == -1) {
-        struct_stat st;
-        char* name = tmpnam(NULL);
-        fclose(platform_fopen(name, "w"));
-        std::transform(name, name + strlen(name), name, [](char c)->char{return isupper(c) ? tolower(c) : toupper(c);});
-        isFSCaseSensitive = stat(name, &st);
-        remove(name);
-    }*/
-    std::vector<std::string> fromElems = split(lua_tostring(L, 1), '/'), toElems = split(lua_tostring(L, 2), '/');
-    while (!fromElems.empty() && fromElems.front().empty()) fromElems.erase(fromElems.begin());
-    while (!toElems.empty() && toElems.front().empty()) toElems.erase(toElems.begin());
-    while (!fromElems.empty() && fromElems.back().empty()) fromElems.pop_back();
-    while (!toElems.empty() && toElems.back().empty()) toElems.pop_back();
-    bool equal = true;
-    for (unsigned i = 0; i < toElems.size() && equal; i++) {
-        if (i >= fromElems.size()) err(L, 1, "Can't copy a directory inside itself");
-        std::string lstrfrom = fromElems[i], lstrto = toElems[i];
-        std::transform(lstrfrom.begin(), lstrfrom.end(), lstrfrom.begin(), [](unsigned char c) {return std::tolower(c);});
-        std::transform(lstrto.begin(), lstrto.end(), lstrto.begin(), [](unsigned char c) {return std::tolower(c);});
-        if (lstrfrom != lstrto) equal = false;
-        else if ((i == fromElems.size() - 1 && i == toElems.size() - 1)) err(L, 1, "Can't copy a directory inside itself");
+        /*if (isFSCaseSensitive == -1) {
+            struct_stat st;
+            char* name = tmpnam(NULL);
+            fclose(platform_fopen(name, "w"));
+            std::transform(name, name + strlen(name), name, [](char c)->char{return isupper(c) ? tolower(c) : toupper(c);});
+            isFSCaseSensitive = stat(name, &st);
+            remove(name);
+        }*/
+        std::vector<std::string> fromElems = split(lua_tostring(L, 1), '/'), toElems = split(lua_tostring(L, 2), '/');
+        while (!fromElems.empty() && fromElems.front().empty()) fromElems.erase(fromElems.begin());
+        while (!toElems.empty() && toElems.front().empty()) toElems.erase(toElems.begin());
+        while (!fromElems.empty() && fromElems.back().empty()) fromElems.pop_back();
+        while (!toElems.empty() && toElems.back().empty()) toElems.pop_back();
+        bool equal = true;
+        for (unsigned i = 0; i < toElems.size() && equal; i++) {
+            if (i >= fromElems.size()) err(L, 1, "Can't copy a directory inside itself");
+            std::string lstrfrom = fromElems[i], lstrto = toElems[i];
+            std::transform(lstrfrom.begin(), lstrfrom.end(), lstrfrom.begin(), [](unsigned char c) {return std::tolower(c);});
+            std::transform(lstrto.begin(), lstrto.end(), lstrto.begin(), [](unsigned char c) {return std::tolower(c);});
+            if (lstrfrom != lstrto) equal = false;
+            else if ((i == fromElems.size() - 1 && i == toElems.size() - 1)) err(L, 1, "Can't copy a directory inside itself");
+        }
+        if (equal) err(L, 1, "Can't copy a directory inside itself");
+        const auto retval = recursiveCopy(fromPath, toPath);
+        if (retval.first != 0) err(L, retval.first, retval.second.c_str());
     }
-    if (equal) err(L, 1, "Can't copy a directory inside itself");
-    const auto retval = recursiveCopy(fromPath, toPath);
-    if (retval.first != 0) err(L, retval.first, retval.second.c_str());
-#ifdef STANDALONE_ROM
-    }
-#endif
     return 0;
 }
 
@@ -372,14 +356,15 @@ static int fs_open(lua_State *L) {
             return 2;
         }
     }
-#ifdef STANDALONE_ROM
-    if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:") || path == WS(":bios.lua")) {
+    if (std::regex_search(path, pathregex(WS("^\\d+:"))) || path == WS(":bios.lua")) {
         std::stringstream * fp;
+#ifdef STANDALONE_ROM
         if (path == WS(":bios.lua")) {
             fp = new std::stringstream(standaloneBIOS);
         } else {
+#endif
             try {
-                FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
+                const FileEntry &d = computer->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
                 if (d.isDir) {
                     lua_pushnil(L);
                     if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
@@ -392,7 +377,9 @@ static int fs_open(lua_State *L) {
                 lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
                 return 2;
             }
+#ifdef STANDALONE_ROM
         }
+#endif
         if (strcmp(mode, "r") == 0) {
             lua_newtable(L);
             lua_pushstring(L, "close");
@@ -459,112 +446,109 @@ static int fs_open(lua_State *L) {
             return 2; 
         }
     } else {
-#endif
-    struct_stat st;
-    if (platform_stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { 
-        lua_pushnil(L);
-        if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
-        else lua_pushfstring(L, "/%s: Cannot write to directory", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
-        return 2; 
-    }
-    if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0 || strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
-        if (fixpath_ro(computer, lua_tostring(L, 1))) {
+        struct_stat st;
+        if (platform_stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { 
             lua_pushnil(L);
-            lua_pushfstring(L, "/%s: Access denied", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
+            if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
+            else lua_pushfstring(L, "/%s: Cannot write to directory", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
             return 2; 
         }
-#ifdef WIN32
-        createDirectory(path.substr(0, path.find_last_of('\\')));
-#else
-        createDirectory(path.substr(0, path.find_last_of('/')));
-#endif
+        if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0 || strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
+            if (fixpath_ro(computer, lua_tostring(L, 1))) {
+                lua_pushnil(L);
+                lua_pushfstring(L, "/%s: Access denied", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
+                return 2; 
+            }
+    #ifdef WIN32
+            createDirectory(path.substr(0, path.find_last_of('\\')));
+    #else
+            createDirectory(path.substr(0, path.find_last_of('/')));
+    #endif
+        }
+        FILE * fp = platform_fopen(path.c_str(), mode);
+        if (fp == NULL) { 
+            lua_pushnil(L);
+            lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
+            return 2; 
+        }
+        lua_newtable(L);
+        lua_pushstring(L, "close");
+        lua_pushlightuserdata(L, fp);
+        lua_pushcclosure(L, fs_handle_close, 1);
+        lua_settable(L, -3);
+        if (strcmp(mode, "r") == 0) {
+            lua_pushstring(L, "readAll");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_readAll, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "readLine");
+            lua_pushlightuserdata(L, fp);
+            lua_pushboolean(L, false);
+            lua_pushcclosure(L, fs_handle_readLine, 2);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "read");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_readChar, 1);
+            lua_settable(L, -3);
+        } else if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) {
+            lua_pushstring(L, "write");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_writeString, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "writeLine");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_writeLine, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "flush");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_flush, 1);
+            lua_settable(L, -3);
+        } else if (strcmp(mode, "rb") == 0) {
+            lua_pushstring(L, "read");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_readByte, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "readAll");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_readAllByte, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "readLine");
+            lua_pushlightuserdata(L, fp);
+            lua_pushboolean(L, true);
+            lua_pushcclosure(L, fs_handle_readLine, 2);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "seek");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_seek, 1);
+            lua_settable(L, -3);
+        } else if (strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
+            lua_pushstring(L, "write");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_writeByte, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "flush");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_flush, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "seek");
+            lua_pushlightuserdata(L, fp);
+            lua_pushcclosure(L, fs_handle_seek, 1);
+            lua_settable(L, -3);
+        } else {
+            lua_remove(L, -1);
+            fclose(fp);
+            err(L, 2, "Invalid mode");
+        }
     }
-    FILE * fp = platform_fopen(path.c_str(), mode);
-    if (fp == NULL) { 
-        lua_pushnil(L);
-        lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
-        return 2; 
-    }
-    lua_newtable(L);
-    lua_pushstring(L, "close");
-    lua_pushlightuserdata(L, fp);
-    lua_pushcclosure(L, fs_handle_close, 1);
-    lua_settable(L, -3);
-    if (strcmp(mode, "r") == 0) {
-        lua_pushstring(L, "readAll");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_readAll, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "readLine");
-        lua_pushlightuserdata(L, fp);
-        lua_pushboolean(L, false);
-        lua_pushcclosure(L, fs_handle_readLine, 2);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "read");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_readChar, 1);
-        lua_settable(L, -3);
-    } else if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) {
-        lua_pushstring(L, "write");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_writeString, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "writeLine");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_writeLine, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "flush");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_flush, 1);
-        lua_settable(L, -3);
-    } else if (strcmp(mode, "rb") == 0) {
-        lua_pushstring(L, "read");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_readByte, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "readAll");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_readAllByte, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "readLine");
-        lua_pushlightuserdata(L, fp);
-        lua_pushboolean(L, true);
-        lua_pushcclosure(L, fs_handle_readLine, 2);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "seek");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_seek, 1);
-        lua_settable(L, -3);
-    } else if (strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
-        lua_pushstring(L, "write");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_writeByte, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "flush");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_flush, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "seek");
-        lua_pushlightuserdata(L, fp);
-        lua_pushcclosure(L, fs_handle_seek, 1);
-        lua_settable(L, -3);
-    } else {
-        lua_remove(L, -1);
-        fclose(fp);
-        err(L, 2, "Invalid mode");
-    }
-#ifdef STANDALONE_ROM
-    }
-#endif
     computer->files_open++;
     return 1;
 }
@@ -591,28 +575,24 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
         if (paths.empty()) continue;
         std::vector<path_t> possible_paths = split(paths, '\n');
         for (const path_t& path : possible_paths) {
-#ifdef STANDALONE_ROM
-            if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
+            if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
                 try {
-                    FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
+                    const FileEntry &d = comp->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
                     if (d.isDir) for (auto p : d.dir) if (std::regex_match(p.first, std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(opt + (opt == "" ? "" : "/") + p.first);
                 } catch (...) {continue;}
             } else {
-#endif
-            platform_DIR * d = platform_opendir(path.c_str());
-            if (d) {
-                for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
-                    int found = 0;
-                    for (const path_t& ign : ignored_files)
-                        if (pathcmp(dir->d_name, ign.c_str()) == 0) { i--; found = 1; }
-                    if (found) continue;
-                    if (std::regex_match(std::string(astr(dir->d_name)), std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + std::string(astr(dir->d_name)));
+                platform_DIR * d = platform_opendir(path.c_str());
+                if (d) {
+                    for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
+                        int found = 0;
+                        for (const path_t& ign : ignored_files)
+                            if (pathcmp(dir->d_name, ign.c_str()) == 0) { i--; found = 1; }
+                        if (found) continue;
+                        if (std::regex_match(std::string(astr(dir->d_name)), std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + std::string(astr(dir->d_name)));
+                    }
+                    platform_closedir(d);
                 }
-                platform_closedir(d);
             }
-#ifdef STANDALONE_ROM
-            }
-#endif
         }
         for (const std::string& value : getMounts(comp, opt.c_str())) 
             if (*pathc == "*" || value == *pathc) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + value);
@@ -684,10 +664,9 @@ static int fs_getDir(lua_State *L) {
 static int fs_attributes(lua_State *L) {
     const path_t path = fixpath(get_comp(L), luaL_checkstring(L, 1), true);
     if (path.empty()) err(L, 1, "No such file");
-#ifdef STANDALONE_ROM
-    if (path.substr(0, 4) == WS("rom:") || path.substr(0, 6) == WS("debug:")) {
+    if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
         try {
-            FileEntry &d = (path.substr(0, 4) == WS("rom:") ? standaloneROM : standaloneDebug).path(path);
+            const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
             lua_newtable(L);
             lua_pushinteger(L, 0);
             lua_setfield(L, -2, "access");
@@ -701,28 +680,25 @@ static int fs_attributes(lua_State *L) {
             lua_setfield(L, -2, "isDir");
         } catch (...) {err(L, 1, "No such file");}
     } else {
-#endif
-    struct_stat st;
-    if (platform_stat(path.c_str(), &st) != 0) {
-        lua_pushnil(L);
-        return 1;
+        struct_stat st;
+        if (platform_stat(path.c_str(), &st) != 0) {
+            lua_pushnil(L);
+            return 1;
+        }
+        lua_newtable(L);
+        lua_pushinteger(L, st_time_ms(st.st_a));
+        lua_setfield(L, -2, "access");
+        lua_pushinteger(L, st_time_ms(st.st_m));
+        lua_setfield(L, -2, "modification");
+        lua_pushinteger(L, st_time_ms(st.st_m));
+        lua_setfield(L, -2, "modified");
+        lua_pushinteger(L, st_time_ms(st.st_c));
+        lua_setfield(L, -2, "created");
+        lua_pushinteger(L, S_ISDIR(st.st_mode) ? 0 : st.st_size);
+        lua_setfield(L, -2, "size");
+        lua_pushboolean(L, S_ISDIR(st.st_mode));
+        lua_setfield(L, -2, "isDir");
     }
-    lua_newtable(L);
-    lua_pushinteger(L, st_time_ms(st.st_a));
-    lua_setfield(L, -2, "access");
-    lua_pushinteger(L, st_time_ms(st.st_m));
-    lua_setfield(L, -2, "modification");
-    lua_pushinteger(L, st_time_ms(st.st_m));
-    lua_setfield(L, -2, "modified");
-    lua_pushinteger(L, st_time_ms(st.st_c));
-    lua_setfield(L, -2, "created");
-    lua_pushinteger(L, S_ISDIR(st.st_mode) ? 0 : st.st_size);
-    lua_setfield(L, -2, "size");
-    lua_pushboolean(L, S_ISDIR(st.st_mode));
-    lua_setfield(L, -2, "isDir");
-#ifdef STANDALONE_ROM
-    }
-#endif
     return 1;
 }
 

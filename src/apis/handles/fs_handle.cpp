@@ -164,7 +164,7 @@ int fs_handle_istream_readLine(lua_State *L) {
     std::string retval;
     std::getline(*fp, retval);
     if (retval.empty()) {
-        lua_pushnil(L);
+        lua_pushstring(L, "");
         return 1;
     }
     size_t len = retval.length() - (retval[retval.length()-1] == '\n' && !lua_toboolean(L, 1));
@@ -324,7 +324,7 @@ int fs_handle_istream_readAllByte(lua_State *L) {
     size_t size = 0;
     char * str = (char*)malloc(512);
     if (str == NULL) return luaL_error(L, "failed to allocate memory");
-    while (fp->eof()) {
+    while (!fp->eof()) {
         size += fp->readsome(&str[size], 512);
         if (size % 512 != 0) break;
         char * strn = (char*)realloc(str, size + 512);

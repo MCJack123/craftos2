@@ -224,26 +224,14 @@ int getNextEvent(lua_State *L, std::string filter) {
 }
 
 bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool read_only) {
-    struct_stat sb;
-    if (
-#ifdef STANDALONE_ROM
-    (real_path != WS("rom:") && real_path != WS("debug:")) &&
-#endif
-        (platform_stat(real_path.c_str(), &sb) != 0 || !S_ISDIR(sb.st_mode))
-        ) return false;
+    struct_stat st;
+    if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     std::vector<std::string> elems = split(comp_path, '/');
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
-        if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); } else if (s != "." && !s.empty()) pathc.push_back(s);
+        if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
+        else if (s != "." && !s.empty()) pathc.push_back(s);
     }
-    if (!pathc.empty() && pathc.front() == "rom" && !comp->mounter_initializing && config.romReadOnly) return false;
-    struct_stat st;
-    if (
-#ifdef STANDALONE_ROM
-        !(comp->mounter_initializing && (real_path == WS("rom:") || real_path == WS("debug:"))) && 
-#endif
-        (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0)
-        ) return false;
     int selected = 1;
     if (!comp->mounter_initializing && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
         SDL_MessageBoxData data;
@@ -267,6 +255,20 @@ bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool rea
         delete message;
     }
     if (!selected) return false;
-    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), path_t(real_path), read_only));
+    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), real_path, read_only));
+    return true;
+}
+
+bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path) {
+    std::vector<std::string> elems = split(comp_path, '/');
+    std::list<std::string> pathc;
+    for (const std::string& s : elems) {
+        if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
+        else if (s != "." && !s.empty()) pathc.push_back(s);
+    }
+    unsigned idx;
+    for (idx = 0; comp->virtualMounts.find(idx) != comp->virtualMounts.end() && idx < UINT_MAX; idx++) {}
+    comp->virtualMounts[idx] = &vfs;
+    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), to_path_t(idx) + WS(":"), true));
     return true;
 }

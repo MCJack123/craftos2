@@ -79,7 +79,8 @@ static int mounter_list(lua_State *L) {
             lua_newtable(L); // table, entries
         }
         lua_pushinteger(L, lua_objlen(L, -1) + 1); // table, entries, index
-        lua_pushstring(L, astr(std::get<1>(m)).c_str()); // table, entries, index, value
+        if (std::regex_match(std::get<1>(m), pathregex(WS("\\d+:")))) lua_pushfstring(L, "(virtual mount:%s)", std::get<1>(m).substr(0, std::get<1>(m).size()-1).c_str());
+        else lua_pushstring(L, astr(std::get<1>(m)).c_str()); // table, entries, index, value
         lua_settable(L, -3); // table, entries
         lua_pushstring(L, ss.str().c_str()); // table, entries, key
         lua_pushvalue(L, -2); // table, entries, key, entries
@@ -110,30 +111,32 @@ static int mounter_isReadOnly(lua_State *L) {
     return 0; // redundant
 }
 
-extern "C" FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
-    if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0'))) 
-        luaL_error(L, "Unsupported mode");
-    if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
-    struct_stat st;
-    const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
-    if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename)) 
-        { errno = EACCES; return NULL; }
-    if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
-    FILE* retval;
-    if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
-    else if (mode[1] == '+') {
-        std::string mstr = mode;
-        mstr.erase(mstr.begin() + 1);
-        retval = platform_fopen(newpath.c_str(), mstr.c_str());
-    } else retval = platform_fopen(newpath.c_str(), mode);
-    if (retval != NULL) get_comp(L)->files_open++;
-    return retval;
-}
+extern "C" {
+    FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
+        if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0'))) 
+            luaL_error(L, "Unsupported mode");
+        if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
+        struct_stat st;
+        const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
+        if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename)) 
+            { errno = EACCES; return NULL; }
+        if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
+        FILE* retval;
+        if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
+        else if (mode[1] == '+') {
+            std::string mstr = mode;
+            mstr.erase(mstr.begin() + 1);
+            retval = platform_fopen(newpath.c_str(), mstr.c_str());
+        } else retval = platform_fopen(newpath.c_str(), mode);
+        if (retval != NULL) get_comp(L)->files_open++;
+        return retval;
+    }
 
-extern "C" int mounter_fclose(lua_State *L, FILE * stream) {
-    const int retval = fclose(stream);
-    if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
-    return retval;
+    int mounter_fclose(lua_State *L, FILE * stream) {
+        const int retval = fclose(stream);
+        if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
+        return retval;
+    }
 }
 
 static luaL_Reg mounter_reg[] = {

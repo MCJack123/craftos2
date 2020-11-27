@@ -31,8 +31,10 @@ struct Computer;
 /// this should not have a negative impact on ABI stability.
 #ifdef _WIN32
 typedef std::wstring path_t;
+#define to_path_t std::to_wstring
 #else
 typedef std::string path_t;
+#define to_path_t std::to_string
 #endif
 
 // The library_t structure is used to hold information about an API.

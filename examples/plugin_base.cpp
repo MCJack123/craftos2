@@ -31,7 +31,7 @@ int luaopen_myplugin(lua_State *L) {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-PluginInfo plugin_init(PluginFunctions * func, path_t path) {
+PluginInfo plugin_init(PluginFunctions * func, const path_t& path) {
     PluginInfo info;
     info.apiName = "myplugin"; // replace "myplugin" with the API name
     // configure any other information, or save the functions here...

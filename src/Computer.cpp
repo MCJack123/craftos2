@@ -87,8 +87,8 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
 #ifdef STANDALONE_ROM
-    addMount(this, WS("rom:"), "rom", true);
-    if (debug) addMount(this, WS("debug:"), "debug", true);
+    addVirtualMount(this, standaloneROM, "rom");
+    if (debug) addVirtualMount(this, standaloneDebug, "debug");
 #else
 #ifdef _WIN32
     if (!addMount(this, getROMPath() + WS("\\rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else delete term; throw std::runtime_error("Could not mount ROM"); }

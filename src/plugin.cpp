@@ -11,10 +11,16 @@
 #include <unordered_map>
 #include <CraftOS-PC.hpp>
 #include <dirent.h>
+#include <sys/stat.h>
 #include "apis.hpp"
 #include "platform.hpp"
 #include "runtime.hpp"
 #include "util.hpp"
+#ifdef _WIN32
+#define PATH_SEP L"\\"
+#else
+#define PATH_SEP "/"
+#endif
 
 static std::unordered_map<path_t, std::pair<void*, PluginInfo> > loadedPlugins;
 
@@ -47,7 +53,7 @@ static PluginFunctions function_map = {
     &registerPeripheral,
     NULL, // todo
     &addMount,
-    NULL, // todo
+    &addVirtualMount,
     &startComputer,
     &queueEvent,
     &queueTask
@@ -56,48 +62,48 @@ static PluginFunctions function_map = {
 std::unordered_map<path_t, std::string> initializePlugins() {
     std::unordered_map<path_t, std::string> failures;
 #ifndef STANDALONE_ROM
-    struct_dirent *dir;
     const path_t plugin_path = getPlugInPath();
     platform_DIR * d = platform_opendir(plugin_path.c_str());
     struct_stat st;
     if (d) {
+        struct_dirent *dir;
         for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
-            if (platform_stat((plugin_path + WS("/") + path_t(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
+            if (platform_stat((plugin_path + PATH_SEP + path_t(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
             if (path_t(dir->d_name) == WS(".DS_Store") || path_t(dir->d_name) == WS("desktop.ini")) continue;
-            path_t path = plugin_path + WS("/") + dir->d_name;
+            path_t path = plugin_path + PATH_SEP + dir->d_name;
             void* handle = SDL_LoadObject(astr(path).c_str());
             if (handle == NULL) {
                 failures[path] = "File could not be loaded";
-                printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(plugin_path + WS("/") + dir->d_name).c_str());
+                printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str());
                 continue;
             }
-            const auto plugin_init = (PluginInfo(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_init");
+            const auto plugin_init = (PluginInfo(*)(const PluginFunctions*, const path_t&))SDL_LoadFunction(handle, "plugin_init");
             if (plugin_init != NULL) {
                 PluginInfo info;
                 try {
                     info = plugin_init(const_cast<const PluginFunctions*>(&function_map), path);
                 } catch (std::exception &e) {
                     failures[path] = e.what();
-                    printf("Failed to load plugin at %s: %s\n", astr(plugin_path + WS("/") + dir->d_name).c_str(), e.what());
+                    printf("Failed to load plugin at %s: %s\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str(), e.what());
                     SDL_UnloadObject(handle);
                     continue;
                 }
                 if (!info.failureReason.empty()) {
                     failures[path] = info.failureReason;
-                    printf("Failed to load plugin at %s: %s\n", astr(plugin_path + WS("/") + dir->d_name).c_str(), info.failureReason.c_str());
+                    printf("Failed to load plugin at %s: %s\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str(), info.failureReason.c_str());
                     SDL_UnloadObject(handle);
                     continue;
                 }
                 if (info.abi_version != PLUGIN_VERSION || info.minimum_structure_version > function_map.structure_version) {
                     failures[path] = "CraftOS-PC version too old";
-                    printf("Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", astr(plugin_path + WS("/") + dir->d_name).c_str());
+                    printf("Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str());
                     SDL_UnloadObject(handle);
                     continue;
                 }
                 loadedPlugins[path] = std::make_pair(handle, info);
             } else if (SDL_LoadFunction(handle, "plugin_info") != NULL) {
                 failures[path] = "Plugin version too old";
-                printf("Failed to load plugin at %s: This plugin needs to be updated for newer versions of CraftOS-PC\n", astr(plugin_path + WS("/") + dir->d_name).c_str());
+                printf("Failed to load plugin at %s: This plugin needs to be updated for newer versions of CraftOS-PC\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str());
                 SDL_UnloadObject(handle);
                 continue;
             } else loadedPlugins[path] = std::make_pair(handle, PluginInfo());
@@ -109,7 +115,7 @@ std::unordered_map<path_t, std::string> initializePlugins() {
         void* handle = SDL_LoadObject(astr(path).c_str());
         if (handle == NULL) {
             failures[path] = "File could not be loaded";
-            printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(plugin_path + WS("/") + dir->d_name).c_str());
+            printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(path).c_str());
             continue;
         }
         const auto plugin_init = (PluginInfo(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_init");
@@ -119,19 +125,19 @@ std::unordered_map<path_t, std::string> initializePlugins() {
                 info = plugin_init(const_cast<const PluginFunctions*>(&function_map), path);
             } catch (std::exception &e) {
                 failures[path] = e.what();
-                printf("Failed to load plugin at %s: %s\n", astr(plugin_path + WS("/") + dir->d_name).c_str(), e.what());
+                printf("Failed to load plugin at %s: %s\n", astr(path).c_str(), e.what());
                 SDL_UnloadObject(handle);
                 continue;
             }
             if (!info.failureReason.empty()) {
                 failures[path] = info.failureReason;
-                printf("Failed to load plugin at %s: %s\n", astr(plugin_path + WS("/") + dir->d_name).c_str(), info.failureReason.c_str());
+                printf("Failed to load plugin at %s: %s\n", astr(path).c_str(), info.failureReason.c_str());
                 SDL_UnloadObject(handle);
                 continue;
             }
             if (info.abi_version != PLUGIN_VERSION || info.minimum_structure_version > function_map.structure_version) {
                 failures[path] = "CraftOS-PC version too old";
-                printf("Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", astr(plugin_path + WS("/") + dir->d_name).c_str());
+                printf("Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", astr(path).c_str());
                 SDL_UnloadObject(handle);
                 continue;
             }

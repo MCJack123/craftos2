@@ -367,7 +367,6 @@
     <ClInclude Include="src\apis\handles\fs_handle.hpp" />
     <ClInclude Include="src\apis\handles\http_handle.hpp" />
     <ClCompile Include="src\apis\redstone.cpp" />
-    <ClInclude Include="src\FileEntry.hpp" />
     <ClInclude Include="src\gif.hpp" />
     <ClInclude Include="src\main.hpp" />
     <ClInclude Include="src\runtime.hpp" />

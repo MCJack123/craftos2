@@ -44,7 +44,7 @@ extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-PluginInfo plugin_init(PluginFunctions * func, path_t path) {
+PluginInfo plugin_init(PluginFunctions * func, const path_t& path) {
     PluginInfo info;
     // Replace myperipheral with the name of your peripheral
     func->registerPeripheral("myperipheral", &myperipheral::init);

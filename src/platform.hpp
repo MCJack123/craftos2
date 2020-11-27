@@ -19,6 +19,7 @@
 // Filesystem definitions (UTF-16 vs. not Windows)
 #ifdef WIN32
 #define pathstream_t std::wstringstream
+#define pathregex std::wregex
 #define platform_stat _wstat
 #define platform_access _waccess
 extern FILE* platform_fopen(const wchar_t* path, const char * mode);
@@ -41,6 +42,7 @@ extern char* dirname(char* path);
 #else
 //typedef std::string path_t;
 #define pathstream_t std::stringstream
+#define pathregex std::regex
 #define platform_stat stat
 #define platform_access access
 #define platform_fopen fopen
