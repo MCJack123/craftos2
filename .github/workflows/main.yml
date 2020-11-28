@@ -17,6 +17,7 @@ jobs:
         sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
     - name: Build CraftOS-PC
       run: |
+        git submodule update --init --recursive
         CFLAGS=-Wall ./configure
         make
     - name: Run CraftOSTest
@@ -40,6 +41,7 @@ jobs:
         sudo apt install -y libsdl2-dev libpoco-dev
     - name: Build CraftOS-PC
       run: |
+        git submodule update --init --recursive
         CFLAGS=-Wall ./configure --without-ncurses --without-png --without-sdl_mixer --with-html
         make
     - name: Run CraftOSTest
@@ -67,6 +69,7 @@ jobs:
         cd ..
     - name: Build CraftOS-PC
       run: |
+        git submodule update --init --recursive
         CFLAGS=-Wall ./configure --with-standalone_rom=craftos2-rom/fs_standalone.cpp
         make
     - name: Run CraftOSTest
@@ -93,6 +96,7 @@ jobs:
         sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
     - name: Build CraftOS-PC
       run: |
+        git submodule update --init --recursive
         CFLAGS=-Wall ./configure
         make
     - name: Run CC:T McFly Tests
