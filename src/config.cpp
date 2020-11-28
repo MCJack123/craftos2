@@ -171,7 +171,8 @@ void config_init() {
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
     readConfigSetting(jit_ffi_enable, Bool);
-    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString() != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
+    // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
+    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION)-1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
     if (config.standardsMode) config.abortTimeout = 7000;
 }
 
