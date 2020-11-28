@@ -30,7 +30,6 @@ OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 all: $(ODIR) luajit @OUT_TARGET@
 
 luajit:
-	git submodule update --init --recursive
 	make -C craftos2-luajit
 
 @OUT_TARGET@: $(OBJ) $(ODIR)/platform.o

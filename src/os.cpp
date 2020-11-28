@@ -334,10 +334,8 @@ int os_startTimer(lua_State *L) {
     if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
     Computer * computer = get_comp(L);
     if (lua_tonumber(L, 1) <= 0.0) {
-        int* id = new int;
-        *id = 1;
         termQueueProvider(computer, [](lua_State *L, void*)->const char*{lua_pushinteger(L, 1); return "timer";}, NULL);
-        lua_pushinteger(L, *id);
+        lua_pushinteger(L, 1);
         return 1;
     }
     struct timer_data_t * data = new struct timer_data_t;

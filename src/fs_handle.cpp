@@ -152,7 +152,7 @@ int fs_handle_readLine(lua_State *L) {
         retval = retvaln;
     }
     int len = strlen(retval) - (retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
-    if (retval[len-1] == '\r') retval[--len] = '\0';
+    if (len > 0 && retval[len-1] == '\r') retval[--len] = '\0';
     std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, len) : makeASCIISafe(retval, len);
     free(retval);
     lua_pushlstring(L, out.c_str(), out.length());
@@ -174,7 +174,7 @@ int fs_handle_istream_readLine(lua_State *L) {
         return 1;
     }
     int len = retval.length() - (retval[retval.length()-1] == '\n' && !lua_toboolean(L, 1));
-    if (retval[len-1] == '\r') {if (lua_toboolean(L, 1)) {retval[len] = '\0'; retval[--len] = '\n';} else retval[--len] = '\0';}
+    if (len > 0 && retval[len-1] == '\r') {if (lua_toboolean(L, 1)) {retval[len] = '\0'; retval[--len] = '\n';} else retval[--len] = '\0';}
     std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, 0, len) : makeASCIISafe(retval.c_str(), len);
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;

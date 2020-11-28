@@ -164,7 +164,7 @@ int removeDirectory(std::wstring path) {
 }
 
 void updateNow(std::string tagname) {
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + (PathFileExistsW((getROMPath() + L"\\rom\\apis\\command\\commands.lua").c_str()) ? "CraftOS-PC-CCT-Edition-Setup.exe" : "/CraftOS-PC-Setup.exe"), [](std::istream& in) {
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [](std::istream& in) {
         char str[261];
         GetTempPathA(261, str);
         std::string path = std::string(str) + "\\setup.exe";
