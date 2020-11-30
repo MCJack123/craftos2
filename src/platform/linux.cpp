@@ -155,7 +155,7 @@ unsigned long long getCapacity(const std::string& path) {
     return st.f_blocks * st.f_frsize;
 }
 
-void updateNow(std::string tag_name) {
+void updateNow(const std::string& tag_name) {
     
 }
 

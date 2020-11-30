@@ -284,5 +284,5 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_pa
 
 void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata) {
     SDLTerminal::eventHandlers.insert(std::make_pair(type, std::make_pair(handler, userdata)));
-    switch (type) {case SDL_JOYAXISMOTION: case SDL_JOYBALLMOTION: case SDL_JOYBUTTONDOWN: case SDL_JOYBUTTONUP: case SDL_JOYDEVICEADDED: case SDL_JOYDEVICEREMOVED: case SDL_JOYHATMOTION: SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);}
+    switch (type) {case SDL_JOYAXISMOTION: case SDL_JOYBALLMOTION: case SDL_JOYBUTTONDOWN: case SDL_JOYBUTTONUP: case SDL_JOYDEVICEADDED: case SDL_JOYDEVICEREMOVED: case SDL_JOYHATMOTION: SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER); break; default: break;}
 }
