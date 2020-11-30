@@ -127,10 +127,7 @@ int fs_handle_readLine(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
     FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
-    if (feof(fp) || ferror(fp)) {
-        lua_pushnil(L);
-        return 1;
-    }
+    if (feof(fp) || ferror(fp)) return 0;
     char* retval = (char*)malloc(256);
     retval[0] = 0;
     for (unsigned i = 0; true; i += 255) {
@@ -146,6 +143,7 @@ int fs_handle_readLine(lua_State *L) {
         retval = retvaln;
     }
     size_t len = strlen(retval) - (retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
+    if (len == 0 && feof(fp)) return 0;
     if (len > 0 && retval[len-1] == '\r') retval[--len] = '\0';
     const std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, len) : makeASCIISafe(retval, len);
     free(retval);
@@ -157,16 +155,10 @@ int fs_handle_istream_readLine(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
     std::istream * fp = (std::istream*)lua_touserdata(L, lua_upvalueindex(1));
-    if (fp->bad() || fp->eof()) {
-        lua_pushnil(L);
-        return 1;
-    }
+    if (fp->bad() || fp->eof()) return 0;
     std::string retval;
     std::getline(*fp, retval);
-    if (retval.empty()) {
-        lua_pushstring(L, "");
-        return 1;
-    }
+    if (retval.empty() && fp->eof()) return 0;
     size_t len = retval.length() - (retval[retval.length()-1] == '\n' && !lua_toboolean(L, 1));
     if (len > 0 && retval[len-1] == '\r') {if (lua_toboolean(L, 1)) {retval[len] = '\0'; retval[--len] = '\n';} else retval[--len] = '\0';}
     const std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, 0, len) : makeASCIISafe(retval.c_str(), len);

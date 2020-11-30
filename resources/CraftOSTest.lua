@@ -469,6 +469,7 @@ testStart "settings"
 	test("get", 3, "test")
 	call("set", "test2", "hello")
 	test("getNames", {{
+		"bios.strict_globals",
 		"bios.use_cash",
 		"bios.use_multishell",
 		"edit.autocomplete",
@@ -484,6 +485,7 @@ testStart "settings"
 		"shell.allow_disk_startup",
 		"shell.allow_startup",
 		"shell.autocomplete",
+		"shell.report_plugin_errors",
 		"test",
 		"test2"
 	}})

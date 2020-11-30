@@ -547,7 +547,7 @@ static int fs_open(lua_State *L) {
         } else {
             lua_remove(L, -1);
             fclose(fp);
-            err(L, 2, "Invalid mode");
+            err(L, 2, "Unsupported mode");
         }
     }
     computer->files_open++;
