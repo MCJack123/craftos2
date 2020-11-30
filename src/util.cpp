@@ -48,12 +48,12 @@ Computer * _get_comp(lua_State *L) {
     return (Computer*)retval;
 }
 
-void load_library(Computer *comp, lua_State *L, library_t lib) {
+void load_library(Computer *comp, lua_State *L, const library_t& lib) {
     luaL_register(L, lib.name, lib.functions);
     if (lib.init != NULL) lib.init(comp);
 }
 
-std::string b64encode(std::string orig) {
+std::string b64encode(const std::string& orig) {
     std::stringstream ss;
     Poco::Base64Encoder enc(ss);
     enc.write(orig.c_str(), orig.size());
@@ -61,7 +61,7 @@ std::string b64encode(std::string orig) {
     return ss.str();
 }
 
-std::string b64decode(std::string orig) {
+std::string b64decode(const std::string& orig) {
     std::stringstream ss;
     std::stringstream out(orig);
     Poco::Base64Decoder dec(out);
@@ -69,7 +69,7 @@ std::string b64decode(std::string orig) {
     return ss.str();
 }
 
-std::vector<std::string> split(std::string strToSplit, char delimeter) {
+std::vector<std::string> split(const std::string& strToSplit, char delimeter) {
     std::stringstream ss(strToSplit);
     std::string item;
     std::vector<std::string> splittedStrings;
@@ -79,7 +79,7 @@ std::vector<std::string> split(std::string strToSplit, char delimeter) {
     return splittedStrings;
 }
 
-std::vector<std::wstring> split(std::wstring strToSplit, wchar_t delimeter) {
+std::vector<std::wstring> split(const std::wstring& strToSplit, wchar_t delimeter) {
     std::wstringstream ss(strToSplit);
     std::wstring item;
     std::vector<std::wstring> splittedStrings;
@@ -89,7 +89,7 @@ std::vector<std::wstring> split(std::wstring strToSplit, wchar_t delimeter) {
     return splittedStrings;
 }
 
-static std::string concat(std::list<std::string> &c, char sep) {
+static std::string concat(const std::list<std::string> &c, char sep) {
     std::stringstream ss;
     bool started = false;
     for (const std::string& s : c) {
@@ -100,7 +100,7 @@ static std::string concat(std::list<std::string> &c, char sep) {
     return ss.str();
 }
 
-static std::list<std::string> split_list(std::string strToSplit, char delimeter) {
+static std::list<std::string> split_list(const std::string& strToSplit, char delimeter) {
     std::stringstream ss(strToSplit);
     std::string item;
     std::list<std::string> splittedStrings;
@@ -110,7 +110,7 @@ static std::list<std::string> split_list(std::string strToSplit, char delimeter)
     return splittedStrings;
 }
 
-path_t fixpath_mkdir(Computer * comp, std::string path, bool md, std::string * mountPath) {
+path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md, std::string * mountPath) {
     if (md && fixpath_ro(comp, path.c_str())) return path_t();
     std::list<std::string> components = path.find('/') != path_t::npos ? split_list(path, '/') : split_list(path, '\\');
     while (!components.empty() && components.front().empty()) components.pop_front();

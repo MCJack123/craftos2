@@ -61,18 +61,18 @@ extern char* dirname(char* path);
 #define pathcmp strcmp
 #endif
 
-extern void setThreadName(std::thread &t, std::string name);
-extern int createDirectory(path_t path);
-extern unsigned long long getFreeSpace(path_t path);
-extern unsigned long long getCapacity(path_t path);
-extern int removeDirectory(path_t path);
+extern void setThreadName(std::thread &t, const std::string& name);
+extern int createDirectory(const path_t& path);
+extern unsigned long long getFreeSpace(const path_t& path);
+extern unsigned long long getCapacity(const path_t& path);
+extern int removeDirectory(const path_t& path);
 extern void setBasePath(const char * path);
 extern void setROMPath(const char * path);
 extern path_t getBasePath();
 extern path_t getROMPath();
 extern path_t getPlugInPath();
 extern path_t getMCSavePath();
-extern void updateNow(std::string tag_name);
+extern void updateNow(const std::string& tag_name);
 extern void migrateData();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();

@@ -24,7 +24,7 @@
 
 static std::unordered_map<path_t, std::pair<void*, PluginInfo> > loadedPlugins;
 
-static library_t * getLibrary(std::string name) {
+static library_t * getLibrary(const std::string& name) {
     if (name == "config") return &config_lib;
     else if (name == "fs") return &fs_lib; 
     else if (name == "mounter") return &mounter_lib; 
@@ -51,7 +51,7 @@ static PluginFunctions function_map = {
     &getLibrary,
     &getComputerById,
     &registerPeripheral,
-    NULL, // todo
+    &registerSDLEvent,
     &addMount,
     &addVirtualMount,
     &startComputer,
@@ -160,7 +160,7 @@ void loadPlugins(Computer * comp) {
         if (!p.second.second.luaopenName.empty()) luaopen = (lua_CFunction)SDL_LoadFunction(p.second.first, p.second.second.luaopenName.c_str());
         else luaopen = (lua_CFunction)SDL_LoadFunction(p.second.first, ("luaopen_" + api_name).c_str());
         if (luaopen == NULL) {
-            fprintf(stderr, "Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(comp->L, -1)); 
+            fprintf(stderr, "Error loading plugin %s: Missing API opener\n", api_name.c_str()); 
             lua_getglobal(comp->L, "_CCPC_PLUGIN_ERRORS");
             if (lua_isnil(comp->L, -1)) {
                 lua_newtable(comp->L);
@@ -175,6 +175,7 @@ void loadPlugins(Computer * comp) {
         }
         lua_pushcfunction(comp->L, luaopen);
         lua_pushstring(comp->L, api_name.c_str());
+        // todo: pcall this
         lua_call(comp->L, 1, 1);
         lua_setglobal(comp->L, api_name.c_str());
     }

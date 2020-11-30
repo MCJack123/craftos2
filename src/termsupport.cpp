@@ -610,15 +610,6 @@ void termRenderLoop() {
     }
 }
 
-void queueEvent(Computer *comp, event_provider p, void* data) {
-    if (freedComputers.find(comp) != freedComputers.end()) return;
-    {
-        std::lock_guard<std::mutex> lock(comp->event_provider_queue_mutex);
-        comp->event_provider_queue.push(std::make_pair(p, data));
-    }
-    comp->event_lock.notify_all();
-}
-
 void gettingEvent(Computer *comp) {comp->getting_event = true;}
 void gotEvent(Computer *comp) {comp->last_event = std::chrono::high_resolution_clock::now(); comp->getting_event = false;}
 

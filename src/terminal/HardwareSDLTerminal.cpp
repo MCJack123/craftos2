@@ -383,19 +383,44 @@ bool HardwareSDLTerminal::pollEvents() {
                 sendRawEvent(e);
             } else {
                 LockGuard lock(computers);
-                for (Computer * c : *computers) {
-                    if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
-                        ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
-                        ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
-                        (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
-                        (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
-                        (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
-                        (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
-                        e.type == SDL_QUIT) {
-                        c->termEventQueue.push(e);
-                        c->event_lock.notify_all();
+                bool stop = false;
+                if (eventHandlers.find((SDL_EventType)e.type) != eventHandlers.end()) {
+                    Computer * comp = NULL;
+                    Terminal * term = NULL;
+                    for (Computer * c : *computers) {
+                        if (c->term->id == lastWindow) {
+                            comp = c;
+                            term = c->term;
+                            break;
+                        } else {
+                            monitor * m = findMonitorFromWindowID(c, lastWindow, tmps);
+                            if (m != NULL) {
+                                comp = c;
+                                term = m->term;
+                                break;
+                            }
+                        }
+                    }
+                    for (const auto& h : Range<std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> >::iterator>(eventHandlers.equal_range((SDL_EventType)e.type))) {
+                        stop = h.second.first(&e, comp, term, h.second.second) || stop;
                     }
                 }
+                if (!stop) {
+                    for (Computer * c : *computers) {
+                        if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
+                            ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
+                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
+                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+                            (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
+                            (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
+                            (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
+                            e.type == SDL_QUIT) {
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                        }
+                    }
+                }
+                if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);

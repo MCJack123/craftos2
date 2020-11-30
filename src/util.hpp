@@ -52,6 +52,16 @@ public:
     ~LockGuard() { if (isLocked != NULL) *isLocked = false; }
 };
 
+template<typename I>
+class Range {
+    I front;
+    I back;
+public:
+    Range(std::pair<I, I> it): front(it.first), back(it.second) {}
+    I begin() const {return front;}
+    I end() const {return back;}
+};
+
 class Value {
     Poco::Dynamic::Var obj;
     Value* parent = NULL;
@@ -129,17 +139,16 @@ template<typename T>
 inline T min(T a, T b) { return a < b ? a : b; }
 template<typename T>
 inline T max(T a, T b) { return a > b ? a : b; }
-extern std::string b64encode(std::string orig);
-extern std::string b64decode(std::string orig);
-extern std::vector<std::string> split(std::string strToSplit, char delimeter);
-extern std::vector<std::wstring> split(std::wstring strToSplit, wchar_t delimeter);
-extern void load_library(Computer *comp, lua_State *L, library_t lib);
+extern std::string b64encode(const std::string& orig);
+extern std::string b64decode(const std::string& orig);
+extern std::vector<std::string> split(const std::string& strToSplit, char delimeter);
+extern std::vector<std::wstring> split(const std::wstring& strToSplit, wchar_t delimeter);
+extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
 extern void HTTPDownload(const std::string& url, const std::function<void(std::istream&)>& callback);
 extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
 extern bool fixpath_ro(Computer *comp, const char * path);
-extern path_t fixpath_mkdir(Computer * comp, std::string path, bool md = true, std::string * mountPath = NULL);
+extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);
 extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
-extern void registerPeripheral(std::string name, peripheral_init initializer);
 extern void peripheral_update(Computer *comp);
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, const computer_configuration& cfg);

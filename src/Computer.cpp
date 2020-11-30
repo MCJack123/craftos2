@@ -200,7 +200,7 @@ const char * file_reader(lua_State *L, void * ud, size_t *size) {
 }
 
 // Main computer loop
-void runComputer(Computer * self, path_t bios_name) {
+void runComputer(Computer * self, const path_t& bios_name) {
     if (self->config->startFullscreen && dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->toggleFullscreen();
     self->running = 1;
     if (self->L != NULL) lua_close(self->L);

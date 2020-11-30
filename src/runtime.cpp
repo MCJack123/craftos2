@@ -69,7 +69,7 @@ monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& side
     return NULL;
 }
 
-void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
+void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
     int myID;
     {
@@ -97,7 +97,7 @@ void* queueTask(std::function<void*(void*)> func, void* arg, bool async) {
     return retval;
 }
 
-void awaitTasks(std::function<bool()> predicate = []()->bool{return true;}) {
+void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;}) {
     while (predicate()) {
         if (!taskQueue->empty()) {
             auto v = taskQueue->front();
@@ -150,7 +150,16 @@ Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
     return 1000;
 }
 
-int getNextEvent(lua_State *L, std::string filter) {
+void queueEvent(Computer *comp, const event_provider& p, void* data) {
+    if (freedComputers.find(comp) != freedComputers.end()) return;
+    {
+        std::lock_guard<std::mutex> lock(comp->event_provider_queue_mutex);
+        comp->event_provider_queue.push(std::make_pair(p, data));
+    }
+    comp->event_lock.notify_all();
+}
+
+int getNextEvent(lua_State *L, const std::string& filter) {
     Computer * computer = get_comp(L);
     if (computer->running != 1) return 0;
     if (computer->eventTimeout != 0) {
@@ -223,7 +232,7 @@ int getNextEvent(lua_State *L, std::string filter) {
     return count + 1;
 }
 
-bool addMount(Computer *comp, path_t real_path, const char * comp_path, bool read_only) {
+bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only) {
     struct_stat st;
     if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     std::vector<std::string> elems = split(comp_path, '/');
@@ -271,4 +280,9 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_pa
     comp->virtualMounts[idx] = &vfs;
     comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), to_path_t(idx) + WS(":"), true));
     return true;
+}
+
+void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata) {
+    SDLTerminal::eventHandlers.insert(std::make_pair(type, std::make_pair(handler, userdata)));
+    switch (type) {case SDL_JOYAXISMOTION: case SDL_JOYBALLMOTION: case SDL_JOYBUTTONDOWN: case SDL_JOYBUTTONUP: case SDL_JOYDEVICEADDED: case SDL_JOYDEVICEREMOVED: case SDL_JOYHATMOTION: SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);}
 }

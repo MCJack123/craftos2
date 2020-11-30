@@ -32,7 +32,7 @@ static std::unordered_map<std::string, peripheral_init> initializers = {
 #endif
 };
 
-void registerPeripheral(std::string name, const peripheral_init initializer) {
+void registerPeripheral(const std::string& name, const peripheral_init& initializer) {
     initializers[name] = initializer;
 }
 

@@ -90,9 +90,9 @@ std::string getMCSavePath() {
     return expanded;
 }
 
-void setThreadName(std::thread &t, std::string name) {}
+void setThreadName(std::thread &t, const std::string& name) {}
 
-int createDirectory(std::string path) {
+int createDirectory(const std::string& path) {
     struct stat st;
     if (stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
     if (mkdir(path.c_str(), 0777) != 0) {
@@ -104,7 +104,7 @@ int createDirectory(std::string path) {
     return 0;
 }
 
-int removeDirectory(std::string path) {
+int removeDirectory(const std::string& path) {
     struct stat statbuf;
     if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -126,7 +126,7 @@ int removeDirectory(std::string path) {
     } else return -1;
 }
 
-unsigned long long getFreeSpace(std::string path) {
+unsigned long long getFreeSpace(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -135,7 +135,7 @@ unsigned long long getFreeSpace(std::string path) {
     return st.f_bavail * st.f_frsize;
 }
 
-unsigned long long getCapacity(std::string path) {
+unsigned long long getCapacity(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -144,11 +144,11 @@ unsigned long long getCapacity(std::string path) {
     return st.f_blocks * st.f_frsize;
 }
 
-void updateNow(std::string tag_name) {
+void updateNow(const std::string& tag_name) {
     fprintf(stderr, "Updating is not available on Mac terminal builds.\n");
 }
 
-int recursiveCopyPlatform(std::string fromDir, std::string toDir) {
+int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {

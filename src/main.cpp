@@ -35,7 +35,7 @@ static int runRenderer();
 #include <emscripten/emscripten.h>
 #endif
 
-extern void awaitTasks(std::function<bool()> predicate = []()->bool{return true;});
+extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
 #ifdef WIN32
 extern void* kernel32handle;
@@ -475,6 +475,8 @@ int main(int argc, char*argv[]) {
     }
 #endif
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
+    // C++ doesn't like it if we try to empty the SDL event list once the plugins are gone
+    SDLTerminal::eventHandlers.clear();
     deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();

@@ -94,9 +94,9 @@ std::string getMCSavePath() {
                         ] fileSystemRepresentation]) + "/minecraft/saves/";
 }
 
-void setThreadName(std::thread &t, std::string name) {}
+void setThreadName(std::thread &t, const std::string& name) {}
 
-int createDirectory(std::string path) {
+int createDirectory(const std::string& path) {
     if (mkdir(path.c_str(), 0777) != 0) {
         if (errno == ENOENT && path != "/" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
@@ -106,7 +106,7 @@ int createDirectory(std::string path) {
     return 0;
 }
 
-int removeDirectory(std::string path) {
+int removeDirectory(const std::string& path) {
     struct stat statbuf;
     if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -128,7 +128,7 @@ int removeDirectory(std::string path) {
     } else return -1;
 }
 
-unsigned long long getFreeSpace(std::string path) {
+unsigned long long getFreeSpace(const std::string& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -137,7 +137,7 @@ unsigned long long getFreeSpace(std::string path) {
     return [(NSNumber*)dict[NSFileSystemFreeSize] unsignedLongLongValue];
 }
 
-unsigned long long getCapacity(std::string path) {
+unsigned long long getCapacity(const std::string& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -183,7 +183,7 @@ CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {
 }
 @end
 
-void updateNow(std::string tag_name) {
+void updateNow(const std::string& tag_name) {
     UpdateViewController * vc = [[UpdateViewController alloc] initWithNibName:nil bundle:[NSBundle mainBundle]];
     NSWindow* win = [NSWindow windowWithContentViewController:vc];
     [win setFrame:CGRectCreate(win.frame.origin.x, win.frame.origin.y, 480, 103) display:YES];

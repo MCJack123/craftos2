@@ -71,7 +71,7 @@ std::wstring getMCSavePath() {
 void* kernel32handle = NULL;
 HRESULT(*_SetThreadDescription)(HANDLE, PCWSTR) = NULL;
 
-void setThreadName(std::thread &t, std::string name) {
+void setThreadName(std::thread &t, const std::string& name) {
     if (kernel32handle == NULL) {
         kernel32handle = SDL_LoadObject("kernel32");
         _SetThreadDescription = (HRESULT(*)(HANDLE, PCWSTR))SDL_LoadFunction(kernel32handle, "SetThreadDescription");
@@ -79,7 +79,7 @@ void setThreadName(std::thread &t, std::string name) {
     if (_SetThreadDescription != NULL) _SetThreadDescription((HANDLE)t.native_handle(), std::wstring(name.begin(), name.end()).c_str());
 }
 
-int createDirectory(std::wstring path) {
+int createDirectory(const std::wstring& path) {
     struct_stat st;
     if (platform_stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
     if (CreateDirectoryExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL) == 0) {
@@ -111,7 +111,7 @@ char* dirname(char* path) {
     return path;
 }
 
-unsigned long long getFreeSpace(std::wstring path) {
+unsigned long long getFreeSpace(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
         if (path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
@@ -120,7 +120,7 @@ unsigned long long getFreeSpace(std::wstring path) {
     return retval.QuadPart;
 }
 
-unsigned long long getCapacity(std::wstring path) {
+unsigned long long getCapacity(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
         if (path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
@@ -129,7 +129,7 @@ unsigned long long getCapacity(std::wstring path) {
     return retval.QuadPart;
 }
 
-int removeDirectory(std::wstring path) {
+int removeDirectory(const std::wstring& path) {
     const DWORD attr = GetFileAttributesW(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
     if (attr & FILE_ATTRIBUTE_DIRECTORY) {
@@ -157,7 +157,7 @@ int removeDirectory(std::wstring path) {
     } else return DeleteFileW(path.c_str()) ? 0 : (int)GetLastError();
 }
 
-void updateNow(std::string tagname) {
+void updateNow(const std::string& tagname) {
     HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [](std::istream& in) {
         char str[261];
         GetTempPathA(261, str);
@@ -178,7 +178,7 @@ void updateNow(std::string tagname) {
 
 std::vector<std::wstring> failedCopy;
 
-int recursiveCopy(std::wstring path, std::wstring toPath) {
+int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
     const DWORD attr = GetFileAttributesW(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
     if (attr & FILE_ATTRIBUTE_DIRECTORY) {

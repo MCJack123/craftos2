@@ -14,6 +14,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <Computer.hpp>
 #include <SDL2/SDL.h>
 #include <Terminal.hpp>
 #include "../platform.hpp"
@@ -80,8 +81,12 @@ public:
     SDL_Window *win;
 #endif
 protected:
+    friend void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
+    friend int main(int argc, char*argv[]);
     SDL_Surface *surf = NULL;
     SDL_Surface *bmp;
+    static Uint32 lastWindow;
+    static std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > eventHandlers;
 
     static SDL_Rect getCharacterRect(unsigned char c);
 };

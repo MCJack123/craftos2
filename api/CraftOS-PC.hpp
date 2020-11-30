@@ -77,7 +77,7 @@ struct PluginFunctions {
      * @param name The name of the API to get
      * @return A pointer to the library structure for the selected API
      */
-    library_t * (*getLibrary)(std::string name);
+    library_t * (*getLibrary)(const std::string& name);
 
     /**
      * Returns the computer object for a specific ID.
@@ -92,7 +92,7 @@ struct PluginFunctions {
      * @param initializer The initialization function that creates the peripheral object.
      * @see peripheral_init The prototype for a peripheral initializer
      */
-    void (*registerPeripheral)(std::string name, peripheral_init initializer);
+    void (*registerPeripheral)(const std::string& name, const peripheral_init& initializer);
 
     /**
      * Registers an SDL event hook to call a function when the specified event occurs.
@@ -101,7 +101,7 @@ struct PluginFunctions {
      * @param userdata An opaque pointer to pass to the handler function
      * @see sdl_event_handler The prototype for an event handler
      */
-    void (*registerSDLEvent)(SDL_EventType type, sdl_event_handler handler, void* userdata);
+    void (*registerSDLEvent)(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
 
     /**
      * Adds a directory mount to a computer.
@@ -111,7 +111,7 @@ struct PluginFunctions {
      * @param read_only Whether the mount should be read-only
      * @return Whether the mount succeeded
      */
-    bool (*addMount)(Computer * comp, path_t real_path, const char * comp_path, bool read_only);
+    bool (*addMount)(Computer * comp, const path_t& real_path, const char * comp_path, bool read_only);
 
     /**
      * Adds a virtual mount to a computer.
@@ -136,7 +136,7 @@ struct PluginFunctions {
      * @param userdata An opaque pointer storing any user data for the provider
      * @see event_provider The prototype for the event provider
      */
-    void (*queueEvent)(Computer * comp, event_provider event, void* userdata);
+    void (*queueEvent)(Computer * comp, const event_provider& event, void* userdata);
 
     /**
      * Runs a function on the main thread, and returns the result from the function.
@@ -145,7 +145,7 @@ struct PluginFunctions {
      * @param async Whether to run the function asynchronously (if true, returns NULL immediately)
      * @return The value returned from the function, or NULL if async is true
      */
-    void* (*queueTask)(std::function<void*(void*)> func, void* userdata, bool async);
+    void* (*queueTask)(const std::function<void*(void*)>& func, void* userdata, bool async);
 };
 
 /**

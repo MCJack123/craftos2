@@ -46,6 +46,8 @@ extern "C" {
 }
 
 unsigned SDLTerminal::fontScale = 2;
+Uint32 SDLTerminal::lastWindow = 0;
+std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > SDLTerminal::eventHandlers;
 /* export */ std::list<Terminal*> renderTargets;
 /* export */ std::mutex renderTargetsLock;
 #ifdef __EMSCRIPTEN__
@@ -121,6 +123,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     id = nextWindowID++;
     onWindowCreate(id, title.c_str());
 #endif
+    lastWindow = id;
 #if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
     SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(favicon.pixel_data, (int)favicon.width, (int)favicon.height, (int)favicon.bytes_per_pixel * 8, (int)favicon.width * (int)favicon.bytes_per_pixel, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
     SDL_SetWindowIcon(win, icon);
@@ -569,20 +572,45 @@ bool SDLTerminal::pollEvents() {
                 sendRawEvent(e);
             } else {
                 LockGuard lockc(computers);
-                for (Computer * c : *computers) {
-                    if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
-                        ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
-                        ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
-                        (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
-                        (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
-                        (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
-                        (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
-                        e.type == SDL_QUIT) {
-                        std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
-                        c->termEventQueue.push(e);
-                        c->event_lock.notify_all();
+                bool stop = false;
+                if (eventHandlers.find((SDL_EventType)e.type) != eventHandlers.end()) {
+                    Computer * comp = NULL;
+                    Terminal * term = NULL;
+                    for (Computer * c : *computers) {
+                        if (c->term->id == lastWindow) {
+                            comp = c;
+                            term = c->term;
+                            break;
+                        } else {
+                            monitor * m = findMonitorFromWindowID(c, lastWindow, tmps);
+                            if (m != NULL) {
+                                comp = c;
+                                term = m->term;
+                                break;
+                            }
+                        }
+                    }
+                    for (const auto& h : Range<std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> >::iterator>(eventHandlers.equal_range((SDL_EventType)e.type))) {
+                        stop = h.second.first(&e, comp, term, h.second.second) || stop;
                     }
                 }
+                if (!stop) {
+                    for (Computer * c : *computers) {
+                        if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
+                            ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
+                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
+                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+                            (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
+                            (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
+                            (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
+                            e.type == SDL_QUIT) {
+                            std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                        }
+                    }
+                }
+                if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);
