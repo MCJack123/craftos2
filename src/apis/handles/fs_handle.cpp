@@ -255,10 +255,16 @@ int fs_handle_readByte(lua_State *L) {
     if (feof(fp)) return 0;
     if (lua_isnumber(L, 1)) {
         const size_t s = lua_tointeger(L, 1);
-        if (s == 0) return 0;
+        if (s == 0) {
+            const int c = fgetc(fp);
+            if (c == EOF || feof(fp)) return 0;
+            ungetc(c, fp);
+            lua_pushstring(L, "");
+            return 1;
+        }
         char* retval = new char[s];
         const size_t actual = fread(retval, 1, s, fp);
-        if (actual == 0) {delete[] retval; return 0;}
+        if (actual == 0 && feof(fp)) {delete[] retval; return 0;}
         lua_pushlstring(L, retval, actual);
         delete[] retval;
     } else {
@@ -276,7 +282,11 @@ int fs_handle_istream_readByte(lua_State *L) {
     if (fp->eof()) return 0;
     if (lua_isnumber(L, 1)) {
         const size_t s = lua_tointeger(L, 1);
-        if (s == 0) return 0;
+        if (s == 0) {
+            if (fp->peek() == EOF || fp->eof()) return 0;
+            lua_pushstring(L, "");
+            return 1;
+        }
         char* retval = new char[s];
         const size_t actual = fp->readsome(retval, s);
         if (actual == 0) {delete[] retval; return 0;}
