@@ -266,11 +266,11 @@ static std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const p
             return std::make_pair(2, "Cannot write file");
         }
 
-        char tmp[1024];
+        char tmp[4096];
         while (!feof(fromfp)) {
-            const size_t read = fread(tmp, 1, 1024, fromfp);
+            const size_t read = fread(tmp, 1, 4096, fromfp);
             fwrite(tmp, read, 1, tofp);
-            if (read < 1024) break;
+            if (read < 4096) break;
         }
 
         fclose(fromfp);
@@ -345,6 +345,7 @@ static int fs_open(lua_State *L) {
     Computer * computer = get_comp(L);
     if (computer->files_open >= config.maximumFilesOpen) err(L, 1, "Too many files open");
     const char * mode = luaL_checkstring(L, 2);
+    if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (mode[1] != 'b' && mode[1] != '\0')) luaL_error(L, "%s: Unsupported mode", mode);
     const path_t path = mode[0] == 'r' ? fixpath(get_comp(L), luaL_checkstring(L, 1), true) : fixpath_mkdir(get_comp(L), luaL_checkstring(L, 1));
     if (path.empty()) {
         if (mode[0] != 'r' && fixpath_ro(computer, lua_tostring(L, 1))) {
@@ -545,9 +546,9 @@ static int fs_open(lua_State *L) {
             lua_pushcclosure(L, fs_handle_seek, 1);
             lua_settable(L, -3);
         } else {
-            lua_remove(L, -1);
+            // This should now be unreachable, but we'll keep it here for safety
             fclose(fp);
-            err(L, 2, "Unsupported mode");
+            luaL_error(L, "%s: Unsupported mode", mode);
         }
     }
     computer->files_open++;

@@ -255,9 +255,11 @@ int fs_handle_readByte(lua_State *L) {
     if (feof(fp)) return 0;
     if (lua_isnumber(L, 1)) {
         const size_t s = lua_tointeger(L, 1);
+        if (s == 0) return 0;
         char* retval = new char[s];
-        fread(retval, s, 1, fp);
-        lua_pushlstring(L, retval, s);
+        const size_t actual = fread(retval, 1, s, fp);
+        if (actual == 0) {delete[] retval; return 0;}
+        lua_pushlstring(L, retval, actual);
         delete[] retval;
     } else {
         const int retval = fgetc(fp);
@@ -274,9 +276,11 @@ int fs_handle_istream_readByte(lua_State *L) {
     if (fp->eof()) return 0;
     if (lua_isnumber(L, 1)) {
         const size_t s = lua_tointeger(L, 1);
+        if (s == 0) return 0;
         char* retval = new char[s];
-        fp->read(retval, s);
-        lua_pushlstring(L, retval, s);
+        const size_t actual = fp->readsome(retval, s);
+        if (actual == 0) {delete[] retval; return 0;}
+        lua_pushlstring(L, retval, actual);
         delete[] retval;
     } else {
         const int retval = fp->get();
@@ -364,11 +368,12 @@ int fs_handle_writeLine(lua_State *L) {
 int fs_handle_writeByte(lua_State *L) {
     if (!lua_isuserdata(L, lua_upvalueindex(1)))
         luaL_error(L, "attempt to use a closed file");
-    if (lua_isnumber(L, 1)) {
+    if (lua_type(L, 1) == LUA_TNUMBER) {
         const char b = (unsigned char)(lua_tointeger(L, 1) & 0xFF);
         FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
         fputc(b, fp);
     } else if (lua_isstring(L, 1)) {
+        if (lua_strlen(L, 1) == 0) return 0;
         FILE * fp = (FILE*)lua_touserdata(L, lua_upvalueindex(1));
         fwrite(lua_tostring(L, 1), lua_strlen(L, 1), 1, fp);
     } else luaL_typerror(L, 1, "number or string");
