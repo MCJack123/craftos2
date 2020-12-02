@@ -277,10 +277,15 @@ int luaopen_ccemux(lua_State *L) {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-PluginInfo plugin_init(const PluginFunctions * func, const path_t& path) {
+PluginInfo * plugin_init(const PluginFunctions * func, const path_t& path) {
     functions = func;
-    PluginInfo retval;
-    retval.apiName = "ccemux";
-    return retval;
+    return new PluginInfo("ccemux");
+}
+
+#ifdef _WIN32
+_declspec(dllexport)
+#endif
+void plugin_deinit(PluginInfo * info) {
+    delete info;
 }
 }

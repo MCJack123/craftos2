@@ -109,8 +109,10 @@ struct Computer {
     // It isn't necessary to construct a Computer directly; just use the startComputer function instead.
 private:
     friend Computer* startComputer(int id);
+    friend void showReleaseNotes();
     friend void* computerThread(void* data);
     friend void debuggerThread(Computer * comp, void * dbgv, std::string side);
+    friend void* releaseNotesThread(void* data);
     friend class debugger;
     Computer(int i) : Computer(i, false) {}
     Computer(int i, bool debug);

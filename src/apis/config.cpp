@@ -156,7 +156,7 @@ static int config_set(lua_State *L) {
     setConfigSetting(useVsync, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
-    else luaL_error(L, "Unknown configuration option");
+    else luaL_error(L, "Unknown configuration option '%s'", lua_tostring(L, 1));
     config_save();
     if (configSettings[std::string(name)].first) lua_pushstring(L, config_set_action_names[configSettings[std::string(name)].first]);
     else lua_pushnil(L);

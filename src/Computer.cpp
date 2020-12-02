@@ -191,9 +191,9 @@ extern "C" {
     }
 }
 
-char file_read_tmp[4096];
 
-const char * file_reader(lua_State *L, void * ud, size_t *size) {
+static const char * file_reader(lua_State *L, void * ud, size_t *size) {
+    static char file_read_tmp[4096];
     if (feof((FILE*)ud)) return NULL;
     *size = fread(file_read_tmp, 1, 4096, (FILE*)ud);
     return file_read_tmp;
@@ -258,7 +258,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_atpanic(self->L, termPanic);
         for (library_t * lib : libraries) load_library(self, self->coro, *lib);
         if (config.http_enable) load_library(self, self->coro, http_lib);
-        if (self->isDebugger) load_library(self, self->coro, *((library_t*)self->debugger));
+        if (self->isDebugger && self->debugger != NULL) load_library(self, self->coro, *((library_t*)self->debugger));
         lua_getglobal(self->coro, "redstone");
         lua_setglobal(self->coro, "rs");
         lua_getglobal(self->L, "os");

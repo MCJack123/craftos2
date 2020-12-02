@@ -10,6 +10,8 @@
  */
 
 static int runRenderer();
+static void showReleaseNotes();
+static void* releaseNotesThread(void* data);
 #include <functional>
 #include <iomanip>
 #include <thread>
@@ -37,8 +39,14 @@ static int runRenderer();
 
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
+extern library_t * libraries[8];
 #ifdef WIN32
 extern void* kernel32handle;
+#endif
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
 #endif
 
 int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
@@ -51,6 +59,70 @@ std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
 std::unordered_map<path_t, std::string> globalPluginErrors;
+
+static void* releaseNotesThread(void* data) {
+    Computer * comp = (Computer*)data;
+#ifdef __APPLE__
+    pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
+#endif
+    // seed the Lua RNG
+    srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);
+    // in case the allocator decides to reuse pointers
+    if (freedComputers.find(comp) != freedComputers.end())
+        freedComputers.erase(comp);
+    try {
+#ifdef STANDALONE_ROM
+        runComputer(comp, wstr(standaloneDebug["bios.lua"].data));
+#else
+        runComputer(comp, WS("debug/bios.lua"));
+#endif
+    } catch (std::exception &e) {
+        fprintf(stderr, "Uncaught exception while executing computer %d: %s\n", comp->id, e.what());
+        queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
+        if (comp->L != NULL) {
+            comp->event_lock.notify_all();
+            for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+            lua_close(comp->L);   /* Cya, Lua */
+            comp->L = NULL;
+        }
+    }
+    freedComputers.insert(comp);
+    {
+        LockGuard lock(computers);
+        for (auto it = computers->begin(); it != computers->end(); ++it) {
+            if (*it == comp) {
+                it = computers->erase(it);
+                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
+                if (it == computers->end()) break;
+            }
+        }
+    }
+    if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
+        {LockGuard lock(taskQueue);}
+        while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        taskQueueReady = true;
+        taskQueueNotify.notify_all();
+        while (taskQueueReady && !exiting) {std::this_thread::yield(); taskQueueNotify.notify_all();}
+    }
+    return NULL;
+}
+
+static void showReleaseNotes() {
+    Computer * comp;
+    try {comp = new Computer(-1, true);} catch (std::exception &e) {
+        if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
+        else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
+        return;
+    }
+    {
+        LockGuard lock(computers);
+        computers->push_back(comp);
+    }
+    if (comp->term != NULL) comp->term->setLabel("Release Notes");
+    std::thread * th = new std::thread(releaseNotesThread, comp);
+    setThreadName(*th, "Release Note Viewer Thread");
+    computerThreads.push_back(th);
+}
 
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void update_thread() {
@@ -65,33 +137,59 @@ static void update_thread() {
         parser.parse(session.receiveResponse(response));
         Poco::JSON::Object::Ptr root = parser.asVar().extract<Poco::JSON::Object::Ptr>();
         if (root->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) {
-#if (defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
+#if !(defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
             SDL_MessageBoxData msg;
             SDL_MessageBoxButtonData buttons[] = {
-                {0, 0, "Skip This Version"},
+                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"},
                 {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Ask Me Later"},
-                {0, 2, "Update On Quit"},
-                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"}
+                {0, 0, "More Options..."}
             };
             msg.flags = SDL_MESSAGEBOX_INFORMATION;
             msg.window = NULL;
             msg.title = "Update available!";
             const std::string message = (std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
             msg.message = message.c_str();
-            msg.numbuttons = 4;
+            msg.numbuttons = 3;
             msg.buttons = buttons;
             msg.colorScheme = NULL;
             int* choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
-            const int choice = *choicep;
+            int choice = *choicep;
             delete choicep;
             switch (choice) {
-                case 0:
-                    config.skipUpdate = CRAFTOSPC_VERSION;
-                    return;
-                case 1:
-                    return;
-                case 2:
-                    updateAtQuit = root->getValue<std::string>("tag_name");
+                case 0: {
+                    SDL_MessageBoxButtonData buttons2[] = {
+                        {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 3, "Cancel"},
+                        {0, 2, "View Release Notes"},
+                        {0, 1, "Skip This Version"},
+                        {0, 0, "Update at Quit"}
+                    };
+                    msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                    msg.window = NULL;
+                    msg.title = "Update Options";
+                    msg.message = "Select an option:";
+                    msg.numbuttons = 4;
+                    msg.buttons = buttons2;
+                    msg.colorScheme = NULL;
+                    choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
+                    choice = *choicep;
+                    delete choicep;
+                    switch (choice) {
+                    case 0:
+                        updateAtQuit = root->getValue<std::string>("tag_name");
+                        return;
+                    case 1:
+                        config.skipUpdate = CRAFTOSPC_VERSION;
+                        config_save();
+                        return;
+                    case 2:
+                        queueTask([](void*)->void*{showReleaseNotes(); return NULL;}, NULL);
+                        return;
+                    case 3:
+                        return;
+                    default:
+                        exit(choice);
+                    }
+                } case 1:
                     return;
                 case 3:
                     queueTask([root](void*)->void*{updateNow(root->getValue<std::string>("tag_name")); return NULL;}, NULL);
@@ -101,7 +199,24 @@ static void update_thread() {
                     exit(choice);
             }
 #else
-            queueTask([](void* arg)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Update available!", (const char*)arg, NULL); return NULL; }, (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
+            queueTask([](void* arg)->void*{
+                SDL_MessageBoxData msg;
+                SDL_MessageBoxButtonData buttons[] = {
+                    {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "OK"},
+                    {0, 1, "Release Notes"}
+                };
+                msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                msg.window = NULL;
+                msg.title = "Update available!";
+                msg.message = (const char*)arg;
+                msg.numbuttons = 2;
+                msg.buttons = buttons;
+                msg.colorScheme = NULL;
+                int choice = 0;
+                SDL_ShowMessageBox(&msg, &choice);
+                if (choice == 1) showReleaseNotes();
+                return NULL;
+            }, (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
 #endif
         }
     } catch (std::exception &e) {

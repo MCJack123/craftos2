@@ -200,13 +200,12 @@ static int debugger_lib_listBreakpoints(lua_State *L) {
 }
 
 static int debugger_lib_local_index(lua_State *L) {
-    if (lua_istable(L, 1)) lua_remove(L, 1);
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_State *thread = (dbg == NULL) ? L : dbg->thread;
     lua_Debug ar;
-    if (lua_isnumber(L, 1)) {
-        if (!lua_getstack(thread, (int)lua_tointeger(L, 1), &ar)) { lua_pushnil(L); return 1; }
+    if (lua_isnumber(L, 2)) {
+        if (!lua_getstack(thread, (int)lua_tointeger(L, 2), &ar)) { lua_pushnil(L); return 1; }
         const char * name;
         lua_newtable(L);
         for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
@@ -215,12 +214,14 @@ static int debugger_lib_local_index(lua_State *L) {
                 continue;
             }
             lua_pushstring(L, name);
-            lua_xmove(thread, L, 1);
-            lua_settable(L, -3);
+            if (L == thread) lua_pushvalue(L, -2);
+            else lua_xmove(thread, L, 1);
+            lua_settable(L, L == thread ? -4 : -3);
+            if (L == thread) lua_pop(L, 1);
         }
         return 1;
-    } else if (lua_isstring(L, 1)) {
-        const char * name, *search = lua_tostring(L, 1);
+    } else if (lua_isstring(L, 2)) {
+        const char * name, *search = lua_tostring(L, 2);
         for (int i = 0; lua_getstack(thread, i, &ar); i++) {
             for (int j = 1; (name = lua_getlocal(thread, &ar, j)) != NULL; j++) {
                 if (strcmp(search, name) == 0) return 1;
@@ -236,12 +237,11 @@ static int debugger_lib_local_index(lua_State *L) {
 }
 
 static int debugger_lib_local_newindex(lua_State *L) {
-    if (lua_istable(L, 1)) lua_remove(L, 1);
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_State *thread = (dbg == NULL) ? L : dbg->thread;
     lua_Debug ar;
-    const char * name, *search = luaL_checkstring(L, 1);
+    const char * name, *search = luaL_checkstring(L, 2);
     for (int i = 0; lua_getstack(thread, i, &ar); i++) {
         for (int j = 1; (name = lua_getlocal(thread, &ar, j)) != NULL; j++) {
             if (strcmp(search, name) == 0) {
@@ -268,21 +268,20 @@ static int debugger_lib_run(lua_State *L) {
     const int top = lua_gettop(dbg->thread); // ...
     luaL_loadstring(dbg->thread, lua_tostring(L, 1)); // ..., func
     luaL_loadstring(dbg->thread, "return setmetatable({_echo = function(...) return ... end, getfenv = getfenv, locals = ..., _ENV = getfenv(2)}, {__index = getfenv(2)})"); // ..., func, getenv
-    lua_pushlightuserdata(dbg->thread, NULL); // ..., func, getenv, table
-    lua_newtable(dbg->thread);
-    lua_pushcfunction(dbg->thread, debugger_lib_local_index);
-    lua_setfield(dbg->thread, -2, "__index");
-    lua_pushcfunction(dbg->thread, debugger_lib_local_newindex);
-    lua_setfield(dbg->thread, -2, "__newindex");
-    lua_pushcfunction(dbg->thread, debugger_lib_local_tostring);
-    lua_setfield(dbg->thread, -2, "__tostring");
-    lua_setmetatable(dbg->thread, -2);
+    lua_pushlightuserdata(dbg->thread, NULL); // ..., func, getenv, locals
+    lua_newtable(dbg->thread); // ..., func, getenv, locals, mt
+    lua_pushcfunction(dbg->thread, debugger_lib_local_index); // ..., func, getenv, locals, mt, __index
+    lua_setfield(dbg->thread, -2, "__index"); // ..., func, getenv, locals, mt
+    lua_pushcfunction(dbg->thread, debugger_lib_local_newindex); // ..., func, getenv, locals, mt, __newindex
+    lua_setfield(dbg->thread, -2, "__newindex"); // ..., func, getenv, locals, mt
+    lua_pushcfunction(dbg->thread, debugger_lib_local_tostring); // ..., func, getenv, locals, mt, __tostring
+    lua_setfield(dbg->thread, -2, "__tostring"); // ..., func, getenv, locals, mt
+    lua_setmetatable(dbg->thread, -2); // ..., func, getenv, locals (w/mt)
     lua_call(dbg->thread, 1, 1); // ..., func, env
-    lua_setfenv(dbg->thread, -2); // ..., func
+    lua_setfenv(dbg->thread, -2); // ..., func (w/env)
     lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0)); // ..., results...
     const int top2 = lua_gettop(dbg->thread) - top; // #{..., results...} - #{...} = #{results...}
-    // TODO: Properly copy values over rather than relying on undefined behavior from xmove
-    lua_xmove(dbg->thread, L, top2); // ...
+    xcopy(dbg->thread, L, top2); // ...
     return top2 + 1;
 }
 
@@ -359,7 +358,7 @@ static int debugger_lib_getLocals(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_State *thread = (dbg == NULL) ? L : dbg->thread;
     lua_Debug ar;
-    lua_getstack(thread, 2, &ar);
+    lua_getstack(thread, 3, &ar);
     lua_newtable(L);
     const char * name;
     for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {

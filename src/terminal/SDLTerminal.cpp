@@ -165,7 +165,7 @@ SDLTerminal::~SDLTerminal() {
     onWindowDestroy(id);
 #endif
     renderTargetsLock.lock();
-    std::lock_guard<std::mutex> locked_g(locked);
+    std::lock_guard<std::mutex> locked_g(renderlock);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);

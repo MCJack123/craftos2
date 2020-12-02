@@ -161,6 +161,13 @@ struct PluginInfo {
     std::string luaopenName = "";           ///< The name of the `luaopen` function. This may be useful to be able to rename the plugin file without breaking `luaopen`.
     std::string failureReason = "";         ///< This can be used to trigger a load failure without throwing an exception. Set this field to any non-blank value to stop loading.
     std::string apiName = "";               ///< The name of the API. This can be used to override the default, which is determined by filename. This will also affect luaopenName if that's not set.
+    PluginInfo() = default;
+    PluginInfo(std::string api): apiName(api) {}
+    static PluginInfo * error(const std::string& err) {
+        PluginInfo * info = new PluginInfo;
+        info->failureReason = err;
+        return info;
+    }
 };
 
 #endif

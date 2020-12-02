@@ -243,7 +243,7 @@
       <Profile>true</Profile>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S;_DEBUG</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>

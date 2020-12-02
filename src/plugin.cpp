@@ -22,7 +22,7 @@
 #define PATH_SEP "/"
 #endif
 
-static std::unordered_map<path_t, std::pair<void*, PluginInfo> > loadedPlugins;
+static std::unordered_map<path_t, std::pair<void*, PluginInfo*> > loadedPlugins;
 
 static library_t * getLibrary(const std::string& name) {
     if (name == "config") return &config_lib;
@@ -77,26 +77,35 @@ std::unordered_map<path_t, std::string> initializePlugins() {
                 printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str());
                 continue;
             }
-            const auto plugin_init = (PluginInfo(*)(const PluginFunctions*, const path_t&))SDL_LoadFunction(handle, "plugin_init");
+            const auto plugin_init = (PluginInfo*(*)(const PluginFunctions*, const path_t&))SDL_LoadFunction(handle, "plugin_init");
             if (plugin_init != NULL) {
-                PluginInfo info;
+                PluginInfo * info = NULL;
                 try {
                     info = plugin_init(const_cast<const PluginFunctions*>(&function_map), path);
                 } catch (std::exception &e) {
                     failures[path] = e.what();
                     printf("Failed to load plugin at %s: %s\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str(), e.what());
+                    const auto plugin_deinit = (void(*)(PluginInfo *))SDL_LoadFunction(handle, "plugin_deinit");
+                    if (plugin_deinit != NULL) plugin_deinit(info);
+                    else delete info;
                     SDL_UnloadObject(handle);
                     continue;
                 }
-                if (!info.failureReason.empty()) {
-                    failures[path] = info.failureReason;
-                    printf("Failed to load plugin at %s: %s\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str(), info.failureReason.c_str());
+                if (!info->failureReason.empty()) {
+                    failures[path] = info->failureReason;
+                    printf("Failed to load plugin at %s: %s\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str(), info->failureReason.c_str());
+                    const auto plugin_deinit = (void(*)(PluginInfo *))SDL_LoadFunction(handle, "plugin_deinit");
+                    if (plugin_deinit != NULL) plugin_deinit(info);
+                    else delete info;
                     SDL_UnloadObject(handle);
                     continue;
                 }
-                if (info.abi_version != PLUGIN_VERSION || info.minimum_structure_version > function_map.structure_version) {
+                if (info->abi_version != PLUGIN_VERSION || info->minimum_structure_version > function_map.structure_version) {
                     failures[path] = "CraftOS-PC version too old";
                     printf("Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str());
+                    const auto plugin_deinit = (void(*)(PluginInfo *))SDL_LoadFunction(handle, "plugin_deinit");
+                    if (plugin_deinit != NULL) plugin_deinit(info);
+                    else delete info;
                     SDL_UnloadObject(handle);
                     continue;
                 }
@@ -106,7 +115,7 @@ std::unordered_map<path_t, std::string> initializePlugins() {
                 printf("Failed to load plugin at %s: This plugin needs to be updated for newer versions of CraftOS-PC\n", astr(plugin_path + PATH_SEP + dir->d_name).c_str());
                 SDL_UnloadObject(handle);
                 continue;
-            } else loadedPlugins[path] = std::make_pair(handle, PluginInfo());
+            } else loadedPlugins[path] = std::make_pair(handle, new PluginInfo());
         }
         platform_closedir(d);
     }
@@ -118,9 +127,9 @@ std::unordered_map<path_t, std::string> initializePlugins() {
             printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(path).c_str());
             continue;
         }
-        const auto plugin_init = (PluginInfo(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_init");
+        const auto plugin_init = (PluginInfo*(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_init");
         if (plugin_init != NULL) {
-            PluginInfo info;
+            PluginInfo * info;
             try {
                 info = plugin_init(const_cast<const PluginFunctions*>(&function_map), path);
             } catch (std::exception &e) {
@@ -129,20 +138,20 @@ std::unordered_map<path_t, std::string> initializePlugins() {
                 SDL_UnloadObject(handle);
                 continue;
             }
-            if (!info.failureReason.empty()) {
-                failures[path] = info.failureReason;
-                printf("Failed to load plugin at %s: %s\n", astr(path).c_str(), info.failureReason.c_str());
+            if (!info->failureReason.empty()) {
+                failures[path] = info->failureReason;
+                printf("Failed to load plugin at %s: %s\n", astr(path).c_str(), info->failureReason.c_str());
                 SDL_UnloadObject(handle);
                 continue;
             }
-            if (info.abi_version != PLUGIN_VERSION || info.minimum_structure_version > function_map.structure_version) {
+            if (info->abi_version != PLUGIN_VERSION || info->minimum_structure_version > function_map.structure_version) {
                 failures[path] = "CraftOS-PC version too old";
                 printf("Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", astr(path).c_str());
                 SDL_UnloadObject(handle);
                 continue;
             }
             loadedPlugins[path] = std::make_pair(handle, info);
-        } else loadedPlugins[path] = std::make_pair(handle, PluginInfo());
+        } else loadedPlugins[path] = std::make_pair(handle, new PluginInfo());
     }
     return failures;
 }
@@ -151,13 +160,13 @@ void loadPlugins(Computer * comp) {
     for (const auto& p : loadedPlugins) {
         lua_CFunction luaopen;
         std::string api_name;
-        if (!p.second.second.apiName.empty()) api_name = p.second.second.apiName;
+        if (!p.second.second->apiName.empty()) api_name = p.second.second->apiName;
         else {
             size_t pos = p.first.find_last_of(WS("/\\"));
             if (pos == std::string::npos) pos = 0; else pos++;
             api_name = astr(p.first.substr(pos).substr(0, p.first.substr(pos).find_first_of('.')));
         }
-        if (!p.second.second.luaopenName.empty()) luaopen = (lua_CFunction)SDL_LoadFunction(p.second.first, p.second.second.luaopenName.c_str());
+        if (!p.second.second->luaopenName.empty()) luaopen = (lua_CFunction)SDL_LoadFunction(p.second.first, p.second.second->luaopenName.c_str());
         else luaopen = (lua_CFunction)SDL_LoadFunction(p.second.first, ("luaopen_" + api_name).c_str());
         if (luaopen == NULL) {
             fprintf(stderr, "Error loading plugin %s: Missing API opener\n", api_name.c_str()); 
@@ -183,8 +192,9 @@ void loadPlugins(Computer * comp) {
 
 void deinitializePlugins() {
     for (const auto& p : loadedPlugins) {
-        const auto plugin_deinit = (void(*)())SDL_LoadFunction(p.second.first, "plugin_deinit");
-        if (plugin_deinit != NULL) plugin_deinit();
+        const auto plugin_deinit = (void(*)(PluginInfo*))SDL_LoadFunction(p.second.first, "plugin_deinit");
+        if (plugin_deinit != NULL) plugin_deinit(p.second.second);
+        else delete p.second.second;
         SDL_UnloadObject(p.second.first);
     }
     loadedPlugins.clear();

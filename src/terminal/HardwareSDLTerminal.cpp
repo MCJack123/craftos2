@@ -304,16 +304,17 @@ void HardwareSDLTerminal::render() {
     }
 }
 
-extern void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y);
-
 bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
-    newWidth = w;
-    newHeight = h;
-    gotResizeEvent = (newWidth != width || newHeight != height);
-    if (!gotResizeEvent) return false;
-    SDL_DestroyRenderer(ren);
-    ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);}, win);
-    font = SDL_CreateTextureFromSurface(ren, bmp);
+    {
+        std::lock_guard<std::mutex> lock(locked);
+        newWidth = w;
+        newHeight = h;
+        gotResizeEvent = (newWidth != width || newHeight != height);
+        if (!gotResizeEvent) return false;
+        SDL_DestroyRenderer(ren);
+        ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);}, win);
+        font = SDL_CreateTextureFromSurface(ren, bmp);
+    }
     while (gotResizeEvent) std::this_thread::yield();
     return true;
 }

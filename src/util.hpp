@@ -26,8 +26,7 @@ extern "C" {
 
 #define CRAFTOSPC_VERSION    "v2.5"
 #define CRAFTOSPC_CC_VERSION "1.95.0"
-#define CRAFTOSPC_INDEV      true
-
+#define CRAFTOSPC_INDEV      false
 template<typename T>
 class ProtectedObject {
     friend class LockGuard;
@@ -154,5 +153,6 @@ extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, const computer_configuration& cfg);
 extern void config_init();
 extern void config_save();
+extern void xcopy(lua_State *from, lua_State *to, int n);
 
 #endif

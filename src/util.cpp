@@ -241,3 +241,36 @@ std::set<std::string> getMounts(Computer * computer, const char * comp_path) {
             retval.insert(std::get<0>(m).back());
     return retval;
 }
+
+static void xcopy_internal(lua_State *from, lua_State *to, int n, std::unordered_set<const void*>& copies) {
+    for (int i = n - 1; i >= 0; i--) {
+        if (lua_type(from, -1-i) == LUA_TNUMBER) lua_pushnumber(to, lua_tonumber(from, -1-i));
+        else if (lua_type(from, -1-i) == LUA_TSTRING) lua_pushlstring(to, lua_tostring(from, -1-i), lua_strlen(from, -1-i));
+        else if (lua_type(from, -1-i) == LUA_TBOOLEAN) lua_pushboolean(to, lua_toboolean(from, -1-i));
+        else if (lua_type(from, -1-i) == LUA_TTABLE) {
+            const void* ptr = lua_topointer(from, -1-i);
+            if (copies.count(ptr)) {
+                lua_pushstring(to, "<recursive table>");
+                continue;
+            } else copies.insert(ptr);
+            lua_newtable(to);
+            lua_pushnil(from);
+            while (lua_next(from, -2-i) != 0) {
+                xcopy_internal(from, to, 2, copies);
+                lua_settable(to, -3);
+                lua_pop(from, 1);
+            }
+        } else if (lua_isnil(from, -1-i)) lua_pushnil(to);
+        else {
+            if (luaL_callmeta(from, -1-i, "__tostring")) {
+                lua_pushlstring(to, lua_tostring(from, -1), lua_strlen(from, -1));
+                lua_pop(from, 1);
+            } else lua_pushfstring(to, "<%s: %p>", lua_typename(from, lua_type(from, -1-i)), lua_topointer(from, -1-i));
+        }
+    }
+}
+
+void xcopy(lua_State *from, lua_State *to, int n) {
+    std::unordered_set<const void*> copies;
+    xcopy_internal(from, to, n, copies);
+}

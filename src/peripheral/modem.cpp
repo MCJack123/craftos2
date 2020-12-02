@@ -134,39 +134,6 @@ struct modem_message_data {
     uint16_t replyPort;
 };
 
-static void xcopy1(lua_State *L, lua_State *T, int n) {
-    switch (lua_type(L, n)) {
-    case LUA_TBOOLEAN:
-        lua_pushboolean(T, lua_toboolean(L, n));
-        break;
-    case LUA_TNUMBER:
-        lua_pushnumber(T, lua_tonumber(L, n));
-        break;
-    case LUA_TSTRING:
-        lua_pushlstring(T, lua_tostring(L, n), lua_strlen(L, n));
-        break;
-    default:
-        lua_pushnil(T);
-        break;
-    }
-}
-
-/* table is in the stack at index 't' */
-static void xcopy(lua_State *L, lua_State *T, int t) {
-    lua_newtable(T);
-    int w = lua_gettop(T);
-    lua_pushnil(L); /* first key */
-    while (lua_next(L, t-(t<0)) != 0) {
-        xcopy1(L, T, -2);
-        if (lua_type(L, -1) == LUA_TTABLE)
-            xcopy(L, T, lua_gettop(L));
-        else
-            xcopy1(L, T, -1);
-        lua_settable(T, w);
-        lua_pop(L, 1);
-    }
-}
-
 static std::string modem_message(lua_State *message, void* data) {
     struct modem_message_data * d = (modem_message_data*)data;
     if (d->sender == NULL) {
@@ -186,13 +153,7 @@ static std::string modem_message(lua_State *message, void* data) {
         return NULL;
     }
     lua_getfield(d->sender->eventQueue, -1, "data");
-    if (lua_type(d->sender->eventQueue, -1) == LUA_TNUMBER) lua_pushnumber(message, lua_tonumber(d->sender->eventQueue, -1));
-    else if (lua_type(d->sender->eventQueue, -1) == LUA_TSTRING) lua_pushlstring(message, lua_tostring(d->sender->eventQueue, -1), lua_strlen(d->sender->eventQueue, -1));
-    else if (lua_type(d->sender->eventQueue, -1) == LUA_TBOOLEAN) lua_pushboolean(message, lua_toboolean(d->sender->eventQueue, -1));
-    else if (lua_type(d->sender->eventQueue, -1) == LUA_TLIGHTUSERDATA) lua_pushlightuserdata(message, lua_touserdata(d->sender->eventQueue, -1));
-    else if (lua_type(d->sender->eventQueue, -1) == LUA_TFUNCTION && lua_iscfunction(d->sender->eventQueue, -1)) lua_pushcfunction(message, lua_tocfunction(d->sender->eventQueue, -1));
-    else if (lua_type(d->sender->eventQueue, -1) == LUA_TTABLE) xcopy(d->sender->eventQueue, message, -1);
-    else lua_pushnil(message);
+    xcopy(d->sender->eventQueue, message, 1);
     lua_pop(d->sender->eventQueue, 1);
     lua_getfield(d->sender->eventQueue, -1, "refcount");
     int * refc = (int*)lua_touserdata(d->sender->eventQueue, -1);

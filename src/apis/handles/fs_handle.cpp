@@ -142,7 +142,7 @@ int fs_handle_readLine(lua_State *L) {
         }
         retval = retvaln;
     }
-    size_t len = strlen(retval) - (retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
+    size_t len = strlen(retval) - (strlen(retval) > 0 && retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
     if (len == 0 && feof(fp)) return 0;
     if (len > 0 && retval[len-1] == '\r') retval[--len] = '\0';
     const std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, len) : makeASCIISafe(retval, len);

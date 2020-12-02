@@ -23,7 +23,11 @@ struct Computer;
 #endif
 
 /// The current version of plugin support.
+#if defined(_WIN32) && defined(_DEBUG)
+#define PLUGIN_VERSION 11
+#else
 #define PLUGIN_VERSION 10
+#endif
 
 /// Most OS's use UTF-8/ASCII for path storage; however, Windows is contrarian and uses UTF-16.
 /// To abstract this difference in implementation, a path_t type is used to allow the correct

@@ -459,7 +459,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         }
     } else if (ar->event == LUA_HOOKERROR) {
         if (config.logErrors) {
-            if (config.debug_enable) {
+            if (config.debug_enable && !computer->isDebugger && (computer->debugger == NULL || ((debugger*)computer->debugger)->thread == NULL)) {
                 lua_getglobal(L, "debug");
                 lua_getfield(L, -1, "traceback");
                 lua_pushfstring(L, "Got error: %s", lua_tostring(L, -4));

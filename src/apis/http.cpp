@@ -273,9 +273,9 @@ static void downloadThread(void* arg) {
 
 void HTTPDownload(const std::string& url, const std::function<void(std::istream&)>& callback) {
     Poco::URI uri(url);
-    Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
-    Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
-    Poco::Net::HTTPResponse response;
+    HTTPSClientSession session(uri.getHost(), uri.getPort(), new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+    HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
     request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " Poco/1.9.3");
     session.sendRequest(request);
