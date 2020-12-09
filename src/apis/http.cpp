@@ -20,6 +20,7 @@
 #include <Computer.hpp>
 #include <configuration.hpp>
 #include <Poco/URI.h>
+#include <Poco/Version.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPMessage.h>
@@ -205,12 +206,12 @@ static void downloadThread(void* arg) {
     HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
     if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
-    unsigned requestSize = param->postData.size();
+    size_t requestSize = param->postData.size();
     for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
     if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
     if (!param->postData.empty()) request.setContentLength(param->postData.size());
-    if (config.http_max_upload > 0 && requestSize > config.http_max_upload) {
+    if (config.http_max_upload > 0 && requestSize > (unsigned)config.http_max_upload) {
         http_handle_t * err = new http_handle_t(NULL);
         err->url = param->url;
         err->failureReason = "Request body is too large";
@@ -751,7 +752,9 @@ public:
             if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
             return;
         }
+#if POCO_VERSION >= 0x01090100
         if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
+#endif
         ws_handle * wsh = new ws_handle;
         wsh->closed = false;
         wsh->ws = ws;
@@ -759,7 +762,7 @@ public:
         wsh->binary = binary;
         queueEvent(comp, websocket_success, wsh);
         while (!wsh->closed) {
-            Poco::Buffer<char> buf(0);
+            Poco::Buffer<char> buf(config.http_max_websocket_message);
             int flags = 0;
             try {
                 if (ws->receiveFrame(buf, flags) == 0) {
@@ -841,7 +844,9 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
         return;
     }
     if (config.http_timeout > 0) ws->setReceiveTimeout(Poco::Timespan(config.http_timeout * 1000));
+#if POCO_VERSION >= 0x01090100
     if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
+#endif
     ws_handle * wsh = new ws_handle;
     wsh->closed = false;
     wsh->externalClosed = false;
@@ -851,7 +856,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
     comp->openWebsockets.push_back(wsh);
     queueEvent(comp, websocket_success, wsh);
     while (!wsh->closed) {
-        Poco::Buffer<char> buf(0);
+        Poco::Buffer<char> buf(config.http_max_websocket_message);
         int flags = 0;
         try {
             int res = ws->receiveFrame(buf, flags);
