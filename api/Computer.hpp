@@ -99,6 +99,7 @@ struct Computer {
     std::chrono::system_clock::time_point system_start = std::chrono::system_clock::now(); // The time that the computer was started
     std::unordered_set<SDL_TimerID> timerIDs; // A list of currently active timers
     std::vector<void*> openWebsockets; // A list of open WebSocket handles that need to be closed
+    int requests_open = 0; // The number of HTTP requests currently open
     std::unordered_set<int> usedDriveMounts; // A list of drive mount IDs that are in use
     std::list<Computer*> referencers; // A list of computers that have attached this computer as a peripheral (used to notify attachers when this computer shuts down)
     int files_open = 0; // The number of files currently open

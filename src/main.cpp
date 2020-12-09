@@ -9,6 +9,7 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
+#include "main.hpp"
 static int runRenderer();
 static void showReleaseNotes();
 static void* releaseNotesThread(void* data);
@@ -36,6 +37,9 @@ static void* releaseNotesThread(void* data);
 #else
 #include <emscripten/emscripten.h>
 #endif
+extern "C" {
+#include <lualib.h>
+}
 
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
@@ -396,6 +400,8 @@ static int runRenderer() {
 #endif
 
 int main(int argc, char*argv[]) {
+    lualib_debug_ccpc_functions(setcompmask, db_debug, db_breakpoint, db_unsetbreakpoint);
+    lualib_io_ccpc_functions(mounter_fopen, mounter_fclose);
 #ifdef __EMSCRIPTEN__
     while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
 #endif

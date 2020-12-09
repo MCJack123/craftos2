@@ -26,4 +26,14 @@ extern std::string script_args;
 extern int returnValue;
 extern std::unordered_map<path_t, std::string> globalPluginErrors;
 
+// These functions are required by main for full initialization of Lua.
+extern "C" {
+    extern int db_debug(lua_State *L);
+    extern int db_breakpoint(lua_State *L);
+    extern int db_unsetbreakpoint(lua_State *L);
+    extern void setcompmask(lua_State *L, int mask);
+    extern FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode);
+    extern int mounter_fclose(lua_State *L, FILE * stream);
+}
+
 #endif

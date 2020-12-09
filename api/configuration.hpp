@@ -12,6 +12,7 @@
 #define CRAFTOS_PC_CONFIGURATION_HPP
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // Constants for mount modes
@@ -62,6 +63,15 @@ struct configuration {
     std::string preferredHardwareDriver;
     bool useVsync;
     bool jit_ffi_enable;
+    bool serverMode;
+    std::unordered_map<std::string, std::string> pluginData;
+    bool http_websocket_enabled;
+    int http_max_websockets;
+    int http_max_websocket_message;
+    int http_max_requests;
+    int http_max_upload;
+    int http_max_download;
+    int http_timeout;
 };
 
 // A smaller structure that holds the configuration for a single computer.

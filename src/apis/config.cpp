@@ -66,6 +66,13 @@ static int config_get(lua_State *L) {
     else if (strcmp(name, "preferredHardwareDriver") == 0)
         lua_pushstring(L, config.preferredHardwareDriver.c_str());
     getConfigSetting(useVsync, boolean);
+    getConfigSetting(http_websocket_enabled, boolean);
+    getConfigSetting(http_max_websockets, integer);
+    getConfigSetting(http_max_websocket_message, integer);
+    getConfigSetting(http_max_requests, integer);
+    getConfigSetting(http_max_upload, integer);
+    getConfigSetting(http_max_download, integer);
+    getConfigSetting(http_timeout, integer);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath.empty()) lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -154,6 +161,13 @@ static int config_set(lua_State *L) {
     else if (strcmp(name, "preferredHardwareDriver") == 0)
         config.preferredHardwareDriver = std::string(luaL_checkstring(L, 2), lua_strlen(L, 2));
     setConfigSetting(useVsync, boolean);
+    setConfigSetting(http_websocket_enabled, boolean);
+    setConfigSettingI(http_max_websockets);
+    setConfigSettingI(http_max_websocket_message);
+    setConfigSettingI(http_max_requests);
+    setConfigSettingI(http_max_upload);
+    setConfigSettingI(http_max_download);
+    setConfigSettingI(http_timeout);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else luaL_error(L, "Unknown configuration option '%s'", lua_tostring(L, 1));

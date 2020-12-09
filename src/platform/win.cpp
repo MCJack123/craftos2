@@ -61,7 +61,7 @@ std::wstring getROMPath() {
     return rom_path_expanded;
 }
 
-std::wstring getPlugInPath() { return getROMPath() + L"/plugins/"; }
+std::wstring getPlugInPath() { return getROMPath() + L"\\plugins\\"; }
 
 std::wstring getMCSavePath() {
     ExpandEnvironmentStringsW(L"%appdata%\\.minecraft\\saves\\", expand_tmp, 32767);

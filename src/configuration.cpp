@@ -105,7 +105,14 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"startFullscreen", {2, 0}},
     {"useHardwareRenderer", {2, 0}},
     {"preferredHardwareDriver", {2, 2}},
-    {"useVsync", {2, 0}}
+    {"useVsync", {2, 0}},
+    {"http_websocket_enabled", {1, 0}},
+    {"http_max_websockets", {0, 1}},
+    {"http_max_websocket_message", {1, 0}},
+    {"http_max_requests", {0, 1}},
+    {"http_max_upload", {0, 1}},
+    {"http_max_download", {0, 1}},
+    {"http_timeout", {0, 1}}
 };
 
 const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion"};
@@ -154,7 +161,16 @@ void config_init() {
         false,
         "",
         false,
-        false
+        false,
+        false,
+        {},
+        true,
+        4,
+        65536,
+        16,
+        4194304,
+        16777216,
+        30000
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -208,6 +224,15 @@ void config_init() {
     readConfigSetting(useHardwareRenderer, Bool);
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
+    readConfigSetting(serverMode, Bool);
+    readConfigSetting(http_websocket_enabled, Bool);
+    readConfigSetting(http_max_websockets, Int);
+    readConfigSetting(http_max_websocket_message, Int);
+    readConfigSetting(http_max_requests, Int);
+    readConfigSetting(http_max_upload, Int);
+    readConfigSetting(http_max_download, Int);
+    readConfigSetting(http_timeout, Int);
+    if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
     for (const auto& e : root)
@@ -253,7 +278,17 @@ void config_save() {
     root["useHardwareRenderer"] = config.useHardwareRenderer;
     root["preferredHardwareDriver"] = config.preferredHardwareDriver;
     root["useVsync"] = config.useVsync;
+    root["serverMode"] = config.serverMode;
+    root["http_websocket_enabled"] = config.http_websocket_enabled;
+    root["http_max_websockets"] = config.http_max_websockets;
+    root["http_max_websocket_message"] = config.http_max_websocket_message;
+    root["http_max_requests"] = config.http_max_requests;
+    root["http_max_upload"] = config.http_max_upload;
+    root["http_max_download"] = config.http_max_download;
+    root["http_timeout"] = config.http_timeout;
     root["lastVersion"] = CRAFTOSPC_VERSION;
+    root["pluginData"] = Value();
+    for (const auto& e : config.pluginData) root["pluginData"][e.first] = e.second;
     for (const auto& opt : unknownOptions) root[opt.first] = opt.second;
     std::ofstream out(getBasePath() + WS("/config/global.json"));
     out << root;

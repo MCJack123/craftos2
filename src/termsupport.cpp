@@ -308,6 +308,8 @@ static bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, con
 }
 
 static void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
+    lua_pushboolean(L, true);
+    lua_setglobal(L, "_CCPC_DEBUGGER_ACTIVE");
     lua_State *coro = lua_newthread(L);
     lua_getglobal(coro, "os");
     lua_getfield(coro, -1, "run");
@@ -340,6 +342,8 @@ static void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
         status = lua_resume(coro, narg);
     }
     lua_pop(L, 1);
+    lua_pushnil(L);
+    lua_setglobal(L, "_CCPC_DEBUGGER_ACTIVE");
     computer->last_event = std::chrono::high_resolution_clock::now();
 }
 
@@ -356,7 +360,12 @@ extern "C" {
     }
 }
 
-extern "C" {extern const char KEY_HOOK;}
+extern "C" {
+#ifdef _WIN32
+    __declspec(dllimport)
+#endif
+    extern const char KEY_HOOK;
+}
 extern bool forceCheckTimeout;
 
 void termHook(lua_State *L, lua_Debug *ar) {

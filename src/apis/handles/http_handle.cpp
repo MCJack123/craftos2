@@ -46,6 +46,7 @@ int http_handle_close(lua_State *L) {
     http_handle_t* handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed) return 0;
     handle->closed = true;
+    if (handle->failureReason.empty()) get_comp(L)->requests_open--;
     delete handle->handle;
     delete handle->session;
     return 0;

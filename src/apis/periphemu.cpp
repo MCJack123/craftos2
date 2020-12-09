@@ -54,6 +54,11 @@ static int periphemu_create(lua_State* L) {
     if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_typerror(L, 1, "string or number");
     Computer * computer = get_comp(L);
     const std::string type = luaL_checkstring(L, 2);
+    if (config.serverMode && type == "speaker") {
+        lua_pushboolean(L, false);
+        lua_pushstring(L, "No peripheral named speaker");
+        return 2;
+    }
     std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
     if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
     computer->peripherals_mutex.lock();

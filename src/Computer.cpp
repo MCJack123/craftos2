@@ -157,8 +157,6 @@ Computer::~Computer() {
 }
 
 extern "C" {
-    extern int db_errorfb (lua_State *L);
-
     /* export */ int db_breakpoint(lua_State *L) {
         Computer * computer = get_comp(L);
         const int id = !computer->breakpoints.empty() ? computer->breakpoints.rbegin()->first + 1 : 1;
@@ -224,152 +222,162 @@ void runComputer(Computer * self, const path_t& bios_name) {
         * All Lua contexts are held in this structure. We work with it almost
         * all the time.
         */
-        self->L = luaL_newstate();
+        lua_State *L = self->L = luaL_newstate();
 
-        self->coro = lua_newthread(self->L);
-        self->paramQueue = lua_newthread(self->L);
+        self->coro = lua_newthread(L);
+        self->paramQueue = lua_newthread(L);
         while (!self->eventQueue.empty()) self->eventQueue.pop();
 
         // Reinitialize any peripherals that were connected before rebooting
-        for (auto p : self->peripherals) p.second->reinitialize(self->L);
+        for (auto p : self->peripherals) p.second->reinitialize(L);
 
         // Push reference to this to the registry
-        lua_pushinteger(self->L, 1);
-        lua_pushlightuserdata(self->L, self);
-        lua_settable(self->L, LUA_REGISTRYINDEX);
+        lua_pushinteger(L, 1);
+        lua_pushlightuserdata(L, self);
+        lua_settable(L, LUA_REGISTRYINDEX);
         if (::config.debug_enable) {
-            lua_newtable(self->L);
-            lua_newtable(self->L);
-            lua_pushstring(self->L, "v");
-            lua_setfield(self->L, -2, "__mode");
-            lua_setmetatable(self->L, -2);
-            lua_setfield(self->L, LUA_REGISTRYINDEX, "_coroutine_stack");
+            lua_newtable(L);
+            lua_newtable(L);
+            lua_pushstring(L, "v");
+            lua_setfield(L, -2, "__mode");
+            lua_setmetatable(L, -2);
+            lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
         }
 
         // Load libraries
         luaL_openlibs(self->coro);
-        lua_getglobal(self->L, "os");
-        lua_getfield(self->L, -1, "date");
-        lua_setglobal(self->L, "os_date");
-        lua_pop(self->L, 1);
+        lua_getglobal(L, "os");
+        lua_getfield(L, -1, "date");
+        lua_setglobal(L, "os_date");
+        lua_pop(L, 1);
         if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         else lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
-        lua_atpanic(self->L, termPanic);
+        lua_atpanic(L, termPanic);
         for (library_t * lib : libraries) load_library(self, self->coro, *lib);
         if (config.http_enable) load_library(self, self->coro, http_lib);
         if (self->isDebugger && self->debugger != NULL) load_library(self, self->coro, *((library_t*)self->debugger));
         lua_getglobal(self->coro, "redstone");
         lua_setglobal(self->coro, "rs");
-        lua_getglobal(self->L, "os");
-        lua_getglobal(self->L, "os_date");
-        lua_setfield(self->L, -2, "date");
-        lua_pop(self->L, 1);
-        lua_pushnil(self->L);
-        lua_setglobal(self->L, "os_date");
+        lua_getglobal(L, "os");
+        lua_getglobal(L, "os_date");
+        lua_setfield(L, -2, "date");
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        lua_setglobal(L, "os_date");
 
         // Load any plugins available
         if (!config.vanilla) {
             if (!globalPluginErrors.empty()) {
-                lua_getglobal(self->L, "_CCPC_PLUGIN_ERRORS");
-                if (lua_isnil(self->L, -1)) {
-                    lua_newtable(self->L);
-                    lua_pushvalue(self->L, -1);
-                    lua_setglobal(self->L, "_CCPC_PLUGIN_ERRORS");
+                lua_getglobal(L, "_CCPC_PLUGIN_ERRORS");
+                if (lua_isnil(L, -1)) {
+                    lua_newtable(L);
+                    lua_pushvalue(L, -1);
+                    lua_setglobal(L, "_CCPC_PLUGIN_ERRORS");
                 }
                 for (const auto& err : globalPluginErrors) {
                     path_t bname = err.first.substr(err.first.find_last_of(PATH_SEPC) + 1);
-                    lua_pushstring(self->L, astr(bname.substr(0, bname.find_first_of('.'))).c_str());
-                    lua_pushstring(self->L, err.second.c_str());
-                    lua_settable(self->L, -3);
+                    lua_pushstring(L, astr(bname.substr(0, bname.find_first_of('.'))).c_str());
+                    lua_pushstring(L, err.second.c_str());
+                    lua_settable(L, -3);
                 }
-                lua_pop(self->L, 1);
+                lua_pop(L, 1);
             }
             loadPlugins(self);
         }
 
         // Delete unwanted globals
-        lua_pushnil(self->L);
-        lua_setglobal(self->L, "dofile");
-        lua_pushnil(self->L);
-        lua_setglobal(self->L, "loadfile");
-        lua_pushnil(self->L);
-        lua_setglobal(self->L, "module");
-        lua_pushnil(self->L);
-        lua_setglobal(self->L, "require");
-        lua_pushnil(self->L);
-        lua_setglobal(self->L, "package");
-        lua_pushnil(self->L);
-        lua_setglobal(self->L, "print");
+        lua_pushnil(L);
+        lua_setglobal(L, "dofile");
+        lua_pushnil(L);
+        lua_setglobal(L, "loadfile");
+        lua_pushnil(L);
+        lua_setglobal(L, "module");
+        lua_pushnil(L);
+        lua_setglobal(L, "require");
+        lua_pushnil(L);
+        lua_setglobal(L, "package");
+        lua_pushnil(L);
+        lua_setglobal(L, "print");
         if (!config.debug_enable) {
-            lua_pushnil(self->L);
-            lua_setglobal(self->L, "collectgarbage");
-            lua_pushnil(self->L);
-            lua_setglobal(self->L, "debug");
-            lua_pushnil(self->L);
-            lua_setglobal(self->L, "newproxy");
+            lua_pushnil(L);
+            lua_setglobal(L, "collectgarbage");
+            lua_pushnil(L);
+            lua_setglobal(L, "debug");
+            lua_pushnil(L);
+            lua_setglobal(L, "newproxy");
         }
         if (config.vanilla) {
-            lua_pushnil(self->L);
-            lua_setglobal(self->L, "config");
-            lua_pushnil(self->L);
-            lua_setglobal(self->L, "mounter");
-            lua_pushnil(self->L);
-            lua_setglobal(self->L, "periphemu");
-            lua_getglobal(self->L, "term");
-            lua_pushnil(self->L);
-            lua_setfield(self->L, -2, "getGraphicsMode");
-            lua_pushnil(self->L);
-            lua_setfield(self->L, -2, "setGraphicsMode");
-            lua_pushnil(self->L);
-            lua_setfield(self->L, -2, "getPixel");
-            lua_pushnil(self->L);
-            lua_setfield(self->L, -2, "setPixel");
-            lua_pushnil(self->L);
-            lua_setfield(self->L, -2, "drawPixels");
-            lua_pushnil(self->L);
-            lua_setfield(self->L, -2, "screenshot");
-            lua_pop(self->L, 1);
+            lua_pushnil(L);
+            lua_setglobal(L, "config");
+            lua_pushnil(L);
+            lua_setglobal(L, "mounter");
+            lua_pushnil(L);
+            lua_setglobal(L, "periphemu");
+            lua_getglobal(L, "term");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "getGraphicsMode");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setGraphicsMode");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "getPixel");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setPixel");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "drawPixels");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "screenshot");
+            lua_pop(L, 1);
             if (config.http_enable) {
-                lua_getglobal(self->L, "http");
-                lua_pushnil(self->L);
-                lua_setfield(self->L, -2, "addListener");
-                lua_pushnil(self->L);
-                lua_setfield(self->L, -2, "removeListener");
-                lua_pop(self->L, 1);
+                lua_getglobal(L, "http");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "addListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "removeListener");
+                lua_pop(L, 1);
             }
             if (config.debug_enable) {
-                lua_getglobal(self->L, "debug");
-                lua_pushnil(self->L);
-                lua_setfield(self->L, -2, "setbreakpoint");
-                lua_pushnil(self->L);
-                lua_setfield(self->L, -2, "unsetbreakpoint");
-                lua_pop(self->L, 1);
+                lua_getglobal(L, "debug");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "setbreakpoint");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "unsetbreakpoint");
+                lua_pop(L, 1);
             }
+        }
+        if (config.serverMode) {
+            lua_getglobal(L, "http");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "addListener");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "removeListener");
+            lua_pop(L, 1);
+            lua_pushnil(L);
+            lua_setglobal(L, "mounter");
         }
 
         // Set default globals
-        lua_pushstring(self->L, ::config.default_computer_settings.c_str());
-        lua_setglobal(self->L, "_CC_DEFAULT_SETTINGS");
-        lua_pushboolean(self->L, ::config.disable_lua51_features);
-        lua_setglobal(self->L, "_CC_DISABLE_LUA51_FEATURES");
+        lua_pushstring(L, ::config.default_computer_settings.c_str());
+        lua_setglobal(L, "_CC_DEFAULT_SETTINGS");
+        lua_pushboolean(L, ::config.disable_lua51_features);
+        lua_setglobal(L, "_CC_DISABLE_LUA51_FEATURES");
 #if CRAFTOSPC_INDEV == true && defined(CRAFTOSPC_COMMIT)
-        lua_pushstring(self->L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION "@" CRAFTOSPC_COMMIT ")");
+        lua_pushstring(L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION "@" CRAFTOSPC_COMMIT ")");
 #else
-        lua_pushstring(self->L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION ")");
+        lua_pushstring(L, "ComputerCraft " CRAFTOSPC_CC_VERSION " (CraftOS-PC " CRAFTOSPC_VERSION ")");
 #endif
-        lua_setglobal(self->L, "_HOST");
+        lua_setglobal(L, "_HOST");
         if (selectedRenderer == 1) {
-            lua_pushboolean(self->L, true);
-            lua_setglobal(self->L, "_HEADLESS");
+            lua_pushboolean(L, true);
+            lua_setglobal(L, "_HEADLESS");
         }
         if (onboardingMode == 1) {
-            lua_pushboolean(self->L, true);
-            lua_setglobal(self->L, "_CCPC_FIRST_RUN");
+            lua_pushboolean(L, true);
+            lua_setglobal(L, "_CCPC_FIRST_RUN");
             onboardingMode = 0;
         } else if (onboardingMode == 2) {
-            lua_pushboolean(self->L, true);
-            lua_setglobal(self->L, "_CCPC_UPDATED_VERSION");
+            lua_pushboolean(L, true);
+            lua_setglobal(L, "_CCPC_UPDATED_VERSION");
             onboardingMode = 0;
         }
         if (!script_file.empty()) {
@@ -385,15 +393,15 @@ void runComputer(Computer * self, const path_t& bios_name) {
                 }
                 fclose(in);
             }
-            lua_pushlstring(self->L, script.c_str(), script.size());
-            lua_setglobal(self->L, "_CCPC_STARTUP_SCRIPT");
+            lua_pushlstring(L, script.c_str(), script.size());
+            lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
         }
         if (!script_args.empty()) {
-            lua_pushlstring(self->L, script_args.c_str(), script_args.length());
-            lua_setglobal(self->L, "_CCPC_STARTUP_ARGS");
+            lua_pushlstring(L, script_args.c_str(), script_args.length());
+            lua_setglobal(L, "_CCPC_STARTUP_ARGS");
         }
-        lua_pushcfunction(self->L, term_benchmark);
-        lua_setfield(self->L, LUA_REGISTRYINDEX, "benchmark");
+        lua_pushcfunction(L, term_benchmark);
+        lua_setfield(L, LUA_REGISTRYINDEX, "benchmark");
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
@@ -412,7 +420,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(self->L, -1));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(L, -1));
             if (::config.standardsMode) displayFailure(self->term, "Error loading bios.lua");
             else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
@@ -450,7 +458,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         // Shutdown threads
         self->event_lock.notify_all();
         for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(self);
-        lua_close(self->L);   /* Cya, Lua */
+        lua_close(L);   /* Cya, Lua */
         self->L = NULL;
     }
 }

@@ -204,11 +204,22 @@ static void downloadThread(void* arg) {
     }
     HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
-    session->setTimeout(Poco::Timespan(15, 0));
-    for (const auto& h : param->headers) request.add(h.first, h.second);
+    if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
+    unsigned requestSize = param->postData.size();
+    for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
     if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
     if (!param->postData.empty()) request.setContentLength(param->postData.size());
+    if (config.http_max_upload > 0 && requestSize > config.http_max_upload) {
+        http_handle_t * err = new http_handle_t(NULL);
+        err->url = param->url;
+        err->failureReason = "Request body is too large";
+        queueEvent(param->comp, http_failure, err);
+        delete param;
+        delete response;
+        delete session;
+        return;
+    }
     try {
         std::ostream& reqs = session->sendRequest(request);
         if (!param->postData.empty()) reqs.write(param->postData.c_str(), param->postData.size());
@@ -222,6 +233,15 @@ static void downloadThread(void* arg) {
             delete session;
             return;
         }
+    } catch (Poco::TimeoutException &e) {
+        http_handle_t * err = new http_handle_t(NULL);
+        err->url = param->url;
+        err->failureReason = "Timed out";
+        queueEvent(param->comp, http_failure, err);
+        delete param;
+        delete response;
+        delete session;
+        return;
     } catch (Poco::Exception &e) {
         fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
         http_handle_t * err = new http_handle_t(NULL);
@@ -236,11 +256,30 @@ static void downloadThread(void* arg) {
     http_handle_t * handle;
     try {
         handle = new http_handle_t(&session->receiveResponse(*response));
+    } catch (Poco::TimeoutException &e) {
+        http_handle_t * err = new http_handle_t(NULL);
+        err->url = param->url;
+        err->failureReason = "Timed out";
+        queueEvent(param->comp, http_failure, err);
+        delete param;
+        delete response;
+        delete session;
+        return;
     } catch (Poco::Exception &e) {
         fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
         http_handle_t * err = new http_handle_t(NULL);
         err->url = param->url;
         err->failureReason = e.message();
+        queueEvent(param->comp, http_failure, err);
+        delete param;
+        delete response;
+        delete session;
+        return;
+    }
+    if (config.http_max_download > 0 && response->hasContentLength() && response->getContentLength() > config.http_max_download) {
+        http_handle_t * err = new http_handle_t(NULL);
+        err->url = param->url;
+        err->failureReason = "Response is too large";
         queueEvent(param->comp, http_failure, err);
         delete param;
         delete response;
@@ -267,7 +306,10 @@ static void downloadThread(void* arg) {
     if (response->getStatus() >= 400) {
         handle->failureReason = HTTPResponse::getReasonForStatus(response->getStatus());
         queueEvent(param->comp, http_failure, handle);
-    } else queueEvent(param->comp, http_success, handle);
+    } else {
+        param->comp->requests_open++;
+        queueEvent(param->comp, http_success, handle);
+    }
     delete param;
 }
 
@@ -277,7 +319,7 @@ void HTTPDownload(const std::string& url, const std::function<void(std::istream&
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
-    request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " Poco/1.9.3");
+    request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     session.sendRequest(request);
     std::istream& stream = session.receiveResponse(response);
     if (response.getStatus() / 100 == 3 && response.has("Location")) 
@@ -309,26 +351,60 @@ static int http_request(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    luaL_checkstring(L, 1);
+    if (!lua_isstring(L, 1) && !lua_istable(L, 1)) luaL_typerror(L, 1, "string or table");
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    param->url = lua_tostring(L, 1);
-    param->old_url = param->url;
-    param->isBinary = false;
-    if (lua_isstring(L, 2)) param->postData = std::string(lua_tostring(L, 2), lua_strlen(L, 2));
-    if (lua_istable(L, 3)) {
-        lua_pushvalue(L, 3);
-        lua_pushnil(L);
-        for (int i = 0; lua_next(L, -2); i++) {
-            lua_pushvalue(L, -2);
-            param->headers[lua_tostring(L, -1)] = lua_tostring(L, -2);
-            lua_pop(L, 2);
+    if (lua_istable(L, 1)) {
+        lua_getfield(L, 1, "url");
+        if (!lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'url' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
+        param->url = lua_tostring(L, -1);
+        param->old_url = param->url;
+        lua_pop(L, 1);
+        lua_getfield(L, 1, "body");
+        if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'body' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
+        else if (lua_isstring(L, -1)) param->postData = std::string(lua_tostring(L, -1), lua_strlen(L, -1));
+        lua_pop(L, 1);
+        lua_getfield(L, 1, "binary");
+        if (!lua_isnil(L, -1) && !lua_isboolean(L, -1)) {delete param; return luaL_error(L, "bad field 'binary' (boolean expected, got %s)", lua_typename(L, lua_type(L, -1)));}
+        else if (lua_isboolean(L, -1)) param->isBinary = lua_toboolean(L, -1);
+        lua_pop(L, 1);
+        lua_getfield(L, 1, "method");
+        if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'method' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
+        else if (lua_isstring(L, -1)) param->method = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        lua_getfield(L, 1, "redirect");
+        if (!lua_isnil(L, -1) && !lua_isboolean(L, -1)) {delete param; return luaL_error(L, "bad field 'redirect' (boolean expected, got %s)", lua_typename(L, lua_type(L, -1)));}
+        else if (lua_isboolean(L, -1)) param->redirect = lua_toboolean(L, -1);
+        lua_pop(L, 1);
+        lua_getfield(L, 1, "headers");
+        if (!lua_isnil(L, -1) && !lua_istable(L, -1)) {delete param; return luaL_error(L, "bad field 'headers' (table expected, got %s)", lua_typename(L, lua_type(L, -1)));}
+        else if (lua_istable(L, -1)) {
+            lua_pushnil(L);
+            while (lua_next(L, -2)) {
+                param->headers[lua_tostring(L, -2)] = lua_tostring(L, -1);
+                lua_pop(L, 1);
+            }
         }
         lua_pop(L, 1);
+    } else {
+        param->url = lua_tostring(L, 1);
+        param->old_url = param->url;
+        param->isBinary = false;
+        if (lua_isstring(L, 2)) param->postData = std::string(lua_tostring(L, 2), lua_strlen(L, 2));
+        if (lua_istable(L, 3)) {
+            lua_pushvalue(L, 3);
+            lua_pushnil(L);
+            for (int i = 0; lua_next(L, -2); i++) {
+                lua_pushvalue(L, -2);
+                param->headers[lua_tostring(L, -1)] = lua_tostring(L, -2);
+                lua_pop(L, 2);
+            }
+            lua_pop(L, 1);
+        }
+        if (lua_isboolean(L, 4)) param->isBinary = lua_toboolean(L, 4);
+        if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
+        param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
     }
-    if (lua_isboolean(L, 4)) param->isBinary = lua_toboolean(L, 4);
-    if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
-    param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
     std::thread th(downloadThread, param);
     setThreadName(th, "HTTP Request Thread");
     th.detach();
@@ -570,6 +646,7 @@ static std::string websocket_closed(lua_State *L, void* userp) {
 // WebSocket handle functions
 static int websocket_send(lua_State *L) {
     luaL_checkstring(L, 1);
+    if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     if (ws->closed) return 0;
     if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(ws->binary ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
@@ -674,6 +751,7 @@ public:
             if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
             return;
         }
+        if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
         ws_handle * wsh = new ws_handle;
         wsh->closed = false;
         wsh->ws = ws;
@@ -743,7 +821,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
     else {
         websocket_failure_data * data = new websocket_failure_data;
         data->url = str;
-        data->reason = std::string("Unknown protocol" + uri.getScheme());
+        data->reason = std::string("Unknown protocol " + uri.getScheme());
         queueEvent(comp, websocket_failure, data);
         return;
     }
@@ -762,7 +840,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
         queueEvent(comp, websocket_failure, data);
         return;
     }
-    ws->setReceiveTimeout(Poco::Timespan(2, 0));
+    if (config.http_timeout > 0) ws->setReceiveTimeout(Poco::Timespan(config.http_timeout * 1000));
+    if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
     ws_handle * wsh = new ws_handle;
     wsh->closed = false;
     wsh->externalClosed = false;
@@ -833,8 +912,11 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
 }
 
 static int http_websocket(lua_State *L) {
+    if (!config.http_websocket_enabled) luaL_error(L, "Websocket connections are disabled");
     if (!lua_isnoneornil(L, 3) && !lua_isboolean(L, 3)) luaL_error(L, "bad argument #3 (expected boolean or nil, got %s)", lua_typename(L, lua_type(L, 3)));
     if (lua_isstring(L, 1)) {
+        Computer * comp = get_comp(L);
+        if (config.http_max_websockets > 0 && comp->openWebsockets.size() >= (unsigned)config.http_max_websockets) luaL_error(L, "Too many websockets already open");
         std::string url = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
         std::unordered_map<std::string, std::string> headers;
         if (lua_istable(L, 2)) {
@@ -847,10 +929,10 @@ static int http_websocket(lua_State *L) {
             }
             lua_pop(L, 1);
         }
-        std::thread th(websocket_client_thread, get_comp(L), url, lua_isboolean(L, 3) && lua_toboolean(L, 3), headers);
+        std::thread th(websocket_client_thread, comp, url, lua_isboolean(L, 3) && lua_toboolean(L, 3), headers);
         setThreadName(th, "WebSocket Client Thread");
         th.detach();
-    } else if (lua_isnoneornil(L, 1)) {
+    } else if (!config.serverMode && lua_isnoneornil(L, 1)) {
         std::unordered_map<std::string, std::string> headers;
         if (lua_istable(L, 2)) {
             lua_pushvalue(L, 2);
@@ -867,10 +949,11 @@ static int http_websocket(lua_State *L) {
         catch (Poco::Exception& e) {
             fprintf(stderr, "Could not open server: %s\n", e.displayText().c_str());
             lua_pushboolean(L, false);
-            return 1;
+            lua_pushstring(L, e.displayText().c_str());
+            return 2;
         }
         f->srv->start();
-    } else luaL_error(L, "bad argument #1 (expected string or nil, got %s)", lua_typename(L, lua_type(L, 1)));
+    } else luaL_error(L, config.serverMode ? "bad argument #1 (expected string, got %s)" : "bad argument #1 (expected string or nil, got %s)", lua_typename(L, lua_type(L, 1)));
     lua_pushboolean(L, true);
     return 1;
 }
