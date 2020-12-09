@@ -183,7 +183,7 @@ extern "C" {
         return 1;
     }
 
-    /* export */ void setcompmask(lua_State *L, int mask) {
+    /* export */ void setcompmask_(lua_State *L, int mask) {
         Computer * comp = get_comp(L);
         comp->hookMask = mask;
     }

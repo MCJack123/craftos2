@@ -31,9 +31,9 @@ extern "C" {
     extern int db_debug(lua_State *L);
     extern int db_breakpoint(lua_State *L);
     extern int db_unsetbreakpoint(lua_State *L);
-    extern void setcompmask(lua_State *L, int mask);
-    extern FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode);
-    extern int mounter_fclose(lua_State *L, FILE * stream);
+    extern void setcompmask_(lua_State *L, int mask);
+    extern FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode);
+    extern int mounter_fclose_(lua_State *L, FILE * stream);
 }
 
 #endif

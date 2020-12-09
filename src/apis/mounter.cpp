@@ -112,7 +112,7 @@ static int mounter_isReadOnly(lua_State *L) {
 }
 
 extern "C" {
-    FILE* mounter_fopen(lua_State *L, const char * filename, const char * mode) {
+    FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode) {
         if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0'))) 
             luaL_error(L, "Unsupported mode");
         if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
@@ -132,7 +132,7 @@ extern "C" {
         return retval;
     }
 
-    int mounter_fclose(lua_State *L, FILE * stream) {
+    int mounter_fclose_(lua_State *L, FILE * stream) {
         const int retval = fclose(stream);
         if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
         return retval;
