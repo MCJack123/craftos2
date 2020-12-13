@@ -13,8 +13,6 @@
 #define TERMINAL_CLITERMINAL_HPP
 #include <set>
 #include <string>
-#include <vector>
-#include <ncurses.h>
 #include <Terminal.hpp>
 #undef scroll
 

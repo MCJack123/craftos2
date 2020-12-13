@@ -11,13 +11,14 @@
 #ifndef NO_CLI
 static void pressControl(int sig);
 static void pressAlt(int sig);
+#define PDC_NCMOUSE
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
 #include <thread>
 #include <unordered_map>
-#include <ncurses.h>
+#include <curses.h>
 #include <panel.h>
 #include "CLITerminal.hpp"
 #include "SDLTerminal.hpp"
@@ -26,6 +27,10 @@ static void pressAlt(int sig);
 #include "../peripheral/monitor.hpp"
 #include "../termsupport.hpp"
 #include "../runtime.hpp"
+#ifdef NCURSES_BUTTON_PRESSED
+#define BUTTON_PRESSED NCURSES_BUTTON_PRESSED
+#define BUTTON_RELEASED NCURSES_BUTTON_RELEASED
+#endif
 
 std::set<unsigned> CLITerminal::currentIDs;
 std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
@@ -256,14 +261,16 @@ void CLITerminal::init() {
             keymap_cli[KEY_SEND] = 56;
         }
     }
-    tmpwin = newwin(0, 0, 1, 1);
+    tmpwin = newpad(1, 1);
     nodelay(tmpwin, TRUE);
     keypad(tmpwin, TRUE);
+#ifdef SIGWINCH
     signal(SIGWINCH, handle_winch);
     if (config.cliControlKeyMode == 3) {
         signal(SIGINT, pressControl);
         signal(SIGQUIT, pressAlt);
     }
+#endif
     renderThread = new std::thread(termRenderLoop);
     setThreadName(*renderThread, "Render Thread");
 }
@@ -381,8 +388,8 @@ bool CLITerminal::pollEvents() {
             }
             return false;
         }
-        if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
-        else if (me.bstate & NCURSES_BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
+        if (me.bstate & BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
+        else if (me.bstate & BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
         else return false;
         if ((me.bstate & BUTTON1_PRESSED) || (me.bstate & BUTTON1_RELEASED)) e.button.button = SDL_BUTTON_LEFT;
         else if ((me.bstate & BUTTON2_PRESSED) || (me.bstate & BUTTON2_RELEASED)) e.button.button = SDL_BUTTON_RIGHT;

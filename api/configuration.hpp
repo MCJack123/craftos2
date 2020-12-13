@@ -30,6 +30,7 @@ struct configuration {
     std::vector<std::string> http_blacklist;
     std::vector<std::string> mounter_whitelist;
     std::vector<std::string> mounter_blacklist;
+    std::vector<std::string> mounter_no_ask;
     bool disable_lua51_features;
     std::string default_computer_settings;
     bool logErrors;

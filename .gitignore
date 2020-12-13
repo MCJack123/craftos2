@@ -37,3 +37,5 @@ src/fs_standalone.cpp
 *.vcxproj.user
 *.aps
 include_arm
+vcpkg_installed
+/ignored.txt

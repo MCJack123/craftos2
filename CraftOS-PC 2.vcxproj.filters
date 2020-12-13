@@ -97,6 +97,9 @@
     <None Include="resources\BenchmarkRenderers.sh.bat">
       <Filter>Other Files</Filter>
     </None>
+    <None Include="vcpkg.json">
+      <Filter>Other Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp">

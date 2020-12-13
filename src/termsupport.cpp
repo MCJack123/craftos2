@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <Computer.hpp>
 #include <configuration.hpp>
+#include <curses.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
 #include "runtime.hpp"

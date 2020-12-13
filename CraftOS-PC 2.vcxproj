@@ -39,7 +39,8 @@
     <ProjectGuid>{966C1071-8EB9-4BBA-85A4-9F9BFE05F3B1}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <VcpkgTriplet Condition="'$(Platform)'=='x64'">x64-windows</VcpkgTriplet>
+    <VcpkgTriplet Condition="'$(Platform)'=='x64'">
+    </VcpkgTriplet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -159,6 +160,18 @@
     <TargetName>CraftOS-PC</TargetName>
     <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>WIN32;NO_CLI;PRINT_TYPE=1;CURL_STATICLIB;WIN32;PRINT_TYPE=1;CURL_STATICLIB;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -243,7 +256,7 @@
       <Profile>true</Profile>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S;_DEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;HAVE_STRERROR_S;_DEBUG</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -268,7 +281,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
@@ -291,7 +304,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;STANDALONE_ROM;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;STANDALONE_ROM;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
@@ -314,7 +327,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)packages\poco.1.9.3\build\native\include;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
@@ -366,6 +379,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <None Include="vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp" />
