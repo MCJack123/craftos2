@@ -11,6 +11,7 @@
 #include <cstring>
 #include "../platform.hpp"
 #include "printer.hpp"
+#include "../util.hpp"
 
 #if PRINT_TYPE == PRINT_TYPE_PDF
 #include <cmath>
