@@ -3,6 +3,8 @@
  * CraftOS-PC 2
  * 
  * This file can be used as a template for new plugins.
+ *
+ * This code is released in the public domain.
  */
 
 extern "C" {
