@@ -2,7 +2,7 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
-#include "../src/Computer.hpp"
+#include <CraftOS-PC.hpp>
 
 class example_peripheral: public peripheral {
     int add(lua_State *L) {
@@ -40,15 +40,15 @@ static luaL_Reg methods_reg[] = {
     "subtract",
     "ping",
 };
+static PluginInfo info;
 library_t example_peripheral::methods = {"example_peripheral", methods_reg, nullptr, nullptr};
 
 extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-PluginInfo plugin_init(PluginFunctions * func, const path_t& path) {
-    PluginInfo info;
+PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
     func->registerPeripheral("example_peripheral", &myperipheral::init);
-    return info;
+    return &info;
 }
 }

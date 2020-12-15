@@ -18,6 +18,9 @@ static luaL_reg M[] = {
     {NULL, NULL}
 };
 
+// replace "myplugin" with the plugin name as used in `luaopen_*` below
+static PluginInfo info("myplugin");
+
 extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
@@ -31,10 +34,8 @@ int luaopen_myplugin(lua_State *L) {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-PluginInfo plugin_init(PluginFunctions * func, const path_t& path) {
-    PluginInfo info;
-    info.apiName = "myplugin"; // replace "myplugin" with the API name
+PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
     // configure any other information, or save the functions here...
-    return info;
+    return &info;
 }
 }

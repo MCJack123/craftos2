@@ -52,6 +52,8 @@ extern "C" struct mouse_event_data {
 
 /// The main Computer structure. Functions that require access to the computer will take a pointer to this structure.
 struct Computer {
+    // The following fields are available in API version 10.0. No structure version check is required to use these.
+
     // These properties are the most likely to be useful for reading data about a computer.
     int id;                                                                 // The computer's ID
     int running = 0;                                                        // The current run state for the computer (0 = off, 1 = on, 2 = restarting)
@@ -107,9 +109,9 @@ struct Computer {
     std::unordered_map<unsigned, const FileEntry *> virtualMounts; // Maps virtual mount IDs to virtual filesystem references
     bool requestedExit = false; // Stores a temporary value indicating whether the quit button was pressed and is waiting for exit
 
+private:
     // The constructor is marked private to avoid having to implement it in this file.
     // It isn't necessary to construct a Computer directly; just use the startComputer function instead.
-private:
     friend Computer* startComputer(int id);
     friend void showReleaseNotes();
     friend void* computerThread(void* data);

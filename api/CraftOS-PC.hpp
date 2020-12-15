@@ -14,6 +14,10 @@
 #include "Computer.hpp"
 #include "FileEntry.hpp"
 
+#if (defined(_WIN32) && (!defined(_MSC_VER) || _MSC_VER < 1900)) || (defined(__APPLE__) && !defined(__clang__))
+#warning An incompatible C++ library may be in use. This plugin may fail to work properly.
+#endif
+
 /**
  * The PluginFunctions structure is used to hold all of the functions that a
  * plugin may use to interact with CraftOS-PC. This structure is passed (as a
@@ -51,7 +55,8 @@
  */
 struct PluginFunctions {
     unsigned abi_version; ///< The plugin ABI version that is supported by this copy of CraftOS-PC. This version must **exactly** match your plugin's API version. You should check this version before doing anything else.
-    unsigned structure_version; ///< The version of the PluginFunctions and Computer structures. Check this version before using any field that isn't available in version 0. This version must be equal to or greater than your plugin's minimum structure version.
+    unsigned structure_version; ///< The version of the PluginFunctions, Computer, and configuration structures. Check this version before using any field that isn't available in version 0. This version must be equal to or greater than your plugin's minimum structure version.
+    const char * craftos_pc_version; ///< The version of CraftOS-PC that is loading the plugin.
 
     // The following fields are available in API version 10.0. No structure version check is required to use these.
 
@@ -59,6 +64,11 @@ struct PluginFunctions {
      * A reference to the variable holding the current renderer.
      */
     const int& selectedRenderer;
+
+    /**
+     * A pointer to the global configuration.
+     */
+    const configuration * config;
 
     /**
      * Returns the path to the CraftOS-PC data root.
@@ -146,6 +156,55 @@ struct PluginFunctions {
      * @return The value returned from the function, or NULL if async is true
      */
     void* (*queueTask)(const std::function<void*(void*)>& func, void* userdata, bool async);
+
+    // The following config functions are for your convenience.
+
+    /**
+     * Returns the value of a custom configuration setting as a string.
+     * @param name The name of the setting
+     * @return The value of the setting
+     * @throws std::out_of_range If the config setting does not exist
+     */
+    std::string (*getConfigSetting)(const std::string& name);
+
+    /**
+     * Returns the value of a custom configuration setting as an integer.
+     * @param name The name of the setting
+     * @return The value of the setting
+     * @throws std::out_of_range If the config setting does not exist
+     * @throws std::invalid_argument If the config setting is not an integer
+     */
+    int (*getConfigSettingInt)(const std::string& name);
+
+    /**
+     * Returns the value of a custom configuration setting as a boolean.
+     * @param name The name of the setting
+     * @return The value of the setting
+     * @throws std::out_of_range If the config setting does not exist
+     * @throws std::invalid_argument If the config setting is not a boolean
+     */
+    bool (*getConfigSettingBool)(const std::string& name);
+
+    /**
+     * Sets a custom configuration variable as a string.
+     * @param name The name of the setting
+     * @param value The value of the setting
+     */
+    void (*setConfigSetting)(const std::string& name, const std::string& value);
+
+    /**
+     * Sets a custom configuration variable as an integer.
+     * @param name The name of the setting
+     * @param value The value of the setting
+     */
+    void (*setConfigSettingInt)(const std::string& name, int value);
+
+    /**
+     * Sets a custom configuration variable as a boolean.
+     * @param name The name of the setting
+     * @param value The value of the setting
+     */
+    void (*setConfigSettingBool)(const std::string& name, bool value);
 };
 
 /**
@@ -162,7 +221,17 @@ struct PluginInfo {
     std::string failureReason = "";         ///< This can be used to trigger a load failure without throwing an exception. Set this field to any non-blank value to stop loading.
     std::string apiName = "";               ///< The name of the API. This can be used to override the default, which is determined by filename. This will also affect luaopenName if that's not set.
     PluginInfo() = default;
-    PluginInfo(std::string api): apiName(api) {}
+    /**
+     * Creates a new PluginInfo structure with the specified API name, and optionally a minimum structure version.
+     * @param api The name of the API.
+     * @param sv The minimum structure version required for the plugin; defaults to 0.
+     */
+    PluginInfo(const std::string& api, unsigned sv = 0): minimum_structure_version(sv), apiName(api) {}
+    /**
+     * Returns a dynamically-allocated error info structure. Make sure you have a `plugin_deinit` function in place first.
+     * @param err The string to report as the error
+     * @return A dynamically allocated PluginInfo structure with the error
+     */
     static PluginInfo * error(const std::string& err) {
         PluginInfo * info = new PluginInfo;
         info->failureReason = err;

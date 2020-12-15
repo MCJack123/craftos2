@@ -37,6 +37,7 @@ static luaL_Reg methods_reg[] = {
     // Insert the methods names here as {"func", NULL}...
     {NULL, NULL}
 };
+static PluginInfo info;
 // Replace myperipheral with the name of your peripheral
 library_t myperipheral::methods = {"myperipheral", methods_reg, nullptr, nullptr};
 
@@ -44,10 +45,9 @@ extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-PluginInfo plugin_init(PluginFunctions * func, const path_t& path) {
-    PluginInfo info;
+PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
     // Replace myperipheral with the name of your peripheral
     func->registerPeripheral("myperipheral", &myperipheral::init);
-    return info;
+    return &info;
 }
 }

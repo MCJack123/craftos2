@@ -23,6 +23,7 @@
 
 // This structure holds all available configuration variables. See https://www.craftos-pc.cc/docs/config for information about what each of these means.
 struct configuration {
+    // The following fields are available in API version 10.0. No structure version check is required to use these.
     bool http_enable;
     bool debug_enable;
     int mount_mode;

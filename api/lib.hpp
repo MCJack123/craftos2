@@ -24,7 +24,7 @@ struct Computer;
 
 /// The current version of plugin support.
 #if defined(_WIN32) && defined(_DEBUG)
-#define PLUGIN_VERSION 11
+#define PLUGIN_VERSION 100010
 #else
 #define PLUGIN_VERSION 10
 #endif

@@ -264,6 +264,8 @@ static struct luaL_reg M[] = {
     {NULL, NULL}
 };
 
+static PluginInfo info("ccemux");
+
 extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
@@ -279,13 +281,6 @@ _declspec(dllexport)
 #endif
 PluginInfo * plugin_init(const PluginFunctions * func, const path_t& path) {
     functions = func;
-    return new PluginInfo("ccemux");
-}
-
-#ifdef _WIN32
-_declspec(dllexport)
-#endif
-void plugin_deinit(PluginInfo * info) {
-    delete info;
+    return &info;
 }
 }
