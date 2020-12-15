@@ -32,6 +32,7 @@ extern "C" {
 #include <unistd.h>
 #include <wordexp.h>
 #include "../platform.hpp"
+#include "../util.hpp"
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
