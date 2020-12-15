@@ -16,11 +16,13 @@
 #include "../terminal/SDLTerminal.hpp"
 
 int drive::isDiskPresent(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, diskType != disk_type::DISK_TYPE_NONE);
     return 1;
 }
 
 int drive::getDiskLabel(lua_State *L) {
+    lastCFunction = __func__;
     if (diskType == disk_type::DISK_TYPE_AUDIO) return getAudioTitle(L);
     else if (diskType == disk_type::DISK_TYPE_MOUNT) {
         lua_pushstring(L, astr(path.substr((path.find_last_of('\\') == std::string::npos ? path.find_last_of('/') : path.find_last_of('\\')) + 1)).c_str());
@@ -35,22 +37,26 @@ int drive::setDiskLabel(lua_State *L) {
 }
 
 int drive::hasData(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, diskType == disk_type::DISK_TYPE_MOUNT || diskType == disk_type::DISK_TYPE_DISK);
     return 1;
 }
 
 int drive::getMountPath(lua_State *L) {
+    lastCFunction = __func__;
     if (diskType == disk_type::DISK_TYPE_NONE) return 0;
     lua_pushstring(L, mount_path.c_str());
     return 1;
 }
 
 int drive::hasAudio(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, diskType == disk_type::DISK_TYPE_AUDIO);
     return 1;
 }
 
 int drive::getAudioTitle(lua_State *L) {
+    lastCFunction = __func__;
     if (diskType != disk_type::DISK_TYPE_AUDIO) {
         lua_pushnil(L);
         return 1;
@@ -62,6 +68,7 @@ int drive::getAudioTitle(lua_State *L) {
 }
 
 int drive::playAudio(lua_State *L) {
+    lastCFunction = __func__;
 #ifndef NO_MIXER
     if (diskType != disk_type::DISK_TYPE_AUDIO) return 0;
     if (music != NULL) stopAudio(L);
@@ -73,6 +80,7 @@ int drive::playAudio(lua_State *L) {
 }
 
 int drive::stopAudio(lua_State *L) {
+    lastCFunction = __func__;
 #ifndef NO_MIXER
     if (diskType != disk_type::DISK_TYPE_AUDIO || music == NULL) return 0;
     if (Mix_PlayingMusic()) Mix_HaltMusic();
@@ -83,6 +91,7 @@ int drive::stopAudio(lua_State *L) {
 }
 
 int drive::ejectDisk(lua_State *L) {
+    lastCFunction = __func__;
     if (diskType == disk_type::DISK_TYPE_NONE) return 0;
     else if (diskType == disk_type::DISK_TYPE_AUDIO) stopAudio(L);
     else {
@@ -104,12 +113,14 @@ int drive::ejectDisk(lua_State *L) {
 }
 
 int drive::getDiskID(lua_State *L) {
+    lastCFunction = __func__;
     if (diskType != disk_type::DISK_TYPE_DISK) return 0;
     lua_pushinteger(L, id);
     return 1;
 }
 
 int drive::insertDisk(lua_State *L, bool init) {
+    lastCFunction = __func__;
     Computer * comp = get_comp(L);
     const int arg = init * 2 + 1;
     if (diskType != disk_type::DISK_TYPE_NONE) lua_pop(L, ejectDisk(L));

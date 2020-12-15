@@ -129,6 +129,7 @@ extern std::mutex renderTargetsLock;
 extern std::list<Terminal*>::iterator renderTarget;
 #endif
 
+extern const char * lastCFunction;
 extern void* getCompCache_glob;
 extern Computer * getCompCache_comp;
 extern Computer * _get_comp(lua_State *L);

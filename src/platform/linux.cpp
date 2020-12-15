@@ -226,7 +226,7 @@ void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext) {
 #error Unsupported architecture. // TODO: Add support for other arch.
 #endif
     fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s (%d). Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\n", strsignal(sig_num), sig_num);
-    fprintf(stderr, "OS: Linux\nAddress is %p from %p\n", info->si_addr, (void *)caller_address);
+    fprintf(stderr, "OS: Linux\nAddress is %p from %p\nLast C function: %s\n", info->si_addr, (void *)caller_address, lastCFunction);
     size = backtrace(array, 25);
     /* overwrite sigaction with caller's address */
     array[1] = caller_address;
@@ -250,6 +250,7 @@ void setupCrashHandler() {
     setSignalHandler(SIGILL);
     setSignalHandler(SIGBUS);
     setSignalHandler(SIGTRAP);
+    setSignalHandler(SIGABRT);
 }
 
 #else

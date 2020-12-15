@@ -16,29 +16,34 @@
 int computer::turnOn(lua_State *L) {return 0;}
 
 int computer::isOn(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, freedComputers.find(comp) == freedComputers.end());
     return 1;
 }
 
 int computer::getID(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
     lua_pushinteger(L, comp->id);
     return 1;
 }
 
 int computer::shutdown(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
     comp->running = 0;
     return 0;
 }
 
 int computer::reboot(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
     comp->running = 2;
     return 0;
 }
 
 int computer::getLabel(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
     lua_pushlstring(L, comp->config->label.c_str(), comp->config->label.length());
     return 1;

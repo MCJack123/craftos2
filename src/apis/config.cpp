@@ -23,6 +23,7 @@
 static const char * config_set_action_names[3] = {"", "The changes will take effect after rebooting the computer.", "The changes will take effect after restarting CraftOS-PC."};
 
 static int config_get(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * name = luaL_checkstring(L, 1);
     if (strcmp(name, "http_enable") == 0)
@@ -82,6 +83,7 @@ static int config_get(lua_State *L) {
 }
 
 static int config_set(lua_State *L) {
+    lastCFunction = __func__;
     if (config.configReadOnly) luaL_error(L, "Configuration is read-only");
     Computer * computer = get_comp(L);
     const char * name = luaL_checkstring(L, 1);
@@ -178,6 +180,7 @@ static int config_set(lua_State *L) {
 }
 
 static int config_list(lua_State *L) {
+    lastCFunction = __func__;
     lua_newtable(L);
     int i = 1;
     for (auto it = configSettings.begin(); it != configSettings.end(); it++, i++) {
@@ -189,6 +192,7 @@ static int config_list(lua_State *L) {
 }
 
 static int config_getType(lua_State *L) {
+    lastCFunction = __func__;
     const std::string name = luaL_checkstring(L, 1);
     if (configSettings.find(name) == configSettings.end()) lua_pushnil(L);
     else {

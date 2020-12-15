@@ -163,6 +163,7 @@ printer::~printer() {
 }
 
 int printer::write(lua_State *L) {
+    lastCFunction = __func__;
     if (cursorY >= height) return 0;
     size_t str_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
@@ -174,24 +175,28 @@ int printer::write(lua_State *L) {
 }
 
 int printer::setCursorPos(lua_State *L) {
+    lastCFunction = __func__;
     cursorX = (int)luaL_checkinteger(L, 1)-1;
     cursorY = (int)luaL_checkinteger(L, 2)-1;
     return 0;
 }
 
 int printer::getCursorPos(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, cursorX+1);
     lua_pushinteger(L, cursorY+1);
     return 2;
 }
 
 int printer::getPageSize(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, width);
     lua_pushinteger(L, height);
     return 2;
 }
 
 int printer::newPage(lua_State *L) {
+    lastCFunction = __func__;
     if (started) {endPage(L); lua_pop(L, 1);}
     body = std::vector<std::vector<char> >(height, std::vector<char>(width, ' '));
     title = "";
@@ -208,6 +213,7 @@ int printer::newPage(lua_State *L) {
 }
 
 int printer::endPage(lua_State *L) {
+    lastCFunction = __func__;
     if (!started) {
         if (L) lua_pushboolean(L, false);
         return 1;
@@ -253,16 +259,19 @@ int printer::endPage(lua_State *L) {
 }
 
 int printer::getInkLevel(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, INT32_MAX);
     return 1;
 }
 
 int printer::setPageTitle(lua_State *L) {
+    lastCFunction = __func__;
     title = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
     return 0;
 }
 
 int printer::getPaperLevel(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, INT32_MAX);
     return 1;
 }

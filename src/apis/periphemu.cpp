@@ -51,6 +51,7 @@ static std::string peripheral_detach(lua_State *L, void* arg) {
 }
 
 static int periphemu_create(lua_State* L) {
+    lastCFunction = __func__;
     if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_typerror(L, 1, "string or number");
     Computer * computer = get_comp(L);
     const std::string type = luaL_checkstring(L, 2);
@@ -92,6 +93,7 @@ static int periphemu_create(lua_State* L) {
 }
 
 static int periphemu_remove(lua_State* L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const std::string side = luaL_checkstring(L, 1);
     peripheral * p;
@@ -116,6 +118,7 @@ static int periphemu_remove(lua_State* L) {
 }
 
 static int periphemu_names(lua_State *L) {
+    lastCFunction = __func__;
     lua_newtable(L);
     lua_pushinteger(L, 1);
     lua_pushstring(L, "debugger");

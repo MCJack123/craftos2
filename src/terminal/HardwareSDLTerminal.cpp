@@ -419,6 +419,28 @@ bool HardwareSDLTerminal::pollEvents() {
                             e.type == SDL_QUIT) {
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
+                            if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == c->term->id) {
+                                if (c->requestedExit) {
+                                    SDL_MessageBoxData msg;
+                                    msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                                    msg.title = "Computer Unresponsive";
+                                    msg.message = "The computer appears to be unresponsive. Would you like to force the computer to shut down? All unsaved data will be lost.";
+                                    SDL_MessageBoxButtonData buttons[2] = {
+                                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Cancel"},
+                                        {0, 1, "Shut Down"}
+                                    };
+                                    msg.buttons = buttons;
+                                    msg.numbuttons = 2;
+                                    msg.window = ((SDLTerminal*)c->term)->win;
+                                    int id = 0;
+                                    SDL_ShowMessageBox(&msg, &id);
+                                    if (id == 1) {
+                                        // Forcefully halt the Lua state
+                                        c->running = 0;
+                                        lua_halt(c->L);
+                                    }
+                                } else c->requestedExit = true;
+                            }
                         }
                     }
                 }

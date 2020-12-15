@@ -348,6 +348,7 @@ static void* checkThread(void* arg) {
 }
 
 static int http_request(lua_State *L) {
+    lastCFunction = __func__;
     if (!config.http_enable) {
         lua_pushboolean(L, false);
         return 1;
@@ -414,6 +415,7 @@ static int http_request(lua_State *L) {
 }
 
 static int http_checkURL(lua_State *L) {
+    lastCFunction = __func__;
     if (!config.http_enable) {
         lua_pushboolean(L, false);
         return 1;
@@ -576,6 +578,7 @@ static std::unordered_map<unsigned short, HTTPServer*> listeners;
 }
 
 static int http_addListener(lua_State *L) {
+    lastCFunction = __func__;
     const lua_Integer port_ = (int)luaL_checkinteger(L, 1);
     if (port_ < 0 || port_ > 65535) return 0;
     const unsigned short port = (unsigned short)port_;
@@ -597,6 +600,7 @@ static int http_addListener(lua_State *L) {
 }
 
 static int http_removeListener(lua_State *L) {
+    lastCFunction = __func__;
     const lua_Integer port = luaL_checkinteger(L, 1);
     if (port < 0 || port > 65535 || listeners.find((unsigned short)port) == listeners.end()) return 0;
     delete listeners[(unsigned short)port];
@@ -646,6 +650,7 @@ static std::string websocket_closed(lua_State *L, void* userp) {
 
 // WebSocket handle functions
 static int websocket_send(lua_State *L) {
+    lastCFunction = __func__;
     luaL_checkstring(L, 1);
     if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
@@ -656,17 +661,20 @@ static int websocket_send(lua_State *L) {
 }
 
 static int websocket_close(lua_State *L) {
+    lastCFunction = __func__;
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     ws->closed = true;
     return 0;
 }
 
 static int websocket_isOpen(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, !((ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->closed);
     return 1;
 }
 
 static int websocket_free(lua_State *L) {
+    lastCFunction = __func__;
    ((ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->closed = true;
     return 0;
 }
@@ -917,6 +925,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
 }
 
 static int http_websocket(lua_State *L) {
+    lastCFunction = __func__;
     if (!config.http_websocket_enabled) luaL_error(L, "Websocket connections are disabled");
     if (!lua_isnoneornil(L, 3) && !lua_isboolean(L, 3)) luaL_error(L, "bad argument #3 (expected boolean or nil, got %s)", lua_typename(L, lua_type(L, 3)));
     if (lua_isstring(L, 1)) {

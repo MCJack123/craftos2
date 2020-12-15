@@ -334,6 +334,7 @@ static bool playSoundEvent(std::string name, float volume, float speed, unsigned
 }
 
 int speaker::playNote(lua_State *L) {
+    lastCFunction = __func__;
     const std::string inst = luaL_checkstring(L, 1);
     const float volume = (float)luaL_optnumber(L, 2, 1.0);
     const int pitch = (int)luaL_optnumber(L, 3, 1.0);
@@ -385,6 +386,7 @@ int speaker::playNote(lua_State *L) {
 }
 
 int speaker::playSound(lua_State *L) {
+    lastCFunction = __func__;
 #ifdef STANDALONE_ROM
     luaL_error(L, "Sounds are not available on standalone builds");
     return 0;
@@ -416,6 +418,7 @@ int speaker::playSound(lua_State *L) {
 }
 
 int speaker::listSounds(lua_State *L) {
+    lastCFunction = __func__;
     lua_newtable(L);
     for (const auto& ev : soundEvents) {
         std::vector<std::string> parts = split(ev.first.substr(ev.first.find(':') + 1), '.');
@@ -450,6 +453,7 @@ int speaker::listSounds(lua_State *L) {
 }
 
 int speaker::playLocalMusic(lua_State *L) {
+    lastCFunction = __func__;
     const path_t path = fixpath(get_comp(L), luaL_checkstring(L, 1), true);
     const float volume = (float)luaL_optnumber(L, 2, 1.0);
     if (path.empty()) luaL_error(L, "%s: File does not exist", lua_tostring(L, 1));
@@ -466,11 +470,13 @@ int speaker::playLocalMusic(lua_State *L) {
 }
 
 int speaker::setSoundFont(lua_State *L) {
+    lastCFunction = __func__;
     Mix_SetSoundFonts(astr(fixpath(get_comp(L), luaL_checkstring(L, 1), true)).c_str());
     return 0;
 }
 
 int speaker::stopSounds(lua_State *L) {
+    lastCFunction = __func__;
     if (lua_isnumber(L, 1)) Mix_HaltChannel((int)lua_tointeger(L, 1));
     else {
         if (musicSpeaker == this) { Mix_HaltMusic(); musicSpeaker = NULL; }

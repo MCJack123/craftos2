@@ -35,6 +35,7 @@ extern FileEntry standaloneDebug;
 extern std::string standaloneBIOS;
 #endif
 
+const char * lastCFunction = "(none!)";
 char computer_key = 'C';
 void* getCompCache_glob = NULL;
 Computer * getCompCache_comp = NULL;

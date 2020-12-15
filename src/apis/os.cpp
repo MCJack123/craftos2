@@ -13,9 +13,10 @@
 #include "../runtime.hpp"
 #include "../util.hpp"
 
-static int os_getComputerID(lua_State *L) { lua_pushinteger(L, get_comp(L)->id); return 1; }
+static int os_getComputerID(lua_State *L) { lastCFunction = __func__; lua_pushinteger(L, get_comp(L)->id); return 1; }
 
 static int os_getComputerLabel(lua_State *L) {
+    lastCFunction = __func__;
     struct computer_configuration * cfg = get_comp(L)->config;
     if (cfg->label.empty()) return 0;
     lua_pushstring(L, cfg->label.c_str());
@@ -23,6 +24,7 @@ static int os_getComputerLabel(lua_State *L) {
 }
 
 static int os_setComputerLabel(lua_State *L) {
+    lastCFunction = __func__;
     Computer * comp = get_comp(L);
     comp->config->label = std::string(luaL_optstring(L, 1, ""), lua_isstring(L, 1) ? lua_strlen(L, 1) : 0);
     if (comp->term != NULL) comp->term->setLabel(comp->config->label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config->label));
@@ -30,6 +32,7 @@ static int os_setComputerLabel(lua_State *L) {
 }
 
 static int os_queueEvent(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const std::string name = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
@@ -44,6 +47,7 @@ static int os_queueEvent(lua_State *L) {
 }
 
 static int os_clock(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - computer->system_start).count() / 1000.0);
     return 1;
@@ -113,6 +117,7 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
 }
 
 static int os_startTimer(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     if (luaL_checknumber(L, 1) <= 0.0) {
         queueEvent(computer, [](lua_State *L, void*)->std::string {lua_pushinteger(L, 1); return "timer"; }, NULL);
@@ -137,6 +142,7 @@ static int os_startTimer(lua_State *L) {
 }
 
 static int os_cancelTimer(lua_State *L) {
+    lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
     if (runningTimerData->find(id) == runningTimerData->end()) return 0;
     timer_data_t * data = (*runningTimerData)[id];
@@ -175,6 +181,7 @@ static int getboolfield(lua_State *L, const char *key) {
 }
 
 static int os_time(lua_State *L) {
+    lastCFunction = __func__;
     if (lua_istable(L, 1)) {
         struct tm ts;
         lua_settop(L, 1);  /* make sure table is at the top */
@@ -207,6 +214,7 @@ static int os_time(lua_State *L) {
 }
 
 static int os_epoch(lua_State *L) {
+    lastCFunction = __func__;
     std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     if (tmp == "utc") {
@@ -226,6 +234,7 @@ static int os_epoch(lua_State *L) {
 }
 
 static int os_day(lua_State *L) {
+    lastCFunction = __func__;
     std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     time_t t = time(NULL);
@@ -239,6 +248,7 @@ static int os_day(lua_State *L) {
 }
 
 static int os_setAlarm(lua_State *L) {
+    lastCFunction = __func__;
     const double time = luaL_checknumber(L, 1);
     if (time < 0.0 || time >= 24.0) luaL_error(L, "Number out of range");
     Computer * computer = get_comp(L);
@@ -265,6 +275,7 @@ static int os_setAlarm(lua_State *L) {
 }
 
 static int os_cancelAlarm(lua_State *L) {
+    lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
     if (runningTimerData->find(id) == runningTimerData->end()) return 0;
     timer_data_t * data = (*runningTimerData)[id];
@@ -282,17 +293,20 @@ static int os_cancelAlarm(lua_State *L) {
 }
 
 static int os_shutdown(lua_State *L) {
+    lastCFunction = __func__;
     get_comp(L)->running = 0;
     if (selectedRenderer == 1 && lua_isnumber(L, 1)) returnValue = (int)lua_tointeger(L, 1);
     return 0;
 }
 
 static int os_reboot(lua_State *L) {
+    lastCFunction = __func__;
     get_comp(L)->running = 2;
     return 0;
 }
 
 static int os_about(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushstring(L, "CraftOS-PC " CRAFTOSPC_VERSION "\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
 \n\
 Copyright (c) 2019-2020 JackMacWindows\n\

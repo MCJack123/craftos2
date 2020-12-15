@@ -64,6 +64,7 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
 static std::string debugger_break(lua_State *L, void* userp) {return "debugger_break";}
 
 static int debugger_lib_waitForBreak(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     Computer * comp = get_comp(L);
@@ -85,6 +86,7 @@ static int debugger_lib_waitForBreak(lua_State *L) {
 }
 
 static int debugger_lib_confirmBreak(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     dbg->confirmBreak = true;
@@ -92,6 +94,7 @@ static int debugger_lib_confirmBreak(lua_State *L) {
 }
 
 static int debugger_lib_step(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     dbg->breakType = DEBUGGER_BREAK_TYPE_LINE;
@@ -100,6 +103,7 @@ static int debugger_lib_step(lua_State *L) {
 }
 
 static int debugger_lib_continue(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     dbg->breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
@@ -107,6 +111,7 @@ static int debugger_lib_continue(lua_State *L) {
 }
 
 static int debugger_lib_stepOut(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (dbg->thread == NULL) {
@@ -136,6 +141,7 @@ static void settabsi (lua_State *L, const char *i, int v) {
 }
 
 static int debugger_lib_getInfo(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (dbg->thread == NULL) {
@@ -160,6 +166,7 @@ static int debugger_lib_getInfo(lua_State *L) {
 }
 
 static int debugger_lib_setBreakpoint(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     const int id = !dbg->computer->breakpoints.empty() ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
@@ -170,6 +177,7 @@ static int debugger_lib_setBreakpoint(lua_State *L) {
 }
 
 static int debugger_lib_unsetBreakpoint(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (dbg->computer->breakpoints.find((int)lua_tointeger(L, 1)) != dbg->computer->breakpoints.end()) {
@@ -182,6 +190,7 @@ static int debugger_lib_unsetBreakpoint(lua_State *L) {
 }
 
 static int debugger_lib_listBreakpoints(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_newtable(L);
@@ -200,6 +209,7 @@ static int debugger_lib_listBreakpoints(lua_State *L) {
 }
 
 static int debugger_lib_local_index(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_State *thread = (dbg == NULL) ? L : dbg->thread;
@@ -237,6 +247,7 @@ static int debugger_lib_local_index(lua_State *L) {
 }
 
 static int debugger_lib_local_newindex(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_State *thread = (dbg == NULL) ? L : dbg->thread;
@@ -255,11 +266,13 @@ static int debugger_lib_local_newindex(lua_State *L) {
 }
 
 static int debugger_lib_local_tostring(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushstring(L, "locals table");
     return 1;
 }
 
 static int debugger_lib_run(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_Debug ar;
@@ -286,6 +299,7 @@ static int debugger_lib_run(lua_State *L) {
 }
 
 static int debugger_lib_status(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_pushboolean(L, dbg->thread != NULL);
@@ -297,6 +311,7 @@ static int debugger_lib_status(lua_State *L) {
 }
 
 static int debugger_lib_startProfiling(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (lua_toboolean(L, 1)) dbg->profile.clear();
@@ -305,6 +320,7 @@ static int debugger_lib_startProfiling(lua_State *L) {
 }
 
 static int debugger_lib_profile(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_newtable(L);
@@ -328,6 +344,7 @@ static int debugger_lib_profile(lua_State *L) {
 }
 
 static int debugger_lib_getfenv(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_Debug ar;
@@ -340,6 +357,7 @@ static int debugger_lib_getfenv(lua_State *L) {
 }
 
 static int debugger_lib_unblock(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     queueEvent(dbg->computer, debugger_break, NULL);
@@ -347,6 +365,7 @@ static int debugger_lib_unblock(lua_State *L) {
 }
 
 static int debugger_lib_getReason(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_pushstring(L, dbg->breakReason.c_str());
@@ -354,6 +373,7 @@ static int debugger_lib_getReason(lua_State *L) {
 }
 
 static int debugger_lib_getLocals(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_State *thread = (dbg == NULL) ? L : dbg->thread;
@@ -379,6 +399,7 @@ static int debugger_lib_getLocals(lua_State *L) {
 }
 
 static int debugger_lib_catch(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (std::string(lua_tostring(L, 1)) == "error") dbg->breakMask |= DEBUGGER_BREAK_FUNC_ERROR;
@@ -390,6 +411,7 @@ static int debugger_lib_catch(lua_State *L) {
 }
 
 static int debugger_lib_uncatch(lua_State *L) {
+    lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     if (std::string(lua_tostring(L, 1)) == "error") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_ERROR;
@@ -438,11 +460,13 @@ void debugger::init(Computer * comp) {
 }
 
 int debugger::_break(lua_State *L) {
+    lastCFunction = __func__;
     breakType = DEBUGGER_BREAK_TYPE_LINE;
     return 0;
 }
 
 int debugger::setBreakpoint(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const int id = !computer->breakpoints.empty() ? computer->breakpoints.rbegin()->first + 1 : 1;
     computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, luaL_checkstring(L, 1), false, false)), luaL_checkinteger(L, 2));
@@ -487,6 +511,7 @@ static int lua_converttostring (lua_State *L) {
 }
 
 int debugger::print(lua_State *L) {
+    lastCFunction = __func__;
     lua_settop(L, 1);
     if (!lua_isstring(L, -1)) {
         lua_pushcfunction(L, lua_converttostring);

@@ -30,6 +30,7 @@ extern std::string standaloneBIOS;
 #endif
 
 static int mounter_mount(lua_State *L) {
+    lastCFunction = __func__;
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     bool read_only = config.mount_mode != MOUNT_MODE_RW;
     if (lua_isboolean(L, 3) && config.mount_mode != MOUNT_MODE_RO_STRICT) read_only = lua_toboolean(L, 3);
@@ -38,6 +39,7 @@ static int mounter_mount(lua_State *L) {
 }
 
 static int mounter_unmount(lua_State *L) {
+    lastCFunction = __func__;
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
@@ -67,6 +69,7 @@ static int mounter_unmount(lua_State *L) {
 }
 
 static int mounter_list(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     lua_newtable(L); // table
     for (auto m : computer->mounts) {
@@ -91,6 +94,7 @@ static int mounter_list(lua_State *L) {
 }
 
 static int mounter_isReadOnly(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
     std::vector<std::string> elems = split(comp_path, '/');
@@ -113,6 +117,7 @@ static int mounter_isReadOnly(lua_State *L) {
 
 extern "C" {
     FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode) {
+        lastCFunction = __func__;
         if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0'))) 
             luaL_error(L, "Unsupported mode");
         if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
@@ -133,6 +138,7 @@ extern "C" {
     }
 
     int mounter_fclose_(lua_State *L, FILE * stream) {
+        lastCFunction = __func__;
         const int retval = fclose(stream);
         if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
         return retval;

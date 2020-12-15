@@ -105,6 +105,7 @@ struct Computer {
     int files_open = 0; // The number of files currently open
     bool mounter_initializing = false; // Set to true when the computer is initializing to allow mounting the ROM
     std::unordered_map<unsigned, const FileEntry *> virtualMounts; // Maps virtual mount IDs to virtual filesystem references
+    bool requestedExit = false; // Stores a temporary value indicating whether the quit button was pressed and is waiting for exit
 
     // The constructor is marked private to avoid having to implement it in this file.
     // It isn't necessary to construct a Computer directly; just use the startComputer function instead.

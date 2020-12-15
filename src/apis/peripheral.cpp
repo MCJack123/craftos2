@@ -13,6 +13,7 @@
 #include "../util.hpp"
 
 static int peripheral_isPresent(lua_State *L) {
+    lastCFunction = __func__;
     luaL_checkstring(L, 1);
     Computer * computer = get_comp(L);
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
@@ -21,6 +22,7 @@ static int peripheral_isPresent(lua_State *L) {
 }
 
 static int peripheral_getType(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const std::string side(luaL_checkstring(L, 1));
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
@@ -31,6 +33,7 @@ static int peripheral_getType(lua_State *L) {
 }
 
 static int peripheral_getMethods(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const std::string side(luaL_checkstring(L, 1));
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
@@ -46,6 +49,7 @@ static int peripheral_getMethods(lua_State *L) {
 }
 
 static int peripheral_call(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const std::string side(luaL_checkstring(L, 1));
     const std::string func(luaL_checkstring(L, 2));

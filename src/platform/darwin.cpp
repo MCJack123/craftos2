@@ -206,7 +206,7 @@ void handler(int sig) {
     size = backtrace(array, 25);
 
     // print out all the frames to stderr
-    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Console build)\n", strsignal(sig));
+    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Console build)\nLast C function: %s\n", strsignal(sig), lastCFunction);
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     signal(sig, NULL);
 }
@@ -216,6 +216,7 @@ void setupCrashHandler() {
     signal(SIGILL, handler);
     signal(SIGBUS, handler);
     signal(SIGTRAP, handler);
+    signal(SIGABRT, handler);
 }
 
 extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);

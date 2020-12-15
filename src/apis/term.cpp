@@ -18,6 +18,7 @@ static int headlessCursorX = 1, headlessCursorY = 1;
 static bool can_blink_headless = true;
 
 static int term_write(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         printf("%s", luaL_checkstring(L, 1));
         headlessCursorX += lua_strlen(L, 1);
@@ -43,6 +44,7 @@ static int term_write(lua_State *L) {
 }
 
 static int term_scroll(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         for (int i = 0; i < luaL_checkinteger(L, 1); i++) printf("\n");
         return 0;
@@ -71,6 +73,7 @@ static int term_scroll(lua_State *L) {
 }
 
 static int term_setCursorPos(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         if (luaL_checkinteger(L, 1) < headlessCursorX) printf("\r");
         else if (lua_tointeger(L, 1) > headlessCursorX) for (int i = headlessCursorX; i < lua_tointeger(L, 1); i++) printf(" ");
@@ -92,6 +95,7 @@ static int term_setCursorPos(lua_State *L) {
 }
 
 static int term_setCursorBlink(lua_State *L) {
+    lastCFunction = __func__;
     if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
     if (selectedRenderer != 1) {
         get_comp(L)->term->canBlink = lua_toboolean(L, 1);
@@ -102,6 +106,7 @@ static int term_setCursorBlink(lua_State *L) {
 }
 
 static int term_getCursorPos(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         lua_pushinteger(L, headlessCursorX);
         lua_pushinteger(L, headlessCursorY);
@@ -115,12 +120,14 @@ static int term_getCursorPos(lua_State *L) {
 }
 
 static int term_getCursorBlink(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) lua_pushboolean(L, can_blink_headless);
     else lua_pushboolean(L, get_comp(L)->term->canBlink);
     return 1;
 }
 
 static int term_getSize(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         lua_pushinteger(L, 51);
         lua_pushinteger(L, 19);
@@ -134,6 +141,7 @@ static int term_getSize(lua_State *L) {
 }
 
 static int term_clear(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         for (int i = 0; i < 30; i++) printf("\n");
         return 0;
@@ -152,6 +160,7 @@ static int term_clear(lua_State *L) {
 }
 
 static int term_clearLine(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         printf("\r");
         for (int i = 0; i < 100; i++) printf(" ");
@@ -169,6 +178,7 @@ static int term_clearLine(lua_State *L) {
 }
 
 static int term_setTextColor(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 4 && luaL_checkinteger(L, 1) >= 0 && luaL_checkinteger(L, 1) < 16)
         printf("TF:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
@@ -182,6 +192,7 @@ static int term_setTextColor(lua_State *L) {
 }
 
 static int term_setBackgroundColor(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 4 && luaL_checkinteger(L, 1) >= 0 && luaL_checkinteger(L, 1) < 16)
         printf("TK:%d;%c\n", get_comp(L)->term->id, ("0123456789abcdef")[lua_tointeger(L, 1)]);
     Computer * computer = get_comp(L);
@@ -193,6 +204,7 @@ static int term_setBackgroundColor(lua_State *L) {
 }
 
 static int term_isColor(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         lua_pushboolean(L, true);
         return 1;
@@ -202,16 +214,19 @@ static int term_isColor(lua_State *L) {
 }
 
 static int term_getTextColor(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, (lua_Integer)1 << (get_comp(L)->colors & 0x0f));
     return 1;
 }
 
 static int term_getBackgroundColor(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, (lua_Integer)1 << (get_comp(L)->colors >> 4));
     return 1;
 }
 
 static int term_blit(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         printf("%s", lua_tostring(L, 1));
         headlessCursorX += lua_strlen(L, 1);
@@ -246,6 +261,7 @@ static int term_blit(lua_State *L) {
 }
 
 static int term_getPaletteColor(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1) {
         if (luaL_checkinteger(L, 1) == 0x1) {
             lua_pushnumber(L, 0xF0 / 255.0);
@@ -271,6 +287,7 @@ static int term_getPaletteColor(lua_State *L) {
 }
 
 static int term_setPaletteColor(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     if (selectedRenderer == 1 || !(computer->config->isColor || computer->isDebugger)) return 0;
     Terminal * term = computer->term;
@@ -296,6 +313,7 @@ static int term_setPaletteColor(lua_State *L) {
 }
 
 static int term_setGraphicsMode(lua_State *L) {
+    lastCFunction = __func__;
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "boolean or number");
     Computer * computer = get_comp(L);
     if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config->isColor || computer->isDebugger)) return 0;
@@ -307,6 +325,7 @@ static int term_setGraphicsMode(lua_State *L) {
 }
 
 static int term_getGraphicsMode(lua_State *L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
     if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config->isColor || computer->isDebugger)) {
         lua_pushboolean(L, false);
@@ -318,6 +337,7 @@ static int term_getGraphicsMode(lua_State *L) {
 }
 
 static int term_setPixel(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
@@ -333,6 +353,7 @@ static int term_setPixel(lua_State *L) {
 }
 
 static int term_getPixel(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer == 1 || selectedRenderer == 2) {
         lua_pushinteger(L, 0x8000);
         return 1;
@@ -349,6 +370,7 @@ static int term_getPixel(lua_State *L) {
 }
 
 static int term_drawPixels(lua_State *L) {
+    lastCFunction = __func__;
     luaL_checktype(L, 3, LUA_TTABLE);
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
@@ -382,6 +404,7 @@ static int term_drawPixels(lua_State *L) {
 }
 
 static int term_screenshot(lua_State *L) {
+    lastCFunction = __func__;
     if (selectedRenderer != 0 && selectedRenderer != 5) return 0;
     Computer * computer = get_comp(L);
     SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
@@ -395,6 +418,7 @@ static int term_screenshot(lua_State *L) {
 }
 
 static int term_nativePaletteColor(lua_State *L) {
+    lastCFunction = __func__;
     const int color = log2i((int)luaL_checkinteger(L, 1));
     if (color < 0 || color > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", color);
     const Color c = defaultPalette[color];
@@ -405,12 +429,14 @@ static int term_nativePaletteColor(lua_State *L) {
 }
 
 static int term_showMouse(lua_State *L) {
+    lastCFunction = __func__;
     if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
     SDL_ShowCursor(lua_toboolean(L, 1));
     return 0;
 }
 
 /* export */ int term_benchmark(lua_State *L) {
+    lastCFunction = __func__;
     if (get_comp(L)->term == NULL) return 0;
     lua_pushinteger(L, get_comp(L)->term->framecount);
     get_comp(L)->term->framecount = 0;

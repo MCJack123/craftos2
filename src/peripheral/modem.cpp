@@ -26,11 +26,13 @@ static std::unordered_map<int, std::list<modem*>> network;
 // todo: probably check port range
 
 int modem::isOpen(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, openPorts.find((uint16_t)luaL_checkinteger(L, 1)) != openPorts.end());
     return 1;
 }
 
 int modem::open(lua_State *L) {
+    lastCFunction = __func__;
     luaL_checknumber(L, 1); // argument error > too many open channels
     if (openPorts.size() >= (size_t)config.maxOpenPorts) luaL_error(L, "Too many open channels");
     openPorts.insert((uint16_t)lua_tointeger(L, 1));
@@ -38,16 +40,19 @@ int modem::open(lua_State *L) {
 }
 
 int modem::close(lua_State *L) {
+    lastCFunction = __func__;
     openPorts.erase((uint16_t)luaL_checkinteger(L, 1));
     return 0;
 }
 
 int modem::closeAll(lua_State *L) {
+    lastCFunction = __func__;
     openPorts.clear();
     return 0;
 }
 
 int modem::transmit(lua_State *L) {
+    lastCFunction = __func__;
     luaL_checkinteger(L, 2);
     luaL_checkany(L, 3);
     lua_settop(L, 3);
@@ -84,11 +89,13 @@ int modem::transmit(lua_State *L) {
 }
 
 int modem::isWireless(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, false);
     return 1;
 }
 
 int modem::getNamesRemote(lua_State *L) {
+    lastCFunction = __func__;
     lua_newtable(L);
     int i = 1;
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
@@ -103,24 +110,28 @@ int modem::getNamesRemote(lua_State *L) {
 }
 
 int modem::getTypeRemote(lua_State *L) {
+    lastCFunction = __func__;
     if (strcmp(peripheral_lib.functions[1].name, "getType") == 0) return peripheral_lib.functions[1].func(L);
     for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "getType") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
 }
 
 int modem::isPresentRemote(lua_State *L) {
+    lastCFunction = __func__;
     if (strcmp(peripheral_lib.functions[0].name, "isPresent") == 0) return peripheral_lib.functions[0].func(L);
     for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "isPresent") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
 }
 
 int modem::getMethodsRemote(lua_State *L) {
+    lastCFunction = __func__;
     if (strcmp(peripheral_lib.functions[2].name, "getMethods") == 0) return peripheral_lib.functions[2].func(L);
     for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "getMethods") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
 }
 
 int modem::callRemote(lua_State *L) {
+    lastCFunction = __func__;
     if (strcmp(peripheral_lib.functions[3].name, "call") == 0) return peripheral_lib.functions[3].func(L);
     for (int i = 0; peripheral_lib.functions[i].name; i++) if (strcmp(peripheral_lib.functions[i].name, "call") == 0) return peripheral_lib.functions[i].func(L);
     return luaL_error(L, "Internal error");
