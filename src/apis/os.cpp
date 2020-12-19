@@ -109,7 +109,10 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
             return 0;
         }
     }
-    if (data->comp->timerIDs.find(data->timer) != data->comp->timerIDs.end()) data->comp->timerIDs.erase(data->timer);
+    {
+        std::lock_guard<std::mutex> lock(data->comp->timerIDsMutex);
+        if (data->comp->timerIDs.find(data->timer) != data->comp->timerIDs.end()) data->comp->timerIDs.erase(data->timer);
+    }
     data->comp->event_lock.notify_all();
     data->lock->unlock();
     queueEvent(data->comp, timer_event, data);
@@ -137,6 +140,7 @@ static int os_startTimer(lua_State *L) {
     }, data);
     runningTimerData->insert(std::make_pair(data->timer, data));
     lua_pushinteger(L, data->timer);
+    std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
     return 1;
 }
@@ -270,6 +274,7 @@ static int os_setAlarm(lua_State *L) {
     }, data);
     runningTimerData->insert(std::make_pair(data->timer, data));
     lua_pushinteger(L, data->timer);
+    std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
     return 1;
 }
