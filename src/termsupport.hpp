@@ -35,6 +35,6 @@ extern void termRenderLoop();
 extern void termHook(lua_State *L, lua_Debug *ar);
 extern int termPanic(lua_State *L);
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-extern void displayFailure(Terminal * term, std::string message, std::string extra = "");
+extern void displayFailure(Terminal * term, const std::string& message, const std::string& extra = "");
 
 #endif

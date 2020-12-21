@@ -45,7 +45,6 @@ extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
 extern void stopWebsocket(void*);
 extern int term_benchmark(lua_State *L);
 extern int onboardingMode;
-extern bool forceCheckTimeout;
 ProtectedObject<std::vector<Computer*> > computers;
 std::unordered_set<Computer*> freedComputers; 
 ProtectedObject<std::unordered_set<SDL_TimerID>> freedTimers;
@@ -161,7 +160,7 @@ extern "C" {
         Computer * computer = get_comp(L);
         const int id = !computer->breakpoints.empty() ? computer->breakpoints.rbegin()->first + 1 : 1;
         computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, luaL_checkstring(L, 1), false, false)), luaL_checkinteger(L, 2));
-        if (!computer->hasBreakpoints) forceCheckTimeout = true;
+        if (!computer->hasBreakpoints) computer->forceCheckTimeout = true;
         computer->hasBreakpoints = true;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);

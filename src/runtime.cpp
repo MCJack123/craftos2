@@ -42,15 +42,11 @@
 
 #define termHasEvent(computer) ((computer)->running == 1 && (!(computer)->event_provider_queue.empty() || (computer)->lastResizeEvent || !(computer)->termEventQueue.empty()))
 
-void gettingEvent(Computer *comp);
-void gotEvent(Computer *comp);
-
 int nextTaskID = 0;
 ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
 ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
-bool forceCheckTimeout = false;
 
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
@@ -146,7 +142,8 @@ void mainLoop() {
 }
 
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
-    forceCheckTimeout = true;
+    if (((Computer*)param)->getting_event) return 0;
+    ((Computer*)param)->forceCheckTimeout = true;
     return 1000;
 }
 
@@ -162,17 +159,9 @@ void queueEvent(Computer *comp, const event_provider& p, void* data) {
 int getNextEvent(lua_State *L, const std::string& filter) {
     Computer * computer = get_comp(L);
     if (computer->running != 1) return 0;
-    if (computer->eventTimeout != 0) {
-#ifdef __EMSCRIPTEN__
-        queueTask([computer](void*)->void*{SDL_RemoveTimer(computer->eventTimeout); return NULL;}, NULL);
-#else
-        SDL_RemoveTimer(computer->eventTimeout);
-#endif
-        computer->eventTimeout = 0;
-        computer->timeoutCheckCount = 0;
-    }
+    computer->timeoutCheckCount = 0;
     std::string ev;
-    gettingEvent(computer);
+    computer->getting_event = true;
     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param;
     do {
@@ -227,8 +216,17 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     lua_pushstring(L, ev.c_str());
     lua_xmove(param, L, count);
     lua_remove(computer->paramQueue, 1);
-    gotEvent(computer);
-    computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > 200) {
+        if (computer->eventTimeout != 0)
+#ifdef __EMSCRIPTEN__
+            queueTask([computer](void*)->void*{SDL_RemoveTimer(computer->eventTimeout); return NULL;}, NULL);
+#else
+            SDL_RemoveTimer(computer->eventTimeout);
+#endif
+        computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
+    }
+    computer->last_event = std::chrono::high_resolution_clock::now();
+    computer->getting_event = false;
     return count + 1;
 }
 
@@ -247,7 +245,7 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
         data.flags = SDL_MESSAGEBOX_WARNING;
         data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
         data.title = "Mount requested";
-        // see config.cpp:234 for why this is a pointer (TL;DR Windows is dumb)
+        // see apis/config.cpp:101 for why this is a pointer (TL;DR Windows is dumb)
         std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(astr(real_path)) + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
         data.message = message->c_str();
         data.numbuttons = 2;

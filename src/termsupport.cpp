@@ -367,15 +367,17 @@ extern "C" {
 #endif
     extern const char KEY_HOOK;
 }
-extern bool forceCheckTimeout;
 
 void termHook(lua_State *L, lua_Debug *ar) {
+    std::string name; // For some reason MSVC explodes when this isn't at the top of the function
+                      // I've had issues with it randomly moving scope boundaries around (see apis/config.cpp:101, runtime.cpp:249),
+                      // so I'm not surprised about it happening again.
     if (lua_icontext(L) == 1) {
         lua_pop(L, 1);
         return;
     }
-    if (ar->event == LUA_HOOKCOUNT && !forceCheckTimeout) return;
     Computer * computer = get_comp(L);
+    if (ar->event == LUA_HOOKCOUNT && !computer->forceCheckTimeout) return;
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;
         lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
@@ -393,7 +395,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
     }
     if (ar->event == LUA_HOOKCOUNT) {
         if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > (config.standardsMode ? 7000 : config.abortTimeout)) {
-            forceCheckTimeout = false;
+            computer->forceCheckTimeout = false;
             if (++computer->timeoutCheckCount >= 5) {
                 if (config.standardsMode) {
                     // In standards mode we give no second chances - just crash and burn
@@ -405,43 +407,35 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     computer->running = 0;
                     longjmp(computer->on_panic, 0);
                 } else {
-                    if (queueTask([computer](void*)->void* {
-                        if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
-                            SDL_MessageBoxData msg;
-                            SDL_MessageBoxButtonData buttons[] = {
-                                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
-                                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
-                            };
-                            msg.flags = SDL_MESSAGEBOX_WARNING;
-                            msg.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
-                            msg.title = "Computer not responding";
-                            msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
-                            msg.numbuttons = 2;
-                            msg.buttons = buttons;
-                            msg.colorScheme = NULL;
-                            if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
-                                computer->event_lock.notify_all();
-                                for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
-                                lua_close(computer->L);   /* Cya, Lua */
-                                computer->L = NULL;
-                                computer->running = 2;
-                                return (void*)1;
-                            } else {
-                                computer->timeoutCheckCount = -15;
-                                return NULL;
-                            }
+                    if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
+                        SDL_MessageBoxData msg;
+                        SDL_MessageBoxButtonData buttons[] = {
+                            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
+                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
+                        };
+                        msg.flags = SDL_MESSAGEBOX_WARNING;
+                        msg.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
+                        msg.title = "Computer not responding";
+                        msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
+                        msg.numbuttons = 2;
+                        msg.buttons = buttons;
+                        msg.colorScheme = NULL;
+                        if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
+                            computer->event_lock.notify_all();
+                            for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
+                            lua_close(computer->L);   /* Cya, Lua */
+                            computer->L = NULL;
+                            computer->running = 2;
+                            longjmp(computer->on_panic, 0);
+                        } else {
+                            computer->timeoutCheckCount = -15;
                         }
-                        return NULL;
-                    }, NULL) != NULL) longjmp(computer->on_panic, 0);
+                    }
                 }
             }
-            luaL_where(L, 1);
-            lua_pushstring(L, "Too long without yielding");
-            lua_concat(L, 2);
-            //fprintf(stderr, "%s\n", lua_tostring(L, -1));
-            lua_error(L);
+            luaL_error(L, "Too long without yielding");
         }
-    } else if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
+    } else {if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
         if (computer->debugger == NULL && computer->hasBreakpoints) {
             lua_getinfo(L, "Sl", ar);
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
@@ -505,7 +499,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
             }
             if (dbg->isProfiling) {
                 lua_getinfo(L, "nS", ar);
-                std::string name;
                 if (ar->name == NULL) name = "(unknown)";
                 else name = ar->name;
                 if (dbg->profile.find(ar->source) == dbg->profile.end()) dbg->profile[ar->source] = {};
@@ -529,7 +522,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
                 if (debuggerBreak(L, computer, dbg, "Yield")) return;
         }
-    }
+    }}
     if (ar->event != LUA_HOOKCOUNT && (computer->hookMask & (1 << ar->event))) {
         lua_pushlightuserdata(L, (void*)&KEY_HOOK);
         lua_gettable(L, LUA_REGISTRYINDEX);
@@ -619,9 +612,6 @@ void termRenderLoop() {
         #endif
     }
 }
-
-void gettingEvent(Computer *comp) {comp->getting_event = true;}
-void gotEvent(Computer *comp) {comp->last_event = std::chrono::high_resolution_clock::now(); comp->getting_event = false;}
 
 static std::string utf8_to_string(const char *utf8str, const std::locale& loc)
 {
@@ -851,7 +841,7 @@ std::string termGetEvent(lua_State *L) {
     return "";
 }
 
-void displayFailure(Terminal * term, std::string message, std::string extra) {
+void displayFailure(Terminal * term, const std::string& message, const std::string& extra) {
     if (!term) return;
     std::lock_guard<std::mutex> lock(term->locked);
     term->mode = 0;

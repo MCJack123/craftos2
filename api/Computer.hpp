@@ -109,6 +109,7 @@ struct Computer {
     std::unordered_map<unsigned, const FileEntry *> virtualMounts; // Maps virtual mount IDs to virtual filesystem references
     bool requestedExit = false; // Stores a temporary value indicating whether the quit button was pressed and is waiting for exit
     std::mutex timerIDsMutex; // A mutex locking timerIDs
+    bool forceCheckTimeout = false; // Whether to force checking for a timeout
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

@@ -98,7 +98,12 @@ static int config_set(lua_State *L) {
             data.flags = SDL_MESSAGEBOX_WARNING;
             data.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
             data.title = "Mount mode change requested";
-            // oh why Windows do you make me need to use pointers and dynamic allocation for A SIMPLE STRING INSIDE A SCOPE :((
+            // If you're wondering why I'm using dynamic allocation for a static string that isn't needed past the end-of-scope,
+            // apparently there's some bug in the MSVC compiler's optimization that makes it sometimes try to delete static
+            // variables that a) are out of scope, and b) were never in scope. Of course, this results in a nasty crash due to
+            // trying to deallocate unallocated/invalid memory. The only workaround I've found is to make the static variables
+            // dynamic, thus telling MSVC to keep its grubby hands off allocation/deallocation. It's an unfortunate situation,
+            // but there's really no way around it.
             std::string * message = new std::string("A script is attempting to change the default mount mode to " + (lua_isnumber(L, 2) ? std::to_string(lua_tointeger(L, 2)) : std::string(lua_tostring(L, 2))) + ". This will allow any script to access any part of your REAL computer that is not blacklisted. Do you want to allow this change?");
             data.message = message->c_str();
             data.numbuttons = 2;
