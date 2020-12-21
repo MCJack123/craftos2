@@ -56,6 +56,7 @@ public:
     std::string breakFunc;
     bool didBreak = false;
     bool confirmBreak = false;
+    bool waitingForBreak = false;
     std::string breakReason;
     std::mutex breakMutex;
     std::condition_variable breakNotify;

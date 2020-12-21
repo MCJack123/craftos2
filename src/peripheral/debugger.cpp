@@ -70,6 +70,7 @@ static int debugger_lib_waitForBreak(lua_State *L) {
     Computer * comp = get_comp(L);
     std::thread th([dbg](Computer*comp){
         dbg->didBreak = false;
+        dbg->waitingForBreak = true;
         dbg->breakNotify.notify_all();
         std::unique_lock<std::mutex> lock(dbg->breakMutex);
         dbg->breakNotify.wait(lock);
@@ -80,6 +81,7 @@ static int debugger_lib_waitForBreak(lua_State *L) {
                 queueEvent(comp, debugger_break, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
+        dbg->waitingForBreak = false;
     }, comp);
     th.detach();
     return 0;
@@ -581,9 +583,10 @@ debugger::~debugger() {
         delete monitor;
     }
     running = false;
-    while (thread != NULL) {
-        std::lock_guard<std::mutex> guard(breakMutex);
+    while (thread != NULL || waitingForBreak) {
+        //std::lock_guard<std::mutex> guard(breakMutex);
         breakNotify.notify_all(); 
+        confirmBreak = true;
         std::this_thread::yield();
     }
     if (compThread->joinable()) compThread->join();
