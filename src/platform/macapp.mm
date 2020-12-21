@@ -38,6 +38,7 @@ extern "C" {
 #include <SDL2/SDL_syswm.h>
 #include "../platform.hpp"
 #include "../util.hpp"
+#include "../runtime.hpp"
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
