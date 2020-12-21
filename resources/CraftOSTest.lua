@@ -528,7 +528,7 @@ print("This is a test of the shell API: " .. args[1] .. ".")
 sleep(3)]])
 	callLocal("file.close", file.close)
 	test("run", true, "shell_test.lua current_tab")
-	if callLocal("term.isColor", term.isColor) then
+	if multishell ~= nil then
 		test("openTab", 2, "shell_test.lua new_tab")
 		call("switchTab", 2)
 		testLocal("shell.switchTab", callLocal("multishell.getCount", multishell.getCount), 2)

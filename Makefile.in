@@ -139,6 +139,6 @@ uninstall:
 	rm $(DESTDIR)/craftos
 
 test: craftos
-	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua
+	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua -d "$(shell mktemp -d)"
 
 .SILENT:
