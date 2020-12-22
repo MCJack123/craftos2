@@ -24,7 +24,7 @@ jobs:
         CFLAGS=-Wall ./configure
         make
     - name: Run CraftOSTest
-      run: make test || echo $? > ~/.retval
+      run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
@@ -51,7 +51,7 @@ jobs:
         CFLAGS=-Wall ./configure --without-ncurses --without-png --without-sdl_mixer --with-html
         make
     - name: Run CraftOSTest
-      run: make test || echo $? > ~/.retval
+      run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
@@ -82,7 +82,7 @@ jobs:
         CFLAGS=-Wall ./configure --with-standalone_rom=craftos2-rom/fs_standalone.cpp
         make
     - name: Run CraftOSTest
-      run: make test || echo $? > ~/.retval
+      run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
