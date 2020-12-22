@@ -286,7 +286,7 @@ int monitor::getPixel(lua_State *L) {
     const int x = (int)luaL_checkinteger(L, 1);
     const int y = (int)luaL_checkinteger(L, 2);
     if (x < 0 || y < 0 || (unsigned)x > term->width * Terminal::fontWidth || (unsigned)y > term->height * Terminal::fontHeight) lua_pushnil(L);
-    else if (term->mode == 1) lua_pushinteger(L, 2^term->pixels[y][x]);
+    else if (term->mode == 1) lua_pushinteger(L, term->pixels[y][x] * term->pixels[y][x]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[y][x]);
     else return 0;
     return 1;
