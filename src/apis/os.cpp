@@ -73,7 +73,9 @@ static ProtectedObject<std::unordered_map<SDL_TimerID, struct timer_data_t*> > r
 static std::string timer_event(lua_State *L, void* param) {
     struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
+    runningTimerData.lock();
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
+    runningTimerData.unlock();
     if (!found) return "";
     data->lock->lock();
     lua_pushinteger(L, data->timer);
@@ -88,7 +90,9 @@ static std::string timer_event(lua_State *L, void* param) {
 static Uint32 notifyEvent(Uint32 interval, void* param) {
     struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
+    runningTimerData.lock();
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
+    runningTimerData.unlock();
     if (!found) return 0;
     data->lock->lock();
     if (exiting || data->comp == NULL) {

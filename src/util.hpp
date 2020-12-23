@@ -27,6 +27,7 @@ extern "C" {
 #define CRAFTOSPC_VERSION    "v2.5"
 #define CRAFTOSPC_CC_VERSION "1.95.0"
 #define CRAFTOSPC_INDEV      true
+
 template<typename T>
 class ProtectedObject {
     friend class LockGuard;
