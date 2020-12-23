@@ -403,6 +403,52 @@ static int term_drawPixels(lua_State *L) {
     return 0;
 }
 
+static int term_getPixels(lua_State* L) {
+    lastCFunction = __func__;
+
+    const int init_x = (int) luaL_checkinteger(L, 1),
+              init_y = (int) luaL_checkinteger(L, 2),
+              end_w = (int) luaL_checkinteger(L, 3),
+              end_h = (int) luaL_checkinteger(L, 4);
+
+    if (end_w < 0 || end_h < 0) {
+        return luaL_error(L, "Invalid size");
+    }
+
+    Computer* computer = get_comp(L);
+    Terminal* term = computer->term;
+    std::lock_guard<std::mutex> lock(term->locked);
+
+    lua_createtable(L, 0, end_h);
+
+    for (int h = 0; h < end_h; h++) {
+        lua_pushnumber(L, h + 1);
+        lua_createtable(L, end_w, 0);
+
+        for (int w = 0; w < end_w; w++) {
+            lua_pushnumber(L, w + 1);
+
+            const int x = init_x + w,
+                      y = init_y + h;
+
+            if (x < 0 || y < 0
+                || (unsigned) x > term->width * Terminal::fontWidth
+                || (unsigned) y > term->height * Terminal::fontHeight)
+                lua_pushnil(L);
+            else if (term->mode == 2)
+                lua_pushinteger(L, term->pixels[y][x]);
+            else
+                lua_pushinteger(L, 1 << term->pixels[y][x]);
+
+            lua_settable(L, -3);
+        }
+
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
 static int term_screenshot(lua_State *L) {
     lastCFunction = __func__;
     if (selectedRenderer != 0 && selectedRenderer != 5) return 0;
@@ -476,6 +522,7 @@ static luaL_reg term_reg[] = {
     {"nativePaletteColor", term_nativePaletteColor},
     {"nativePaletteColour", term_nativePaletteColor},
     {"drawPixels", term_drawPixels},
+    {"getPixels", term_getPixels},
     {"showMouse", term_showMouse},
     {NULL, NULL}
 };

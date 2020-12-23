@@ -344,6 +344,51 @@ int monitor::drawPixels(lua_State *L) {
     return 0;
 }
 
+// LD: bruh this is just a copy of term_getPixels you lazy butthead
+int monitor::getPixels(lua_State* L) {
+    lastCFunction = __func__;
+
+    const int init_x = (int) luaL_checkinteger(L, 1),
+        init_y = (int) luaL_checkinteger(L, 2),
+        end_w = (int) luaL_checkinteger(L, 3),
+        end_h = (int) luaL_checkinteger(L, 4);
+
+    if (end_w < 0 || end_h < 0) {
+        return luaL_error(L, "Invalid size");
+    }
+
+    std::lock_guard<std::mutex> lock(term->locked);
+
+    lua_createtable(L, 0, end_h);
+
+    for (int h = 0; h < end_h; h++) {
+        lua_pushnumber(L, h + 1);
+        lua_createtable(L, end_w, 0);
+
+        for (int w = 0; w < end_w; w++) {
+            lua_pushnumber(L, w + 1);
+
+            const int x = init_x + w,
+                y = init_y + h;
+
+            if (x < 0 || y < 0
+                || (unsigned) x > term->width * Terminal::fontWidth
+                || (unsigned) y > term->height * Terminal::fontHeight)
+                lua_pushnil(L);
+            else if (term->mode == 2)
+                lua_pushinteger(L, term->pixels[y][x]);
+            else
+                lua_pushinteger(L, 1 << term->pixels[y][x]);
+
+            lua_settable(L, -3);
+        }
+
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
@@ -376,6 +421,7 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "setTextScale") return setTextScale(L);
     else if (m == "getTextScale") return getTextScale(L);
     else if (m == "drawPixels") return drawPixels(L);
+    else if (m == "getPixels") return getPixels(L);
     else return 0;
 }
 
@@ -411,6 +457,7 @@ static luaL_Reg monitor_reg[] = {
     {"setTextScale", NULL},
     {"getTextScale", NULL},
     {"drawPixels", NULL},
+    {"getPixels", NULL},
     {NULL, NULL}
 };
 
