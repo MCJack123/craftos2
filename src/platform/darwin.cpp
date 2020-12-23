@@ -1,5 +1,5 @@
 /*
- * platform_darwin.cpp
+ * platform/darwin.cpp
  * CraftOS-PC 2
  * 
  * This file implements functions specific to macOS when run from the Terminal.
@@ -12,28 +12,27 @@
 extern "C" {
 #include <lua.h>
 }
-#include <stdlib.h>
-#include <string.h>
-#include <wordexp.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/statvfs.h>
-#include <sys/utsname.h>
-#include <libgen.h>
-#include <pthread.h>
-#include <glob.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <ApplicationServices/ApplicationServices.h>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <execinfo.h>
-#include <signal.h>
-#include <string>
-#include <vector>
-#include <sstream>
+#include <libgen.h>
 #include <png++/png.hpp>
-#include <ApplicationServices/ApplicationServices.h>
-#include "../mounter.hpp"
+#include <pthread.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+#include <wordexp.h>
 #include "../platform.hpp"
+#include "../util.hpp"
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
@@ -92,9 +91,9 @@ std::string getMCSavePath() {
     return expanded;
 }
 
-void setThreadName(std::thread &t, std::string name) {}
+void setThreadName(std::thread &t, const std::string& name) {}
 
-int createDirectory(std::string path) {
+int createDirectory(const std::string& path) {
     struct stat st;
     if (stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
     if (mkdir(path.c_str(), 0777) != 0) {
@@ -106,7 +105,7 @@ int createDirectory(std::string path) {
     return 0;
 }
 
-int removeDirectory(std::string path) {
+int removeDirectory(const std::string& path) {
     struct stat statbuf;
     if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -128,7 +127,7 @@ int removeDirectory(std::string path) {
     } else return -1;
 }
 
-unsigned long long getFreeSpace(std::string path) {
+unsigned long long getFreeSpace(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -137,7 +136,7 @@ unsigned long long getFreeSpace(std::string path) {
     return st.f_bavail * st.f_frsize;
 }
 
-unsigned long long getCapacity(std::string path) {
+unsigned long long getCapacity(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -146,11 +145,11 @@ unsigned long long getCapacity(std::string path) {
     return st.f_blocks * st.f_frsize;
 }
 
-void updateNow(std::string tag_name) {
+void updateNow(const std::string& tag_name) {
     fprintf(stderr, "Updating is not available on Mac terminal builds.\n");
 }
 
-int recursiveCopyPlatform(std::string fromDir, std::string toDir) {
+int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -208,7 +207,8 @@ void handler(int sig) {
     size = backtrace(array, 25);
 
     // print out all the frames to stderr
-    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Console build)\n", strsignal(sig));
+    if (!loadingPlugin.empty()) fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. It appears the plugin \"%s\" may have been responsible for this. Please remove it and try again.\n", strsignal(sig), loadingPlugin.c_str());
+    else fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Console build)\nLast C function: %s\n", strsignal(sig), lastCFunction);
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     signal(sig, NULL);
 }
@@ -218,6 +218,7 @@ void setupCrashHandler() {
     signal(SIGILL, handler);
     signal(SIGBUS, handler);
     signal(SIGTRAP, handler);
+    signal(SIGABRT, handler);
 }
 
 extern void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi);

@@ -469,6 +469,7 @@ testStart "settings"
 	test("get", 3, "test")
 	call("set", "test2", "hello")
 	test("getNames", {{
+		"bios.strict_globals",
 		"bios.use_cash",
 		"bios.use_multishell",
 		"edit.autocomplete",
@@ -484,6 +485,7 @@ testStart "settings"
 		"shell.allow_disk_startup",
 		"shell.allow_startup",
 		"shell.autocomplete",
+		"shell.report_plugin_errors",
 		"test",
 		"test2"
 	}})
@@ -526,7 +528,7 @@ print("This is a test of the shell API: " .. args[1] .. ".")
 sleep(3)]])
 	callLocal("file.close", file.close)
 	test("run", true, "shell_test.lua current_tab")
-	if callLocal("term.isColor", term.isColor) then
+	if multishell ~= nil then
 		test("openTab", 2, "shell_test.lua new_tab")
 		call("switchTab", 2)
 		testLocal("shell.switchTab", callLocal("multishell.getCount", multishell.getCount), 2)

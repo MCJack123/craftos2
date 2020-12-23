@@ -11,14 +11,15 @@
 #ifndef NO_MIXER
 #ifndef PERIPHERAL_SPEAKER_HPP
 #define PERIPHERAL_SPEAKER_HPP
-#include "peripheral.hpp"
+#include <chrono>
+#include <peripheral.hpp>
 
 class speaker: public peripheral {
     static library_t methods;
-    static unsigned int nextChannelGroup;
+    static int nextChannelGroup;
     std::chrono::system_clock::time_point lastTickReset = std::chrono::system_clock::now();
     unsigned int noteCount = 0;
-    unsigned int channelGroup;
+    int channelGroup;
     int playNote(lua_State *L);
     int playSound(lua_State *L);
     int playLocalMusic(lua_State *L);
@@ -30,10 +31,9 @@ public:
     static void deinit(peripheral * p) {delete (speaker*)p;}
     speaker(lua_State *L, const char * side);
     ~speaker();
-    destructor getDestructor() {return deinit;}
-    int call(lua_State *L, const char * method);
-    void update() {}
-    library_t getMethods() {return methods;}
+    destructor getDestructor() const override {return deinit;}
+    int call(lua_State *L, const char * method) override;
+    library_t getMethods() const override {return methods;}
 };
 
 extern void speakerInit();

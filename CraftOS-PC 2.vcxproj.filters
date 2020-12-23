@@ -31,6 +31,18 @@
     <Filter Include="Header Files\peripheral">
       <UniqueIdentifier>{c4a9dce1-5d6a-45f0-9fc6-fc20746d5dfd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\apis">
+      <UniqueIdentifier>{057043ee-8980-42ca-8f54-01615bc901d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\apis\handles">
+      <UniqueIdentifier>{f8338184-8321-4020-a301-5323e232da8b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\handles">
+      <UniqueIdentifier>{34fd4c07-3d84-404a-aaf5-1b91e66eb095}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\api">
+      <UniqueIdentifier>{21592f07-c190-4e8a-8564-4f15f122a951}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -85,8 +97,8 @@
     <None Include="resources\BenchmarkRenderers.sh.bat">
       <Filter>Other Files</Filter>
     </None>
-    <None Include="src\platform\macapp.mm">
-      <Filter>Source Files\platform</Filter>
+    <None Include="vcpkg.json">
+      <Filter>Other Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -98,49 +110,10 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Computer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\config.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\fs.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\fs_handle.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\gif.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\http.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\http_handle.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\lib.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\mounter.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\os.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\periphemu.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\platform.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\redstone.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\term.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\fs_standalone.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\terminal\CLITerminal.hpp">
@@ -158,9 +131,6 @@
     <ClInclude Include="src\terminal\TRoRTerminal.hpp">
       <Filter>Header Files\terminal</Filter>
     </ClInclude>
-    <ClInclude Include="src\terminal\Terminal.hpp">
-      <Filter>Header Files\terminal</Filter>
-    </ClInclude>
     <ClInclude Include="src\peripheral\computer.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
@@ -176,9 +146,6 @@
     <ClInclude Include="src\peripheral\monitor.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
-    <ClInclude Include="src\peripheral\peripheral.hpp">
-      <Filter>Header Files\peripheral</Filter>
-    </ClInclude>
     <ClInclude Include="src\peripheral\printer.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
@@ -188,42 +155,54 @@
     <ClInclude Include="src\platform\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\apis\handles\fs_handle.hpp">
+      <Filter>Header Files\handles</Filter>
+    </ClInclude>
+    <ClInclude Include="src\apis\handles\http_handle.hpp">
+      <Filter>Header Files\handles</Filter>
+    </ClInclude>
+    <ClInclude Include="src\runtime.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\termsupport.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\apis.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\util.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="api\Computer.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="api\lib.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="api\peripheral.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="api\Terminal.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="api\configuration.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="src\main.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="api\CraftOS-PC.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="api\FileEntry.hpp">
+      <Filter>Header Files\api</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\config.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\os.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\periphemu.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\platform.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\term.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\mounter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Computer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fs.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fs_handle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\http.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\http_handle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\lib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp">
@@ -271,9 +250,6 @@
     <ClCompile Include="src\peripheral\monitor.cpp">
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
-    <ClCompile Include="src\peripheral\peripheral.cpp">
-      <Filter>Source Files\peripheral</Filter>
-    </ClCompile>
     <ClCompile Include="src\peripheral\printer.cpp">
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
@@ -297,6 +273,57 @@
     </ClCompile>
     <ClCompile Include="src\terminal\TRoRTerminal.cpp">
       <Filter>Source Files\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\mounter.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\periphemu.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\config.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\fs.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\http.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\os.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\term.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\handles\fs_handle.cpp">
+      <Filter>Source Files\apis\handles</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\handles\http_handle.cpp">
+      <Filter>Source Files\apis\handles</Filter>
+    </ClCompile>
+    <ClCompile Include="src\runtime.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\termsupport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\configuration.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\peripheral.cpp">
+      <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\platform\macapp.mm">
+      <Filter>Source Files\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="src\util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\redstone.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\plugin.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

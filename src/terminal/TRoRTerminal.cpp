@@ -1,5 +1,5 @@
 /*
- * TRoRTerminal.cpp
+ * terminal/TRoRTerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the TRoRTerminal class.
@@ -8,45 +8,41 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
+#include <iostream>
+#include <cstdio>
+#include <thread>
 #include "TRoRTerminal.hpp"
 #include "SDLTerminal.hpp"
 #include "../peripheral/monitor.hpp"
-#include "../term.hpp"
-#include <stdio.h>
-#include <iostream>
-#include <thread>
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 
 /*
 CraftOS-PC adds the "ccpcTerm" extension to add some extra features. Even if the
 client doesn't support "ccpcTerm", the ID of the window is always sent in the 
 metadata field. If the client sends a packet without an ID in the metadata, it
 is assumed to be meant for the first window (ID 0).
-| Code | Payload | Description |
-|------|---------|-------------|
-| `TN` | `<title>` | Alerts the client to a newly opened window. |
-| `TQ` | None    | Alerts the client or server that the window has been closed. Clients and servers MAY send this at any time. |
-| `TZ` | `<title>` | Alerts the client that the window's title has changed. |
+| Code | Payload       | Description |
+|------|---------------|-------------|
+| `TN` | `<title>`     | Alerts the client to a newly opened window. |
+| `TQ` | None          | Alerts the client or server that the window has been closed. Clients and servers MAY send this at any time. |
+| `TZ` | `<title>`     | Alerts the client that the window's title has changed. |
 | `TA` | `"<title>","<message>"` | Shows a message on the client's screen. The title and message will both be in quotes and separated by a comma. The client SHOULD NOT split the string at the first comma since there may be commas before the separator. |
-| `TR` | `<w>,<h>` | With the CraftOS-PC extension, clients MAY send a resize message to the server as well. |
-| `SC` | `<message>` | With the CraftOS-PC extension, clients MAY send a close message to the server as well. |
+| `TR` | `<w>,<h>`     | With the CraftOS-PC extension, clients MAY send a resize message to the server as well. |
+| `SC` | `<message>`   | With the CraftOS-PC extension, clients MAY send a close message to the server as well. |
 */
 
 std::set<unsigned> TRoRTerminal::currentIDs;
-std::unordered_set<std::string> trorExtensions;
-extern std::thread * renderThread;
-extern void termRenderLoop();
-extern std::thread * inputThread;
-extern bool exiting;
+static std::unordered_set<std::string> trorExtensions;
+static std::thread * inputThread;
 
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
-#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
+#define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
 
-const char * trorEvent(lua_State *L, void* userp) {
+static std::string trorEvent(lua_State *L, void* userp) {
     std::string * str = (std::string*)userp;
     if (luaL_loadstring(L, ("return " + *str).c_str())) {
         std::cerr << "Could not load function (" << *str << ")\n";
@@ -59,10 +55,10 @@ const char * trorEvent(lua_State *L, void* userp) {
     lua_call(L, 0, LUA_MULTRET);
     std::string name = lua_tostring(L, 1);
     lua_remove(L, 1);
-    return name.c_str();
+    return name;
 }
 
-void trorInputLoop() {
+static void trorInputLoop() {
     std::string tmps;
     while (!exiting) {
         std::string line;
@@ -71,27 +67,31 @@ void trorInputLoop() {
         std::string code = line.substr(0, 2);
         std::string meta = line.substr(3, line.find(';') - 3);
         std::string payload = line.substr(line.find(';') + 1);
-        unsigned id = meta.empty() ? 0 : std::stoi(meta);
+        const unsigned id = meta.empty() ? 0 : std::stoi(meta);
         if (code == "SP") {
             std::vector<std::string> args = split(payload, '-');
-            for (std::string a : args) if (!a.empty()) trorExtensions.insert(a);
+            for (const std::string& a : args) if (!a.empty()) trorExtensions.insert(a);
         } else if (code == "EV") {
-            for (Computer * c : computers)
+            LockGuard lock(computers);
+            for (Computer * c : *computers)
                 if (checkWindowID(c, id))
-                    termQueueProvider(c, trorEvent, new std::string(payload));
+                    queueEvent(c, trorEvent, new std::string(payload));
         } else if (code == "SC") {
             SDL_Event e;
             memset(&e, 0, sizeof(SDL_Event));
             e.type = SDL_QUIT;
-            for (Computer * c : computers) {
+            LockGuard lockc(computers);
+            for (Computer * c : *computers) {
                 std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                 c->termEventQueue.push(e);
                 c->event_lock.notify_all();
             }
         } else if (code == "TR") {
-            int newWidth = std::stoi(payload.substr(0, payload.find(','))), newHeight = std::stoi(payload.substr(payload.find(',') + 1));
-            for (Computer * c : computers) {
+            const int newWidth = std::stoi(payload.substr(0, payload.find(','))), newHeight = std::stoi(payload.substr(payload.find(',') + 1));
+            LockGuard lockc(computers);
+            for (Computer * c : *computers) {
                 if (id == c->term->id) {
+                    std::lock_guard<std::mutex> lock(c->term->locked);
                     c->term->screen.resize(newWidth, newHeight, ' ');
                     c->term->colors.resize(newWidth, newHeight, 0xF0);
                     c->term->pixels.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
@@ -100,6 +100,7 @@ void trorInputLoop() {
                 } else {
                     monitor * m = findMonitorFromWindowID(c, id, tmps);
                     if (m != NULL) {
+                        std::lock_guard<std::mutex> lock(m->term->locked);
                         m->term->screen.resize(newWidth, newHeight, ' ');
                         m->term->colors.resize(newWidth, newHeight, 0xF0);
                         m->term->pixels.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
@@ -114,11 +115,19 @@ void trorInputLoop() {
             e.type = SDL_WINDOWEVENT;
             e.window.event = SDL_WINDOWEVENT_CLOSE;
             e.window.windowID = id;
-            for (Computer * c : computers) {
+            LockGuard lockc(computers);
+            for (Computer * c : *computers) {
                 if (checkWindowID(c, id)) {
                     std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                     c->termEventQueue.push(e);
                     c->event_lock.notify_all();
+                }
+            }
+            for (Terminal * t : orphanedTerminals) {
+                if (t->id == id) {
+                    orphanedTerminals.erase(t);
+                    delete t;
+                    break;
                 }
             }
         }
@@ -157,16 +166,16 @@ TRoRTerminal::TRoRTerminal(std::string title): Terminal(config.defaultWidth, con
 
 TRoRTerminal::~TRoRTerminal() {
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TQ:%d;\n", id);
-    auto pos = currentIDs.find(id);
+    const auto pos = currentIDs.find(id);
     if (pos != currentIDs.end()) currentIDs.erase(pos);
-    Terminal::renderTargetsLock.lock();
+    renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
-    for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    Terminal::renderTargetsLock.unlock();
+    renderTargetsLock.unlock();
 }
 
 void TRoRTerminal::showMessage(Uint32 flags, const char * title, const char * message) {

@@ -159,6 +159,21 @@
     <TargetName>CraftOS-PC</TargetName>
     <CodeAnalysisRuleSet>resources\analysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgManifestInstall>true</VcpkgManifestInstall>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>WIN32;NO_CLI;PRINT_TYPE=1;CURL_STATICLIB;WIN32;PRINT_TYPE=1;CURL_STATICLIB;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -243,18 +258,23 @@
       <Profile>true</Profile>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;HAVE_STRERROR_S;_DEBUG</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp14</LanguageStandard>
       <TreatSpecificWarningsAsErrors>4013</TreatSpecificWarningsAsErrors>
       <WarningLevel>Level1</WarningLevel>
       <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <PostBuildEvent>
+      <Command>copy craftos2-lua\src\lua51d.dll x64\Debug\lua51d.dll</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
@@ -264,16 +284,21 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
       <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <PostBuildEvent>
+      <Command>copy craftos2-lua\src\lua51.dll x64\Release\lua51.dll</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
     <Link>
@@ -283,16 +308,21 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;STANDALONE_ROM;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;STANDALONE_ROM;_WIN64;_AMD64_;HAVE_STRERROR_S;WINDOWS_SUBSYSTEM</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
       <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <PostBuildEvent>
+      <Command>copy craftos2-lua\src\lua51.dll x64\ReleaseStandalone\lua51.dll</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
     <Link>
@@ -302,16 +332,21 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;NO_CLI;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\poco.1.9.3\build\native\include;$(SolutionDir)packages\png++.0.2.10\build\native\include;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WIN64;_AMD64_;HAVE_STRERROR_S</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)api;$(SolutionDir)craftos2-lua\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
       <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
-      <AdditionalOptions>$(ExternalCompilerOptions) %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>$(ExternalCompilerOptions) /d2SSAOptimizer- %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <PostBuildEvent>
+      <Command>copy craftos2-lua\src\lua51.dll x64\ReleaseC\lua51.dll</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include=".github\workflows\main.yml" />
@@ -332,6 +367,17 @@
     <None Include="resources\CraftOSTest.lua" />
     <None Include="resources\Info.plist" />
     <None Include="resources\packStandaloneROM.js" />
+    <ClCompile Include="src\apis\config.cpp" />
+    <ClCompile Include="src\apis\fs.cpp" />
+    <ClCompile Include="src\apis\handles\fs_handle.cpp" />
+    <ClCompile Include="src\apis\handles\http_handle.cpp" />
+    <ClCompile Include="src\apis\http.cpp" />
+    <ClCompile Include="src\apis\mounter.cpp" />
+    <ClCompile Include="src\apis\os.cpp" />
+    <ClCompile Include="src\apis\periphemu.cpp" />
+    <ClCompile Include="src\apis\peripheral.cpp" />
+    <ClCompile Include="src\apis\term.cpp" />
+    <ClCompile Include="src\configuration.cpp" />
     <ClCompile Include="src\platform\macapp.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
@@ -339,42 +385,43 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <None Include="vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp" />
     <Image Include="resources\CraftOS-PC.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Computer.hpp" />
-    <ClInclude Include="src\config.hpp" />
-    <ClInclude Include="src\fs.hpp" />
-    <ClInclude Include="src\fs_handle.hpp" />
-    <ClInclude Include="src\fs_standalone.hpp" />
+    <ClInclude Include="api\Computer.hpp" />
+    <ClInclude Include="api\configuration.hpp" />
+    <ClInclude Include="api\CraftOS-PC.hpp" />
+    <ClInclude Include="api\FileEntry.hpp" />
+    <ClInclude Include="api\lib.hpp" />
+    <ClInclude Include="api\peripheral.hpp" />
+    <ClInclude Include="api\Terminal.hpp" />
+    <ClInclude Include="src\apis.hpp" />
+    <ClInclude Include="src\apis\handles\fs_handle.hpp" />
+    <ClInclude Include="src\apis\handles\http_handle.hpp" />
+    <ClCompile Include="src\apis\redstone.cpp" />
     <ClInclude Include="src\gif.hpp" />
-    <ClInclude Include="src\http.hpp" />
-    <ClInclude Include="src\http_handle.hpp" />
-    <ClInclude Include="src\lib.hpp" />
-    <ClInclude Include="src\mounter.hpp" />
-    <ClInclude Include="src\os.hpp" />
-    <ClInclude Include="src\periphemu.hpp" />
+    <ClInclude Include="src\main.hpp" />
+    <ClInclude Include="src\runtime.hpp" />
     <ClInclude Include="src\peripheral\computer.hpp" />
     <ClInclude Include="src\peripheral\debugger.hpp" />
     <ClInclude Include="src\peripheral\drive.hpp" />
     <ClInclude Include="src\peripheral\modem.hpp" />
     <ClInclude Include="src\peripheral\monitor.hpp" />
-    <ClInclude Include="src\peripheral\peripheral.hpp" />
     <ClInclude Include="src\peripheral\printer.hpp" />
     <ClInclude Include="src\peripheral\speaker.hpp" />
     <ClInclude Include="src\platform.hpp" />
     <ClInclude Include="src\platform\resource.h" />
-    <ClInclude Include="src\redstone.hpp" />
-    <ClInclude Include="src\term.hpp" />
+    <ClInclude Include="src\termsupport.hpp" />
     <ClInclude Include="src\terminal\CLITerminal.hpp" />
     <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp" />
     <ClInclude Include="src\terminal\RawTerminal.hpp" />
     <ClInclude Include="src\terminal\SDLTerminal.hpp" />
-    <ClInclude Include="src\terminal\Terminal.hpp" />
     <ClInclude Include="src\terminal\TRoRTerminal.hpp" />
+    <ClInclude Include="src\util.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="examples\raw_frame_reader.cpp">
@@ -387,11 +434,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\Computer.cpp" />
-    <ClCompile Include="src\config.cpp" />
     <ClCompile Include="src\favicon.c" />
     <ClCompile Include="src\font.c" />
-    <ClCompile Include="src\fs.cpp" />
-    <ClCompile Include="src\fs_handle.cpp" />
     <ClCompile Include="src\fs_standalone.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
@@ -399,19 +443,15 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\gif.cpp" />
-    <ClCompile Include="src\http.cpp" />
-    <ClCompile Include="src\http_handle.cpp" />
-    <ClCompile Include="src\lib.cpp" />
+    <ClCompile Include="src\plugin.cpp" />
+    <ClCompile Include="src\util.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\mounter.cpp" />
-    <ClCompile Include="src\os.cpp" />
-    <ClCompile Include="src\periphemu.cpp" />
+    <ClCompile Include="src\runtime.cpp" />
     <ClCompile Include="src\peripheral\computer_p.cpp" />
     <ClCompile Include="src\peripheral\debugger.cpp" />
     <ClCompile Include="src\peripheral\drive.cpp" />
     <ClCompile Include="src\peripheral\modem.cpp" />
     <ClCompile Include="src\peripheral\monitor.cpp" />
-    <ClCompile Include="src\peripheral\peripheral.cpp" />
     <ClCompile Include="src\peripheral\printer.cpp" />
     <ClCompile Include="src\peripheral\speaker.cpp" />
     <ClCompile Include="src\peripheral\speaker_sounds.cpp">
@@ -453,7 +493,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="src\term.cpp" />
+    <ClCompile Include="src\termsupport.cpp" />
     <ClCompile Include="src\terminal\CLITerminal.cpp" />
     <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp" />
     <ClCompile Include="src\terminal\RawTerminal.cpp" />

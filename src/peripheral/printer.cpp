@@ -8,14 +8,16 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
-#include "printer.hpp"
-#include "../platform.hpp"
 #include <cstring>
+#include "../platform.hpp"
+#include "printer.hpp"
+#include "../util.hpp"
 
 #if PRINT_TYPE == PRINT_TYPE_PDF
-#include <unordered_map>
 #include <cmath>
+#include <stdexcept>
+#include <unordered_map>
+#include "../runtime.hpp"
 #include "../terminal/RawTerminal.hpp"
 #include "../terminal/TRoRTerminal.hpp"
 static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
@@ -117,18 +119,17 @@ static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
     {HPDF_INVALID_FONT, "An invalid font-handle was specified."},
 };
 
-extern int selectedRenderer;
-
 void pdf_error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void* userdata) {
     lua_State *L = ((printer*)userdata)->currentState;
     if (L) luaL_error(L, "Error printing to PDF: %s (%d, %d)\n", pdf_errors[error_no], error_no, detail_no);
     else {
-        std::string e = "Error printing to PDF: " + std::string(pdf_errors[error_no]) + " (" + std::to_string(error_no) + ", " + std::to_string(detail_no) + ")";
+        const std::string e = "Error printing to PDF: " + std::string(pdf_errors[error_no]) + " (" + std::to_string(error_no) + ", " + std::to_string(detail_no) + ")";
         switch (selectedRenderer) {
             case 0: case 5: SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str(), NULL); break;
             case 1: case 2: fprintf(stderr, "%s\n", e.c_str()); break;
             case 3: RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str()); break;
             case 4: TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_ERROR, "Printer Error", e.c_str()); break;
+            default: break;
         }
         throw std::runtime_error(e);
     }
@@ -140,11 +141,16 @@ std::string page_ext = ".txt";
 #endif
 
 printer::printer(lua_State *L, const char * side) {
-    if (!lua_isstring(L, 3)) bad_argument(L, "string", 3);
-    outPath = lua_tostring(L, 3);
+    outPath = luaL_checkstring(L, 3);
 #if PRINT_TYPE == PRINT_TYPE_PDF
     currentState = NULL;
     out = HPDF_New(pdf_error_handler, this);
+    try {
+        if (HPDF_SaveToFile(out, outPath.c_str()) != HPDF_OK) throw std::runtime_error("Couldn't open output file");
+    } catch (...) {
+        HPDF_Free(out);
+        throw;
+    }
 #else
     createDirectory(outPath.c_str());
 #endif
@@ -158,11 +164,11 @@ printer::~printer() {
 }
 
 int printer::write(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+    lastCFunction = __func__;
     if (cursorY >= height) return 0;
     size_t str_sz;
-    const char * str = lua_tolstring(L, 1, &str_sz);
-    unsigned i = 0;
+    const char * str = luaL_checklstring(L, 1, &str_sz);
+    unsigned i;
     for (i = 0; i < str_sz && i + cursorX < width; i++) 
         body[cursorY][i+cursorX] = str[i] == '\n' ? '?' : str[i];
     cursorX += (int)i;
@@ -170,26 +176,28 @@ int printer::write(lua_State *L) {
 }
 
 int printer::setCursorPos(lua_State *L) {
-    if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-    if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-    cursorX = (lua_tointeger(L, 1)-1);
-    cursorY = (lua_tointeger(L, 2)-1);
+    lastCFunction = __func__;
+    cursorX = (int)luaL_checkinteger(L, 1)-1;
+    cursorY = (int)luaL_checkinteger(L, 2)-1;
     return 0;
 }
 
 int printer::getCursorPos(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, cursorX+1);
     lua_pushinteger(L, cursorY+1);
     return 2;
 }
 
 int printer::getPageSize(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, width);
     lua_pushinteger(L, height);
     return 2;
 }
 
 int printer::newPage(lua_State *L) {
+    lastCFunction = __func__;
     if (started) {endPage(L); lua_pop(L, 1);}
     body = std::vector<std::vector<char> >(height, std::vector<char>(width, ' '));
     title = "";
@@ -206,6 +214,7 @@ int printer::newPage(lua_State *L) {
 }
 
 int printer::endPage(lua_State *L) {
+    lastCFunction = __func__;
     if (!started) {
         if (L) lua_pushboolean(L, false);
         return 1;
@@ -214,12 +223,12 @@ int printer::endPage(lua_State *L) {
     currentState = L;
     try {
         HPDF_Page_BeginText(page);
-        HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 12.0);
+        HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 24.0);
         for (unsigned i = 0; i < body.size(); i++) {
             char * str = new char[width + 1];
             memcpy(str, &body[i][0], width);
             str[width] = 0;
-            HPDF_Page_TextOut(page, 72, HPDF_Page_GetHeight(page) - (72 + ((i + 1) * 15)), (const char *)str);
+            HPDF_Page_TextOut(page, 72, HPDF_Page_GetHeight(page) - (HPDF_REAL)((i + 1) * 30 + 72), (const char *)str);
             delete[] str;
         }
         HPDF_Page_EndText(page);
@@ -251,23 +260,25 @@ int printer::endPage(lua_State *L) {
 }
 
 int printer::getInkLevel(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, INT32_MAX);
     return 1;
 }
 
 int printer::setPageTitle(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    title = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
+    lastCFunction = __func__;
+    title = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
     return 0;
 }
 
 int printer::getPaperLevel(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushinteger(L, INT32_MAX);
     return 1;
 }
 
 int printer::call(lua_State *L, const char * method) {
-    std::string m(method);
+    const std::string m(method);
     if (m == "write") return write(L);
     else if (m == "setCursorPos") return setCursorPos(L);
     else if (m == "getCursorPos") return getCursorPos(L);
@@ -280,16 +291,17 @@ int printer::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-const char * printer_keys[9] = {
-    "write",
-    "setCursorPos",
-    "getCursorPos",
-    "getPageSize",
-    "newPage",
-    "endPage",
-    "getInkLevel",
-    "setPageTitle",
-    "getPaperLevel"
+static luaL_Reg printer_reg[] = {
+    {"write", NULL},
+    {"setCursorPos", NULL},
+    {"getCursorPos", NULL},
+    {"getPageSize", NULL},
+    {"newPage", NULL},
+    {"endPage", NULL},
+    {"getInkLevel", NULL},
+    {"setPageTitle", NULL},
+    {"getPaperLevel", NULL},
+    {NULL, NULL}
 };
 
-library_t printer::methods = {"printer", 9, printer_keys, NULL, nullptr, nullptr};
+library_t printer::methods = {"printer", printer_reg, nullptr, nullptr};

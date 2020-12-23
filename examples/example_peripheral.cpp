@@ -2,28 +2,15 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
-#include "../src/Computer.hpp"
-
-#define PLUGIN_VERSION 4
-
-void bad_argument(lua_State *L, const char * type, int pos) {
-    lua_pushfstring(L, "bad argument #%d (expected %s, got %s)", pos, type, lua_typename(L, lua_type(L, pos)));
-    lua_error(L);
-}
-
-peripheral::~peripheral(){}
+#include <CraftOS-PC.hpp>
 
 class example_peripheral: public peripheral {
     int add(lua_State *L) {
-        if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-        if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-        lua_pushnumber(L, lua_tonumber(L, 1) + lua_tonumber(L, 2));
+        lua_pushnumber(L, luaL_checknumber(L, 1) + luaL_checknumber(L, 2));
         return 1;
     }
     int subtract(lua_State *L) {
-        if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
-        if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
-        lua_pushnumber(L, lua_tonumber(L, 1) - lua_tonumber(L, 2));
+        lua_pushnumber(L, luaL_checknumber(L, 1) - luaL_checknumber(L, 2));
         return 1;
     }
     int ping(lua_State *L) {
@@ -48,36 +35,20 @@ public:
     library_t getMethods() {return methods;}
 };
 
-const char * methods_keys[] = {
+static luaL_Reg methods_reg[] = {
     "add",
     "subtract",
     "ping",
 };
-library_t example_peripheral::methods = {"example_peripheral", 3, methods_keys, NULL, nullptr, nullptr};
+static PluginInfo info;
+library_t example_peripheral::methods = {"example_peripheral", methods_reg, nullptr, nullptr};
 
 extern "C" {
 #ifdef _WIN32
 _declspec(dllexport)
 #endif
-int luaopen_example_peripheral(lua_State *L) {
-    lua_pushnil(L);
-    return 1;
-}
-
-int register_registerPeripheral(lua_State *L) {
-    ((void(*)(std::string, peripheral_init))lua_touserdata(L, 1))("example_peripheral", &example_peripheral::init); 
-    return 0;
-}
-
-#ifdef _WIN32
-_declspec(dllexport)
-#endif
-int plugin_info(lua_State *L) {
-    lua_newtable(L);
-    lua_pushinteger(L, PLUGIN_VERSION);
-    lua_setfield(L, -2, "version");
-    lua_pushcfunction(L, register_registerPeripheral);
-    lua_setfield(L, -2, "register_registerPeripheral");
-    return 1;
+PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
+    func->registerPeripheral("example_peripheral", &myperipheral::init);
+    return &info;
 }
 }

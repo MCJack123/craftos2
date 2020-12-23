@@ -1,5 +1,5 @@
 /*
- * periphemu.cpp
+ * apis/periphemu.cpp
  * CraftOS-PC 2
  * 
  * This file implements the methods for the periphemu API.
@@ -8,38 +8,20 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
-#include "periphemu.hpp"
-#include "peripheral/peripheral.hpp"
-#include "peripheral/computer.hpp"
-#include "peripheral/debugger.hpp"
-#include "peripheral/drive.hpp"
-#include "peripheral/modem.hpp"
-#include "peripheral/monitor.hpp"
-#include "peripheral/printer.hpp"
-#include "peripheral/speaker.hpp"
-#include "terminal/Terminal.hpp"
-#include "term.hpp"
-#include "os.hpp"
-#include <unordered_map>
-#include <string>
 #include <algorithm>
+#include <Computer.hpp>
+#include <Terminal.hpp>
+#include "../peripheral/computer.hpp"
+#include "../peripheral/debugger.hpp"
+#include "../peripheral/drive.hpp"
+#include "../peripheral/modem.hpp"
+#include "../peripheral/monitor.hpp"
+#include "../peripheral/printer.hpp"
+#include "../peripheral/speaker.hpp"
+#include "../runtime.hpp"
+#include "../util.hpp"
 
-monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
-    std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
-    for (auto p : comp->peripherals) {
-        if (p.second != NULL && strcmp(p.second->getMethods().name, "monitor") == 0) {
-            monitor * m = (monitor*)p.second;
-            if (m->term->id == id) {
-                sideReturn.assign(p.first);
-                return m;
-            }
-        }
-    }
-    return NULL;
-}
-
-std::unordered_map<std::string, peripheral_init> initializers = {
+static std::unordered_map<std::string, peripheral_init> initializers = {
     {"monitor", &monitor::init},
     {"printer", &printer::init},
     {"computer", &computer::init},
@@ -50,29 +32,34 @@ std::unordered_map<std::string, peripheral_init> initializers = {
 #endif
 };
 
-void registerPeripheral(std::string name, peripheral_init initializer) {
+void registerPeripheral(const std::string& name, const peripheral_init& initializer) {
     initializers[name] = initializer;
 }
 
-const char * peripheral_attach(lua_State *L, void* arg) {
+static std::string peripheral_attach(lua_State *L, void* arg) {
     std::string * side = (std::string*)arg;
     lua_pushstring(L, side->c_str());
     delete side;
     return "peripheral";
 }
 
-const char * peripheral_detach(lua_State *L, void* arg) {
+static std::string peripheral_detach(lua_State *L, void* arg) {
     std::string * side = (std::string*)arg;
     lua_pushstring(L, side->c_str());
     delete side;
     return "peripheral_detach";
 }
 
-int periphemu_create(lua_State* L) {
-    if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isstring(L, 2)) bad_argument(L, "string", 2);
+static int periphemu_create(lua_State* L) {
+    lastCFunction = __func__;
+    if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_typerror(L, 1, "string or number");
     Computer * computer = get_comp(L);
-    std::string type = lua_tostring(L, 2);
+    const std::string type = luaL_checkstring(L, 2);
+    if (config.serverMode && type == "speaker") {
+        lua_pushboolean(L, false);
+        lua_pushstring(L, "No peripheral named speaker");
+        return 2;
+    }
     std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
     if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
     computer->peripherals_mutex.lock();
@@ -101,14 +88,14 @@ int periphemu_create(lua_State* L) {
     }
     lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
-    termQueueProvider(computer, peripheral_attach, sidearg);
+    queueEvent(computer, peripheral_attach, sidearg);
     return 1;
 }
 
-int periphemu_remove(lua_State* L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
+static int periphemu_remove(lua_State* L) {
+    lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    std::string side = lua_tostring(L, 1);
+    const std::string side = luaL_checkstring(L, 1);
     peripheral * p;
     {
         std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
@@ -126,17 +113,18 @@ int periphemu_remove(lua_State* L) {
     queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, p);
     lua_pushboolean(L, true);
     std::string * sidearg = new std::string(side);
-    termQueueProvider(computer, peripheral_detach, sidearg);
+    queueEvent(computer, peripheral_detach, sidearg);
     return 1;
 }
 
-int periphemu_names(lua_State *L) {
+static int periphemu_names(lua_State *L) {
+    lastCFunction = __func__;
     lua_newtable(L);
     lua_pushinteger(L, 1);
     lua_pushstring(L, "debugger");
     lua_settable(L, -3);
     int i = 2;
-    for (auto entry : initializers) {
+    for (const auto& entry : initializers) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, entry.first.c_str());
         lua_settable(L, -3);
@@ -144,16 +132,11 @@ int periphemu_names(lua_State *L) {
     return 1;
 }
 
-const char* periphemu_keys[3] = {
-    "create",
-    "remove",
-    "names",
+static luaL_Reg periphemu_reg[] = {
+    {"create", periphemu_create},
+    {"remove", periphemu_remove},
+    {"names", periphemu_names},
+    {NULL, NULL}
 };
 
-lua_CFunction periphemu_values[3] = {
-    periphemu_create,
-    periphemu_remove,
-    periphemu_names,
-};
-
-library_t periphemu_lib = { "periphemu", 3, periphemu_keys, periphemu_values, nullptr, nullptr };
+library_t periphemu_lib = { "periphemu", periphemu_reg, nullptr, nullptr };

@@ -10,11 +10,9 @@
 
 #ifndef PERIPHERAL_COMPUTER_HPP
 #define PERIPHERAL_COMPUTER_HPP
-#include "peripheral.hpp"
-#include "../Computer.hpp"
+#include <peripheral.hpp>
 
 class computer: public peripheral {
-private:
     friend struct Computer;
     Computer * comp;
     Computer * thiscomp;
@@ -28,12 +26,11 @@ public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new computer(L, side);}
     static void deinit(peripheral * p) {delete (computer*)p;}
-    destructor getDestructor() {return deinit;}
-    library_t getMethods() {return methods;}
+    destructor getDestructor() const override {return deinit;}
+    library_t getMethods() const override {return methods;}
     computer(lua_State *L, const char * side);
     ~computer();
-    int call(lua_State *L, const char * method);
-    void update() {}
+    int call(lua_State *L, const char * method) override;
 };
 
 #endif

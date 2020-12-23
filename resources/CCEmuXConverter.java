@@ -22,7 +22,15 @@ class CCEmuXConverter {
         {"defaultComputerSettings", "default_computer_settings"},
         {"debugEnable", "debug_enable"},
         {"termWidth", "defaultWidth"},
-        {"termHeight", "defaultHeight"}
+        {"termHeight", "defaultHeight"},
+        {"httpWhitelist", "http_whitelist"},
+        {"httpBlacklist", "http_blacklist"}
+    };
+
+    static final String[][] httpOptionPairs = {
+        {"websocketEnabled", "http_websocket_enabled"},
+        {"max_requests", "http_max_requests"},
+        {"max_websockets", "http_max_websockets"}
     };
 
     public static void main(String[] args) throws FileNotFoundException, IOException, ParseException, ClassNotFoundException, UnsupportedLookAndFeelException, InstantiationException, IllegalAccessException {
@@ -53,6 +61,10 @@ class CCEmuXConverter {
         for (String[] option : optionPairs)
             if (options.containsKey(option[0])) 
                 config.put(option[1], options.get(option[0]));
+        if (options.containsKey("http"))
+            for (String[] option : httpOptionPairs)
+                if (options.get("http").containsKey(option[0])) 
+                    config.put(option[1], options.get("http").get(option[0]));
         if (options.containsKey("plugins") && 
             ((JSONObject)options.get("plugins")).containsKey("net.clgd.ccemux.plugins.builtin.HDFontPlugin") && 
             ((JSONObject)((JSONObject)options.get("plugins")).get("net.clgd.ccemux.plugins.builtin.HDFontPlugin")).containsKey("enabled") &&

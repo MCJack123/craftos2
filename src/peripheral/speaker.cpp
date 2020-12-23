@@ -9,18 +9,17 @@
  */
 
 #ifndef NO_MIXER
-#define CRAFTOSPC_INTERNAL
-#include "speaker.hpp"
-#include "../config.hpp"
-#include "../platform.hpp"
-#include "../mounter.hpp"
-#include <SDL2/SDL_mixer.h>
 #include <cmath>
-#include <fstream>
-#include <dirent.h>
-#include <sys/stat.h>
 #include <algorithm>
+#include <fstream>
 #include <random>
+#include <configuration.hpp>
+#include <dirent.h>
+#include <SDL2/SDL_mixer.h>
+#include <sys/stat.h>
+#include "../platform.hpp"
+#include "../runtime.hpp"
+#include "speaker.hpp"
 
 #ifndef MIX_INIT_MID
 #define MIX_INIT_MID 0
@@ -229,55 +228,54 @@ void setupForNextPlayback(float& speed, Mix_Chunk* chunk, int channel, bool loop
 #pragma endregion
 #endif
 
-typedef struct sound_file {
+struct sound_file_t {
     std::string name;
     float volume = 1.0;
     float pitch = 1.0;
     int weight = 1;
     bool isEvent = false;
     bool isMusic = false;
-} sound_file_t;
+};
 
 extern std::unordered_map<std::string, std::pair<unsigned char *, unsigned int> > speaker_sounds;
-std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;
-std::mt19937 RNG;
+static std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;
+static std::mt19937 RNG;
 
 /* Adding custom sounds:
  * Custom sounds can be added with this folder structure:
  * <ROM root dir>
  * - rom/, bios.lua, etc.
  * - sounds/
- *   - <domain, e.g. minecraft>/
+ *   - <namespace, e.g. minecraft>/
  *     - sounds.json
  *     - sounds/
  *       - <sound files/folders as described in sounds.json>
  * 
  * sounds.json uses the same format as Minecraft, meaning that MC assets can be
- * copied directly into the domain folder. See https://minecraft.gamepedia.com/Sounds.json
+ * copied directly into the namespace folder. See https://minecraft.gamepedia.com/Sounds.json
  * for more info.
  */
 
-Mix_Music * currentlyPlayingMusic = NULL;
-speaker * musicSpeaker = NULL;
-void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
+static Mix_Music * currentlyPlayingMusic = NULL;
+static speaker * musicSpeaker = NULL;
 
-void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
-void emptyEffect(int c, void* stream, int len, void* udata) {}
+static void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
+static void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
 
-bool playSoundEvent(std::string name, float volume, float speed, unsigned int channel) {
-    if (name.find(":") == std::string::npos) name = "minecraft:" + name;
+static bool playSoundEvent(std::string name, float volume, float speed, unsigned int channel) {
+    if (name.find(':') == std::string::npos) name = "minecraft:" + name;
     if (soundEvents.find(name) == soundEvents.end()) return false;
     unsigned randMax = 0;
-    for (sound_file_t f : soundEvents[name]) randMax += f.weight;
-    unsigned num = std::uniform_int_distribution<unsigned>(0, randMax-1)(RNG);
+    for (const sound_file_t& f : soundEvents[name]) randMax += f.weight;
+    const unsigned num = std::uniform_int_distribution<unsigned>(0, randMax-1)(RNG);
     unsigned i = 0;
-    for (sound_file_t f : soundEvents[name]) {
+    for (const sound_file_t& f : soundEvents[name]) {
         if ((i += f.pitch) > num) {
             // play this event
             if (f.isEvent) return playSoundEvent(f.name, min(volume * f.volume, 3.0f), min(speed * f.pitch, 2.0f), channel);
 #ifdef WIN32
-            std::string path(astr(getROMPath() + WS("\\sounds\\") + wstr(f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + WS("\\sounds\\") + wstr(f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
-            for (int i = 0; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
+            std::string path(astr(getROMPath() + WS("\\sounds\\") + wstr(f.name.find(':') == std::string::npos ? name.substr(0, name.find(':')) : f.name.substr(0, f.name.find(':'))) + WS("\\sounds\\") + wstr(f.name.find(':') == std::string::npos ? f.name : f.name.substr(f.name.find(':') + 1))));
+            for (char& c : path) if (c == '/') c = '\\';
 #else
             std::string path(astr(getROMPath() + WS("/sounds/") + wstr(f.name.find(":") == std::string::npos ? name.substr(0, name.find(":")) : f.name.substr(0, f.name.find(":"))) + WS("/sounds/") + wstr(f.name.find(":") == std::string::npos ? f.name : f.name.substr(f.name.find(":") + 1))));
 #endif
@@ -297,7 +295,7 @@ bool playSoundEvent(std::string name, float volume, float speed, unsigned int ch
                     }
                 }
                 if (Mix_PlayingMusic()) Mix_HaltMusic();
-                Mix_VolumeMusic(min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3));
+                Mix_VolumeMusic((int)(min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3.0f)));
                 currentlyPlayingMusic = chunk;
                 Mix_PlayMusic(chunk, 0);
                 Mix_HookMusicFinished(musicFinished);
@@ -318,14 +316,14 @@ bool playSoundEvent(std::string name, float volume, float speed, unsigned int ch
                     }
                 }
                 CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false); // automatically frees chunk on scope exit
-                void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
+                void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil((double)chunk->alen / (double)speed)));
                 memcpy(data, chunk->abuf, chunk->alen);
-                handler.modifyStreamPlaybackSpeed(0, data, max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
+                handler.modifyStreamPlaybackSpeed(0, data, max(chunk->alen, (Uint32)ceil((double)chunk->alen / (double)speed)));
                 Mix_Chunk * newchunk = (Mix_Chunk*)SDL_malloc(sizeof(Mix_Chunk));
                 newchunk->abuf = (Uint8*)data;
-                newchunk->alen = chunk->alen / speed;
+                newchunk->alen = (Uint32)((float)chunk->alen / speed);
                 newchunk->allocated = true;
-                newchunk->volume = min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3);
+                newchunk->volume = (int)(min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3.0f));
                 if (Mix_PlayChannel(channel, newchunk, 0) == -1) return false;
                 Mix_ChannelFinished(channelFinished);
                 return true;
@@ -336,20 +334,18 @@ bool playSoundEvent(std::string name, float volume, float speed, unsigned int ch
 }
 
 int speaker::playNote(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
-    if (!lua_isnoneornil(L, 3) && !lua_isnumber(L, 3)) bad_argument(L, "number or nil", 3);
-    std::string inst = lua_tostring(L, 1);
-    float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
-    int pitch = lua_isnumber(L, 3) ? lua_tointeger(L, 3) : 1;
-    if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
+    lastCFunction = __func__;
+    const std::string inst = luaL_checkstring(L, 1);
+    const float volume = (float)luaL_optnumber(L, 2, 1.0);
+    const int pitch = (int)luaL_optnumber(L, 3, 1.0);
+    if (volume < 0.0f || volume > 3.0f) luaL_error(L, "invalid volume %f", volume);
     if (pitch < 0 || pitch > 24) luaL_error(L, "invalid pitch %d", pitch);
     if (speaker_sounds.find(inst) == speaker_sounds.end()) luaL_error(L, "invalid instrument %s", inst.c_str());
     if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastTickReset).count() >= 50) {
         lastTickReset = std::chrono::system_clock::now();
         noteCount = 0;
     }
-    if (noteCount >= config.maxNotesPerTick) {
+    if (noteCount >= (unsigned)config.maxNotesPerTick) {
         lua_pushboolean(L, false);
         return 1;
     }
@@ -361,23 +357,23 @@ int speaker::playNote(lua_State *L) {
         Mix_GroupChannel(next, channelGroup);
     }
     if (soundEvents.find("minecraft:block.note_block." + inst) != soundEvents.end()) {
-        lua_pushboolean(L, playSoundEvent("minecraft:block.note_block." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0), channel));
+        lua_pushboolean(L, playSoundEvent("minecraft:block.note_block." + inst, volume, (float)pow(2.0, (pitch - 12.0) / 12.0), channel));
     } else if (soundEvents.find("minecraft:block.note." + inst) != soundEvents.end()) {
-        lua_pushboolean(L, playSoundEvent("minecraft:block.note." + inst, volume, pow(2.0, (pitch - 12.0) / 12.0), channel));
+        lua_pushboolean(L, playSoundEvent("minecraft:block.note." + inst, volume, (float)pow(2.0, (pitch - 12.0) / 12.0), channel));
     } else {
         Mix_Chunk * chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(speaker_sounds[inst].first, speaker_sounds[inst].second), true);
         if (chunk == NULL) luaL_error(L, "Fatal error while reading instrument sample");
-        float speed = pow(2.0, (pitch - 12.0) / 12.0);
+        float speed = (float)pow(2.0, (pitch - 12.0) / 12.0);
         CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false);
-        void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
-        memset(data, 0, max(chunk->alen, (Uint32)ceil(chunk->alen / speed)));
+        void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil((float)chunk->alen / speed)));
+        memset(data, 0, max(chunk->alen, (Uint32)ceil((float)chunk->alen / speed)));
         memcpy(data, chunk->abuf, chunk->alen);
         handler.modifyStreamPlaybackSpeed(0, data, chunk->alen);
         Mix_Chunk * newchunk = (Mix_Chunk*)SDL_malloc(sizeof(Mix_Chunk));
         newchunk->abuf = (Uint8*)data;
-        newchunk->alen = chunk->alen / speed;
+        newchunk->alen = (Uint32)((float)chunk->alen / speed);
         newchunk->allocated = true;
-        newchunk->volume = volume * (MIX_MAX_VOLUME / 3);
+        newchunk->volume = (Uint8)(volume * (MIX_MAX_VOLUME / 3.0f));
         if (Mix_PlayChannel(channel, newchunk, 0) == -1) {
             lua_pushboolean(L, false);
             return 1;
@@ -390,18 +386,16 @@ int speaker::playNote(lua_State *L) {
 }
 
 int speaker::playSound(lua_State *L) {
+    lastCFunction = __func__;
 #ifdef STANDALONE_ROM
     luaL_error(L, "Sounds are not available on standalone builds");
     return 0;
 #else
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
-    if (!lua_isnoneornil(L, 3) && !lua_isnumber(L, 3)) bad_argument(L, "number or nil", 3);
-    std::string inst = lua_tostring(L, 1);
-    float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
-    float speed = lua_isnumber(L, 3) ? lua_tonumber(L, 3) : 1.0;
-    if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
-    if (speed < 0.0 || speed > 2.0) luaL_error(L, "invalid speed %f", speed);
+    const std::string inst = luaL_checkstring(L, 1);
+    const float volume = (float)luaL_optnumber(L, 2, 1.0);
+    const float speed = (float)luaL_optnumber(L, 3, 1.0);
+    if (volume < 0.0f || volume > 3.0f) luaL_error(L, "invalid volume %f", volume);
+    if (speed < 0.0f || speed > 2.0f) luaL_error(L, "invalid speed %f", speed);
     if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastTickReset).count() >= 50) {
         lastTickReset = std::chrono::system_clock::now();
         noteCount = 0;
@@ -424,8 +418,9 @@ int speaker::playSound(lua_State *L) {
 }
 
 int speaker::listSounds(lua_State *L) {
+    lastCFunction = __func__;
     lua_newtable(L);
-    for (auto ev : soundEvents) {
+    for (const auto& ev : soundEvents) {
         std::vector<std::string> parts = split(ev.first.substr(ev.first.find(':') + 1), '.');
         std::string back = parts.back();
         parts.pop_back();
@@ -438,7 +433,7 @@ int speaker::listSounds(lua_State *L) {
             lua_pushvalue(L, -2);
             lua_settable(L, -4);
         }
-        for (std::string p : parts) {
+        for (const std::string& p : parts) {
             lua_pushstring(L, p.c_str());
             lua_gettable(L, -2);
             if (!lua_istable(L, -1)) {
@@ -458,16 +453,15 @@ int speaker::listSounds(lua_State *L) {
 }
 
 int speaker::playLocalMusic(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    if (!lua_isnoneornil(L, 2) && !lua_isnumber(L, 2)) bad_argument(L, "number or nil", 2);
-    path_t path = fixpath(get_comp(L), lua_tostring(L, 1), true);
+    lastCFunction = __func__;
+    const path_t path = fixpath(get_comp(L), luaL_checkstring(L, 1), true);
+    const float volume = (float)luaL_optnumber(L, 2, 1.0);
     if (path.empty()) luaL_error(L, "%s: File does not exist", lua_tostring(L, 1));
-    float volume = lua_isnumber(L, 2) ? lua_tonumber(L, 2) : 1.0;
-    if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
+    if (volume < 0.0f || volume > 3.0f) luaL_error(L, "invalid volume %f", volume);
     Mix_Music * mus = Mix_LoadMUS(astr(path).c_str());
     if (mus == NULL) luaL_error(L, "%s: Could not load music file: %s", lua_tostring(L, 1), Mix_GetError());
     if (Mix_PlayingMusic()) Mix_HaltMusic();
-    Mix_VolumeMusic(volume * (MIX_MAX_VOLUME / 3));
+    Mix_VolumeMusic((Uint8)(volume * (MIX_MAX_VOLUME / 3.0f)));
     currentlyPlayingMusic = mus;
     musicSpeaker = this;
     Mix_PlayMusic(mus, 0);
@@ -476,13 +470,14 @@ int speaker::playLocalMusic(lua_State *L) {
 }
 
 int speaker::setSoundFont(lua_State *L) {
-    if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-    Mix_SetSoundFonts(astr(fixpath(get_comp(L), lua_tostring(L, 1), true)).c_str());
+    lastCFunction = __func__;
+    Mix_SetSoundFonts(astr(fixpath(get_comp(L), luaL_checkstring(L, 1), true)).c_str());
     return 0;
 }
 
 int speaker::stopSounds(lua_State *L) {
-    if (lua_isnumber(L, 1)) Mix_HaltChannel(lua_tointeger(L, 1));
+    lastCFunction = __func__;
+    if (lua_isnumber(L, 1)) Mix_HaltChannel((int)lua_tointeger(L, 1));
     else {
         if (musicSpeaker == this) { Mix_HaltMusic(); musicSpeaker = NULL; }
         Mix_HaltGroup(channelGroup);
@@ -491,7 +486,7 @@ int speaker::stopSounds(lua_State *L) {
 }
 
 speaker::speaker(lua_State *L, const char * side) {
-    RNG.seed(time(0)); // doing this here so the seed can be refreshed
+    RNG.seed((unsigned)time(0)); // doing this here so the seed can be refreshed
     channelGroup = nextChannelGroup++;
 }
 
@@ -503,7 +498,7 @@ speaker::~speaker() {
 }
 
 int speaker::call(lua_State *L, const char * method) {
-    std::string m(method);
+    const std::string m(method);
     if (m == "playNote") return playNote(L);
     else if (m == "playSound") return playSound(L);
     else if (m == "listSounds") return listSounds(L);
@@ -541,17 +536,16 @@ void speakerInit() {
             Poco::JSON::Object::Ptr p = root.parse(in);
             in.close();
             try {
-                for (auto it = root.begin(); it != root.end(); it++) {
-                    std::string eventName = astr(path_t(dir->d_name)) + ":" + it->first;
+                for (const auto& p1 : root) {
+                    std::string eventName = astr(path_t(dir->d_name)) + ":" + p1.first;
                     std::vector<sound_file_t> items;
-                    for (auto it2 = it->second.extract<Poco::JSON::Object::Ptr>()->get("sounds").extract<Poco::JSON::Array::Ptr>()->begin(); 
-                         it2 != it->second.extract<Poco::JSON::Object::Ptr>()->get("sounds").extract<Poco::JSON::Array::Ptr>()->end(); it2++) {
-                        Value obj2(*it2);
+                    for (const auto& pp : *p1.second.extract<Poco::JSON::Object::Ptr>()->get("sounds").extract<Poco::JSON::Array::Ptr>()) {
+                        Value obj2(pp);
                         sound_file_t item;
                         if (obj2.isString()) {
                             item.name = obj2.asString();
                         } else {
-                            obj2 = Value(*it2->extract<Poco::JSON::Object::Ptr>());
+                            obj2 = Value(*pp.extract<Poco::JSON::Object::Ptr>());
                             item.name = obj2["name"].asString();
                             if (obj2.isMember("volume")) item.volume = obj2["volume"].asFloat();
                             if (obj2.isMember("pitch")) item.pitch = obj2["pitch"].asFloat();
@@ -561,10 +555,10 @@ void speakerInit() {
                         }
                         items.push_back(item);
                     }
-                    Value obj(*it->second.extract<Poco::JSON::Object::Ptr>());
+                    Value obj(*p1.second.extract<Poco::JSON::Object::Ptr>());
                     if (soundEvents.find(eventName) == soundEvents.end() || (obj.isMember("replace") && obj["replace"].isBoolean() && obj["replace"].asBool())) 
                         soundEvents[eventName] = items;
-                    else for (sound_file_t f : items) soundEvents[eventName].push_back(f);
+                    else for (const sound_file_t& f : items) soundEvents[eventName].push_back(f);
                 }
             } catch (Poco::BadCastException &e) {
                 fprintf(stderr, "An error occurred while parsing the sounds.json file: %s\n", e.displayText().c_str());
@@ -579,16 +573,17 @@ void speakerQuit() {
     Mix_HaltChannel(-1); // automatically frees chunks
 }
 
-const char * speaker_names[] = {
-    "playNote",
-    "playSound",
-    "listSounds",
-    "playLocalMusic",
-    "setSoundFont",
-    "stopSounds"
+static luaL_Reg speaker_reg[] = {
+    {"playNote", NULL},
+    {"playSound", NULL},
+    {"listSounds", NULL},
+    {"playLocalMusic", NULL},
+    {"setSoundFont", NULL},
+    {"stopSounds", NULL},
+    {NULL, NULL}
 };
 
-library_t speaker::methods = {"speaker", 6, speaker_names, NULL, nullptr, nullptr};
-unsigned int speaker::nextChannelGroup = 1;
+library_t speaker::methods = {"speaker", speaker_reg, nullptr, nullptr};
+int speaker::nextChannelGroup = 1;
 
 #endif

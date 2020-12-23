@@ -1,28 +1,37 @@
 /*
- * config.hpp
+ * configuration.hpp
  * CraftOS-PC 2
- * 
- * This file defines the methods for the config API.
- * 
+ *
+ * This file defines structures used for storing the configuration.
+ *
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#ifndef CONFIG_HPP
-#define CONFIG_HPP
-#define MOUNT_MODE_NONE      0
-#define MOUNT_MODE_RO_STRICT 1
-#define MOUNT_MODE_RO        2
-#define MOUNT_MODE_RW        3
+#ifndef CRAFTOS_PC_CONFIGURATION_HPP
+#define CRAFTOS_PC_CONFIGURATION_HPP
+
 #include <string>
+#include <unordered_map>
+#include <vector>
+
+// Constants for mount modes
+#define MOUNT_MODE_NONE      0 // Disallow all mounting
+#define MOUNT_MODE_RO_STRICT 1 // Only allow read-only mounts
+#define MOUNT_MODE_RO        2 // Default to read-only mounts
+#define MOUNT_MODE_RW        3 // Default to read-write mounts
+
+// This structure holds all available configuration variables. See https://www.craftos-pc.cc/docs/config for information about what each of these means.
 struct configuration {
+    // The following fields are available in API version 10.0. No structure version check is required to use these.
     bool http_enable;
     bool debug_enable;
     int mount_mode;
-    //std::vector<std::string> http_whitelist;
-    //std::vector<std::string> http_blacklist;
-    //std::vector<std::string> mounter_whitelist;
-    //std::vector<std::string> mounter_blacklist;
+    std::vector<std::string> http_whitelist;
+    std::vector<std::string> http_blacklist;
+    std::vector<std::string> mounter_whitelist;
+    std::vector<std::string> mounter_blacklist;
+    std::vector<std::string> mounter_no_ask;
     bool disable_lua51_features;
     std::string default_computer_settings;
     bool logErrors;
@@ -56,16 +65,23 @@ struct configuration {
     std::string preferredHardwareDriver;
     bool useVsync;
     bool jit_ffi_enable;
+    bool serverMode;
+    std::unordered_map<std::string, std::string> pluginData;
+    bool http_websocket_enabled;
+    int http_max_websockets;
+    int http_max_websocket_message;
+    int http_max_requests;
+    int http_max_upload;
+    int http_max_download;
+    int http_timeout;
 };
+
+// A smaller structure that holds the configuration for a single computer.
 struct computer_configuration {
     std::string label;
     bool isColor;
     bool loadFailure;
     bool startFullscreen;
 };
-#include "lib.hpp"
-extern library_t config_lib;
-extern struct configuration config;
-extern struct computer_configuration getComputerConfig(int id);
-extern void setComputerConfig(int id, struct computer_configuration cfg);
+
 #endif

@@ -46,29 +46,6 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/gps_spec.lu
 -        end)
 -    end)
 -end)
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/io_spec.lua b/src/test/resources/test-rom/spec/apis/io_spec.lua
---- a/src/test/resources/test-rom/spec/apis/io_spec.lua	2020-06-29 02:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/apis/io_spec.lua	2020-06-29 01:40:36.000000000 -0400
-@@ -71,8 +71,8 @@
-     describe("io.lines", function()
-         it("validates arguments", function()
-             io.lines(nil)
--            expect.error(io.lines, ""):eq("/: No such file")
--            expect.error(io.lines, false):eq("bad argument #1 (expected string, got boolean)")
-+            expect.error(io.lines, ""):eq("bad argument #1 to '?' (: Is a directory)")
-+            expect.error(io.lines, false):eq("bad argument #1 to '?' (expected string, got boolean)")
-         end)
- 
-         it("closes the file", function()
-@@ -197,7 +197,7 @@
-         it("cannot be written to", function()
-             write_file(file, "")
-             io.input(file)
--            expect { io.input():write("xuxu") }:same { nil, "file is not writable" }
-+            expect { io.input():write("xuxu") }:same { nil, "No such file or directory", 2 }
-             io.input(io.stdin)
-         end)
- 
 diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/redstone_spec.lua b/src/test/resources/test-rom/spec/apis/redstone_spec.lua
 --- a/src/test/resources/test-rom/spec/apis/redstone_spec.lua	2020-06-29 02:52:34.000000000 -0400
 +++ b/src/test/resources/test-rom/spec/apis/redstone_spec.lua	1969-12-31 19:00:00.000000000 -0500
@@ -177,30 +154,6 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/base_spec.lua b/
          end)
  
          it("loads a file with the global environment", function()
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua b/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua
---- a/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua	2020-06-29 02:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/modules/cc/image/nft_spec.lua	2020-06-28 00:31:42.000000000 -0400
-@@ -55,7 +55,7 @@
- 
-         it("fails on missing files", function()
-             expect({ nft.load("/test-files/not_a_file.nft") })
--                :same { nil, "/test-files/not_a_file.nft: No such file" }
-+                :same { nil, "/test-files/not_a_file.nft: No such file or directory" }
-         end)
-     end)
- 
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/clear_spec.lua b/src/test/resources/test-rom/spec/programs/clear_spec.lua
---- a/src/test/resources/test-rom/spec/programs/clear_spec.lua	2020-06-29 02:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/programs/clear_spec.lua	2020-06-28 01:14:14.000000000 -0400
-@@ -7,7 +7,7 @@
- 
-         capture(stub, "clear")
- 
--        expect(clear):called(1)
-+        expect(clear):called(2)
-         expect(setCursorPos):called_with(1, 1)
-     end)
- end)
 diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/command/commands_spec.lua b/src/test/resources/test-rom/spec/programs/command/commands_spec.lua
 --- a/src/test/resources/test-rom/spec/programs/command/commands_spec.lua	2020-06-29 02:52:34.000000000 -0400
 +++ b/src/test/resources/test-rom/spec/programs/command/commands_spec.lua	1969-12-31 19:00:00.000000000 -0500
@@ -241,7 +194,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/command
 -    it("displays its usage when given no argument", function()
 -        stub(_G, "commands", {})
 -        expect(capture(stub, "/rom/programs/command/exec.lua"))
--            :matches { ok = true, output = "", error = "Usage: exec <command>\n" }
+-            :matches { ok = true, output = "", error = "Usage: /rom/programs/command/exec.lua <command>\n" }
 -    end)
 -
 -    it("runs a command", function()
@@ -400,7 +353,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/
 -        stub(_G, "turtle", { craft = function() end })
 -
 -        expect(capture(stub, "/rom/programs/turtle/craft.lua"))
--            :matches { ok = true, output = "Usage: craft [number]\n", error = "" }
+-            :matches { ok = true, output = "Usage: /rom/programs/turtle/craft.lua [number]\n", error = "" }
 -    end)
 -
 -    it("crafts multiple items", function()
@@ -467,7 +420,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/
 -        stub(_G, "turtle", {})
 -
 -        expect(capture(stub, "/rom/programs/turtle/equip.lua"))
--            :matches { ok = true, output = "Usage: equip <slot> <side>\n", error = "" }
+-            :matches { ok = true, output = "Usage: /rom/programs/turtle/equip.lua <slot> <side>\n", error = "" }
 -    end)
 -
 -    it("equip nothing", function()
@@ -579,7 +532,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/
 -    it("displays its usage when given too many argument", function()
 -        setup_turtle(0, 5, 0)
 -        expect(capture(stub, "/rom/programs/turtle/refuel.lua a b"))
--            :matches { ok = true, output = "Usage: refuel [number]\n", error = "" }
+-            :matches { ok = true, output = "Usage: /rom/programs/turtle/refuel.lua [number]\n", error = "" }
 -    end)
 -
 -    it("requires a numeric argument", function()
@@ -626,7 +579,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/programs/turtle/
 -        stub(_G, "turtle", {})
 -
 -        expect(capture(stub, "/rom/programs/turtle/unequip.lua"))
--            :matches { ok = true, output = "Usage: unequip <side>\n", error = "" }
+-            :matches { ok = true, output = "Usage: /rom/programs/turtle/unequip.lua <side>\n", error = "" }
 -    end)
 -
 -    it("says when nothing was unequipped", function()

@@ -1,5 +1,5 @@
 /*
- * CLITerminal.hpp
+ * terminal/CLITerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the CLITerminal class.
@@ -11,11 +11,10 @@
 #ifndef NO_CLI
 #ifndef TERMINAL_CLITERMINAL_HPP
 #define TERMINAL_CLITERMINAL_HPP
-#include "Terminal.hpp"
-#include <string>
-#include <ncurses.h>
-#include <vector>
 #include <set>
+#include <string>
+#include <Terminal.hpp>
+#undef scroll
 
 class CLITerminal: public Terminal {
     friend void mainLoop();
@@ -39,9 +38,9 @@ public:
     ~CLITerminal() override;
     bool drawChar(char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
-    bool resize(int w, int h) override;
+    bool resize(unsigned w, unsigned h) override;
     void getMouse(int *x, int *y);
-    void showMessage(Uint32 flags, const char * title, const char * message) override;
+    void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
 };
 

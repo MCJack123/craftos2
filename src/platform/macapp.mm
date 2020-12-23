@@ -1,5 +1,5 @@
 /*
- * platform_macapp.mm
+ * platform/macapp.mm
  * CraftOS-PC 2
  * 
  * This file implements functions specific to macOS app binaries.
@@ -11,38 +11,36 @@
 extern "C" {
 #include <lua.h>
 }
-#include <stdlib.h>
-#include <string.h>
-#include <wordexp.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/statvfs.h>
-#include <sys/utsname.h>
-#include <libgen.h>
-#include <pthread.h>
-#include <glob.h>
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <execinfo.h>
-#include <signal.h>
-#include <string>
-#include <vector>
-#include <sstream>
-#include <fstream>
+#include <libgen.h>
+#include <pthread.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+#include <wordexp.h>
+#include <png++/png.hpp>
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
-#include <png++/png.hpp>
-#import <Foundation/Foundation.h>
-#import <AppKit/AppKit.h>
 #include "../platform.hpp"
-#include "../mounter.hpp"
-#include "../http.hpp"
-#include "../os.hpp"
+#include "../util.hpp"
+#include "../runtime.hpp"
+#import <AppKit/AppKit.h>
+#import <Foundation/Foundation.h>
 
 extern bool exiting;
 std::string rom_path_expanded;
@@ -97,9 +95,9 @@ std::string getMCSavePath() {
                         ] fileSystemRepresentation]) + "/minecraft/saves/";
 }
 
-void setThreadName(std::thread &t, std::string name) {}
+void setThreadName(std::thread &t, const std::string& name) {}
 
-int createDirectory(std::string path) {
+int createDirectory(const std::string& path) {
     if (mkdir(path.c_str(), 0777) != 0) {
         if (errno == ENOENT && path != "/" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
@@ -109,7 +107,7 @@ int createDirectory(std::string path) {
     return 0;
 }
 
-int removeDirectory(std::string path) {
+int removeDirectory(const std::string& path) {
     struct stat statbuf;
     if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -131,7 +129,7 @@ int removeDirectory(std::string path) {
     } else return -1;
 }
 
-unsigned long long getFreeSpace(std::string path) {
+unsigned long long getFreeSpace(const std::string& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -140,7 +138,7 @@ unsigned long long getFreeSpace(std::string path) {
     return [(NSNumber*)dict[NSFileSystemFreeSize] unsignedLongLongValue];
 }
 
-unsigned long long getCapacity(std::string path) {
+unsigned long long getCapacity(const std::string& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -186,7 +184,7 @@ CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {
 }
 @end
 
-void updateNow(std::string tag_name) {
+void updateNow(const std::string& tag_name) {
     UpdateViewController * vc = [[UpdateViewController alloc] initWithNibName:nil bundle:[NSBundle mainBundle]];
     NSWindow* win = [NSWindow windowWithContentViewController:vc];
     [win setFrame:CGRectCreate(win.frame.origin.x, win.frame.origin.y, 480, 103) display:YES];
@@ -303,7 +301,8 @@ void handler(int sig) {
     size = backtrace(array, 25);
 
     // print out all the frames to stderr
-    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Application)\n", strsignal(sig));
+    if (!loadingPlugin.empty()) fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. It appears the plugin \"%s\" may have been responsible for this. Please remove it and try again.\n", strsignal(sig), loadingPlugin.c_str());
+    else fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Application)\nLast C function: %s\n", strsignal(sig), lastCFunction);
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     signal(sig, NULL);
 }
@@ -313,6 +312,7 @@ void setupCrashHandler() {
     signal(SIGILL, handler);
     signal(SIGBUS, handler);
     signal(SIGTRAP, handler);
+    signal(SIGABRT, handler);
 }
 
 float getBackingScaleFactor(SDL_Window *win) {

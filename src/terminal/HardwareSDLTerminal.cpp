@@ -1,5 +1,5 @@
 /*
- * HardwareSDLTerminal.cpp
+ * terminal/HardwareSDLTerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the HardwareSDLTerminal class.
@@ -8,17 +8,17 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
+#include <configuration.hpp>
 #include "HardwareSDLTerminal.hpp"
+#include "RawTerminal.hpp"
+#include "../gif.hpp"
+#include "../main.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
-#include <assert.h>
-#include "../config.hpp"
-#include "../gif.hpp"
-#include "../os.hpp"
-#include "../peripheral/monitor.hpp"
-#define rgb(color) ((color.r << 16) | (color.g << 8) | color.b)
+#define rgb(color) (((color).r << 16) | ((color).g << 8) | (color).b)
 
 extern "C" {
     struct font_image {
@@ -33,7 +33,6 @@ extern "C" {
 #endif
 }
 
-extern std::string overrideHardwareDriver;
 #ifdef __APPLE__
 extern float getBackingScaleFactor(SDL_Window *win);
 #endif
@@ -73,9 +72,9 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
 #else
     MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
 #endif
-    dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5 ? ceil(dpi / defaultDpi) : floor(dpi / defaultDpi);
+    dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5f ? (int)ceil(dpi / defaultDpi) : (int)floor(dpi / defaultDpi);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
-    if (ren == nullptr || ren == NULL || ren == (SDL_Renderer*)0) {
+    if (ren == (SDL_Renderer*)0) {
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
     }
@@ -86,7 +85,7 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
         fprintf(stderr, "Warning: Preferred driver %s not available, using %s instead.\n", (overrideHardwareDriver.empty() ? config.preferredHardwareDriver.c_str() : overrideHardwareDriver.c_str()), info.name);
     if (std::string(info.name) == "software") dpiScale = 1;
     font = SDL_CreateTextureFromSurface(ren, bmp);
-    if (font == nullptr || font == NULL || font == (SDL_Texture*)0) {
+    if (font == (SDL_Texture*)0) {
         SDL_DestroyRenderer(ren);
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
@@ -111,19 +110,19 @@ HardwareSDLTerminal::~HardwareSDLTerminal() {
 extern bool operator!=(Color lhs, Color rhs);
 
 bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
-    SDL_Rect srcrect = SDLTerminal::getCharacterRect(c);
+    SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
-        y * charHeight * dpiScale + 2 * charScale * 2/fontScale * dpiScale, 
-        fontWidth * 2/fontScale * charScale * dpiScale, 
-        fontHeight * 2/fontScale * charScale * dpiScale
+        (int)(x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale), 
+        (int)(y * charHeight * dpiScale + 2 * charScale * 2/fontScale * dpiScale), 
+        (int)(fontWidth * 2/fontScale * charScale * dpiScale), 
+        (int)(fontHeight * 2/fontScale * charScale * dpiScale)
     };
     SDL_Rect bgdestrect = destrect;
     if (config.standardsMode) {
-        if (x == 0) bgdestrect.x -= 2 * charScale * 2 / fontScale * dpiScale;
-        if (y == 0) bgdestrect.y -= 2 * charScale * 2 / fontScale * dpiScale;
-        if (x == 0 || x == width - 1) bgdestrect.w += 2 * charScale * 2 / fontScale * dpiScale;
-        if (y == 0 || y == height - 1) bgdestrect.h += 2 * charScale * 2 / fontScale * dpiScale;
+        if (x == 0) bgdestrect.x -= (int)(2 * charScale * 2 / fontScale * dpiScale);
+        if (y == 0) bgdestrect.y -= (int)(2 * charScale * 2 / fontScale * dpiScale);
+        if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * 2 / fontScale * dpiScale);
+        if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * 2 / fontScale * dpiScale);
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -167,7 +166,8 @@ void HardwareSDLTerminal::render() {
     std::unique_ptr<vector2d<unsigned char> > newcolors;
     std::unique_ptr<vector2d<unsigned char> > newpixels;
     Color newpalette[256];
-    int newblinkX, newblinkY, newmode, newwidth, newheight, newcharWidth, newcharHeight, newfontScale, newcharScale;
+    unsigned newwidth, newheight, newcharWidth, newcharHeight, newfontScale, newcharScale;
+    int newblinkX, newblinkY, newmode;
     bool newblink;
     unsigned char newcursorColor;
     {
@@ -184,13 +184,13 @@ void HardwareSDLTerminal::render() {
             changed = true;
         }
         if (!changed && !shouldScreenshot && !shouldRecord) return;
-        newscreen = std::unique_ptr<vector2d<unsigned char> >(new vector2d<unsigned char>(screen));
-        newcolors = std::unique_ptr<vector2d<unsigned char> >(new vector2d<unsigned char>(colors));
-        newpixels = std::unique_ptr<vector2d<unsigned char> >(new vector2d<unsigned char>(pixels));
+        newscreen = std::make_unique<vector2d<unsigned char> >(screen);
+        newcolors = std::make_unique<vector2d<unsigned char> >(colors);
+        newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
         memcpy(newpalette, palette, sizeof(newpalette));
-        newblinkX = blinkX, newblinkY = blinkY, newmode = mode;
+        newblinkX = blinkX; newblinkY = blinkY; newmode = mode;
         newblink = blink;
-        newwidth = width, newheight = height, newcharWidth = charWidth, newcharHeight = charHeight, newfontScale = fontScale, newcharScale = charScale;
+        newwidth = width; newheight = height; newcharWidth = charWidth; newcharHeight = charHeight; newfontScale = fontScale; newcharScale = charScale;
         newcursorColor = cursorColor;
         changed = false;
     }
@@ -204,34 +204,34 @@ void HardwareSDLTerminal::render() {
     }
     SDL_Rect rect;
     if (newmode != 0) {
-        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, newwidth * newcharWidth * dpiScale, newheight * newcharHeight * dpiScale, 24, SDL_PIXELFORMAT_RGB888);
-        for (int y = 0; y < newheight * newcharHeight * dpiScale; y+=(2/ newfontScale)* newcharScale*dpiScale) {
-            for (int x = 0; x < newwidth * newcharWidth * dpiScale; x+=(2/ newfontScale)* newcharScale*dpiScale) {
+        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale), 24, SDL_PIXELFORMAT_RGB888);
+        for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=(2/ newfontScale)* newcharScale*dpiScale) {
+            for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=(2/ newfontScale)* newcharScale*dpiScale) {
                 unsigned char c = (*newpixels)[y / (2/ newfontScale) / newcharScale / dpiScale][x / (2/ newfontScale) / newcharScale / dpiScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, x, y, (2 / newfontScale) * newcharScale * dpiScale, (2 / newfontScale) * newcharScale * dpiScale), rgb(newpalette[(int)c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, (int)x, (int)y, (int)((2 / newfontScale) * newcharScale * dpiScale), (int)((2 / newfontScale) * newcharScale * dpiScale)), rgb(newpalette[(int)c])) != 0) return;
             }
         }
         pixtex = SDL_CreateTextureFromSurface(ren, surf);
         SDL_FreeSurface(surf);
-        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (2 * (2 / newfontScale) * newcharScale * dpiScale), (2 * (2 / newfontScale) * newcharScale * dpiScale), newwidth * newcharWidth * dpiScale, newheight * newcharHeight * dpiScale));
+        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * (2 / newfontScale) * newcharScale * dpiScale), (int)(2 * (2 / newfontScale) * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
     } else {
-        for (int y = 0; y < newheight; y++) {
-            for (int x = 0; x < newwidth; x++) {
+        for (unsigned y = 0; y < newheight; y++) {
+            for (unsigned x = 0; x < newwidth; x++) {
                 if (gotResizeEvent) return;
-                if (!drawChar((*newscreen)[y][x], x, y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
+                if (!drawChar((*newscreen)[y][x], (int)x, (int)y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
             }
         }
         if (gotResizeEvent) return;
-        if (newblink && newblinkX >= 0 && newblinkY >= 0 && newblinkX < newwidth && newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
+        if (newblink && newblinkX >= 0 && newblinkY >= 0 && (unsigned)newblinkX < newwidth && (unsigned)newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
     }
     currentFPS++;
     if (lastSecond != time(0)) {
-        lastSecond = time(0);
+        lastSecond = (int)time(0);
         lastFPS = currentFPS;
         currentFPS = 0;
     }
-    if (/*showFPS*/ false) {
+    if (config.showFPS) {
         // later
     }
     if (shouldScreenshot) {
@@ -297,32 +297,27 @@ void HardwareSDLTerminal::render() {
             if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
-        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); assert(false); }
+        if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); }
         SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, circle);
-        if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, 2 * charScale * fontScale * dpiScale, 10, 10)) != 0) return;
+        if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (int)(width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, (int)(2 * charScale * fontScale * dpiScale), 10, 10)) != 0) return;
         SDL_FreeSurface(circle);
     }
 }
 
-extern void convert_to_renderer_coordinates(SDL_Renderer *renderer, int *x, int *y);
-
-bool HardwareSDLTerminal::resize(int w, int h) {
-    SDL_DestroyRenderer(ren);
-    ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);}, win);
-    font = SDL_CreateTextureFromSurface(ren, bmp);
-    newWidth = w;
-    newHeight = h;
-    gotResizeEvent = (newWidth != width || newHeight != height);
-    if (!gotResizeEvent) return false;
+bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
+    {
+        std::lock_guard<std::mutex> lock(locked);
+        newWidth = w;
+        newHeight = h;
+        gotResizeEvent = (newWidth != width || newHeight != height);
+        if (!gotResizeEvent) return false;
+        SDL_DestroyRenderer(ren);
+        ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);}, win);
+        font = SDL_CreateTextureFromSurface(ren, bmp);
+    }
     while (gotResizeEvent) std::this_thread::yield();
     return true;
 }
-
-extern uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num);
-
-extern Uint32 task_event_type, render_event_type;
-extern std::thread * renderThread;
-extern void termRenderLoop();
 
 void HardwareSDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -346,17 +341,10 @@ void HardwareSDLTerminal::quit() {
     SDL_Quit();
 }
 
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-
-extern bool rawClient;
-extern void sendRawEvent(SDL_Event e);
-
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *HardwareSDLTerminal::renderTarget || findMonitorFromWindowID(c, (*HardwareSDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
-#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
+#define checkWindowID(c, wid) ((wid) == ( c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
 
 bool HardwareSDLTerminal::pollEvents() {
@@ -368,7 +356,7 @@ bool HardwareSDLTerminal::pollEvents() {
     if (SDL_WaitEvent(&e)) {
 #endif
         if (e.type == task_event_type) {
-            while (taskQueue->size() > 0) {
+            while (!taskQueue->empty()) {
                 auto v = taskQueue->front();
                 void* retval = std::get<1>(v)(std::get<2>(v));
                 if (!std::get<3>(v)) {
@@ -382,10 +370,11 @@ bool HardwareSDLTerminal::pollEvents() {
             SDL_RenderPresent(HardwareSDLTerminal::ren);
             SDL_UpdateWindowSurface(SDLTerminal::win);
 #else
-            for (Terminal* term : Terminal::renderTargets) {
+            for (Terminal* term : renderTargets) {
                 HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);
+                    if (sdlterm->gotResizeEvent) continue;
                     SDL_RenderPresent(sdlterm->ren);
                     SDL_UpdateWindowSurface(sdlterm->win);
                 }
@@ -395,17 +384,72 @@ bool HardwareSDLTerminal::pollEvents() {
             if (rawClient) {
                 sendRawEvent(e);
             } else {
-                for (Computer * c : computers) {
-                    if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
-                        ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
-                        ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
-                        (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
-                        (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
-                        (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
-                        (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
-                        e.type == SDL_QUIT) {
-                        c->termEventQueue.push(e);
-                        c->event_lock.notify_all();
+                LockGuard lock(computers);
+                bool stop = false;
+                if (eventHandlers.find((SDL_EventType)e.type) != eventHandlers.end()) {
+                    Computer * comp = NULL;
+                    Terminal * term = NULL;
+                    for (Computer * c : *computers) {
+                        if (c->term->id == lastWindow) {
+                            comp = c;
+                            term = c->term;
+                            break;
+                        } else {
+                            monitor * m = findMonitorFromWindowID(c, lastWindow, tmps);
+                            if (m != NULL) {
+                                comp = c;
+                                term = m->term;
+                                break;
+                            }
+                        }
+                    }
+                    for (const auto& h : Range<std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> >::iterator>(eventHandlers.equal_range((SDL_EventType)e.type))) {
+                        stop = h.second.first(&e, comp, term, h.second.second) || stop;
+                    }
+                }
+                if (!stop) {
+                    for (Computer * c : *computers) {
+                        if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
+                            ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
+                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
+                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+                            (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
+                            (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
+                            (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
+                            e.type == SDL_QUIT) {
+                            c->termEventQueue.push(e);
+                            c->event_lock.notify_all();
+                            if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == c->term->id) {
+                                if (c->requestedExit) {
+                                    SDL_MessageBoxData msg;
+                                    msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                                    msg.title = "Computer Unresponsive";
+                                    msg.message = "The computer appears to be unresponsive. Would you like to force the computer to shut down? All unsaved data will be lost.";
+                                    SDL_MessageBoxButtonData buttons[2] = {
+                                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Cancel"},
+                                        {0, 1, "Shut Down"}
+                                    };
+                                    msg.buttons = buttons;
+                                    msg.numbuttons = 2;
+                                    msg.window = ((SDLTerminal*)c->term)->win;
+                                    int id = 0;
+                                    SDL_ShowMessageBox(&msg, &id);
+                                    if (id == 1) {
+                                        // Forcefully halt the Lua state
+                                        c->running = 0;
+                                        lua_halt(c->L);
+                                    }
+                                } else c->requestedExit = true;
+                            }
+                        }
+                    }
+                }
+                if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
+                for (Terminal * t : orphanedTerminals) {
+                    if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
+                        orphanedTerminals.erase(t);
+                        delete t;
+                        break;
                     }
                 }
             }

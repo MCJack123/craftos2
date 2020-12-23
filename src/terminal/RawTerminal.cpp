@@ -1,5 +1,5 @@
 /*
- * RawTerminal.cpp
+ * terminal/RawTerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the RawTerminal class.
@@ -8,16 +8,16 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#include "RawTerminal.hpp"
-#include "SDLTerminal.hpp"
-#include "../lib.hpp"
-#include "../term.hpp"
-#include "../peripheral/monitor.hpp"
+#include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <iomanip>
-#include <algorithm>
 #include <Poco/Checksum.h>
+#include "RawTerminal.hpp"
+#include "SDLTerminal.hpp"
+#include "../main.hpp"
+#include "../runtime.hpp"
+#include "../termsupport.hpp"
 
 /* Data spec
   
@@ -111,12 +111,8 @@
 
 */
 
-extern bool rawClient;
-extern bool exiting;
-extern std::thread * renderThread;
-extern void termRenderLoop();
 std::set<unsigned> RawTerminal::currentIDs;
-std::thread * inputThread;
+static std::thread * inputThread;
 
 enum {
     CCPC_RAW_TERMINAL_DATA = 0,
@@ -127,7 +123,7 @@ enum {
     CCPC_RAW_MESSAGE_DATA
 };
 
-void sendRawData(uint8_t type, uint8_t id, std::function<void(std::ostream&)> callback) {
+static void sendRawData(const uint8_t type, const uint8_t id, const std::function<void(std::ostream&)>& callback) {
     std::stringstream output;
     output.put(type);
     output.put(id);
@@ -136,14 +132,14 @@ void sendRawData(uint8_t type, uint8_t id, std::function<void(std::ostream&)> ca
     str.erase(std::remove_if(str.begin(), str.end(), [](char c)->bool {return c == '\n' || c == '\r'; }), str.end());
     Poco::Checksum chk;
     chk.update(str);
-    uint32_t sum = chk.checksum();
+    const uint32_t sum = chk.checksum();
     std::cout << "!CPC" << std::hex << std::setfill('0') << std::setw(4) << str.length() << std::dec;
     std::cout << str << std::hex << std::setfill('0') << std::setw(8) << sum << "\n";
     std::cout.flush();
 }
 
-void parseIBTTag(std::istream& in, lua_State *L) {
-    char type = in.get();
+static void parseIBTTag(std::istream& in, lua_State *L) {
+    const char type = (char)in.get();
     if (type == 0) {
         uint32_t num = 0;
         in.read((char*)&num, 4);
@@ -157,7 +153,7 @@ void parseIBTTag(std::istream& in, lua_State *L) {
     } else if (type == 3) {
         std::string str;
         char c;
-        while ((c = in.get())) str += c;
+        while ((c = (char)in.get())) str += c;
         lua_pushstring(L, str.c_str());
     } else if (type == 4) {
         lua_newtable(L);
@@ -171,26 +167,17 @@ void parseIBTTag(std::istream& in, lua_State *L) {
     }
 }
 
-extern int selectedRenderer;
-extern std::unordered_map<int, unsigned char> keymap;
-extern std::map<uint8_t, Terminal*> rawClientTerminals;
-extern std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
-extern int buttonConvert(Uint8 button);
-extern int buttonConvert2(Uint32 state);
-extern int convertX(SDLTerminal *term, int x);
-extern int convertY(SDLTerminal *term, int y);
-
 void sendRawEvent(SDL_Event e) {
     if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && (selectedRenderer != 0 || keymap.find(e.key.keysym.sym) != keymap.end())) 
         sendRawData(CCPC_RAW_KEY_DATA, rawClientTerminalIDs[e.key.windowID], [e](std::ostream& output) {
             if (selectedRenderer == 0) output.put(keymap.at(e.key.keysym.sym));
-            else output.put(e.key.keysym.sym);
-            output.put((e.type == SDL_KEYUP) | ((0) << 1) | (((e.key.keysym.mod & KMOD_CTRL) != 0) << 2) | ((0) << 3));
+            else output.put((char)e.key.keysym.sym);
+            output.put((e.type == SDL_KEYUP) | (((e.key.keysym.mod & KMOD_CTRL) != 0) << 2));
         });
     else if (e.type == SDL_TEXTINPUT)
         sendRawData(CCPC_RAW_KEY_DATA, rawClientTerminalIDs[e.text.windowID], [e](std::ostream& output) {
             output.put(e.text.text[0]);
-            output.put((0) | ((0) << 1) | ((0) << 2) | ((1) << 3));
+            output.put(0x08);
         });
     else if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end())
         sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.button.windowID], [e](std::ostream &output) {
@@ -253,8 +240,6 @@ void sendRawEvent(SDL_Event e) {
         });
 }
 
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
@@ -268,8 +253,8 @@ struct rawMouseProviderData {
     uint32_t y;
 };
 
-const char * rawMouseProvider(lua_State *L, void* data) {
-    struct rawMouseProviderData * d = (struct rawMouseProviderData*)data;
+static std::string rawMouseProvider(lua_State *L, void* data) {
+    struct rawMouseProviderData * d = (rawMouseProviderData*)data;
     lua_pushinteger(L, d->button);
     lua_pushinteger(L, d->x);
     lua_pushinteger(L, d->y);
@@ -282,21 +267,21 @@ const char * rawMouseProvider(lua_State *L, void* data) {
     return retval;
 }
 
-const char * rawEventProvider(lua_State *L, void* data) {
+static std::string rawEventProvider(lua_State *L, void* data) {
     std::stringstream& in = *(std::stringstream*)data;
-    uint8_t paramCount = in.get();
+    const uint8_t paramCount = in.get();
     char c;
     std::string name;
     while ((c = in.get())) name += c;
     for (int i = 0; i < paramCount; i++) parseIBTTag(in, L);
     delete (std::stringstream*)data;
-    return name.c_str();
+    return name;
 }
 
-void rawInputLoop() {
+static void rawInputLoop() {
     while (!exiting) {
-        unsigned char c = std::cin.get();
-        if (c == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
+        unsigned char cc = std::cin.get();
+        if (cc == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
             char size[5];
             std::cin.read(size, 4);
             long sizen = strtol(size, NULL, 16);
@@ -328,7 +313,8 @@ void rawInputLoop() {
                     e.text.windowID = id;
                     e.text.text[0] = key;
                     e.text.text[1] = '\0';
-                    for (Computer * c : computers) {
+                    LockGuard lockc(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.key.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.text.windowID = c->term->id;
@@ -341,7 +327,8 @@ void rawInputLoop() {
                     e.key.windowID = id;
                     e.key.keysym.sym = (SDL_Keycode)key;
                     if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
-                    for (Computer * c : computers) {
+                    LockGuard lockc(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.key.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.key.windowID = c->term->id;
@@ -354,7 +341,8 @@ void rawInputLoop() {
                     e.key.windowID = id;
                     e.key.keysym.sym = (SDL_Keycode)key;
                     if (flags & 4) e.key.keysym.mod = KMOD_CTRL;
-                    for (Computer * c : computers) {
+                    LockGuard lockc(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.key.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.key.windowID = c->term->id;
@@ -369,21 +357,23 @@ void rawInputLoop() {
                 uint32_t x = 0, y = 0;
                 in.read((char*)&x, 4);
                 in.read((char*)&y, 4);
-                for (Computer * c : computers) {
+                LockGuard lockc(computers);
+                for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
                         struct rawMouseProviderData * d = new struct rawMouseProviderData;
                         d->evtype = evtype;
                         d->button = button;
                         d->x = x;
                         d->y = y;
-                        termQueueProvider(c, rawMouseProvider, d);
+                        queueEvent(c, rawMouseProvider, d);
                     }
                 }
             } else if (type == CCPC_RAW_EVENT_DATA) {
-                for (Computer * c : computers) {
+                LockGuard lockc(computers);
+                for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
                         std::stringstream * ss = new std::stringstream(in.str().substr(2));
-                        termQueueProvider(c, rawEventProvider, ss);
+                        queueEvent(c, rawEventProvider, ss);
                     }
                 }
             } else if (type == CCPC_RAW_TERMINAL_CHANGE) {
@@ -391,17 +381,26 @@ void rawInputLoop() {
                 if (isClosing == 1) {
                     e.type = SDL_WINDOWEVENT;
                     e.window.event = SDL_WINDOWEVENT_CLOSE;
-                    for (Computer * c : computers) {
-                        if (checkWindowID(c, e.window.windowID)) {
+                    LockGuard lockc(computers);
+                    for (Computer * c : *computers) {
+                        if (checkWindowID(c, id)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             e.window.windowID = c->term->id;
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
                         }
                     }
+                    for (Terminal * t : orphanedTerminals) {
+                        if (t->id == id) {
+                            orphanedTerminals.erase(t);
+                            delete t;
+                            break;
+                        }
+                    }
                 } else if (isClosing == 2) {
                     e.type = SDL_QUIT;
-                    for (Computer * c : computers) {
+                    LockGuard lockc(computers);
+                    for (Computer * c : *computers) {
                         std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                         c->termEventQueue.push(e);
                         c->event_lock.notify_all();
@@ -416,7 +415,8 @@ void rawInputLoop() {
                     e.window.event = SDL_WINDOWEVENT_RESIZED;
                     e.window.data1 = w;
                     e.window.data2 = h;
-                    for (Computer * c : computers) {
+                    LockGuard lockc(computers);
+                    for (Computer * c : *computers) {
                         if (checkWindowID(c, e.window.windowID)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             c->termEventQueue.push(e);
@@ -450,7 +450,7 @@ void RawTerminal::quit() {
 
 void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const char * message) {
     sendRawData(CCPC_RAW_MESSAGE_DATA, 0, [flags, title, message](std::ostream& output) {
-        output.write((char*)&flags, 4);
+        output.write((const char*)&flags, 4);
         output.write(title, strlen(title));
         output.put(0);
         output.write(message, strlen(message));
@@ -459,8 +459,8 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
 }
 
 RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, config.defaultHeight) {
-    this->title = title;
-    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++);
+    std::move(title.begin(), title.end(), this->title.begin());
+    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
     currentIDs.insert(id);
     sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this](std::ostream& output) {
         output.put(0);
@@ -478,16 +478,15 @@ RawTerminal::~RawTerminal() {
         output.put(1);
         for (int i = 0; i < 6; i++) output.put(0);
     });
-    auto pos = currentIDs.find(id);
+    const auto pos = currentIDs.find(id);
     if (pos != currentIDs.end()) currentIDs.erase(pos);
-    Terminal::renderTargetsLock.lock();
+    std::lock_guard<std::mutex> rtlock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
-    for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    Terminal::renderTargetsLock.unlock();
 }
 
 void RawTerminal::render() {
@@ -514,8 +513,8 @@ void RawTerminal::render() {
         if (mode == 0) {
             unsigned char c = screen[0][0];
             unsigned char n = 0;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
+            for (unsigned y = 0; y < height; y++) {
+                for (unsigned x = 0; x < width; x++) {
                     if (screen[y][x] != c || n == 255) {
                         output.put(c);
                         output.put(n);
@@ -531,8 +530,8 @@ void RawTerminal::render() {
             }
             c = colors[0][0];
             n = 0;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
+            for (unsigned y = 0; y < height; y++) {
+                for (unsigned x = 0; x < width; x++) {
                     if (colors[y][x] != c || n == 255) {
                         output.put(c);
                         output.put(n);
@@ -549,8 +548,8 @@ void RawTerminal::render() {
         } else {
             unsigned char c = pixels[0][0];
             unsigned char n = 0;
-            for (int y = 0; y < height * 9; y++) {
-                for (int x = 0; x < width * 6; x++) {
+            for (unsigned y = 0; y < height * 9; y++) {
+                for (unsigned x = 0; x < width * 6; x++) {
                     if (pixels[y][x] != c || n == 255) {
                         output.put(c);
                         output.put(n);
@@ -575,7 +574,7 @@ void RawTerminal::render() {
 
 void RawTerminal::showMessage(uint32_t flags, const char * title, const char * message) {
     sendRawData(CCPC_RAW_MESSAGE_DATA, (uint8_t)id, [flags, title, message](std::ostream& output) {
-        output.write((char*)&flags, 4);
+        output.write((const char*)&flags, 4);
         output.write(title, strlen(title));
         output.put(0);
         output.write(message, strlen(message));
@@ -588,14 +587,14 @@ void RawTerminal::setLabel(std::string label) {
     sendRawData(CCPC_RAW_TERMINAL_CHANGE, (uint8_t)id, [this](std::ostream& output) {
         output.put(0);
         output.put(0);
-        output.write((char*)&width, 2);
-        output.write((char*)&height, 2);
+        output.write((const char*)&width, 2);
+        output.write((const char*)&height, 2);
         output.write(title.c_str(), strlen(title.c_str()));
         output.put(0);
     });
 }
 
-bool RawTerminal::resize(int w, int h) {
+bool RawTerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
     gotResizeEvent = (newWidth != width || newHeight != height);

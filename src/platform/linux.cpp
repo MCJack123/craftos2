@@ -1,5 +1,5 @@
 /*
- * platform_linux.cpp
+ * platform/linux.cpp
  * CraftOS-PC 2
  * 
  * This file implements functions specific to Linux.
@@ -12,28 +12,26 @@
 extern "C" {
 #include <lua.h>
 }
-#include <stdlib.h>
-#include <string.h>
-#include <wordexp.h>
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <dirent.h>
+#include <dlfcn.h>
+#include <execinfo.h>
 #include <libgen.h>
-#include <unistd.h>
-//#include <sys/sysinfo.h>
+#include <pthread.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/utsname.h>
-#include <glob.h>
-#include <dirent.h>
-#include <pthread.h>
-#include <dlfcn.h>
-#include <execinfo.h>
-#include <signal.h>
 #include <ucontext.h>
-#include <string>
-#include <vector>
-#include <sstream>
-#include "../mounter.hpp"
+#include <unistd.h>
+#include <wordexp.h>
 #include "../platform.hpp"
+#include "../util.hpp"
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
@@ -97,16 +95,16 @@ std::string getMCSavePath() {
     wordexp_t p;
     wordexp("$HOME/.minecraft/saves/", &p, 0);
     std::string expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) expanded += p.we_wordv[i];
+    for (unsigned i = 1; i < p.we_wordc; i++) expanded += p.we_wordv[i];
     wordfree(&p);
     return expanded;
 }
 
-void setThreadName(std::thread &t, std::string name) {
-    pthread_setname_np(*(pthread_t*)t.native_handle(), name.c_str());
+void setThreadName(std::thread &t, const std::string& name) {
+    pthread_setname_np(t.native_handle(), name.c_str());
 }
 
-int createDirectory(std::string path) {
+int createDirectory(const std::string& path) {
     struct stat st;
     if (stat(path.c_str(), &st) == 0 ) return !S_ISDIR(st.st_mode);
     if (mkdir(path.c_str(), 0777) != 0) {
@@ -118,7 +116,7 @@ int createDirectory(std::string path) {
     return 0;
 }
 
-int removeDirectory(std::string path) {
+int removeDirectory(const std::string& path) {
     struct stat statbuf;
     if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -140,7 +138,7 @@ int removeDirectory(std::string path) {
     } else return -1;
 }
 
-unsigned long long getFreeSpace(std::string path) {
+unsigned long long getFreeSpace(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -149,7 +147,7 @@ unsigned long long getFreeSpace(std::string path) {
     return st.f_bavail * st.f_bsize;
 }
 
-unsigned long long getCapacity(std::string path) {
+unsigned long long getCapacity(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
         if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -158,11 +156,11 @@ unsigned long long getCapacity(std::string path) {
     return st.f_blocks * st.f_frsize;
 }
 
-void updateNow(std::string tag_name) {
+void updateNow(const std::string& tag_name) {
     
 }
 
-int recursiveCopyPlatform(std::string fromDir, std::string toDir) {
+int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -228,8 +226,9 @@ void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext) {
 #else
 #error Unsupported architecture. // TODO: Add support for other arch.
 #endif
-    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s (%d). Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\n", strsignal(sig_num), sig_num);
-    fprintf(stderr, "OS: Linux\nAddress is %p from %p\n", info->si_addr, (void *)caller_address);
+    if (!loadingPlugin.empty()) fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. It appears the plugin \"%s\" may have been responsible for this. Please remove it and try again.\n", strsignal(sig_num), loadingPlugin.c_str());
+    else fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s (%d). Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\n", strsignal(sig_num), sig_num);
+    fprintf(stderr, "OS: Linux\nAddress is %p from %p\nLast C function: %s\n", info->si_addr, (void *)caller_address, lastCFunction);
     size = backtrace(array, 25);
     /* overwrite sigaction with caller's address */
     array[1] = caller_address;
@@ -253,6 +252,7 @@ void setupCrashHandler() {
     setSignalHandler(SIGILL);
     setSignalHandler(SIGBUS);
     setSignalHandler(SIGTRAP);
+    setSignalHandler(SIGABRT);
 }
 
 #else

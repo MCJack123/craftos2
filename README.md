@@ -1,4 +1,4 @@
-# CraftOS-PC 2 [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
+# CraftOS-PC 2 [![Build Status](https://travis-ci.com/MCJack123/craftos2.svg?branch=v2.5)](https://travis-ci.com/MCJack123/craftos2) [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg?branch=v2.5)](https://github.com/MCJack123/craftos2/actions)
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and a modified version of PUC Lua, as well as SDL for drawing.
 
 Visit the website at https://www.craftos-pc.cc/ for more information, including documentation.
@@ -52,13 +52,13 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 ## Building
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
-* Compiler supporting C++11
+* Compiler supporting C++14
   * Linux: G++ 4.9+, make
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
 * SDL 2.0.8+ (may work on older versions on non-Linux)
 * OpenSSL 1.1 (for POCO)
-* POCO NetSSL & JSON libraries + dependencies
+* POCO 1.5.0+: NetSSL & JSON libraries + dependencies
   * Foundation
   * Util
   * Crypto
@@ -74,10 +74,10 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Can be disabled with `--without-png`, will save as BMP instead
 * [libharu/libhpdf](https://github.com/libharu/libharu)
   * Can be disabled with `--without-hpdf`, `--with-html` or `--with-txt`
-* ncurses
+* ncurses or PDCurses
   * Can be disabled with `--without-ncurses`, will disable CLI support
 * SDL_mixer 2.0+
-  * Can be disabled with `--without-sdl_mixer`, will disable audio disc support
+  * Can be disabled with `--without-sdl_mixer`, will disable audio disc and speaker support
   * For MP3 support, libmpg123 is required
   * For FLAC support, libFLAC is required
   * For SF2 support, SDL_mixer must be built manually with fluidsynth support
@@ -86,7 +86,10 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * The latest packed ROM can be downloaded as an artifact from the latest CI build, found by following the top link [here](https://github.com/MCJack123/craftos2-rom/actions).
 
 You can get all of these dependencies with:
-  * Windows: `vcpkg install sdl2:x64-windows sdl2-mixer:x64-windows pngpp:x64-windows libharu:x64-windows poco:x64-windows dirent:x64-windows`
+  * ~~Windows: `vcpkg --feature-flags=manifests install --triplet x64-windows` inside the repository directory~~
+    * Temporarily not working due to a vcpkg bug (microsoft/vcpkg#15087)
+    * ~~Visual Studio will do this for you automatically (as long as vcpkg integration is installed)~~
+  * Windows (manual): `vcpkg install sdl2:x64-windows sdl2-mixer:x64-windows pngpp:x64-windows libharu:x64-windows poco:x64-windows dirent:x64-windows pdcurses:x64-windows`
   * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
   * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
   * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer png++ libharu poco ncurses`

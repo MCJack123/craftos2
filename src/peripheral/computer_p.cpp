@@ -8,43 +8,44 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
-#include "computer.hpp"
-#include "../os.hpp"
-#include <regex>
-#include <unordered_set>
 #include <cstring>
-
-extern std::unordered_set<Computer*> freedComputers;
+#include <regex>
+#include "computer.hpp"
+#include "../runtime.hpp"
 
 int computer::turnOn(lua_State *L) {return 0;}
 
 int computer::isOn(lua_State *L) {
+    lastCFunction = __func__;
     lua_pushboolean(L, freedComputers.find(comp) == freedComputers.end());
     return 1;
 }
 
 int computer::getID(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
     lua_pushinteger(L, comp->id);
     return 1;
 }
 
 int computer::shutdown(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
     comp->running = 0;
     return 0;
 }
 
 int computer::reboot(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
     comp->running = 2;
     return 0;
 }
 
 int computer::getLabel(lua_State *L) {
+    lastCFunction = __func__;
     if (freedComputers.find(comp) != freedComputers.end()) return 0;
-    lua_pushlstring(L, comp->config.label.c_str(), comp->config.label.length());
+    lua_pushlstring(L, comp->config->label.c_str(), comp->config->label.length());
     return 1;
 }
 
@@ -53,7 +54,10 @@ computer::computer(lua_State *L, const char * side) {
         throw std::invalid_argument("\"side\" parameter must be a number (the computer's ID)");
     int id = atoi(&side[9]);
     comp = NULL;
-    for (Computer * c : computers) if (c->id == id) comp = c;
+    {
+        LockGuard lock(computers);
+        for (Computer * c : *computers) if (c->id == id) comp = c;
+    }
     if (comp == NULL) comp = (Computer*)queueTask([ ](void* arg)->void*{return startComputer(*(int*)arg);}, &id);
     if (comp == NULL) throw std::runtime_error("Failed to open computer");
     thiscomp = get_comp(L);
@@ -63,7 +67,7 @@ computer::computer(lua_State *L, const char * side) {
 computer::~computer() {
     if (thiscomp->peripherals_mutex.try_lock()) thiscomp->peripherals_mutex.unlock();
     else return;
-    for (auto it = comp->referencers.begin(); it != comp->referencers.end(); it++) {
+    for (auto it = comp->referencers.begin(); it != comp->referencers.end(); ++it) {
         if (*it == thiscomp) {
             it = comp->referencers.erase(it);
             if (it == comp->referencers.end()) break;
@@ -72,7 +76,7 @@ computer::~computer() {
 }
 
 int computer::call(lua_State *L, const char * method) {
-    std::string m(method);
+    const std::string m(method);
     if (m == "turnOn") return turnOn(L);
     else if (m == "shutdown") return shutdown(L);
     else if (m == "reboot") return reboot(L);
@@ -82,13 +86,14 @@ int computer::call(lua_State *L, const char * method) {
     else return 0;
 }
 
-const char * computer_keys[6] = {
-    "turnOn",
-    "shutdown",
-    "reboot",
-    "getID",
-    "isOn",
-    "getLabel"
+static luaL_Reg computer_reg[] = {
+    {"turnOn", NULL},
+    {"shutdown", NULL},
+    {"reboot", NULL},
+    {"getID", NULL},
+    {"isOn", NULL},
+    {"getLabel", NULL},
+    {NULL, NULL}
 };
 
-library_t computer::methods = {"computer", 6, computer_keys, NULL, nullptr, nullptr};
+library_t computer::methods = {"computer", computer_reg, nullptr, nullptr};

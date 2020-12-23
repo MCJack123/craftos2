@@ -8,48 +8,51 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
-#include "Computer.hpp"
-#include "platform.hpp"
-#include "term.hpp"
-#include "config.hpp"
-#include "fs.hpp"
-#include "fs_standalone.hpp"
-#include "http.hpp"
-#include "mounter.hpp"
-#include "os.hpp"
-#include "redstone.hpp"
-#include "peripheral/peripheral.hpp"
+extern "C" {
+#include <lualib.h>
+}
+#include <dirent.h>
+#include <thread>
+#include <unordered_set>
+#include <configuration.hpp>
+#include <peripheral.hpp>
+#include <sys/stat.h>
+#include "apis.hpp"
+#include "main.hpp"
 #include "peripheral/computer.hpp"
+#include "platform.hpp"
+#include "runtime.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
-#include "periphemu.hpp"
-#include <unordered_set>
-#include <thread>
-#include <dirent.h>
-#include <sys/stat.h>
+#include "termsupport.hpp"
 
-#define PLUGIN_VERSION 4
+#ifdef WIN32
+#define PATH_SEPC '\\'
+#else
+#define PATH_SEPC '/'
+#endif
 
-extern std::string asciify(std::string);
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
+#endif
+
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
+extern void stopWebsocket(void*);
 extern int term_benchmark(lua_State *L);
-extern int selectedRenderer;
 extern int onboardingMode;
-extern bool forceCheckTimeout;
-extern std::string script_args;
-extern std::string script_file;
-std::vector<Computer*> computers;
-std::mutex computers_mutex;
+ProtectedObject<std::vector<Computer*> > computers;
 std::unordered_set<Computer*> freedComputers; 
 ProtectedObject<std::unordered_set<SDL_TimerID>> freedTimers;
 path_t computerDir;
-std::unordered_map<int, path_t> Computer::customDataDirs;
-std::list<path_t> Computer::customPlugins;
-std::list<std::tuple<std::string, std::string, int> > Computer::customMounts;
+std::unordered_map<int, path_t> customDataDirs;
+std::list<path_t> customPlugins;
+std::list<std::tuple<std::string, std::string, int> > customMounts;
+std::unordered_set<Terminal*> orphanedTerminals;
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
@@ -66,26 +69,39 @@ library_t * libraries[] = {
 // Constructor
 Computer::Computer(int i, bool debug): isDebugger(debug) {
     id = i;
+    // Load config
+    const computer_configuration _config = getComputerConfig(id);
+    // Create the terminal
+    const std::string term_title = _config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(_config.label);
+    if (selectedRenderer == 1) term = NULL;
+#ifndef NO_CLI
+    else if (selectedRenderer == 2) term = new CLITerminal(term_title);
+#endif
+    else if (selectedRenderer == 3) term = new RawTerminal(term_title);
+    else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
+    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
+    else term = new SDLTerminal(term_title);
+    if (term) term->grayscale = !_config.isColor;
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
 #ifdef STANDALONE_ROM
-    addMount(this, WS("rom:"), "rom", true);
-    if (debug) addMount(this, WS("debug:"), "debug", true);
+    addVirtualMount(this, standaloneROM, "rom");
+    if (debug) addVirtualMount(this, standaloneDebug, "debug");
 #else
 #ifdef _WIN32
-    if (!addMount(this, (getROMPath() + WS("\\rom")).c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
-    if (debug) if (!addMount(this, (getROMPath() + WS("\\debug")).c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
+    if (!addMount(this, getROMPath() + WS("\\rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else delete term; throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, getROMPath() + WS("\\debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else delete term; throw std::runtime_error("Could not mount debugger ROM"); }
 #else
-    if (!addMount(this, (getROMPath() + WS("/rom")).c_str(), "rom", ::config.romReadOnly)) throw std::runtime_error("Could not mount ROM");
-    if (debug) if (!addMount(this, (getROMPath() + WS("/debug")).c_str(), "debug", true)) throw std::runtime_error("Could not mount debugger ROM");
+    if (!addMount(this, getROMPath() + WS("/rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, getROMPath() + WS("/debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount debugger ROM"); }
 #endif // _WIN32
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
     for (auto m : customMounts) {
         switch (std::get<2>(m)) {
-            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) addMount(this, wstr(std::get<1>(m)).c_str(), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
-            case 0: addMount(this, wstr(std::get<1>(m)).c_str(), std::get<0>(m).c_str(), true); break; // force RO
-            default: addMount(this, wstr(std::get<1>(m)).c_str(), std::get<0>(m).c_str(), false); break; // force RW
+            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
+            case 0: addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), true); break; // force RO
+            default: addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), false); break; // force RW
         }
     }
     mounter_initializing = false;
@@ -97,37 +113,27 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else dataDir = computerDir + WS("/") + to_path_t(id);
 #endif
     // Create the root directory
-    createDirectory(dataDir.c_str());
-    // Load config
-    config = getComputerConfig(id);
-    // Create the terminal
-    std::string term_title = config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(config.label);
-    if (selectedRenderer == 1) term = NULL;
-#ifndef NO_CLI
-    else if (selectedRenderer == 2) term = new CLITerminal(term_title);
-#endif
-    else if (selectedRenderer == 3) term = new RawTerminal(term_title);
-    else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
-    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
-    else term = new SDLTerminal(term_title);
-    if (term) term->grayscale = !config.isColor;
+    createDirectory(dataDir);
+    config = new computer_configuration(_config);
 }
-
-extern void stopWebsocket(void*);
 
 // Destructor
 Computer::~Computer() {
     // Deinitialize any plugins that registered a destructor
-    for (auto d : userdata_destructors) d.second(this, d.first, userdata[d.first]);
+    for (const auto& d : userdata_destructors) d.second(this, d.first, userdata[d.first]);
     // Destroy terminal
-    if (term != NULL) delete term;
+    if (term != NULL) {
+        if (term->errorMode) orphanedTerminals.insert(term);
+        else delete term;
+    }
     // Save config
-    setComputerConfig(id, config);
+    setComputerConfig(id, *config);
+    delete config;
     // Deinitialize all peripherals
-    for (auto p : peripherals) p.second->getDestructor()(p.second);
-    for (std::list<Computer*>::iterator c = referencers.begin(); c != referencers.end(); c++) {
+    for (const auto& p : peripherals) p.second->getDestructor()(p.second);
+    for (auto c = referencers.begin(); c != referencers.end(); ++c) {
         std::lock_guard<std::mutex> lock((*c)->peripherals_mutex);
-        for (auto it = (*c)->peripherals.begin(); it != (*c)->peripherals.end(); it++) {
+        for (auto it = (*c)->peripherals.begin(); it != (*c)->peripherals.end(); ++it) {
             if (std::string(it->second->getMethods().name) == "computer" && ((computer*)it->second)->comp == this) {
                 // Detach computer peripherals pointing to this on other computers
                 delete (computer*)it->second;
@@ -146,24 +152,15 @@ Computer::~Computer() {
     if (mouseMoveDebounceTimer != 0) SDL_RemoveTimer(mouseMoveDebounceTimer);
     if (eventTimeout != 0) SDL_RemoveTimer(eventTimeout);
     // Stop all open websockets
-    while (openWebsockets.size() > 0) {
-        void* it = *openWebsockets.begin();
-        stopWebsocket(it);
-    }
+    while (!openWebsockets.empty()) stopWebsocket(*openWebsockets.begin());
 }
 
-extern int fs_getName(lua_State *L);
-
 extern "C" {
-    extern int db_errorfb (lua_State *L);
-
-    int db_breakpoint(lua_State *L) {
-        if (!lua_isstring(L, 1)) bad_argument(L, "string", 1);
-        if (!lua_isnumber(L, 2)) bad_argument(L, "number", 2);
+    /* export */ int db_breakpoint(lua_State *L) {
         Computer * computer = get_comp(L);
-        int id = computer->breakpoints.size() > 0 ? computer->breakpoints.rbegin()->first + 1 : 1;
-        computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, lua_tostring(L, 1), false, false)), lua_tointeger(L, 2));
-        if (!computer->hasBreakpoints) forceCheckTimeout = true;
+        const int id = !computer->breakpoints.empty() ? computer->breakpoints.rbegin()->first + 1 : 1;
+        computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, luaL_checkstring(L, 1), false, false)), luaL_checkinteger(L, 2));
+        if (!computer->hasBreakpoints) computer->forceCheckTimeout = true;
         computer->hasBreakpoints = true;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
@@ -171,12 +168,11 @@ extern "C" {
         return 1;
     }
 
-    int db_unsetbreakpoint(lua_State *L) {
-        if (!lua_isnumber(L, 1)) bad_argument(L, "number", 1);
+    /* export */ int db_unsetbreakpoint(lua_State *L) {
         Computer * computer = get_comp(L);
-        if (computer->breakpoints.find(lua_tointeger(L, 1)) != computer->breakpoints.end()) {
-            computer->breakpoints.erase(lua_tointeger(L, 1));
-            if (computer->breakpoints.size() == 0) {
+        if (computer->breakpoints.find((int)luaL_checkinteger(L, 1)) != computer->breakpoints.end()) {
+            computer->breakpoints.erase((int)lua_tointeger(L, 1));
+            if (computer->breakpoints.empty()) {
                 computer->hasBreakpoints = false;
                 lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
                 lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
@@ -186,221 +182,57 @@ extern "C" {
         return 1;
     }
 
-    void setcompmask(lua_State *L, int mask) {
+    /* export */ void setcompmask_(lua_State *L, int mask) {
         Computer * comp = get_comp(L);
         comp->hookMask = mask;
     }
 }
 
-library_t * getLibrary(std::string name) {
-    if (name == "config") return &config_lib;
-    else if (name == "fs") return &fs_lib; 
-    else if (name == "mounter") return &mounter_lib; 
-    else if (name == "os") return &os_lib; 
-    else if (name == "peripheral") return &peripheral_lib; 
-    else if (name == "periphemu") return &periphemu_lib; 
-    else if (name == "redstone" || name == "rs") return &rs_lib; 
-    else if (name == "term") return &term_lib; 
-    else return NULL;
-}
 
-Computer * getComputerById(int id) {
-    std::lock_guard<std::mutex> lock(computers_mutex);
-    for (Computer * c : computers) if (c->id == id) return c;
-    return NULL;
-}
-
-static void pluginError(lua_State *L, const char * name, const char * err) {
-    lua_getglobal(L, "_CCPC_PLUGIN_ERRORS");
-    if (lua_isnil(L, -1)) {
-        lua_newtable(L);
-        lua_pushvalue(L, -1);
-        lua_setglobal(L, "_CCPC_PLUGIN_ERRORS");
-    }
-    lua_pushstring(L, name);
-    lua_pushstring(L, err);
-    lua_settable(L, -3);
-    lua_pop(L, 1);
-}
-
-extern void config_save();
-
-std::unordered_map<path_t, void*> loadedPlugins;
-
-void Computer::loadPlugin(path_t path) {
-    size_t pos = path.find_last_of(WS("/\\"));
-    if (pos == std::string::npos) pos = 0; else pos++;
-    std::string api_name = astr(path.substr(pos).substr(0, path.substr(pos).find_first_of('.')));
-    bool isLuaLib = false;
-    void* handle;
-    if (loadedPlugins.find(path) != loadedPlugins.end()) handle = loadedPlugins[path];
-    else {
-        handle = SDL_LoadObject(astr(path).c_str());
-        if (handle == NULL) {
-            fprintf(stderr, "The plugin \"%s\" is not a valid plugin file.\n", api_name.c_str());
-            pluginError(L, api_name.c_str(), "Not a valid plugin");
-            return;
-        }
-        loadedPlugins[path] = handle;
-    }
-    if (api_name.substr(0, 4) == "lua_") {
-        api_name = api_name.substr(4);
-        isLuaLib = true;
-    } else {
-        lua_CFunction info = (lua_CFunction)SDL_LoadFunction(handle, "plugin_info");
-        if (info == NULL) {
-            fprintf(stderr, "The plugin \"%s\" is not verified to work with CraftOS-PC. Use at your own risk.\n", api_name.c_str());
-            pluginError(L, api_name.c_str(), "Missing plugin info");
-        } else {
-            lua_pushcfunction(L, info);
-            lua_pushstring(L, CRAFTOSPC_VERSION);
-            int ok = lua_pcall(L, 1, 1, 0);
-            if (ok != 0) {
-                fprintf(stderr, "The plugin \"%s\" ran into an error while initializing, and will not be loaded: %s\n", api_name.c_str(), lua_tostring(L, -1));
-                pluginError(L, api_name.c_str(), lua_tostring(L, -1));
-                lua_pop(L, 1);
-                SDL_UnloadObject(handle);
-                return;
-            } else if (!lua_istable(L, -1)) {
-                fprintf(stderr, "The plugin \"%s\" returned invalid info (%s). Use at your own risk.\n", api_name.c_str(), lua_typename(L, lua_type(L, -1)));
-                pluginError(L, api_name.c_str(), "Invalid plugin info");
-            } else {
-                lua_getfield(L, LUA_REGISTRYINDEX, "plugin_info");
-                lua_pushvalue(L, -2);
-                lua_setfield(L, -2, api_name.c_str());
-                lua_pop(L, 1);
-
-                lua_getfield(L, -1, "version");
-                if (!lua_isnumber(L, -1) || lua_tointeger(L, -1) != PLUGIN_VERSION) {
-                    fprintf(stderr, "The plugin \"%s\" is built for an older version of CraftOS-PC (%td), and will not be loaded.\n", api_name.c_str(), lua_tointeger(L, -1));
-                    pluginError(L, api_name.c_str(), "Old plugin API");
-                    lua_pop(L, 1);
-                    SDL_UnloadObject(handle);
-                    return;
-                }
-                lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_getLibrary");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&getLibrary);
-                    lua_pushstring(L, "getLibrary");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_registerPeripheral");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&registerPeripheral);
-                    lua_pushstring(L, "registerPeripheral");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_addMount");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&addMount);
-                    lua_pushstring(L, "addMount");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_termQueueProvider");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&termQueueProvider);
-                    lua_pushstring(L, "termQueueProvider");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_startComputer");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&startComputer);
-                    lua_pushstring(L, "startComputer");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_queueTask");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&queueTask);
-                    lua_pushstring(L, "queueTask");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "register_getComputerById");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushlightuserdata(L, (void*)&getComputerById);
-                    lua_pushstring(L, "getComputerById");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-
-                lua_getfield(L, -1, "get_selectedRenderer");
-                if (lua_isfunction(L, -1)) {
-                    lua_pushinteger(L, selectedRenderer);
-                    lua_pushstring(L, "selectedRenderer");
-                    lua_call(L, 2, 0);
-                } else lua_pop(L, 1);
-            }
-            lua_pop(L, 1);
-        }
-    }
-    lua_CFunction luaopen = (lua_CFunction)SDL_LoadFunction(handle, ("luaopen_" + api_name).c_str());
-    if (luaopen == NULL) {
-        fprintf(stderr, "Error loading plugin %s: %s\n", api_name.c_str(), lua_tostring(L, -1)); 
-        pluginError(L, api_name.c_str(), "Missing API opener");
-        SDL_UnloadObject(handle);
-        return;
-    }
-    lua_pushcfunction(L, luaopen);
-    lua_pushstring(L, api_name.c_str());
-    if (!isLuaLib) {
-        lua_pushstring(L, astr(getROMPath()).c_str());
-        lua_pushstring(L, astr(getBasePath()).c_str());
-        lua_call(L, 3, 1);
-    } else lua_call(L, 1, 1);
-    lua_setglobal(L, api_name.c_str());
-}
-
-char file_read_tmp[4096];
-
-const char * file_reader(lua_State *L, void * ud, size_t *size) {
+static const char * file_reader(lua_State *L, void * ud, size_t *size) {
+    static char file_read_tmp[4096];
     if (feof((FILE*)ud)) return NULL;
     *size = fread(file_read_tmp, 1, 4096, (FILE*)ud);
     return file_read_tmp;
 }
 
 // Main computer loop
-void Computer::run(path_t bios_name) {
-    if (config.startFullscreen && dynamic_cast<SDLTerminal*>(term) != NULL) ((SDLTerminal*)term)->toggleFullscreen();
-    running = 1;
-    if (L != NULL) lua_close(L);
-    setjmp(on_panic);
-    while (running) {
+void runComputer(Computer * self, const path_t& bios_name) {
+    if (self->config->startFullscreen && dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->toggleFullscreen();
+    self->running = 1;
+    if (self->L != NULL) lua_close(self->L);
+    setjmp(self->on_panic);
+    while (self->running) {
         int status;
-        if (term != NULL) {
+        if (self->term != NULL) {
             // Initialize terminal contents
-            std::lock_guard<std::mutex> lock(term->locked);
-            term->blinkX = 0;
-            term->blinkY = 0;
-            term->screen = vector2d<unsigned char>(term->width, term->height, ' ');
-            term->colors = vector2d<unsigned char>(term->width, term->height, 0xF0);
-            term->pixels = vector2d<unsigned char>(term->width * Terminal::fontWidth, term->height * Terminal::fontHeight, 0x0F);
-            memcpy(term->palette, defaultPalette, sizeof(defaultPalette));
-            term->mode = 0;
+            std::lock_guard<std::mutex> lock(self->term->locked);
+            self->term->blinkX = 0;
+            self->term->blinkY = 0;
+            self->term->screen = vector2d<unsigned char>(self->term->width, self->term->height, ' ');
+            self->term->colors = vector2d<unsigned char>(self->term->width, self->term->height, 0xF0);
+            self->term->pixels = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
+            memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
+            self->term->mode = 0;
         }
-        colors = 0xF0;
+        self->colors = 0xF0;
 
         /*
         * All Lua contexts are held in this structure. We work with it almost
         * all the time.
         */
-        L = luaL_newstate();
+        lua_State *L = self->L = luaL_newstate();
 
-        coro = lua_newthread(L);
-        paramQueue = lua_newthread(L);
-        while (!eventQueue.empty()) eventQueue.pop();
+        self->coro = lua_newthread(L);
+        self->paramQueue = lua_newthread(L);
+        while (!self->eventQueue.empty()) self->eventQueue.pop();
 
         // Reinitialize any peripherals that were connected before rebooting
-        for (auto p : peripherals) p.second->reinitialize(L);
+        for (auto p : self->peripherals) p.second->reinitialize(L);
 
         // Push reference to this to the registry
         lua_pushinteger(L, 1);
-        lua_pushlightuserdata(L, this);
+        lua_pushlightuserdata(L, self);
         lua_settable(L, LUA_REGISTRYINDEX);
         if (::config.debug_enable) {
             lua_newtable(L);
@@ -412,20 +244,20 @@ void Computer::run(path_t bios_name) {
         }
 
         // Load libraries
-        luaL_openlibs(coro);
+        luaL_openlibs(self->coro);
         lua_getglobal(L, "os");
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
-        if (debugger != NULL && !isDebugger) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else if (::config.debug_enable && !isDebugger) lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else lua_sethook(coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
+        if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        else lua_sethook(self->coro, termHook, LUA_MASKCOUNT | LUA_MASKERROR, 1000000);
         lua_atpanic(L, termPanic);
-        for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) load_library(this, coro, *libraries[i]);
-        if (::config.http_enable) load_library(this, coro, http_lib);
-        if (isDebugger) load_library(this, coro, *((library_t*)debugger));
-        lua_getglobal(coro, "redstone");
-        lua_setglobal(coro, "rs");
+        for (library_t * lib : libraries) load_library(self, self->coro, *lib);
+        if (config.http_enable) load_library(self, self->coro, http_lib);
+        if (self->isDebugger && self->debugger != NULL) load_library(self, self->coro, *((library_t*)self->debugger));
+        lua_getglobal(self->coro, "redstone");
+        lua_setglobal(self->coro, "rs");
         lua_getglobal(L, "os");
         lua_getglobal(L, "os_date");
         lua_setfield(L, -2, "date");
@@ -434,24 +266,23 @@ void Computer::run(path_t bios_name) {
         lua_setglobal(L, "os_date");
 
         // Load any plugins available
-        if (!::config.vanilla) {
-#ifndef STANDALONE_ROM
-            lua_newtable(L);
-            lua_setfield(L, LUA_REGISTRYINDEX, "plugin_info");
-            struct_dirent *dir;
-            path_t plugin_path = getPlugInPath();
-            platform_DIR * d = platform_opendir(plugin_path.c_str());
-            struct_stat st;
-            if (d) {
-                for (int i = 0; (dir = platform_readdir(d)) != NULL; i++) {
-                    if (platform_stat((plugin_path + WS("/") + path_t(dir->d_name)).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
-                    if (path_t(dir->d_name) == WS(".DS_Store") || path_t(dir->d_name) == WS("desktop.ini")) continue;
-                    loadPlugin(plugin_path + WS("/") + dir->d_name);
+        if (!config.vanilla) {
+            if (!globalPluginErrors.empty()) {
+                lua_getglobal(L, "_CCPC_PLUGIN_ERRORS");
+                if (lua_isnil(L, -1)) {
+                    lua_newtable(L);
+                    lua_pushvalue(L, -1);
+                    lua_setglobal(L, "_CCPC_PLUGIN_ERRORS");
                 }
-                platform_closedir(d);
+                for (const auto& err : globalPluginErrors) {
+                    path_t bname = err.first.substr(err.first.find_last_of(PATH_SEPC) + 1);
+                    lua_pushstring(L, astr(bname.substr(0, bname.find_first_of('.'))).c_str());
+                    lua_pushstring(L, err.second.c_str());
+                    lua_settable(L, -3);
+                }
+                lua_pop(L, 1);
             }
-#endif
-            for (path_t path : customPlugins) loadPlugin(path);
+            loadPlugins(self);
         }
 
         // Delete unwanted globals
@@ -467,7 +298,7 @@ void Computer::run(path_t bios_name) {
         lua_setglobal(L, "package");
         lua_pushnil(L);
         lua_setglobal(L, "print");
-        if (!::config.debug_enable) {
+        if (!config.debug_enable) {
             lua_pushnil(L);
             lua_setglobal(L, "collectgarbage");
             lua_pushnil(L);
@@ -475,7 +306,7 @@ void Computer::run(path_t bios_name) {
             lua_pushnil(L);
             lua_setglobal(L, "newproxy");
         }
-        if (::config.vanilla) {
+        if (config.vanilla) {
             lua_pushnil(L);
             lua_setglobal(L, "config");
             lua_pushnil(L);
@@ -496,7 +327,7 @@ void Computer::run(path_t bios_name) {
             lua_pushnil(L);
             lua_setfield(L, -2, "screenshot");
             lua_pop(L, 1);
-            if (::config.http_enable) {
+            if (config.http_enable) {
                 lua_getglobal(L, "http");
                 lua_pushnil(L);
                 lua_setfield(L, -2, "addListener");
@@ -504,7 +335,7 @@ void Computer::run(path_t bios_name) {
                 lua_setfield(L, -2, "removeListener");
                 lua_pop(L, 1);
             }
-            if (::config.debug_enable) {
+            if (config.debug_enable) {
                 lua_getglobal(L, "debug");
                 lua_pushnil(L);
                 lua_setfield(L, -2, "setbreakpoint");
@@ -512,6 +343,16 @@ void Computer::run(path_t bios_name) {
                 lua_setfield(L, -2, "unsetbreakpoint");
                 lua_pop(L, 1);
             }
+        }
+        if (config.serverMode) {
+            lua_getglobal(L, "http");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "addListener");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "removeListener");
+            lua_pop(L, 1);
+            lua_pushnil(L);
+            lua_setglobal(L, "mounter");
         }
 
         // Set default globals
@@ -537,10 +378,6 @@ void Computer::run(path_t bios_name) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_CCPC_UPDATED_VERSION");
             onboardingMode = 0;
-            if (std::string(CRAFTOSPC_VERSION) == "v2.4.1" && !::config.romReadOnly) {
-                ::config.romReadOnly = true;
-                config_save();
-            }
         }
         if (!script_file.empty()) {
             std::string script;
@@ -549,7 +386,7 @@ void Computer::run(path_t bios_name) {
                 FILE* in = fopen(script_file.c_str(), "r");
                 char tmp[4096];
                 while (!feof(in)) {
-                    size_t read = fread(tmp, 1, 4096, in);
+                    const size_t read = fread(tmp, 1, 4096, in);
                     if (read == 0) break;
                     script += std::string(tmp, read);
                 }
@@ -567,7 +404,7 @@ void Computer::run(path_t bios_name) {
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
-        status = luaL_loadstring(coro, astr(bios_name).c_str());
+        status = luaL_loadstring(self->coro, astr(bios_name).c_str());
         path_t bios_path_expanded = WS("standalone ROM");
 #else
 #ifdef WIN32
@@ -576,14 +413,15 @@ void Computer::run(path_t bios_name) {
         path_t bios_path_expanded = getROMPath() + WS("/") + bios_name;
 #endif
         FILE * bios_file = platform_fopen(bios_path_expanded.c_str(), "r");
-        status = lua_load(coro, file_reader, bios_file, "@bios.lua");
+        status = lua_load(self->coro, file_reader, bios_file, "@bios.lua");
         fclose(bios_file);
 #endif
-        if (status || !lua_isfunction(coro, -1)) {
+        if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
             fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(L, -1));
-            queueTask([bios_path_expanded](void* term)->void*{
+            if (::config.standardsMode) displayFailure(self->term, "Error loading bios.lua");
+            else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
                     SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
                     std::string(
@@ -591,55 +429,49 @@ void Computer::run(path_t bios_name) {
                     ).c_str()
                 ); 
                 return NULL;
-            }, term);
+            }, self->term);
             return;
         }
 
         /* Ask Lua to run our little script */
         status = LUA_YIELD;
         int narg = 0;
-        running = 1;
-        eventTimeout = SDL_AddTimer(::config.abortTimeout, eventTimeoutEvent, this);
-        while (status == LUA_YIELD && running == 1) {
-            status = lua_resume(coro, narg);
+        self->running = 1;
+        self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
+        while (status == LUA_YIELD && self->running == 1) {
+            status = lua_resume(self->coro, narg);
             if (status == LUA_YIELD) {
-                if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
-                else narg = getNextEvent(coro, "");
+                if (lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_strlen(self->coro, -1)));
+                else narg = getNextEvent(self->coro, "");
             } else if (status != 0) {
                 // Catch runtime error
-                running = 0;
-                lua_pushcfunction(coro, termPanic);
-                if (lua_isstring(coro, -2)) lua_pushvalue(coro, -2);
-                else lua_pushnil(coro);
-                lua_call(coro, 1, 0);
+                self->running = 0;
+                lua_pushcfunction(self->coro, termPanic);
+                if (lua_isstring(self->coro, -2)) lua_pushvalue(self->coro, -2);
+                else lua_pushnil(self->coro);
+                lua_call(self->coro, 1, 0);
                 break;
-            } else running = 0;
+            } else self->running = 0;
         }
         
         // Shutdown threads
-        event_lock.notify_all();
-        for (unsigned i = 0; i < sizeof(libraries) / sizeof(library_t*); i++) 
-            if (libraries[i]->deinit != NULL) libraries[i]->deinit(this);
+        self->event_lock.notify_all();
+        for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(self);
         lua_close(L);   /* Cya, Lua */
-        L = NULL;
+        self->L = NULL;
     }
 }
 
 // Gets the next event for the given computer
-bool Computer::getEvent(SDL_Event* e) {
-    std::lock_guard<std::mutex> lock(termEventQueueMutex);
-    if (termEventQueue.size() == 0) return false;
-    SDL_Event& front = termEventQueue.front();
+bool Computer_getEvent(Computer * self, SDL_Event* e) {
+    std::lock_guard<std::mutex> lock(self->termEventQueueMutex);
+    if (self->termEventQueue.empty()) return false;
+    SDL_Event& front = self->termEventQueue.front();
     if (&front == NULL || e == NULL) return false;
     memcpy(e, &front, sizeof(SDL_Event));
-    termEventQueue.pop();
+    self->termEventQueue.pop();
     return true;
 }
-
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern std::atomic_bool taskQueueReady;
-extern std::condition_variable taskQueueNotify;
-extern bool exiting;
 
 // Thread wrapper for running a computer
 void* computerThread(void* data) {
@@ -652,19 +484,30 @@ void* computerThread(void* data) {
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);
+    try {
 #ifdef STANDALONE_ROM
-    comp->run(wstr(standaloneBIOS));
+        runComputer(comp, wstr(standaloneBIOS));
 #else
-    comp->run(WS("bios.lua"));
+        runComputer(comp, WS("bios.lua"));
 #endif
+    } catch (std::exception &e) {
+        fprintf(stderr, "Uncaught exception while executing computer %d: %s\n", comp->id, e.what());
+        queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
+        if (comp->L != NULL) {
+            comp->event_lock.notify_all();
+            for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+            lua_close(comp->L);   /* Cya, Lua */
+            comp->L = NULL;
+        }
+    }
     freedComputers.insert(comp);
     {
-        std::lock_guard<std::mutex> lock(computers_mutex);
-        for (auto it = computers.begin(); it != computers.end(); it++) {
+        LockGuard lock(computers);
+        for (auto it = computers->begin(); it != computers->end(); ++it) {
             if (*it == comp) {
-                it = computers.erase(it);
-                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL; }, comp);
-                if (it == computers.end()) break;
+                it = computers->erase(it);
+                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
+                if (it == computers->end()) break;
             }
         }
     }
@@ -678,19 +521,22 @@ void* computerThread(void* data) {
     return NULL;
 }
 
-std::list<std::thread*> computerThreads;
+/* export */ std::list<std::thread*> computerThreads;
 
 // Spin up a new computer
 Computer * startComputer(int id) {
     Computer * comp;
     try {comp = new Computer(id);} catch (std::exception &e) {
-        if (selectedRenderer == 0) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
+        if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
         else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
         return NULL;
     }
-    computers.push_back(comp);
+    {
+        LockGuard lock(computers);
+        computers->push_back(comp);
+    }
     std::thread * th = new std::thread(computerThread, comp);
-    setThreadName(*th, std::string("Computer " + std::to_string(id) + " Thread").c_str());
+    setThreadName(*th, "Computer " + std::to_string(id) + " Thread");
     computerThreads.push_back(th);
     return comp;
 }

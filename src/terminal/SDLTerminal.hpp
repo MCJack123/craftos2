@@ -1,5 +1,5 @@
 /*
- * SDLTerminal.hpp
+ * terminal/SDLTerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the SDLTerminal class, which is the default renderer.
@@ -10,13 +10,22 @@
 
 #ifndef TERMINAL_SDLTERMINAL_HPP
 #define TERMINAL_SDLTERMINAL_HPP
-#include "Terminal.hpp"
-#include <SDL2/SDL.h>
-#include <string>
-#include <vector>
 #include <ctime>
 #include <mutex>
+#include <string>
+#include <vector>
+#include <Computer.hpp>
+#include <SDL2/SDL.h>
+#include <Terminal.hpp>
 #include "../platform.hpp"
+
+inline SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
+    rect->x = x;
+    rect->y = y;
+    rect->w = w;
+    rect->h = h;
+    return rect;
+}
 
 class SDLTerminal: public Terminal {
     friend void mainLoop();
@@ -35,14 +44,14 @@ protected:
     std::mutex renderlock;
     bool overridden = false;
 public:
-    static int fontScale;
-    int charScale = 2;
-    int dpiScale = 1;
-    int charWidth = fontWidth * 2/fontScale * charScale;
-    int charHeight = fontHeight * 2/fontScale * charScale;
+    static unsigned fontScale;
+    unsigned charScale = 2;
+    unsigned dpiScale = 1;
+    unsigned charWidth = fontWidth * 2/fontScale * charScale;
+    unsigned charHeight = fontHeight * 2/fontScale * charScale;
     int lastFPS = 0;
     int currentFPS = 0;
-    int lastSecond = time(0);
+    time_t lastSecond = time(0);
     std::chrono::system_clock::time_point lastScreenshotTime;
     unsigned char cursorColor = 0;
 
@@ -53,15 +62,15 @@ public:
     ~SDLTerminal() override;
     void setPalette(Color * p);
     void setCharScale(int scale);
-    bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
+    virtual bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
-    bool resize(int w, int h) override;
+    bool resize(unsigned w, unsigned h) override;
     void getMouse(int *x, int *y);
     void screenshot(std::string path = ""); // asynchronous; captures on next render
     void record(std::string path = ""); // asynchronous; captures on next render
     void stopRecording();
     void toggleRecording() { if (shouldRecord) stopRecording(); else record(); }
-    void showMessage(Uint32 flags, const char * title, const char * message) override;
+    void showMessage(uint32_t flags, const char * title, const char * message) override;
     void toggleFullscreen();
     void setLabel(std::string label) override;
     virtual bool resizeWholeWindow(int w, int h);
@@ -72,8 +81,12 @@ public:
     SDL_Window *win;
 #endif
 protected:
+    friend void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
+    friend int main(int argc, char*argv[]);
     SDL_Surface *surf = NULL;
     SDL_Surface *bmp;
+    static Uint32 lastWindow;
+    static std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > eventHandlers;
 
     static SDL_Rect getCharacterRect(unsigned char c);
 };
