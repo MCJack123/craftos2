@@ -315,33 +315,107 @@ int monitor::getTextScale(lua_State *L) {
 
 int monitor::drawPixels(lua_State *L) {
     lastCFunction = __func__;
-    const int init_x = (int)luaL_checkinteger(L, 1), init_y = (int)luaL_checkinteger(L, 2);
-    luaL_checktype(L, 3, LUA_TTABLE);
+
+    const int init_x = (int)luaL_checkinteger(L, 1),
+              init_y = (int)luaL_checkinteger(L, 2);
+
+    const int fillType = lua_type(L, 3);
+    const bool isSolidFill = fillType == LUA_TNUMBER;
+
+    if (!isSolidFill && fillType != LUA_TTABLE)
+        return luaL_typerror(L, 3, "table or number");
+
+    bool undefinedWidth;
+    int width, height;
+    int color;
+
+    if (isSolidFill) {
+        undefinedWidth = false;
+        width = luaL_checkinteger(L, 4);
+        height = luaL_checkinteger(L, 5);
+    } else {
+        undefinedWidth = lua_isnoneornil(L, 4);
+        width = luaL_optinteger(L, 4, 0);
+        height = luaL_optinteger(L, 5, lua_objlen(L, 3));
+    }
+
+    if (width < 0)
+        return luaL_argerror(L, 4, "width cannot be negative");
+    else if (height < 0)
+        return luaL_argerror(L, 5, "height cannot be negative");
+
+    if (isSolidFill) {
+        color = lua_tonumber(L, 3);
+
+        if (color < 0) return 0;
+        else if (term->mode == 2 ? color > 255 : log2i(color) > 15)
+            return luaL_argerror(L, 3, "color index out of bounds");
+    }
+
     std::lock_guard<std::mutex> lock(term->locked);
-    if (init_x < 0 || init_y < 0) luaL_error(L, "Invalid initial position");
-    const unsigned width = (unsigned)luaL_optinteger(L, 4, 0), height = (unsigned)luaL_optinteger(L, 5, lua_objlen(L, 3));
-    for (unsigned y = 1; y <= height && init_y + y - 1 < (unsigned)term->height * Terminal::fontHeight; y++) {
-        lua_pushinteger(L, y);
-        lua_gettable(L, 3); 
+
+    const int pixelWidth = term->width * Terminal::fontWidth,
+              pixelHeight = term->height * Terminal::fontHeight;
+
+    if (isSolidFill) {
+        const int index = term->mode == 2 ? color : log2i(color),
+                  memset_x = max(init_x, 0),
+                  memset_len = min(width, max(pixelWidth - init_x, 0)) + min(init_x, 0);
+
+        const int cool_height = min(height, pixelHeight - init_y);
+        for (int h = max(-init_y, 0); h < cool_height; h++) {
+            memset(&term->pixels[init_y + h][memset_x], index, memset_len);
+        }
+
+        term->changed = true;
+        return 0;
+    }
+
+    const int str_offset = init_x < 0 ? -init_x : 0,
+        str_maxlen = init_x > pixelWidth ? 0 : pixelWidth - init_x;
+
+    for (unsigned h = 0; h < height; h++) {
+        if (init_y + h < 0) continue;
+        if (init_y + h >= pixelHeight) break;
+
+        lua_pushinteger(L, h + 1);
+        lua_gettable(L, 3);
+
         if (lua_isstring(L, -1)) {
-            size_t str_sz;
-            const char * str = lua_tolstring(L, -1, &str_sz);
-            if (width > 0 && width < str_sz) str_sz = width;
-            if (init_x + str_sz >= (size_t)term->width * Terminal::fontWidth) str_sz = term->width * Terminal::fontWidth - init_x;
-            memcpy(&term->pixels[init_y + y - 1][init_x], str, str_sz);
+            if (str_offset >= str_maxlen) continue;
+
+            size_t len;
+            const char *str = lua_tolstring(L, -1, &len);
+            if (len > str_maxlen) len = str_maxlen;
+            if (!undefinedWidth && width < len) len = width;
+
+            if (str_offset < len)
+                memcpy(&term->pixels[init_y + h][init_x + str_offset],
+                       str + str_offset,
+                       len - str_offset
+                );
         } else if (lua_istable(L, -1)) {
-            for (unsigned x = 1; x <= width && init_x + x - 1 < (unsigned)term->width * Terminal::fontWidth; x++) {
-                lua_pushinteger(L, x);
+            unsigned max = undefinedWidth ? lua_objlen(L, -1) : width;
+            for (unsigned w = 0; w < max; w++) {
+                lua_pushinteger(L, w + 1);
                 lua_gettable(L, -2);
-                if (lua_isnumber(L, -1) && lua_tointeger(L, -1) >= 0) {
-                    if (term->mode == 2) term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
-                    else term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
+
+                if (lua_isnumber(L, -1)) {
+                    const int color = lua_tointeger(L, -1);
+
+                    if (color >= 0)
+                        term->pixels[init_y + h][init_x + w] = term->mode == 2
+                            ? lua_tointeger(L, -1)
+                            : log2i(lua_tointeger(L, -1));
                 }
+
                 lua_pop(L, 1);
             }
         }
+
         lua_pop(L, 1);
     }
+
     term->changed = true;
     return 0;
 }
