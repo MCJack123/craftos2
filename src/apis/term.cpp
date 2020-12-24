@@ -469,6 +469,8 @@ static int term_fillPixels(lua_State* L) {
 
     std::lock_guard<std::mutex> lock(term->locked);
 
+    const int index = term->mode == 2 ? color : log2i(color);
+
     for (int h = 0; h < end_h; h++) {
         const int y = init_y + h;
 
@@ -478,7 +480,7 @@ static int term_fillPixels(lua_State* L) {
             const int x = init_x + w;
 
             if (x >= 0 && x < term->width * Terminal::fontWidth) {
-                term->pixels[y][x] = term->mode == 2 ? color : log2i(color);
+                term->pixels[y][x] = index;
             }
         }
     }
