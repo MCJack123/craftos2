@@ -461,6 +461,8 @@ static int term_fillPixels(lua_State* L) {
     if (end_w < 0) return luaL_argerror(L, 3, "width must be positive");
     else if (end_h < 0) return luaL_argerror(L, 4, "height must be positive");
     else if (color < 0) return 0;
+    else if (color >= term->mode == 2 ? 256 : 16)
+        return luaL_argerror(L, 5, "color index out of bounds");
 
     Computer* computer = get_comp(L);
     Terminal* term = computer->term;
