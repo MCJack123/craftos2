@@ -469,7 +469,7 @@ static int term_fillPixels(lua_State* L) {
     for (int h = 0; h < end_h; h++) {
         const int y = init_y + h;
 
-        if (y < 0 || y > term->height * Terminal::fontHeight) continue;
+        if (y < 0 || y >= term->height * Terminal::fontHeight) continue;
 
         for (int w = 0; w < end_w; w++) {
             const int x = init_x + w;

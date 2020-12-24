@@ -285,7 +285,7 @@ int monitor::getPixel(lua_State *L) {
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     const int x = (int)luaL_checkinteger(L, 1);
     const int y = (int)luaL_checkinteger(L, 2);
-    if (x < 0 || y < 0 || (unsigned)x > term->width * Terminal::fontWidth || (unsigned)y > term->height * Terminal::fontHeight) lua_pushnil(L);
+    if (x < 0 || y < 0 || (unsigned)x >= term->width * Terminal::fontWidth || (unsigned)y >= term->height * Terminal::fontHeight) lua_pushnil(L);
     else if (term->mode == 1) lua_pushinteger(L, 1 << term->pixels[y][x]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[y][x]);
     else return 0;
@@ -372,8 +372,8 @@ int monitor::getPixels(lua_State* L) {
                 y = init_y + h;
 
             if (x < 0 || y < 0
-                || (unsigned) x > term->width * Terminal::fontWidth
-                || (unsigned) y > term->height * Terminal::fontHeight)
+                || (unsigned) x >= term->width * Terminal::fontWidth
+                || (unsigned) y >= term->height * Terminal::fontHeight)
                 lua_pushnil(L);
             else if (term->mode == 2)
                 lua_pushinteger(L, term->pixels[y][x]);
@@ -407,7 +407,7 @@ int monitor::fillPixels(lua_State* L) {
     for (int h = 0; h < end_h; h++) {
         const int y = init_y + h;
 
-        if (y < 0 || y > term->height * Terminal::fontHeight) continue;
+        if (y < 0 || y >= term->height * Terminal::fontHeight) continue;
 
         for (int w = 0; w < end_w; w++) {
             const int x = init_x + w;
