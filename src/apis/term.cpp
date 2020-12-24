@@ -362,7 +362,7 @@ static int term_getPixel(lua_State *L) {
     Terminal * term = computer->term;
     const int x = (int)luaL_checkinteger(L, 1);
     const int y = (int)luaL_checkinteger(L, 2);
-    if (x < 0 || y < 0 || (unsigned)x > term->width * Terminal::fontWidth || (unsigned)y > term->height * Terminal::fontHeight) lua_pushnil(L);
+    if (x < 0 || y < 0 || (unsigned)x >= term->width * Terminal::fontWidth || (unsigned)y >= term->height * Terminal::fontHeight) lua_pushnil(L);
     else if (term->mode == 1) lua_pushinteger(L, 1 << term->pixels[y][x]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[y][x]);
     else return 0;
@@ -432,8 +432,8 @@ static int term_getPixels(lua_State* L) {
                       y = init_y + h;
 
             if (x < 0 || y < 0
-                || (unsigned) x > term->width * Terminal::fontWidth
-                || (unsigned) y > term->height * Terminal::fontHeight)
+                || (unsigned) x >= term->width * Terminal::fontWidth
+                || (unsigned) y >= term->height * Terminal::fontHeight)
                 lua_pushnil(L);
             else if (term->mode == 2)
                 lua_pushinteger(L, term->pixels[y][x]);
@@ -447,6 +447,40 @@ static int term_getPixels(lua_State* L) {
     }
 
     return 1;
+}
+
+static int term_fillPixels(lua_State* L) {
+    lastCFunction = __func__;
+
+    const int init_x = (int) luaL_checkinteger(L, 1),
+              init_y = (int) luaL_checkinteger(L, 2),
+              end_w = (int) luaL_checkinteger(L, 3),
+              end_h = (int) luaL_checkinteger(L, 4),
+              color = (int) luaL_checkinteger(L, 5);
+
+    if (end_w < 0) return luaL_argerror(L, 3, "width must be positive");
+    else if (end_h < 0) return luaL_argerror(L, 4, "height must be positive");
+    else if (color < 0) return 0;
+
+    Computer* computer = get_comp(L);
+    Terminal* term = computer->term;
+    std::lock_guard<std::mutex> lock(term->locked);
+
+    for (int h = 0; h < end_h; h++) {
+        const int y = init_y + h;
+
+        if (y < 0 || y > term->height * Terminal::fontHeight) continue;
+
+        for (int w = 0; w < end_w; w++) {
+            const int x = init_x + w;
+
+            if (x >= 0 && x < term->width * Terminal::fontWidth) {
+                term->pixels[y][x] = term->mode == 2 ? color : log2i(color);
+            }
+        }
+    }
+
+    return 0;
 }
 
 static int term_screenshot(lua_State *L) {
@@ -522,6 +556,7 @@ static luaL_reg term_reg[] = {
     {"nativePaletteColor", term_nativePaletteColor},
     {"nativePaletteColour", term_nativePaletteColor},
     {"drawPixels", term_drawPixels},
+    {"fillPixels", term_fillPixels},
     {"getPixels", term_getPixels},
     {"showMouse", term_showMouse},
     {NULL, NULL}

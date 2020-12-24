@@ -389,6 +389,38 @@ int monitor::getPixels(lua_State* L) {
     return 1;
 }
 
+int monitor::fillPixels(lua_State* L) {
+    lastCFunction = __func__;
+
+    const int init_x = (int) luaL_checkinteger(L, 1),
+              init_y = (int) luaL_checkinteger(L, 2),
+              end_w = (int) luaL_checkinteger(L, 3),
+              end_h = (int) luaL_checkinteger(L, 4),
+              color = (int) luaL_checkinteger(L, 5);
+
+    if (end_w < 0) return luaL_argerror(L, 3, "width must be positive");
+    else if (end_h < 0) return luaL_argerror(L, 4, "height must be positive");
+    else if (color < 0) return 0;
+
+    std::lock_guard<std::mutex> lock(term->locked);
+
+    for (int h = 0; h < end_h; h++) {
+        const int y = init_y + h;
+
+        if (y < 0 || y > term->height * Terminal::fontHeight) continue;
+
+        for (int w = 0; w < end_w; w++) {
+            const int x = init_x + w;
+
+            if (x >= 0 && x < term->width * Terminal::fontWidth) {
+                term->pixels[y][x] = term->mode == 2 ? color : log2i(color);
+            }
+        }
+    }
+
+    return 0;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
@@ -422,6 +454,7 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "getTextScale") return getTextScale(L);
     else if (m == "drawPixels") return drawPixels(L);
     else if (m == "getPixels") return getPixels(L);
+    else if (m == "fillPixels") return fillPixels(L);
     else return 0;
 }
 
@@ -458,6 +491,7 @@ static luaL_Reg monitor_reg[] = {
     {"getTextScale", NULL},
     {"drawPixels", NULL},
     {"getPixels", NULL},
+    {"fillPixels", NULL},
     {NULL, NULL}
 };
 
