@@ -383,7 +383,7 @@ bool HardwareSDLTerminal::pollEvents() {
         } else {
             if (rawClient) {
                 sendRawEvent(e);
-            } else {
+            } else if (!computers.locked()) {
                 LockGuard lock(computers);
                 bool stop = false;
                 if (eventHandlers.find((SDL_EventType)e.type) != eventHandlers.end()) {

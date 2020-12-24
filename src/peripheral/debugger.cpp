@@ -9,7 +9,7 @@
  */
 
 #include <string>
-class Computer;
+struct Computer;
 static void debuggerThread(Computer * comp, void * dbgv, std::string side);
 #include "../runtime.hpp"
 static int debugger_lib_getInfo(lua_State *L);

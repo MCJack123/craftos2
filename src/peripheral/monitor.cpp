@@ -420,7 +420,6 @@ int monitor::drawPixels(lua_State *L) {
     return 0;
 }
 
-// LD: bruh this is just a copy of term_getPixels you lazy butthead
 int monitor::getPixels(lua_State* L) {
     lastCFunction = __func__;
 
@@ -432,8 +431,6 @@ int monitor::getPixels(lua_State* L) {
     if (end_w < 0 || end_h < 0) {
         return luaL_error(L, "Invalid size");
     }
-
-    std::lock_guard<std::mutex> lock(term->locked);
 
     lua_createtable(L, 0, end_h);
 

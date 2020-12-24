@@ -493,7 +493,6 @@ static int term_getPixels(lua_State* L) {
 
     Computer* computer = get_comp(L);
     Terminal* term = computer->term;
-    std::lock_guard<std::mutex> lock(term->locked);
 
     lua_createtable(L, 0, end_h);
 

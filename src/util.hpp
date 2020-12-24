@@ -28,6 +28,9 @@ extern "C" {
 #define CRAFTOSPC_CC_VERSION "1.95.0"
 #define CRAFTOSPC_INDEV      true
 
+// for some reason Clang complains if this isn't present
+template<> class std::hash<SDL_EventType>: public std::hash<unsigned short> {};
+
 template<typename T>
 class ProtectedObject {
     friend class LockGuard;
