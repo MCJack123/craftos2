@@ -285,7 +285,7 @@ int monitor::getPixel(lua_State *L) {
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     const int x = (int)luaL_checkinteger(L, 1);
     const int y = (int)luaL_checkinteger(L, 2);
-    if (x < 0 || y < 0 || (unsigned)x > term->width * Terminal::fontWidth || (unsigned)y > term->height * Terminal::fontHeight) lua_pushnil(L);
+    if (x < 0 || y < 0 || (unsigned)x >= term->width * Terminal::fontWidth || (unsigned)y >= term->height * Terminal::fontHeight) lua_pushnil(L);
     else if (term->mode == 1) lua_pushinteger(L, 1 << term->pixels[y][x]);
     else if (term->mode == 2) lua_pushinteger(L, term->pixels[y][x]);
     else return 0;
@@ -319,21 +319,23 @@ int monitor::drawPixels(lua_State *L) {
     luaL_checktype(L, 3, LUA_TTABLE);
     std::lock_guard<std::mutex> lock(term->locked);
     if (init_x < 0 || init_y < 0) luaL_error(L, "Invalid initial position");
-    for (unsigned y = 1; y <= lua_objlen(L, 3) && init_y + y - 1 < (unsigned)term->height * Terminal::fontHeight; y++) {
+    const unsigned width = (unsigned)luaL_optinteger(L, 4, 0), height = (unsigned)luaL_optinteger(L, 5, lua_objlen(L, 3));
+    for (unsigned y = 1; y <= height && init_y + y - 1 < (unsigned)term->height * Terminal::fontHeight; y++) {
         lua_pushinteger(L, y);
         lua_gettable(L, 3); 
         if (lua_isstring(L, -1)) {
             size_t str_sz;
             const char * str = lua_tolstring(L, -1, &str_sz);
-            if (init_x + str_sz - 1 < (size_t)term->width * Terminal::fontWidth)
-                memcpy(&term->pixels[init_y+y-1][init_x], str, str_sz);
+            if (width > 0 && width < str_sz) str_sz = width;
+            if (init_x + str_sz >= (size_t)term->width * Terminal::fontWidth) str_sz = term->width * Terminal::fontWidth - init_x;
+            memcpy(&term->pixels[init_y + y - 1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
-            for (unsigned x = 1; x <= lua_objlen(L, -1) && init_x + x - 1 < (unsigned)term->width * Terminal::fontWidth; x++) {
+            for (unsigned x = 1; x <= width && init_x + x - 1 < (unsigned)term->width * Terminal::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
                 if (lua_isnumber(L, -1) && lua_tointeger(L, -1) >= 0) {
-                    if (term->mode == 1) term->pixels[init_y + y - 1][init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
-                    else term->pixels[init_y + y - 1][init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                    if (term->mode == 2) term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                    else term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
                 }
                 lua_pop(L, 1);
             }
@@ -344,7 +346,6 @@ int monitor::drawPixels(lua_State *L) {
     return 0;
 }
 
-// LD: bruh this is just a copy of term_getPixels you lazy butthead
 int monitor::getPixels(lua_State* L) {
     lastCFunction = __func__;
 
@@ -356,8 +357,6 @@ int monitor::getPixels(lua_State* L) {
     if (end_w < 0 || end_h < 0) {
         return luaL_error(L, "Invalid size");
     }
-
-    std::lock_guard<std::mutex> lock(term->locked);
 
     lua_createtable(L, 0, end_h);
 
@@ -372,8 +371,8 @@ int monitor::getPixels(lua_State* L) {
                 y = init_y + h;
 
             if (x < 0 || y < 0
-                || (unsigned) x > term->width * Terminal::fontWidth
-                || (unsigned) y > term->height * Terminal::fontHeight)
+                || (unsigned) x >= term->width * Terminal::fontWidth
+                || (unsigned) y >= term->height * Terminal::fontHeight)
                 lua_pushnil(L);
             else if (term->mode == 2)
                 lua_pushinteger(L, term->pixels[y][x]);

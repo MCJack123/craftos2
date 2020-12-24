@@ -98,11 +98,13 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
     for (auto m : customMounts) {
+        bool ok;
         switch (std::get<2>(m)) {
-            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
-            case 0: addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), true); break; // force RO
-            default: addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), false); break; // force RW
+            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
+            case 0: ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), true); break; // force RO
+            default: ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), false); break; // force RW
         }
+        if (!ok) fprintf(stderr, "Could not mount custom mount path at %s\n", std::get<1>(m).c_str());
     }
     mounter_initializing = false;
     // Get the computer's data directory
@@ -325,7 +327,11 @@ void runComputer(Computer * self, const path_t& bios_name) {
             lua_pushnil(L);
             lua_setfield(L, -2, "drawPixels");
             lua_pushnil(L);
+            lua_setfield(L, -2, "getPixels");
+            lua_pushnil(L);
             lua_setfield(L, -2, "screenshot");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setMouse");
             lua_pop(L, 1);
             if (config.http_enable) {
                 lua_getglobal(L, "http");
