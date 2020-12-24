@@ -150,7 +150,7 @@ static int term_clear(lua_State *L) {
     Terminal * term = computer->term;
     std::lock_guard<std::mutex> locked_g(term->locked);
     if (term->mode > 0) {
-        memset(term->pixels.data(), 0x0F, term->width * Terminal::fontWidth * term->height * Terminal::fontHeight);
+        memset(term->currentPixels()->data(), 0x0F, term->width * Terminal::fontWidth * term->height * Terminal::fontHeight);
     } else {
         memset(term->screen.data(), ' ', term->height * term->width);
         memset(term->colors.data(), computer->colors, term->height * term->width);
@@ -347,7 +347,7 @@ static int term_setPixel(lua_State *L) {
     const int color = term->mode == 2 ? (int)luaL_checkinteger(L, 3) : log2i((int)luaL_checkinteger(L, 3));
     if (x < 0 || y < 0 || (unsigned)x >= term->width * Terminal::fontWidth || (unsigned)y >= term->height * Terminal::fontHeight) return 0;
     if (color < 0 || color > (term->mode == 2 ? 255 : 15)) return luaL_error(L, "bad argument #3 (invalid color %d)", color);
-    term->pixels[y][x] = (unsigned char)color;
+    (*term->currentPixels())[y][x] = (unsigned char)color;
     term->changed = true;
     return 0;
 }
@@ -363,8 +363,8 @@ static int term_getPixel(lua_State *L) {
     const int x = (int)luaL_checkinteger(L, 1);
     const int y = (int)luaL_checkinteger(L, 2);
     if (x < 0 || y < 0 || (unsigned)x > term->width * Terminal::fontWidth || (unsigned)y > term->height * Terminal::fontHeight) lua_pushnil(L);
-    else if (term->mode == 1) lua_pushinteger(L, 1 << term->pixels[y][x]);
-    else if (term->mode == 2) lua_pushinteger(L, term->pixels[y][x]);
+    else if (term->mode == 1) lua_pushinteger(L, 1 << (*term->currentPixels())[y][x]);
+    else if (term->mode == 2) lua_pushinteger(L, (*term->currentPixels())[y][x]);
     else return 0;
     return 1;
 }
@@ -385,14 +385,14 @@ static int term_drawPixels(lua_State *L) {
             size_t str_sz;
             const char * str = lua_tolstring(L, -1, &str_sz);
             if (init_x + str_sz - 1 < (size_t)term->width * Terminal::fontWidth)
-                memcpy(&term->pixels[init_y + y - 1][init_x], str, str_sz);
+                memcpy(&(*term->currentPixels())[init_y + y - 1][init_x], str, str_sz);
         } else if (lua_istable(L, -1)) {
             for (unsigned x = 1; x <= (width ? width : lua_objlen(L, -1)) && init_x + x - 1 < (unsigned)term->width * Terminal::fontWidth; x++) {
                 lua_pushinteger(L, x);
                 lua_gettable(L, -2);
                 if (lua_isnumber(L, -1) && lua_tointeger(L, -1) >= 0) {
-                    if (term->mode == 1) term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
-                    else term->pixels[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
+                    if (term->mode == 1) (*term->currentPixels())[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)((unsigned)log2(lua_tointeger(L, -1)) % 256);
+                    else (*term->currentPixels())[init_y + y - 1][(unsigned)init_x + x - 1] = (unsigned char)(lua_tointeger(L, -1) % 256);
                 }
                 lua_pop(L, 1);
             }
@@ -436,9 +436,9 @@ static int term_getPixels(lua_State* L) {
                 || (unsigned) y > term->height * Terminal::fontHeight)
                 lua_pushnil(L);
             else if (term->mode == 2)
-                lua_pushinteger(L, term->pixels[y][x]);
+                lua_pushinteger(L, (*term->currentPixels())[y][x]);
             else
-                lua_pushinteger(L, 1 << term->pixels[y][x]);
+                lua_pushinteger(L, 1 << (*term->currentPixels())[y][x]);
 
             lua_settable(L, -3);
         }
@@ -447,6 +447,28 @@ static int term_getPixels(lua_State* L) {
     }
 
     return 1;
+}
+
+static int term_bufferPixels(lua_State* L) {
+    lastCFunction = __func__;
+
+    luaL_checktype(L, 1, LUA_TBOOLEAN);
+    const int buffer = lua_toboolean(L, 1);
+
+    Computer* computer = get_comp(L);
+    Terminal* term = computer->term;
+    std::lock_guard<std::mutex> lock(term->locked);
+
+    if (buffer == term->bufferPixels) return 0;
+    term->bufferPixels = buffer;
+
+    if (buffer) {
+        memcpy(term->pixelBuffer.data(), term->pixels.data(), term->pixels.dataSize());
+    } else {
+        memcpy(term->pixels.data(), term->pixelBuffer.data(), term->pixels.dataSize());
+    }
+
+    return 0;
 }
 
 static int term_screenshot(lua_State *L) {
@@ -523,6 +545,7 @@ static luaL_reg term_reg[] = {
     {"nativePaletteColour", term_nativePaletteColor},
     {"drawPixels", term_drawPixels},
     {"getPixels", term_getPixels},
+    {"bufferPixels", term_bufferPixels},
     {"showMouse", term_showMouse},
     {NULL, NULL}
 };

@@ -389,6 +389,26 @@ int monitor::getPixels(lua_State* L) {
     return 1;
 }
 
+int monitor::bufferPixels(lua_State* L) {
+    lastCFunction = __func__;
+
+    luaL_checktype(L, 1, LUA_TBOOLEAN);
+    const int buffer = lua_toboolean(L, 1);
+
+    std::lock_guard<std::mutex> lock(term->locked);
+
+    if (buffer == term->bufferPixels) return 0;
+    term->bufferPixels = buffer;
+
+    if (buffer) {
+        memcpy(term->pixelBuffer.data(), term->pixels.data(), term->pixels.dataSize());
+    } else {
+        memcpy(term->pixels.data(), term->pixelBuffer.data(), term->pixels.dataSize());
+    }
+
+    return 0;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
@@ -422,6 +442,7 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "getTextScale") return getTextScale(L);
     else if (m == "drawPixels") return drawPixels(L);
     else if (m == "getPixels") return getPixels(L);
+    else if (m == "bufferPixels") return bufferPixels(L);
     else return 0;
 }
 
@@ -458,6 +479,7 @@ static luaL_Reg monitor_reg[] = {
     {"getTextScale", NULL},
     {"drawPixels", NULL},
     {"getPixels", NULL},
+    {"bufferPixels", NULL},
     {NULL, NULL}
 };
 

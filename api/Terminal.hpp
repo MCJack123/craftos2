@@ -104,6 +104,7 @@ public:
         height = h;
     }
     T* data() { return vec.data(); }
+    size_t dataSize() { return vec.size(); }
 };
 
 // The Terminal class is the base class for all renderers. It stores the basic info about all terminal objects, as well as its contents.
@@ -122,7 +123,9 @@ public:
     std::mutex locked; // A mutex locking access to the terminal - lock this before making any changes!
     vector2d<unsigned char> screen; // The buffer storing the characters displayed on screen
     vector2d<unsigned char> colors; // The buffer storing the foreground and background colors for each character
-    vector2d<unsigned char> pixels; // The buffer storing the values of all pixels in graphics mode
+    vector2d<unsigned char> pixels; // The on-screen buffer storing the values of all pixels in graphics mode
+    vector2d<unsigned char> pixelBuffer; // The off-screen buffer storing the values of all pixels in graphics mode
+    bool bufferPixels = false; // True if pixel updates should go to the pixelBuffer; false if they go straight to pixels
     int mode = 0; // The current mode of the screen: 0 = text, 1 = 16-color GFX, 2 = 256-color GFX
     Color palette[256]; // The color palette for the computer
     Color background = {0x1f, 0x1f, 0x1f}; // The color of the computer's background
@@ -137,7 +140,7 @@ public:
     bool errorMode = false; // For standards mode: whether the screen should stay on-screen after the computer terminates, for use with CC-style error screens
 protected:
     // Initial constructor to fill the contents with their defaults for the specified width and height
-    Terminal(unsigned w, unsigned h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
+    Terminal(unsigned w, unsigned h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F), pixelBuffer(w*fontWidth, h*fontHeight, 0x0F) {
         memcpy(palette, defaultPalette, sizeof(defaultPalette));
     }
     // Helper function to handle conversion to grayscale
@@ -152,6 +155,14 @@ public:
     virtual void showMessage(uint32_t flags, const char * title, const char * message)=0; // Displays a message on screen outside the bounds of CC
     virtual void setLabel(std::string label)=0; // Sets the title of the window
     virtual bool resize(unsigned w, unsigned h)=0; // Safely sets the size of the window
+
+    vector2d<unsigned char>* currentPixels() {
+        if (bufferPixels) {
+            return &pixelBuffer;
+        }
+
+        return &pixels;
+    }
 };
 
 #endif

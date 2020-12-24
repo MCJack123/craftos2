@@ -312,7 +312,7 @@ static int runRenderer() {
                             unsigned char n = (unsigned char)in.get();
                             for (int y = 0; y < height * 9; y++) {
                                 for (int x = 0; x < width * 6; x++) {
-                                    term->pixels[y][x] = c;
+                                    (*term->currentPixels())[y][x] = c;
                                     n--;
                                     if (n == 0) {
                                         c = (unsigned char)in.get();

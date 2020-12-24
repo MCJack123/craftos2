@@ -257,6 +257,7 @@ void SDLTerminal::render() {
             this->screen.resize(newWidth, newHeight, ' ');
             this->colors.resize(newWidth, newHeight, 0xF0);
             this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+            this->pixelBuffer.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
             this->width = newWidth;
             this->height = newHeight;
             changed = true;

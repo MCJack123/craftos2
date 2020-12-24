@@ -212,6 +212,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             self->term->screen = vector2d<unsigned char>(self->term->width, self->term->height, ' ');
             self->term->colors = vector2d<unsigned char>(self->term->width, self->term->height, 0xF0);
             self->term->pixels = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
+            self->term->pixelBuffer = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
             memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
             self->term->mode = 0;
         }

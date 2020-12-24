@@ -95,6 +95,7 @@ static void trorInputLoop() {
                     c->term->screen.resize(newWidth, newHeight, ' ');
                     c->term->colors.resize(newWidth, newHeight, 0xF0);
                     c->term->pixels.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
+                    c->term->pixelBuffer.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
                     c->term->width = newWidth;
                     c->term->height = newHeight;
                 } else {
@@ -104,6 +105,7 @@ static void trorInputLoop() {
                         m->term->screen.resize(newWidth, newHeight, ' ');
                         m->term->colors.resize(newWidth, newHeight, 0xF0);
                         m->term->pixels.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
+                        m->term->pixelBuffer.resize(newWidth * Terminal::fontWidth, newHeight * Terminal::fontHeight, 0x0F);
                         m->term->width = newWidth;
                         m->term->height = newHeight;
                     }
