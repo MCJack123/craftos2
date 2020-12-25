@@ -142,6 +142,7 @@ void mainLoop() {
 }
 
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
+    if (freedComputers.find((Computer*)param) != freedComputers.end()) return 0;
     if (((Computer*)param)->getting_event) return 0;
     ((Computer*)param)->forceCheckTimeout = true;
     return 1000;
