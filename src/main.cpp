@@ -223,7 +223,7 @@ static void update_thread() {
                         SDL_ShowMessageBox(&msg, &choice);
                         if (choice == 1) showReleaseNotes();
                         return NULL;
-                    }, (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
+                    }, (void*)(std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + obj->getValue<std::string>("html_url") + " to download the new version.").c_str());
 #endif
                 }
                 return;
