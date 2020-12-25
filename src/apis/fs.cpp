@@ -348,9 +348,8 @@ static int fs_delete(lua_State *L) {
 static int fs_combine(lua_State *L) {
     lastCFunction = __func__;
     const std::string basePath = luaL_checkstring(L, 1);
-    std::string localPath = luaL_checkstring(L, 2);
-    for (int i = 3; i <= lua_gettop(L); i++) localPath += "/" + std::string(luaL_checkstring(L, i));
-    lua_pushstring(L, astr(fixpath(get_comp(L), (basePath + "/" + localPath).c_str(), false, false)).c_str());
+    for (int i = 3; i <= lua_gettop(L); i++) basePath += "/" + std::string(luaL_checkstring(L, i));
+    lua_pushstring(L, astr(fixpath(get_comp(L), (basePath).c_str(), false, false)).c_str());
     return 1;
 }
 
