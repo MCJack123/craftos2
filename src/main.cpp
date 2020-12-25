@@ -465,7 +465,7 @@ int main(int argc, char*argv[]) {
                 return 0;
             } else {
                 arg = std::string(argv[i]);
-                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c, std::locale::classic()); });
+                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return ::tolower(c); });
                 if (arg == "sdl" || arg == "awt") selectedRenderer = 0;
                 else if (arg == "headless") selectedRenderer = 1;
 #ifndef NO_CLI
