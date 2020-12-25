@@ -128,7 +128,7 @@ public:
     Color background = {0x1f, 0x1f, 0x1f}; // The color of the computer's background
     int blinkX = 0; // The X position of the cursor
     int blinkY = 0; // The Y position of the cursor
-    bool blink = true; // Whether the cursor is currently drawn on-screen
+    bool blink = false; // Whether the cursor is currently drawn on-screen
     bool canBlink = true; // Whether the cursor should blink
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now(); // The time that the cursor last blinked
     int framecount = 0; // The number of frames that have been rendered

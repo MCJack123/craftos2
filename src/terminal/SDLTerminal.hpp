@@ -54,6 +54,7 @@ public:
     time_t lastSecond = time(0);
     std::chrono::system_clock::time_point lastScreenshotTime;
     unsigned char cursorColor = 0;
+    bool useOrigFont = false;
 
     static void init();
     static void quit();
@@ -61,7 +62,7 @@ public:
     SDLTerminal(std::string title);
     ~SDLTerminal() override;
     void setPalette(Color * p);
-    void setCharScale(int scale);
+    virtual void setCharScale(int scale);
     virtual bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
     bool resize(unsigned w, unsigned h) override;
@@ -84,10 +85,11 @@ protected:
     friend void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
     friend int main(int argc, char*argv[]);
     SDL_Surface *surf = NULL;
-    SDL_Surface *bmp;
+    static SDL_Surface *bmp;
+    static SDL_Surface *origfont;
     static Uint32 lastWindow;
     static std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > eventHandlers;
 
-    static SDL_Rect getCharacterRect(unsigned char c);
+    SDL_Rect getCharacterRect(unsigned char c);
 };
 #endif
