@@ -118,11 +118,11 @@ $(ODIR)/apis_%_handle.o: $(SDIR)/apis/handles/%_handle.cpp $(SDIR)/apis/handles/
 
 mac-plugin:
 	echo " [LD]    ccemux.bundle"
-	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
+	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include -Iapi
 
 linux-plugin:
 	echo " [LD]    ccemux.so"
-	$(CXX) -std=c++11 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include
+	$(CXX) -std=c++11 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include -Iapi
 
 clean: $(ODIR)
 	rm -f craftos

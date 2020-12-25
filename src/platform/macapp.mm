@@ -81,7 +81,7 @@ std::string getPlugInPath() {
     [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
     std::string s((const char*)retval);
     delete[] retval;
-    return s;
+    return s + "/";
 }
 
 std::string getMCSavePath() {
