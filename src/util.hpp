@@ -29,7 +29,9 @@ extern "C" {
 #define CRAFTOSPC_INDEV      true
 
 // for some reason Clang complains if this isn't present
+#ifdef __clang__
 template<> class std::hash<SDL_EventType>: public std::hash<unsigned short> {};
+#endif
 
 template<typename T>
 class ProtectedObject {

@@ -109,20 +109,34 @@ HardwareSDLTerminal::~HardwareSDLTerminal() {
 
 extern bool operator!=(Color lhs, Color rhs);
 
+void HardwareSDLTerminal::setCharScale(int scale) {
+    bool olduseOrigFont = useOrigFont;
+    SDLTerminal::setCharScale(scale);
+    if (useOrigFont != olduseOrigFont) {
+        std::lock_guard<std::mutex> lock(renderlock);
+        SDL_DestroyTexture(font);
+        font = SDL_CreateTextureFromSurface(ren, useOrigFont ? origfont : bmp);
+        if (font == (SDL_Texture*)0) {
+            throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
+        }
+    }
+}
+
+
 bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        (int)(x * charWidth * dpiScale + 2 * charScale * 2/fontScale * dpiScale), 
-        (int)(y * charHeight * dpiScale + 2 * charScale * 2/fontScale * dpiScale), 
-        (int)(fontWidth * 2/fontScale * charScale * dpiScale), 
-        (int)(fontHeight * 2/fontScale * charScale * dpiScale)
+        (int)(x * charWidth * dpiScale + 2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale), 
+        (int)(y * charHeight * dpiScale + 2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale), 
+        (int)(fontWidth * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale), 
+        (int)(fontHeight * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale)
     };
     SDL_Rect bgdestrect = destrect;
     if (config.standardsMode) {
-        if (x == 0) bgdestrect.x -= (int)(2 * charScale * 2 / fontScale * dpiScale);
-        if (y == 0) bgdestrect.y -= (int)(2 * charScale * 2 / fontScale * dpiScale);
-        if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * 2 / fontScale * dpiScale);
-        if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * 2 / fontScale * dpiScale);
+        if (x == 0) bgdestrect.x -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -168,7 +182,7 @@ void HardwareSDLTerminal::render() {
     Color newpalette[256];
     unsigned newwidth, newheight, newcharWidth, newcharHeight, newfontScale, newcharScale;
     int newblinkX, newblinkY, newmode;
-    bool newblink;
+    bool newblink, newuseOrigFont;
     unsigned char newcursorColor;
     {
         std::lock_guard<std::mutex> locked_g(locked);
@@ -190,7 +204,7 @@ void HardwareSDLTerminal::render() {
         newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
         memcpy(newpalette, palette, sizeof(newpalette));
         newblinkX = blinkX; newblinkY = blinkY; newmode = mode;
-        newblink = blink;
+        newblink = blink; newuseOrigFont = useOrigFont;
         newwidth = width; newheight = height; newcharWidth = charWidth; newcharHeight = charHeight; newfontScale = fontScale; newcharScale = charScale;
         newcursorColor = cursorColor;
         changed = false;
@@ -206,16 +220,16 @@ void HardwareSDLTerminal::render() {
     SDL_Rect rect;
     if (newmode != 0) {
         SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale), 24, SDL_PIXELFORMAT_RGB888);
-        for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=(2/ newfontScale)* newcharScale*dpiScale) {
-            for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=(2/ newfontScale)* newcharScale*dpiScale) {
-                unsigned char c = (*newpixels)[y / (2/ newfontScale) / newcharScale / dpiScale][x / (2/ newfontScale) / newcharScale / dpiScale];
+        for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale*dpiScale) {
+            for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale*dpiScale) {
+                unsigned char c = (*newpixels)[y / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale / dpiScale][x / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale / dpiScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, (int)x, (int)y, (int)((2 / newfontScale) * newcharScale * dpiScale), (int)((2 / newfontScale) * newcharScale * dpiScale)), rgb(newpalette[(int)c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, (int)x, (int)y, (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale)), rgb(newpalette[(int)c])) != 0) return;
             }
         }
         pixtex = SDL_CreateTextureFromSurface(ren, surf);
         SDL_FreeSurface(surf);
-        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * (2 / newfontScale) * newcharScale * dpiScale), (int)(2 * (2 / newfontScale) * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
+        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)(2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
     } else {
         for (unsigned y = 0; y < newheight; y++) {
             for (unsigned x = 0; x < newwidth; x++) {
@@ -300,7 +314,7 @@ void HardwareSDLTerminal::render() {
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
         if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); }
         SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, circle);
-        if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (int)(width * charWidth * dpiScale + 2 * charScale * fontScale * dpiScale) - 10, (int)(2 * charScale * fontScale * dpiScale), 10, 10)) != 0) return;
+        if (SDL_RenderCopy(ren, tex, NULL, setRect(&rect, (int)(width * charWidth * dpiScale + 2 * charScale * (newuseOrigFont ? 2 : newfontScale) * dpiScale) - 10, (int)(2 * charScale * fontScale * dpiScale), 10, 10)) != 0) return;
         SDL_FreeSurface(circle);
     }
 }
@@ -334,11 +348,37 @@ void HardwareSDLTerminal::init() {
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
     setThreadName(*renderThread, "Render Thread");
+    SDL_Surface* old_bmp;
+    if (config.customFontPath.empty()) 
+        old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, (int)font_image.width, (int)font_image.height, (int)font_image.bytes_per_pixel * 8, (int)font_image.bytes_per_pixel * (int)font_image.width, SDL_PIXELFORMAT_RGB565);
+#ifndef STANDALONE_ROM
+    else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP(astr(getROMPath() + WS("/hdfont.bmp")).c_str());
+#endif
+    else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
+    if (old_bmp == (SDL_Surface*)0) {
+        throw window_exception("Failed to load font: " + std::string(SDL_GetError()));
+    }
+    bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
+    if (bmp == (SDL_Surface*)0) {
+        SDL_FreeSurface(old_bmp);
+        throw window_exception("Failed to convert font: " + std::string(SDL_GetError()));
+    }
+    SDL_FreeSurface(old_bmp);
+    SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));
+    if (config.customFontPath.empty()) origfont = bmp;
+    else {
+        old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, (int)font_image.width, (int)font_image.height, (int)font_image.bytes_per_pixel * 8, (int)font_image.bytes_per_pixel * (int)font_image.width, SDL_PIXELFORMAT_RGB565);
+        origfont = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
+        SDL_FreeSurface(old_bmp);
+        SDL_SetColorKey(origfont, SDL_TRUE, SDL_MapRGB(origfont->format, 0, 0, 0));
+    }
 }
 
 void HardwareSDLTerminal::quit() {
     renderThread->join();
     delete renderThread;
+    SDL_FreeSurface(bmp);
+    if (bmp != origfont) SDL_FreeSurface(origfont);
     SDL_Quit();
 }
 

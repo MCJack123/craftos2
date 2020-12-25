@@ -821,9 +821,9 @@ std::string termGetEvent(lua_State *L) {
                 monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
                 if (m != NULL) {
                     lua_pushstring(L, side.c_str());
-                    if (strcmp(periphemu_lib.functions[1].name, "detach") == 0) lua_pop(L, periphemu_lib.functions[1].func(L) + 1);
+                    if (strcmp(periphemu_lib.functions[2].name, "remove") == 0) lua_pop(L, periphemu_lib.functions[2].func(L) + 1);
                     else for (int i = 0; periphemu_lib.functions[i].name; i++)
-                        if (strcmp(periphemu_lib.functions[i].name, "detach") == 0) {lua_pop(L, periphemu_lib.functions[i].func(L) + 1); break;}
+                        if (strcmp(periphemu_lib.functions[i].name, "remove") == 0) {lua_pop(L, periphemu_lib.functions[i].func(L) + 1); break;}
                 }
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_LEAVE && config.mouse_move_throttle >= 0 && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {

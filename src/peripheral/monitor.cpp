@@ -298,7 +298,7 @@ int monitor::setTextScale(lua_State *L) {
     SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
     if (sdlterm != NULL) {
         std::lock_guard<std::mutex> lock(sdlterm->locked);
-        sdlterm->charScale = (unsigned)lua_tonumber(L, -1) * 2;
+        sdlterm->charScale = (unsigned)(lua_tonumber(L, -1) * 2);
         queueTask([ ](void* term)->void*{((SDLTerminal*)term)->setCharScale(((SDLTerminal*)term)->charScale); return NULL;}, sdlterm);
         sdlterm->changed = true;
     }
