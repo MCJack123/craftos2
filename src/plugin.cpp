@@ -220,7 +220,6 @@ void deinitializePlugins() {
         loadingPlugin = astr(p.first.substr(p.first.find_last_of('/') + 1));
         const auto plugin_deinit = (void(*)(PluginInfo*))SDL_LoadFunction(p.second.first, "plugin_deinit");
         if (plugin_deinit != NULL) plugin_deinit(p.second.second);
-        else delete p.second.second;
         SDL_UnloadObject(p.second.first);
     }
     loadedPlugins.clear();

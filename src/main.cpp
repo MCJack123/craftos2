@@ -141,7 +141,7 @@ static void update_thread() {
         parser.parse(session.receiveResponse(response));
         Poco::JSON::Object::Ptr root = parser.asVar().extract<Poco::JSON::Object::Ptr>();
         if (root->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) {
-#if !(defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
+#if (defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
             SDL_MessageBoxData msg;
             SDL_MessageBoxButtonData buttons[] = {
                 {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"},

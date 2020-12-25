@@ -439,7 +439,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         if (computer->debugger == NULL && computer->hasBreakpoints) {
             lua_getinfo(L, "Sl", ar);
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
-                if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
+                if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline) {
                     noDebuggerBreak(L, computer, ar);
                     break;
                 }
@@ -453,7 +453,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 } else if (!computer->breakpoints.empty()) {
                     lua_getinfo(L, "Sl", ar);
                     for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
-                        if (b.second.first == std::string(ar->source) && b.second.second == ar->currentline) {
+                        if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline) {
                             if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
                             break;
                         }
@@ -494,7 +494,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->thread == NULL) {
                 lua_getinfo(L, "nS", ar);
-                if (ar->name != NULL && ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require") && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
+                if (ar->name != NULL && ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require" || (std::string(ar->name) == "loadfile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
                     (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN)))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
             }
             if (dbg->isProfiling) {

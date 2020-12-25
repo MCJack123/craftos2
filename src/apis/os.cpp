@@ -117,9 +117,9 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
         std::lock_guard<std::mutex> lock(data->comp->timerIDsMutex);
         if (data->comp->timerIDs.find(data->timer) != data->comp->timerIDs.end()) data->comp->timerIDs.erase(data->timer);
     }
+    queueEvent(data->comp, timer_event, data);
     data->comp->event_lock.notify_all();
     data->lock->unlock();
-    queueEvent(data->comp, timer_event, data);
     return 0;
 }
 
