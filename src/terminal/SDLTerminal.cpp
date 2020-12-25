@@ -476,6 +476,17 @@ void SDLTerminal::toggleFullscreen() {
     fullscreen = !fullscreen;
     if (fullscreen) queueTask([ ](void* param)->void*{SDL_SetWindowFullscreen((SDL_Window*)param, SDL_WINDOW_FULLSCREEN_DESKTOP); return NULL;}, win);
     else queueTask([ ](void* param)->void*{SDL_SetWindowFullscreen((SDL_Window*)param, 0); return NULL;}, win);
+    if (!fullscreen) {
+        SDL_Event e;
+        int w, h;
+        SDL_GetWindowSize(win, &w, &h);
+        e.type = SDL_WINDOWEVENT;
+        e.window.windowID = SDL_GetWindowID(win);
+        e.window.event = SDL_WINDOWEVENT_RESIZED;
+        e.window.data1 = w;
+        e.window.data2 = h;
+        SDL_PushEvent(&e);
+    }
 }
 
 void SDLTerminal::setLabel(std::string label) {
