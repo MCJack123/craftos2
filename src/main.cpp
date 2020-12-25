@@ -2,49 +2,57 @@
  * main.cpp
  * CraftOS-PC 2
  * 
- * This file controls the Lua VM, loads the CraftOS BIOS, and sends events back.
+ * This file handles command-line flags, sets up the runtime, and starts the
+ * first computer.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
-#include "Computer.hpp"
-#include "config.hpp"
+#include "main.hpp"
+static int runRenderer();
+static void showReleaseNotes();
+static void* releaseNotesThread(void* data);
+#include <functional>
+#include <iomanip>
+#include <thread>
+#include <Computer.hpp>
+#include <configuration.hpp>
 #include "peripheral/drive.hpp"
 #include "peripheral/speaker.hpp"
 #include "platform.hpp"
+#include "runtime.hpp"
 #include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
-#include <functional>
-#include <thread>
-#include <iomanip>
+#include "termsupport.hpp"
+#include <Poco/Checksum.h>
+#include <Poco/JSON/Parser.h>
 #ifndef __EMSCRIPTEN__
 #include <Poco/Net/HTTPSClientSession.h>
-#include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
-#endif
-#include <Poco/JSON/Parser.h>
-#include <Poco/Checksum.h>
-#ifdef __EMSCRIPTEN__
+#else
 #include <emscripten/emscripten.h>
 #endif
+extern "C" {
+#include <lualib.h>
+}
 
-extern void config_init();
-extern void config_save();
-extern void mainLoop();
-extern void awaitTasks();
+extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
-extern void* queueTask(std::function<void*(void*)> func, void* arg, bool async = false);
-extern std::list<std::thread*> computerThreads;
-extern bool exiting;
-extern std::atomic_bool taskQueueReady;
-extern std::condition_variable taskQueueNotify;
-extern std::unordered_map<path_t, void*> loadedPlugins;
+extern library_t * libraries[8];
+#ifdef WIN32
+extern void* kernel32handle;
+#endif
+#ifdef STANDALONE_ROM
+extern FileEntry standaloneROM;
+extern FileEntry standaloneDebug;
+extern std::string standaloneBIOS;
+#endif
+
 int selectedRenderer = -1; // 0 = SDL, 1 = headless, 2 = CLI, 3 = Raw
 bool rawClient = false;
 std::string overrideHardwareDriver;
@@ -54,12 +62,74 @@ std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
-#ifdef WIN32
-extern void* kernel32handle;
-#endif
+std::unordered_map<path_t, std::string> globalPluginErrors;
 
-#ifndef __EMSCRIPTEN__
-void update_thread() {
+static void* releaseNotesThread(void* data) {
+    Computer * comp = (Computer*)data;
+#ifdef __APPLE__
+    pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
+#endif
+    // seed the Lua RNG
+    srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);
+    // in case the allocator decides to reuse pointers
+    if (freedComputers.find(comp) != freedComputers.end())
+        freedComputers.erase(comp);
+    try {
+#ifdef STANDALONE_ROM
+        runComputer(comp, wstr(standaloneDebug["bios.lua"].data));
+#else
+        runComputer(comp, WS("debug/bios.lua"));
+#endif
+    } catch (std::exception &e) {
+        fprintf(stderr, "Uncaught exception while executing computer %d: %s\n", comp->id, e.what());
+        queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
+        if (comp->L != NULL) {
+            comp->event_lock.notify_all();
+            for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+            lua_close(comp->L);   /* Cya, Lua */
+            comp->L = NULL;
+        }
+    }
+    freedComputers.insert(comp);
+    {
+        LockGuard lock(computers);
+        for (auto it = computers->begin(); it != computers->end(); ++it) {
+            if (*it == comp) {
+                it = computers->erase(it);
+                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
+                if (it == computers->end()) break;
+            }
+        }
+    }
+    if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
+        {LockGuard lock(taskQueue);}
+        while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        taskQueueReady = true;
+        taskQueueNotify.notify_all();
+        while (taskQueueReady && !exiting) {std::this_thread::yield(); taskQueueNotify.notify_all();}
+    }
+    return NULL;
+}
+
+static void showReleaseNotes() {
+    Computer * comp;
+    try {comp = new Computer(-1, true);} catch (std::exception &e) {
+        if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
+        else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
+        return;
+    }
+    {
+        LockGuard lock(computers);
+        computers->push_back(comp);
+    }
+    if (comp->term != NULL) comp->term->setLabel("Release Notes");
+    std::thread * th = new std::thread(releaseNotesThread, comp);
+    setThreadName(*th, "Release Note Viewer Thread");
+    computerThreads.push_back(th);
+}
+
+#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+static void update_thread() {
     try {
         Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
         Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases", Poco::Net::HTTPMessage::HTTP_1_1);
@@ -74,33 +144,59 @@ void update_thread() {
             Poco::JSON::Object::Ptr obj = it->extract<Poco::JSON::Object::Ptr>();
             if (obj->getValue<std::string>("target_commitish") == "luajit") {
                 if (obj->getValue<std::string>("tag_name") != CRAFTOSPC_VERSION) {
-#if defined(__APPLE__) || defined(WIN32) && !defined(STANDALONE_ROM)
+#if (defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
                     SDL_MessageBoxData msg;
                     SDL_MessageBoxButtonData buttons[] = {
-                        {0, 0, "Skip This Version"},
+                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"},
                         {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Ask Me Later"},
-                        {0, 2, "Update On Quit"},
-                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"}
+                        {0, 0, "More Options..."}
                     };
                     msg.flags = SDL_MESSAGEBOX_INFORMATION;
                     msg.window = NULL;
                     msg.title = "Update available!";
-                    std::string message = (std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
+                    const std::string message = (std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Would you like to update to the latest version?");
                     msg.message = message.c_str();
-                    msg.numbuttons = 4;
+                    msg.numbuttons = 3;
                     msg.buttons = buttons;
                     msg.colorScheme = NULL;
                     int* choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
                     int choice = *choicep;
                     delete choicep;
                     switch (choice) {
-                        case 0:
-                            config.skipUpdate = CRAFTOSPC_VERSION;
-                            return;
-                        case 1:
-                            return;
-                        case 2:
-                            updateAtQuit = obj->getValue<std::string>("tag_name");
+                        case 0: {
+                            SDL_MessageBoxButtonData buttons2[] = {
+                                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 3, "Cancel"},
+                                {0, 2, "View Release Notes"},
+                                {0, 1, "Skip This Version"},
+                                {0, 0, "Update at Quit"}
+                            };
+                            msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                            msg.window = NULL;
+                            msg.title = "Update Options";
+                            msg.message = "Select an option:";
+                            msg.numbuttons = 4;
+                            msg.buttons = buttons2;
+                            msg.colorScheme = NULL;
+                            choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
+                            choice = *choicep;
+                            delete choicep;
+                            switch (choice) {
+                            case 0:
+                                updateAtQuit = obj->getValue<std::string>("tag_name");
+                                return;
+                            case 1:
+                                config.skipUpdate = CRAFTOSPC_VERSION;
+                                config_save();
+                                return;
+                            case 2:
+                                queueTask([](void*)->void*{showReleaseNotes(); return NULL;}, NULL);
+                                return;
+                            case 3:
+                                return;
+                            default:
+                                exit(choice);
+                            }
+                        } case 1:
                             return;
                         case 3:
                             queueTask([obj](void*)->void*{updateNow(obj->getValue<std::string>("tag_name")); return NULL;}, NULL);
@@ -110,7 +206,24 @@ void update_thread() {
                             exit(choice);
                     }
 #else
-                    queueTask([](void* arg)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Update available!", (const char*)arg, NULL); return NULL; }, (void*)(std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + obj->getValue<std::string>("html_url") + " to download the new version.").c_str());
+                    queueTask([](void* arg)->void*{
+                        SDL_MessageBoxData msg;
+                        SDL_MessageBoxButtonData buttons[] = {
+                            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "OK"},
+                            {0, 1, "Release Notes"}
+                        };
+                        msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                        msg.window = NULL;
+                        msg.title = "Update available!";
+                        msg.message = (const char*)arg;
+                        msg.numbuttons = 2;
+                        msg.buttons = buttons;
+                        msg.colorScheme = NULL;
+                        int choice = 0;
+                        SDL_ShowMessageBox(&msg, &choice);
+                        if (choice == 1) showReleaseNotes();
+                        return NULL;
+                    }, (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
 #endif
                 }
                 return;
@@ -122,7 +235,7 @@ void update_thread() {
 }
 #endif
 
-inline Terminal * createTerminal(std::string title) {
+inline Terminal * createTerminal(const std::string& title) {
 #ifndef NO_CLI
     if (selectedRenderer == 2) return new CLITerminal(title);
     else
@@ -132,9 +245,8 @@ inline Terminal * createTerminal(std::string title) {
     else return new SDLTerminal(title);
 }
 
-extern std::thread::id mainThreadID;
 
-int runRenderer() {
+static int runRenderer() {
     if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 5) HardwareSDLTerminal::init();
     else {
@@ -143,8 +255,8 @@ int runRenderer() {
     }
     std::thread inputThread([](){
         while (!exiting) {
-            unsigned char c = std::cin.get();
-            if (c == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
+            unsigned char c1 = (unsigned char)std::cin.get();
+            if (c1 == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
                 char size[5];
                 std::cin.read(size, 4);
                 long sizen = strtol(size, NULL, 16);
@@ -162,8 +274,8 @@ int runRenderer() {
                 }
                 std::stringstream in(b64decode(tmp));
                 delete[] tmp;
-                uint8_t type = in.get();
-                uint8_t id = in.get();
+                uint8_t type = (uint8_t)in.get();
+                uint8_t id = (uint8_t)in.get();
                 switch (type) {
                 case 0: {
                     if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
@@ -175,17 +287,17 @@ int runRenderer() {
                         in.read((char*)&height, 2);
                         in.read((char*)&term->blinkX, 2);
                         in.read((char*)&term->blinkY, 2);
-                        in.seekg(in.tellg()+std::streamoff(4)); // reserved
+                        in.seekg(in.tellg()+(std::streamoff)4); // reserved
                         if (term->mode == 0) {
-                            unsigned char c = in.get();
-                            unsigned char n = in.get();
+                            unsigned char c = (unsigned char)in.get();
+                            unsigned char n = (unsigned char)in.get();
                             for (int y = 0; y < height; y++) {
                                 for (int x = 0; x < width; x++) {
                                     term->screen[y][x] = c;
                                     n--;
                                     if (n == 0) {
-                                        c = in.get();
-                                        n = in.get();
+                                        c = (unsigned char)in.get();
+                                        n = (unsigned char)in.get();
                                     }
                                 }
                             }
@@ -194,23 +306,23 @@ int runRenderer() {
                                     term->colors[y][x] = c;
                                     n--;
                                     if (n == 0) {
-                                        c = in.get();
-                                        n = in.get();
+                                        c = (unsigned char)in.get();
+                                        n = (unsigned char)in.get();
                                     }
                                 }
                             }
                             in.putback(n);
                             in.putback(c);
                         } else {
-                            unsigned char c = in.get();
-                            unsigned char n = in.get();
+                            unsigned char c = (unsigned char)in.get();
+                            unsigned char n = (unsigned char)in.get();
                             for (int y = 0; y < height * 9; y++) {
                                 for (int x = 0; x < width * 6; x++) {
                                     term->pixels[y][x] = c;
                                     n--;
                                     if (n == 0) {
-                                        c = in.get();
-                                        n = in.get();
+                                        c = (unsigned char)in.get();
+                                        n = (unsigned char)in.get();
                                     }
                                 }
                             }
@@ -219,22 +331,22 @@ int runRenderer() {
                         }
                         if (term->mode != 2) {
                             for (int i = 0; i < 16; i++) {
-                                term->palette[i].r = in.get();
-                                term->palette[i].g = in.get();
-                                term->palette[i].b = in.get();
+                                term->palette[i].r = (uint8_t)in.get();
+                                term->palette[i].g = (uint8_t)in.get();
+                                term->palette[i].b = (uint8_t)in.get();
                             }
                         } else {
                             for (int i = 0; i < 256; i++) {
-                                term->palette[i].r = in.get();
-                                term->palette[i].g = in.get();
-                                term->palette[i].b = in.get();
+                                term->palette[i].r = (uint8_t)in.get();
+                                term->palette[i].g = (uint8_t)in.get();
+                                term->palette[i].b = (uint8_t)in.get();
                             }
                         }
                         term->changed = true;
                     }
                     break;
                 } case 4: {
-                    uint8_t quit = in.get();
+                    uint8_t quit = (uint8_t)in.get();
                     if (quit == 1) {
                         queueTask([id](void*)->void*{
                             rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
@@ -259,7 +371,7 @@ int runRenderer() {
                     in.read((char*)&height, 2);
                     std::string title;
                     char c;
-                    while ((c = in.get())) title += c;
+                    while ((c = (char)in.get())) title += c;
                     if (rawClientTerminals.find(id) == rawClientTerminals.end()) {
                         rawClientTerminals[id] = (Terminal*)queueTask([](void*t)->void*{return createTerminal(*(std::string*)t);}, &title);
                         rawClientTerminalIDs[rawClientTerminals[id]->id] = id;
@@ -271,11 +383,11 @@ int runRenderer() {
                     std::string title, message;
                     char c;
                     in.read((char*)&flags, 4);
-                    while ((c = in.get())) title += c;
-                    while ((c = in.get())) message += c;
+                    while ((c = (char)in.get())) title += c;
+                    while ((c = (char)in.get())) message += c;
                     if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
                     else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
-                }}
+                } default: {}}
             }
         }
     });
@@ -294,6 +406,8 @@ int runRenderer() {
 #endif
 
 int main(int argc, char*argv[]) {
+    lualib_debug_ccpc_functions(setcompmask_, db_debug, db_breakpoint, db_unsetbreakpoint);
+    lualib_io_ccpc_functions(mounter_fopen_, mounter_fclose_);
 #ifdef __EMSCRIPTEN__
     while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
 #endif
@@ -310,7 +424,7 @@ int main(int argc, char*argv[]) {
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
         else if (arg == "--args") script_args = argv[++i];
-        else if (arg == "--plugin") Computer::customPlugins.push_back(wstr(argv[++i]));
+        else if (arg == "--plugin") customPlugins.push_back(wstr(argv[++i]));
         else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
         else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
         else if (arg == "--computers-dir" || arg == "-C") computerDir = wstr(argv[++i]);
@@ -334,7 +448,7 @@ int main(int argc, char*argv[]) {
                 std::cerr << "Could not parse mount path string\n";
                 return 1;
             }
-            Computer::customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
+            customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
         } else if (arg == "--renderer" || arg == "-r") {
             if (++i == argc) {
                 checkTTY();
@@ -351,7 +465,7 @@ int main(int argc, char*argv[]) {
                 return 0;
             } else {
                 arg = std::string(argv[i]);
-                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c); });
+                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c, std::locale::classic()); });
                 if (arg == "sdl" || arg == "awt") selectedRenderer = 0;
                 else if (arg == "headless") selectedRenderer = 1;
 #ifndef NO_CLI
@@ -387,7 +501,7 @@ int main(int argc, char*argv[]) {
 #ifdef __EMSCRIPTEN__
             std::cout << " wasm";
 #endif
-#if PRINT_TYPE == 0
+#if !defined(PRINT_TYPE) || PRINT_TYPE == 0
             std::cout << " print_pdf";
 #elif PRINT_TYPE == 1
             std::cout << " print_html";
@@ -445,7 +559,7 @@ int main(int argc, char*argv[]) {
 #else
     if (computerDir.empty()) computerDir = getBasePath() + WS("/computer");
 #endif
-    if (!customDataDir.empty()) Computer::customDataDirs[id] = customDataDir;
+    if (!customDataDir.empty()) customDataDirs[id] = customDataDir;
     setupCrashHandler();
     migrateData();
     config_init();
@@ -464,8 +578,9 @@ int main(int argc, char*argv[]) {
 #ifndef NO_MIXER
     speakerInit();
 #endif
-#if !defined(__EMSCRIPTEN__)
-    if (!CRAFTOSPC_INDEV && (selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
+    globalPluginErrors = initializePlugins();
+#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+    if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
     startComputer(manualID ? id : config.initialComputer);
@@ -473,9 +588,23 @@ int main(int argc, char*argv[]) {
     emscripten_set_main_loop(mainLoop, 60, 1);
     return 0;
 #else
-    mainLoop();
+    try {
+        mainLoop();
+    } catch (std::exception &e) {
+        fprintf(stderr, "Uncaught exception on main thread: %s\n", e.what());
+        if (selectedRenderer == 0 || selectedRenderer == 5) queueTask([e](void*t)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", (std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on main thread: ") + e.what() + "\". CraftOS-PC will now close.").c_str(), NULL); return NULL; }, NULL);
+        for (Computer * c : *computers) {
+            c->running = 0;
+            c->event_lock.notify_all();
+        }
+        exiting = true;
+        awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
+    }
 #endif
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
+    // C++ doesn't like it if we try to empty the SDL event list once the plugins are gone
+    SDLTerminal::eventHandlers.clear();
+    deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();
 #endif
@@ -495,7 +624,6 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 4) TRoRTerminal::quit();
     else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
-    for (auto p : loadedPlugins) SDL_UnloadObject(p.second);
 #ifdef WIN32
     if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
 #endif

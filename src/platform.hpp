@@ -2,8 +2,8 @@
  * platform.hpp
  * CraftOS-PC 2
  * 
- * This file defines functions that differ based on the platform the program is
- * built for.
+ * This file defines functions that have implementations that differ based on
+ * the platform the program is built for.
  * 
  * This code is licensed under the MIT license.
  * Copyright (c) 2019-2020 JackMacWindows.
@@ -11,15 +11,15 @@
 
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
-extern "C" {
-#include <lua.h>
-}
-#include "Computer.hpp"
+#include <string>
 #include <thread>
+#include <lib.hpp>
+#include <SDL2/SDL.h>
 
+// Filesystem definitions (UTF-16 vs. not Windows)
 #ifdef WIN32
-typedef std::wstring path_t;
 #define pathstream_t std::wstringstream
+#define pathregex std::wregex
 #define platform_stat _wstat
 #define platform_access _waccess
 extern FILE* platform_fopen(const wchar_t* path, const char * mode);
@@ -40,8 +40,9 @@ extern std::string astr(path_t str);
 extern char* basename(char* path);
 extern char* dirname(char* path);
 #else
-typedef std::string path_t;
+//typedef std::string path_t;
 #define pathstream_t std::stringstream
+#define pathregex std::regex
 #define platform_stat stat
 #define platform_access access
 #define platform_fopen fopen
@@ -60,18 +61,18 @@ typedef std::string path_t;
 #define pathcmp strcmp
 #endif
 
-extern void setThreadName(std::thread &t, std::string name);
-extern int createDirectory(path_t path);
-extern unsigned long long getFreeSpace(path_t path);
-extern unsigned long long getCapacity(path_t path);
-extern int removeDirectory(path_t path);
+extern void setThreadName(std::thread &t, const std::string& name);
+extern int createDirectory(const path_t& path);
+extern unsigned long long getFreeSpace(const path_t& path);
+extern unsigned long long getCapacity(const path_t& path);
+extern int removeDirectory(const path_t& path);
 extern void setBasePath(const char * path);
 extern void setROMPath(const char * path);
 extern path_t getBasePath();
 extern path_t getROMPath();
 extern path_t getPlugInPath();
 extern path_t getMCSavePath();
-extern void updateNow(std::string tag_name);
+extern void updateNow(const std::string& tag_name);
 extern void migrateData();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();

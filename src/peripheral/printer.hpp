@@ -8,9 +8,11 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#include "peripheral.hpp"
+#ifndef PERIPHERAL_PRINTER_HPP
+#define PERIPHERAL_PRINTER_HPP
 #include <string>
 #include <vector>
+#include <peripheral.hpp>
 
 #define PRINT_TYPE_PDF 0
 #define PRINT_TYPE_HTML 1
@@ -185,10 +187,11 @@ private:
 public:
     static peripheral * init(lua_State *L, const char * side) {return new printer(L, side);}
     static void deinit(peripheral * p) {delete (printer*)p;}
-    destructor getDestructor() {return deinit;}
+    destructor getDestructor() const override {return deinit;}
     printer(lua_State *L, const char * side);
     ~printer();
-    int call(lua_State *L, const char * method);
-    void update() {}
-    library_t getMethods() {return methods;}
+    int call(lua_State *L, const char * method) override;
+    library_t getMethods() const override {return methods;}
 };
+
+#endif

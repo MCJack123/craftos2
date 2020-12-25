@@ -11,11 +11,11 @@
 #ifndef PERIPHERAL_DRIVE_HPP
 #define PERIPHERAL_DRIVE_HPP
 #include <unordered_set>
+#include <peripheral.hpp>
+#include "../util.hpp"
 #ifndef NO_MIXER
 #include <SDL2/SDL_mixer.h>
 #endif
-#include "peripheral.hpp"
-#include "../mounter.hpp"
 
 enum class disk_type {
     DISK_TYPE_NONE,
@@ -51,12 +51,11 @@ public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new drive(L, side);}
     static void deinit(peripheral * p) {delete (drive*)p;}
-    destructor getDestructor() {return deinit;}
-    library_t getMethods() { return methods; }
+    destructor getDestructor() const override {return deinit;}
+    library_t getMethods() const override { return methods; }
     drive(lua_State *L, const char * side);
     ~drive();
-    int call(lua_State *L, const char * method);
-    void update() {}
+    int call(lua_State *L, const char * method) override;
 };
 
 extern void driveInit();

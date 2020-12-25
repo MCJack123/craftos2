@@ -10,10 +10,12 @@
 
 #ifndef PERIPHERAL_DEBUGGER_HPP
 #define PERIPHERAL_DEBUGGER_HPP
-#include "peripheral.hpp"
-#include <mutex>
+#include <atomic>
 #include <condition_variable>
+#include <mutex>
 #include <thread>
+#include <unordered_map>
+#include <peripheral.hpp>
 
 #define DEBUGGER_BREAK_TYPE_NONSTOP 0
 #define DEBUGGER_BREAK_TYPE_LINE    1
@@ -27,7 +29,7 @@
 
 class debugger: public peripheral {
     friend int debugger_lib_getInfo(lua_State *L);
-    friend void debuggerThread(Computer*, debugger*, std::string);
+    friend void debuggerThread(Computer*, void*, std::string);
 private:
     bool deleteThis = false;
     Computer * monitor;
@@ -54,6 +56,7 @@ public:
     std::string breakFunc;
     bool didBreak = false;
     bool confirmBreak = false;
+    bool waitingForBreak = false;
     std::string breakReason;
     std::mutex breakMutex;
     std::condition_variable breakNotify;
@@ -61,13 +64,12 @@ public:
     std::unordered_map<std::string, std::unordered_map<std::string, profile_entry > > profile;
     bool isProfiling = false;
     static void deinit(peripheral * p) {delete (debugger*)p;}
-    destructor getDestructor() {return deinit;}
+    destructor getDestructor() const override {return deinit;}
     debugger(lua_State *L, const char * side);
     ~debugger();
-    void update(){}
-    int call(lua_State *L, const char * method);
-    library_t getMethods() {return methods;}
-    void reinitialize(lua_State *L);
+    int call(lua_State *L, const char * method) override;
+    library_t getMethods() const override {return methods;}
+    void reinitialize(lua_State *L) override;
 };
 
 #endif

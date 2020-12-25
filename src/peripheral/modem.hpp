@@ -8,12 +8,15 @@
  * Copyright (c) 2019-2020 JackMacWindows. 
  */
 
-#include "peripheral.hpp"
+#ifndef PERIPHERAL_MODEM_HPP
+#define PERIPHERAL_MODEM_HPP
+#include <mutex>
 #include <unordered_set>
+#include <peripheral.hpp>
 
 class modem: public peripheral {
 private:
-    friend const char * modem_message(lua_State *, void*);
+    friend std::string modem_message(lua_State *, void*);
     std::unordered_set<uint16_t> openPorts;
     std::unordered_set<void*> modemMessages;
     Computer * comp;
@@ -38,11 +41,12 @@ public:
     static library_t methods;
     static peripheral * init(lua_State *L, const char * side) {return new modem(L, side);}
     static void deinit(peripheral * p) {delete (modem*)p;}
-    destructor getDestructor() {return deinit;}
-    library_t getMethods() {return methods;}
+    destructor getDestructor() const override {return deinit;}
+    library_t getMethods() const override {return methods;}
     modem(lua_State *L, const char * side);
     ~modem();
-    int call(lua_State *L, const char * method);
-    void update() {}
-    void reinitialize(lua_State *L);
+    int call(lua_State *L, const char * method) override;
+    void reinitialize(lua_State *L) override;
 };
+
+#endif

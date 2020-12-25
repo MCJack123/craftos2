@@ -1,5 +1,5 @@
 /*
- * CLITerminal.cpp
+ * terminal/CLITerminal.cpp
  * CraftOS-PC 2
  * 
  * This file implements the CLITerminal class.
@@ -8,23 +8,30 @@
  * Copyright (c) 2019-2020 JackMacWindows.
  */
 
-#define CRAFTOSPC_INTERNAL
 #ifndef NO_CLI
+static void pressControl(int sig);
+static void pressAlt(int sig);
+#define PDC_NCMOUSE
+#include <cerrno>
+#include <csignal>
+#include <cstdio>
+#include <cstring>
+#include <thread>
+#include <unordered_map>
+#include <curses.h>
+#include <panel.h>
 #include "CLITerminal.hpp"
 #include "SDLTerminal.hpp"
+#include "RawTerminal.hpp"
+#include "../main.hpp"
 #include "../peripheral/monitor.hpp"
-#include <thread>
-#include <errno.h>
-#include <string.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <ncurses.h>
-#include <panel.h>
-#include <signal.h>
+#include "../termsupport.hpp"
+#include "../runtime.hpp"
+#ifdef NCURSES_BUTTON_PRESSED
+#define BUTTON_PRESSED NCURSES_BUTTON_PRESSED
+#define BUTTON_RELEASED NCURSES_BUTTON_RELEASED
+#endif
 
-extern void termRenderLoop();
-extern std::thread * renderThread;
-extern std::unordered_map<int, unsigned char> keymap_cli;
 std::set<unsigned> CLITerminal::currentIDs;
 std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
 bool CLITerminal::stopRender = false;
@@ -74,14 +81,14 @@ CLITerminal::~CLITerminal() {
     if (currentIDs.size() == 0) return;
     if (next == currentIDs.end()) next--;
     selectedWindow = next;
-    Terminal::renderTargetsLock.lock();
+    renderTargetsLock.lock();
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    Terminal::renderTargetsLock.unlock();
+    renderTargetsLock.unlock();
 }
 
 bool CLITerminal::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {
@@ -121,8 +128,8 @@ void CLITerminal::render() {
             }
             lastPaletteChecksum = checksum;
         }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+        for (unsigned y = 0; y < height; y++) {
+            for (unsigned x = 0; x < width; x++) {
                 move(y, x);
                 addch((screen[y][x] ? screen[y][x] : ' ') | COLOR_PAIR(colors[y][x]));
                 if (stopRender) {stopRender = false; return;}
@@ -143,7 +150,7 @@ void CLITerminal::getMouse(int *x, int *y) {
     *y = -1;
 }
 
-bool CLITerminal::resize(int w, int h) {
+bool CLITerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
     gotResizeEvent = (newWidth != width || newHeight != height);
@@ -152,7 +159,7 @@ bool CLITerminal::resize(int w, int h) {
     return true;
 }
 
-void CLITerminal::showMessage(Uint32 flags, const char * title, const char * message) {
+void CLITerminal::showMessage(uint32_t flags, const char * title, const char * message) {
     fprintf(stderr, "%s: %s\n", title, message);
 }
 
@@ -172,24 +179,25 @@ void CLITerminal::setLabel(std::string label) {
     if (*selectedWindow == id) renderNavbar(label);
 }
 
-short original_colors[16][3];
-MEVENT me;
-WINDOW * tmpwin;
-std::set<int> lastch;
-bool resizeRefresh = false;
+static short original_colors[16][3];
+static MEVENT me;
+static WINDOW * tmpwin;
+static std::set<int> lastch;
+static bool resizeRefresh = false;
 
-void handle_winch(int sig) {
+static void handle_winch(int sig) {
     resizeRefresh = true;
     endwin();
     refresh();
     clear();
 }
 
-void pressControl(int sig) {
+static void pressControl(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)29;
-    for (Computer * c : computers) {
+    LockGuard lock(computers);
+    for (Computer * c : *computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
@@ -202,11 +210,12 @@ void pressControl(int sig) {
     }
 }
 
-void pressAlt(int sig) {
+static void pressAlt(int sig) {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.keysym.sym = (SDL_Keycode)56;
-    for (Computer * c : computers) {
+    LockGuard lock(computers);
+    for (Computer * c : *computers) {
         if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
@@ -252,14 +261,16 @@ void CLITerminal::init() {
             keymap_cli[KEY_SEND] = 56;
         }
     }
-    tmpwin = newwin(0, 0, 1, 1);
+    tmpwin = newpad(1, 1);
     nodelay(tmpwin, TRUE);
     keypad(tmpwin, TRUE);
+#ifdef SIGWINCH
     signal(SIGWINCH, handle_winch);
     if (config.cliControlKeyMode == 3) {
         signal(SIGINT, pressControl);
         signal(SIGQUIT, pressAlt);
     }
+#endif
     renderThread = new std::thread(termRenderLoop);
     setThreadName(*renderThread, "Render Thread");
 }
@@ -278,26 +289,22 @@ void CLITerminal::quit() {
     SDL_Quit();
 }
 
-extern std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > taskQueue;
-extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
-extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn);
-
 #ifdef __EMSCRIPTEN__
 #define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
 #else
 #define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
 #endif
 
-extern bool rawClient;
-extern void sendRawEvent(SDL_Event e);
 #define sendEventToTermQueue(e, TYPE) \
     if (rawClient) {e.TYPE.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}\
-    else {for (Computer * c : computers) {if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
-        std::lock_guard<std::mutex> lock(c->termEventQueueMutex);\
-        e.TYPE.windowID = c->term->id;\
-        c->termEventQueue.push(e);\
-        c->event_lock.notify_all();\
-    }}}
+    else {LockGuard lock(computers);\
+        for (Computer * c : *computers) {if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
+            std::lock_guard<std::mutex> lock(c->termEventQueueMutex);\
+            e.TYPE.windowID = c->term->id;\
+            c->termEventQueue.push(e);\
+            c->event_lock.notify_all();\
+        }\
+    }}
 
 bool CLITerminal::pollEvents() {
     SDL_Event e;
@@ -314,7 +321,7 @@ bool CLITerminal::pollEvents() {
         lastch.clear();
         nodelay(tmpwin, TRUE);
         keypad(tmpwin, TRUE);
-        while (ch == ERR && taskQueue.size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
+        while (ch == ERR && taskQueue->size() == 0 && !resizeRefresh) ch = wgetch(tmpwin);
     }
     if (resizeRefresh) {
         resizeRefresh = false;
@@ -328,7 +335,8 @@ bool CLITerminal::pollEvents() {
         // TODO: Fix this for raw client mode
         e.type = SDL_WINDOWEVENT;
         e.window.event = SDL_WINDOWEVENT_RESIZED;
-        for (Computer * c : computers) {
+        LockGuard lock(computers);
+        for (Computer * c : *computers) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.window.data1 = COLS;
             e.window.data2 = LINES - 1;
@@ -338,14 +346,14 @@ bool CLITerminal::pollEvents() {
             c->event_lock.notify_all();
         }
     }
-    while (taskQueue.size() > 0) {
-        auto v = taskQueue.front();
+    while (taskQueue->size() > 0) {
+        auto v = taskQueue->front();
         void* retval = std::get<1>(v)(std::get<2>(v));
         if (!std::get<3>(v)) {
             LockGuard lock2(taskQueueReturns);
             (*taskQueueReturns)[std::get<0>(v)] = retval;
         }
-        taskQueue.pop();
+        taskQueue->pop();
     }
     if (ch == KEY_SLEFT) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); } 
     else if (ch == KEY_SRIGHT) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } 
@@ -358,12 +366,20 @@ bool CLITerminal::pollEvents() {
                     e.window.event = SDL_WINDOWEVENT_CLOSE;
                     if (rawClient) {e.button.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}
                     else {
-                        for (Computer * c : computers) {
+                        LockGuard lock(computers);
+                        for (Computer * c : *computers) {
                             if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
                                 std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                                 e.button.windowID = *CLITerminal::selectedWindow;
                                 c->termEventQueue.push(e);
                                 c->event_lock.notify_all();
+                            }
+                        }
+                        for (Terminal * t : orphanedTerminals) {
+                            if (t->id == *CLITerminal::selectedWindow) {
+                                orphanedTerminals.erase(t);
+                                delete t;
+                                break;
                             }
                         }
                     }
@@ -372,8 +388,8 @@ bool CLITerminal::pollEvents() {
             }
             return false;
         }
-        if (me.bstate & NCURSES_BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
-        else if (me.bstate & NCURSES_BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
+        if (me.bstate & BUTTON_PRESSED) e.type = SDL_MOUSEBUTTONDOWN;
+        else if (me.bstate & BUTTON_RELEASED) e.type = SDL_MOUSEBUTTONUP;
         else return false;
         if ((me.bstate & BUTTON1_PRESSED) || (me.bstate & BUTTON1_RELEASED)) e.button.button = SDL_BUTTON_LEFT;
         else if ((me.bstate & BUTTON2_PRESSED) || (me.bstate & BUTTON2_RELEASED)) e.button.button = SDL_BUTTON_RIGHT;

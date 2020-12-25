@@ -1,5 +1,5 @@
 /*
- * platform_win.cpp
+ * platform/win.cpp
  * CraftOS-PC 2
  * 
  * This file implements functions specific to Windows.
@@ -9,36 +9,30 @@
  */
 
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 #include "../platform.hpp"
-#include "../mounter.hpp"
 #include <vector>
 #include <string>
-#include <sstream>
 #include <fstream>
 #include <cstring>
 #include <codecvt>
-#include <unordered_map>
 #include <processenv.h>
-#include <shlwapi.h>
+#include <Shlwapi.h>
 #include <dirent.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <wchar.h>
-#include "../http.hpp"
+#include "../util.hpp"
 
 const wchar_t * base_path = L"%appdata%\\CraftOS-PC";
 std::wstring base_path_expanded;
 std::wstring rom_path_expanded;
 wchar_t expand_tmp[32767];
+static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 path_t wstr(std::string str) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     return converter.from_bytes(str);
 }
 
 std::string astr(path_t str) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     return converter.to_bytes(str);
 }
 
@@ -54,7 +48,7 @@ void setROMPath(const char * path) {
 
 std::wstring getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
-    DWORD size = ExpandEnvironmentStringsW(base_path, expand_tmp, 32767);
+    ExpandEnvironmentStringsW(base_path, expand_tmp, 32767);
     base_path_expanded = expand_tmp;
     return base_path_expanded;
 }
@@ -67,17 +61,17 @@ std::wstring getROMPath() {
     return rom_path_expanded;
 }
 
-std::wstring getPlugInPath() { return getROMPath() + L"/plugins-luajit/"; }
+std::wstring getPlugInPath() { return getROMPath() + L"\\plugins-luajit\\"; }
 
 std::wstring getMCSavePath() {
-    DWORD size = ExpandEnvironmentStringsW(L"%appdata%\\.minecraft\\saves\\", expand_tmp, 32767);
+    ExpandEnvironmentStringsW(L"%appdata%\\.minecraft\\saves\\", expand_tmp, 32767);
     return std::wstring(expand_tmp);
 }
 
 void* kernel32handle = NULL;
 HRESULT(*_SetThreadDescription)(HANDLE, PCWSTR) = NULL;
 
-void setThreadName(std::thread &t, std::string name) {
+void setThreadName(std::thread &t, const std::string& name) {
     if (kernel32handle == NULL) {
         kernel32handle = SDL_LoadObject("kernel32");
         _SetThreadDescription = (HRESULT(*)(HANDLE, PCWSTR))SDL_LoadFunction(kernel32handle, "SetThreadDescription");
@@ -85,7 +79,7 @@ void setThreadName(std::thread &t, std::string name) {
     if (_SetThreadDescription != NULL) _SetThreadDescription((HANDLE)t.native_handle(), std::wstring(name.begin(), name.end()).c_str());
 }
 
-int createDirectory(std::wstring path) {
+int createDirectory(const std::wstring& path) {
     struct_stat st;
     if (platform_stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
     if (CreateDirectoryExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL) == 0) {
@@ -117,40 +111,40 @@ char* dirname(char* path) {
     return path;
 }
 
-unsigned long long getFreeSpace(std::wstring path) {
+unsigned long long getFreeSpace(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
-        if (path.substr(0, path.find_last_of(L"\\")-1).empty()) return 0;
-        else return getFreeSpace(path.substr(0, path.find_last_of(L"\\")-1));
+        if (path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
+        else return getFreeSpace(path.substr(0, path.find_last_of('\\')-1));
     }
     return retval.QuadPart;
 }
 
-unsigned long long getCapacity(std::wstring path) {
+unsigned long long getCapacity(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
-        if (path.substr(0, path.find_last_of(L"\\")-1).empty()) return 0;
-        else return getCapacity(path.substr(0, path.find_last_of(L"\\")-1));
+        if (path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
+        else return getCapacity(path.substr(0, path.find_last_of('\\')-1));
     }
     return retval.QuadPart;
 }
 
-int removeDirectory(std::wstring path) {
-    DWORD attr = GetFileAttributesW(path.c_str());
+int removeDirectory(const std::wstring& path) {
+    const DWORD attr = GetFileAttributesW(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
     if (attr & FILE_ATTRIBUTE_DIRECTORY) {
         WIN32_FIND_DATAW find;
         std::wstring s = path;
         if (path[path.size() - 1] != '\\') s += L"\\";
         s += L"*";
-        HANDLE h = FindFirstFileW(s.c_str(), &find);
+        const HANDLE h = FindFirstFileW(s.c_str(), &find);
         if (h != INVALID_HANDLE_VALUE) {
             do {
                 if (!(find.cFileName[0] == '.' && (wcslen(find.cFileName) == 1 || (find.cFileName[1] == '.' && wcslen(find.cFileName) == 2)))) {
                     std::wstring newpath = path;
                     if (path[path.size() - 1] != '\\') newpath += L"\\";
                     newpath += find.cFileName;
-                    int res = removeDirectory(newpath);
+                    const int res = removeDirectory(newpath);
                     if (res) {
                         FindClose(h);
                         return res;
@@ -159,15 +153,15 @@ int removeDirectory(std::wstring path) {
             } while (FindNextFileW(h, &find));
             FindClose(h);
         }
-        return RemoveDirectoryW(path.c_str()) ? 0 : GetLastError();
-    } else return DeleteFileW(path.c_str()) ? 0 : GetLastError();
+        return RemoveDirectoryW(path.c_str()) ? 0 : (int)GetLastError();
+    } else return DeleteFileW(path.c_str()) ? 0 : (int)GetLastError();
 }
 
-void updateNow(std::string tagname) {
+void updateNow(const std::string& tagname) {
     HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [](std::istream& in) {
         char str[261];
         GetTempPathA(261, str);
-        std::string path = std::string(str) + "\\setup.exe";
+        const std::string path = std::string(str) + "\\setup.exe";
         std::ofstream out(path, std::ios::binary);
         out << in.rdbuf();
         out.close();
@@ -184,8 +178,8 @@ void updateNow(std::string tagname) {
 
 std::vector<std::wstring> failedCopy;
 
-int recursiveCopy(std::wstring path, std::wstring toPath) {
-    DWORD attr = GetFileAttributesW(path.c_str());
+int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
+    const DWORD attr = GetFileAttributesW(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
     if (attr & FILE_ATTRIBUTE_DIRECTORY) {
         if (CreateDirectoryExW(toPath.substr(0, toPath.find_last_of('\\', toPath.size() - 2)).c_str(), toPath.c_str(), NULL) == 0) return GetLastError();
@@ -193,27 +187,26 @@ int recursiveCopy(std::wstring path, std::wstring toPath) {
         std::wstring s = path;
         if (path[path.size() - 1] != '\\') s += L"\\";
         s += L"*";
-        HANDLE h = FindFirstFileW(s.c_str(), &find);
+        const HANDLE h = FindFirstFileW(s.c_str(), &find);
         if (h != INVALID_HANDLE_VALUE) {
             do {
                 if (!(find.cFileName[0] == '.' && (wcslen(find.cFileName) == 1 || (find.cFileName[1] == '.' && wcslen(find.cFileName) == 2)))) {
                     std::wstring newpath = path;
                     if (path[path.size() - 1] != '\\') newpath += L"\\";
                     newpath += find.cFileName;
-                    int res = recursiveCopy(newpath, toPath + L"\\" + std::wstring(find.cFileName));
+                    const int res = recursiveCopy(newpath, toPath + L"\\" + std::wstring(find.cFileName));
                     if (res) failedCopy.push_back(toPath + L"\\" + std::wstring(find.cFileName));
                 }
             } while (FindNextFileW(h, &find));
             FindClose(h);
         }
-        return RemoveDirectoryW(path.c_str()) ? 0 : GetLastError();
-    } else return MoveFileW(path.c_str(), toPath.c_str()) ? 0 : GetLastError();
+        return RemoveDirectoryW(path.c_str()) ? 0 : (int)GetLastError();
+    } else return MoveFileW(path.c_str(), toPath.c_str()) ? 0 : (int)GetLastError();
 }
 
 void migrateData() {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    DWORD size = ExpandEnvironmentStringsW(L"%USERPROFILE%\\.craftos", expand_tmp, 32767);
-    std::wstring oldpath = expand_tmp;
+    ExpandEnvironmentStringsW(L"%USERPROFILE%\\.craftos", expand_tmp, 32767);
+    const std::wstring oldpath = expand_tmp;
     struct_stat st;
     if (platform_stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && platform_stat(getBasePath().c_str(), &st) != 0)
         recursiveCopy(oldpath, getBasePath());
@@ -225,7 +218,7 @@ void copyImage(SDL_Surface* surf) {
     char * bmp = new char[surf->w*surf->h*surf->format->BytesPerPixel + 128];
     SDL_RWops * rw = SDL_RWFromMem(bmp, surf->w*surf->h*surf->format->BytesPerPixel + 128);
     SDL_SaveBMP_RW(surf, rw, false);
-    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, rw->seek(rw, 0, RW_SEEK_CUR) - sizeof(BITMAPFILEHEADER));
+    const HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, rw->seek(rw, 0, RW_SEEK_CUR) - sizeof(BITMAPFILEHEADER));
     if (hMem == NULL) { delete[] bmp; return; }
     memcpy(GlobalLock(hMem), bmp + sizeof(BITMAPFILEHEADER), rw->seek(rw, 0, RW_SEEK_CUR) - sizeof(BITMAPFILEHEADER));
     GlobalUnlock(hMem);
@@ -237,7 +230,8 @@ void copyImage(SDL_Surface* surf) {
 }
 
 LONG WINAPI exceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
-    MessageBoxA(NULL, "Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, attach the latest CraftOS-PC.exe .dmp file located here (you can type this into the File Explorer): '%LOCALAPPDATA%\\CrashDumps'. CraftOS-PC will now close.", "Application Error", MB_OK | MB_ICONSTOP);
+    if (!loadingPlugin.empty()) MessageBoxA(NULL, std::string("Uh oh, CraftOS-PC has crashed! It appears the plugin \"" + loadingPlugin + "\" may have been responsible for this. Please remove it and try again. CraftOS-PC will now close.").c_str(), "Application Error", MB_OK | MB_ICONSTOP);
+    else MessageBoxA(NULL, std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, attach the latest CraftOS-PC.exe .dmp file located here (you can type this into the File Explorer): '%LOCALAPPDATA%\\CrashDumps'. Add this text to the report as well: \"Last C function: " + std::string(lastCFunction) + "\". CraftOS-PC will now close.").c_str(), "Application Error", MB_OK | MB_ICONSTOP);
     return EXCEPTION_CONTINUE_SEARCH;
 }
 

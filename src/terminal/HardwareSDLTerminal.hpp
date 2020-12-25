@@ -1,5 +1,5 @@
 /*
- * HardwareSDLTerminal.hpp
+ * terminal/HardwareSDLTerminal.hpp
  * CraftOS-PC 2
  * 
  * This file defines the HardwareSDLTerminal class.
@@ -19,9 +19,10 @@ public:
     static bool pollEvents();
     HardwareSDLTerminal(std::string title);
     ~HardwareSDLTerminal() override;
-    bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
+    bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false) override;
     void render() override;
-    bool resize(int w, int h) override;
+    bool resize(unsigned w, unsigned h) override;
+    void setCharScale(int scale) override;
 private:
 #ifdef __EMSCRIPTEN__
     static SDL_Renderer *ren;

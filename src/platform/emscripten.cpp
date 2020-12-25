@@ -1,20 +1,31 @@
-#include "../platform.hpp"
-#include <unistd.h>
-#include <sys/stat.h>
-#include <stdio.h>
+/*
+ * platform/emscripten.cpp
+ * CraftOS-PC 2
+ *
+ * This file implements functions specific to the Emscripten/WASM platform.
+ *
+ * This code is licensed under the MIT license.
+ * Copyright (c) 2019-2020 JackMacWindows.
+ */
+
+#ifdef __EMSCRIPTEN__
+#include <cstdio>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include "../platform.hpp"
 
-void setThreadName(std::thread &t, std::string name) {}
+void setThreadName(std::thread &t, const std::string& name) {}
 
-unsigned long long getFreeSpace(std::string path) {
+unsigned long long getFreeSpace(const std::string& path) {
     return 1000000;
 }
 
-unsigned long long getCapacity(std::string path) {
+unsigned long long getCapacity(const std::string& path) {
     return 1000000;
 }
 
-int createDirectory(std::string path) {
+int createDirectory(const std::string& path) {
     if (mkdir(path.c_str(), 0777) != 0) {
         if (errno == ENOENT && path != "/" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
@@ -24,7 +35,7 @@ int createDirectory(std::string path) {
     return 0;
 }
 
-int removeDirectory(std::string path) {
+int removeDirectory(const std::string& path) {
     struct stat statbuf;
     if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -66,10 +77,12 @@ std::string getMCSavePath() {
     return "";
 }
 
-void updateNow(std::string tag_name) {}
+void updateNow(const std::string& tag_name) {}
 
 void migrateData() {}
 
 void copyImage(SDL_Surface* surf) {}
 
 void setupCrashHandler() {}
+
+#endif

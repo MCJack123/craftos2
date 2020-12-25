@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
 
@@ -21,7 +21,7 @@ jobs:
         CFLAGS=-Wall ./configure
         make
     - name: Run CraftOSTest
-      run: make test || echo $? > ~/.retval
+      run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
@@ -45,7 +45,7 @@ jobs:
         CFLAGS=-Wall ./configure --without-ncurses --without-png --without-sdl_mixer --with-html
         make
     - name: Run CraftOSTest
-      run: make test || echo $? > ~/.retval
+      run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
@@ -73,7 +73,7 @@ jobs:
         CFLAGS=-Wall ./configure --with-standalone_rom=craftos2-rom/fs_standalone.cpp
         make
     - name: Run CraftOSTest
-      run: make test || echo $? > ~/.retval
+      run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
@@ -88,7 +88,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.15.2-1.93.1 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.15.2-1.95.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
