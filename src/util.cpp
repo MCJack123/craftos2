@@ -136,7 +136,11 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
     std::vector<std::string> elems = split(path, '/');
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
-        if (s == "..") { if (pathc.empty()) return path_t(); else pathc.pop_back(); } else if (s != "." && !s.empty()) pathc.push_back(s);
+        if (s == "..") {
+            if (pathc.empty() && addExt) return path_t();
+            else if (pathc.empty()) pathc.push_back("..");
+            else pathc.pop_back();
+        } else if (s != "." && !s.empty()) pathc.push_back(s);
     }
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua")
