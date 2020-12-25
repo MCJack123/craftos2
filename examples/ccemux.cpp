@@ -249,7 +249,7 @@ static int ccemux_detach(lua_State *L) {
     return libFunc("periphemu", "remove")(L);
 }
 
-static struct luaL_reg M[] = {
+static struct luaL_Reg M[] = {
     {"getVersion", ccemux_getVersion},
     {"openEmu", ccemux_openEmu},
     {"closeEmu", ccemux_closeEmu},
