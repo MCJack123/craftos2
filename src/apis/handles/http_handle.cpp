@@ -44,7 +44,7 @@ int http_handle_free(lua_State *L) {
 
 int http_handle_close(lua_State *L) {
     http_handle_t* handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return 0;
+    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
     handle->closed = true;
     if (handle->failureReason.empty()) get_comp(L)->requests_open--;
     delete handle->handle;
@@ -54,7 +54,7 @@ int http_handle_close(lua_State *L) {
 
 int http_handle_readAll(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream->good()) return 0;
+    if (handle->closed || !handle->stream->good()) return luaL_error(L, "attempt to use a closed file");
     std::string ret;
     char buffer[4096];
     while (handle->stream->read(buffer, sizeof(buffer)))
@@ -77,7 +77,8 @@ int http_handle_readAll(lua_State *L) {
 
 int http_handle_readLine(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream->good()) return 0;
+    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    if (!handle->stream->good()) return 0;
     std::string line;
     std::getline(*handle->stream, line, '\n');
     line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
@@ -97,7 +98,8 @@ int http_handle_readLine(lua_State *L) {
 
 int http_handle_readChar(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream->good()) return 0;
+    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    if (!handle->stream->good()) return 0;
     uint32_t codepoint;
     const char c = (char)handle->stream->get();
     if (c < 0) {
@@ -132,7 +134,8 @@ int http_handle_readChar(lua_State *L) {
 
 int http_handle_readByte(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed || !handle->stream->good()) return 0;
+    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    if (!handle->stream->good()) return 0;
     if (!lua_isnumber(L, 1)) {
         lua_pushinteger(L, handle->stream->get());
     } else {
@@ -146,14 +149,14 @@ int http_handle_readByte(lua_State *L) {
 
 int http_handle_getResponseCode(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return 0;
+    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
     lua_pushinteger(L, handle->handle->getStatus());
     return 1;
 }
 
 int http_handle_getResponseHeaders(lua_State *L) {
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return 0;
+    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
     lua_newtable(L);
     for (const auto& h : *handle->handle) {
         lua_pushstring(L, h.first.c_str());
@@ -165,7 +168,7 @@ int http_handle_getResponseHeaders(lua_State *L) {
 
 int req_read(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return luaL_error(L, "attempt to use a closed file");
     char tmp[2];
     tmp[0] = (char)req->stream().get();
     lua_pushstring(L, tmp);
@@ -174,7 +177,7 @@ int req_read(lua_State *L) {
 
 int req_readLine(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return luaL_error(L, "attempt to use a closed file");
     std::string line;
     std::getline(req->stream(), line);
     line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
@@ -184,7 +187,7 @@ int req_readLine(lua_State *L) {
 
 int req_readAll(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return luaL_error(L, "attempt to use a closed file");
     std::string ret;
     char buffer[4096];
     while (req->stream().read(buffer, sizeof(buffer)))
@@ -206,21 +209,21 @@ int req_free(lua_State *L) {
 
 int req_getURL(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return luaL_error(L, "attempt to use a closed file");
     lua_pushstring(L, req->getURI().c_str());
     return 1;
 }
 
 int req_getMethod(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return luaL_error(L, "attempt to use a closed file");
     lua_pushstring(L, req->getMethod().c_str());
     return 1;
 }
 
 int req_getRequestHeaders(lua_State *L) {
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return luaL_error(L, "attempt to use a closed file");
     lua_newtable(L);
     for (const auto& h : *req) {
         lua_pushstring(L, h.first.c_str());
@@ -232,7 +235,7 @@ int req_getRequestHeaders(lua_State *L) {
 
 int res_write(lua_State *L) {
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
     size_t len = 0;
     const char * buf = luaL_checklstring(L, 1, &len);
     res->body += std::string(buf, len);
@@ -241,7 +244,7 @@ int res_write(lua_State *L) {
 
 int res_writeLine(lua_State *L) {
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
     size_t len = 0;
     const char * buf = luaL_checklstring(L, 1, &len);
     res->body += std::string(buf, len);
@@ -251,7 +254,7 @@ int res_writeLine(lua_State *L) {
 
 int res_close(lua_State *L) {
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
     const std::string body((const std::string)res->body);
     try {
         res->res->setContentLength(body.size());
@@ -266,14 +269,14 @@ int res_close(lua_State *L) {
 
 int res_setStatusCode(lua_State *L) {
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
     res->res->setStatus((HTTPResponse::HTTPStatus)luaL_checkinteger(L, 1));
     return 0;
 }
 
 int res_setResponseHeader(lua_State *L) {
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
-    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return 0;
+    if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
     res->res->set(luaL_checkstring(L, 1), luaL_checkstring(L, 2));
     return 0;
 }
