@@ -398,12 +398,12 @@ static int term_drawPixels(lua_State *L) {
         int width_, height_;
         if (isSolidFill) {
             undefinedWidth = false;
-            width = luaL_checkinteger(L, 4);
-            height = luaL_checkinteger(L, 5);
+            width_ = luaL_checkinteger(L, 4);
+            height_ = luaL_checkinteger(L, 5);
         } else {
             undefinedWidth = lua_isnoneornil(L, 4);
-            width = luaL_optinteger(L, 4, 0);
-            height = luaL_optinteger(L, 5, lua_objlen(L, 3));
+            width_ = luaL_optinteger(L, 4, 0);
+            height_ = luaL_optinteger(L, 5, lua_objlen(L, 3));
         }
 
         if (width_ < 0)
