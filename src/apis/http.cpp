@@ -863,11 +863,12 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
     wsh->binary = binary;
     comp->openWebsockets.push_back(wsh);
     queueEvent(comp, websocket_success, wsh);
+    char * buf = new char[config.http_max_websocket_message];
     while (!wsh->closed) {
-        Poco::Buffer<char> buf(config.http_max_websocket_message);
         int flags = 0;
+        int res;
         try {
-            int res = ws->receiveFrame(buf, flags);
+            res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
             if (res == 0) {
                 wsh->closed = true;
                 wsh->url = "";
@@ -906,11 +907,12 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
         } else {
             ws_message * message = new ws_message;
             message->url = str;
-            message->data = std::string(buf.begin(), buf.end());
+            message->data = std::string((const char*)buf, res);
             queueEvent(comp, websocket_message, message);
         }
         std::this_thread::yield();
     }
+    delete[] buf;
     wsh->url = "";
     try {if (!wsh->externalClosed) ws->shutdown();} catch (...) {}
     for (auto it = comp->openWebsockets.begin(); it != comp->openWebsockets.end(); ++it) {
