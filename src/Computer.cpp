@@ -42,7 +42,6 @@ extern std::string standaloneBIOS;
 #endif
 
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
-extern void stopWebsocket(void*);
 extern int term_benchmark(lua_State *L);
 extern int onboardingMode;
 ProtectedObject<std::vector<Computer*> > computers;
@@ -462,6 +461,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
         
         // Shutdown threads
         self->event_lock.notify_all();
+        // Stop all open websockets
+        while (!self->openWebsockets.empty()) stopWebsocket(*self->openWebsockets.begin());
         for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(self);
         lua_close(L);   /* Cya, Lua */
         self->L = NULL;
@@ -501,6 +502,8 @@ void* computerThread(void* data) {
         queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
         if (comp->L != NULL) {
             comp->event_lock.notify_all();
+            // Stop all open websockets
+            while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
             for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
             lua_close(comp->L);   /* Cya, Lua */
             comp->L = NULL;

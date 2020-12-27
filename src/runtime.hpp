@@ -43,5 +43,6 @@ extern void mainLoop();
 extern std::unordered_map<path_t, std::string> initializePlugins();
 extern void loadPlugins(Computer * comp);
 extern void deinitializePlugins();
+extern void stopWebsocket(void*);
 
 #endif

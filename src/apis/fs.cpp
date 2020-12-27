@@ -238,8 +238,10 @@ static int fs_move(lua_State *L) {
     lastCFunction = __func__;
     if (fixpath_ro(get_comp(L), luaL_checkstring(L, 1))) luaL_error(L, "Access denied");
     if (fixpath_ro(get_comp(L), luaL_checkstring(L, 2))) luaL_error(L, "Access denied");
-    const path_t fromPath = fixpath(get_comp(L), lua_tostring(L, 1), true);
+    bool isRoot = false;
+    const path_t fromPath = fixpath(get_comp(L), lua_tostring(L, 1), true, true, NULL, false, &isRoot);
     const path_t toPath = fixpath_mkdir(get_comp(L), lua_tostring(L, 2));
+    if (isRoot) luaL_error(L, "Cannot move mount");
     if (fromPath.empty()) err(L, 1, "No such file");
     if (toPath.empty()) err(L, 2, "Invalid path");
     if (platform_rename(fromPath.c_str(), toPath.c_str()) != 0) err(L, 1, strerror(errno));
@@ -338,7 +340,9 @@ static int fs_copy(lua_State *L) {
 static int fs_delete(lua_State *L) {
     lastCFunction = __func__;
     if (fixpath_ro(get_comp(L), luaL_checkstring(L, 1))) err(L, 1, "Access denied");
-    const path_t path = fixpath(get_comp(L), lua_tostring(L, 1), true);
+    bool isRoot = false;
+    const path_t path = fixpath(get_comp(L), lua_tostring(L, 1), true, true, NULL, false, &isRoot);
+    if (isRoot) luaL_error(L, "Cannot delete mount, use mounter.unmount instead");
     if (path.empty()) return 0;
     const int res = removeDirectory(path);
     if (res != 0 && res != ENOENT) err(L, 1, "Failed to remove");

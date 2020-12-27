@@ -283,6 +283,8 @@ int termPanic(lua_State *L) {
         else if (comp->term != NULL) queueTask([comp](void* L_)->void*{comp->term->showMessage(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: (unknown): " + std::string(!lua_isstring((lua_State*)L_, 1) ? "(null)" : lua_tostring((lua_State*)L_, 1)) + ". The computer will now shut down.").c_str()); return NULL;}, L);
     }
     comp->event_lock.notify_all();
+    // Stop all open websockets
+    while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
     for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
     lua_close(comp->L);   /* Cya, Lua */
     comp->L = NULL;
@@ -401,6 +403,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     // In standards mode we give no second chances - just crash and burn
                     displayFailure(computer->term, "Error running computer", "Too long without yielding");
                     computer->event_lock.notify_all();
+                    // Stop all open websockets
+                    while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
                     for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
                     lua_close(computer->L);   /* Cya, Lua */
                     computer->L = NULL;
@@ -422,6 +426,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
                         msg.colorScheme = NULL;
                         if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
                             computer->event_lock.notify_all();
+                            // Stop all open websockets
+                            while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
                             for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
                             lua_close(computer->L);   /* Cya, Lua */
                             computer->L = NULL;
