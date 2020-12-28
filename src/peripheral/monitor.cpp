@@ -409,7 +409,7 @@ int monitor::drawPixels(lua_State *L) {
         } else if (lua_istable(L, -1)) {
             // lol
             const unsigned cool_width = (unsigned) undefinedWidth
-                ? (int) min(lua_objlen(L, -1), (unsigned long) (max(pixelWidth - init_x, 0)))
+                ? (int) min(lua_objlen(L, -1), (size_t) (max(pixelWidth - init_x, 0)))
                 : (int) min((int) width, pixelWidth - init_x);
 
             for (unsigned w = max(-init_x, 0); w < cool_width; w++) {
