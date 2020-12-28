@@ -252,7 +252,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-luajit\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51d.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;wer.lib;crypt32.lib;normaliz.lib;SDL2maind.lib;iphlpapi.lib;libpng16d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;luajit51d.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;wer.lib;crypt32.lib;normaliz.lib;SDL2maind.lib;iphlpapi.lib;libpng16d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <AdditionalOptions>/VERBOSE:LIB %(AdditionalOptions)</AdditionalOptions>
       <Profile>true</Profile>
@@ -273,13 +273,13 @@
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-luajit\src\lua51d.dll x64\Debug\lua51d.dll</Command>
+      <Command>copy craftos2-luajit\src\luajit51d.dll x64\Debug\luajit51d.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-luajit\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;luajit51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -297,13 +297,13 @@
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-luajit\src\lua51.dll x64\Release\lua51.dll</Command>
+      <Command>copy craftos2-luajit\src\luajit51.dll x64\Release\luajit51.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-luajit\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;luajit51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -321,13 +321,13 @@
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-luajit\src\lua51.dll x64\ReleaseStandalone\lua51.dll</Command>
+      <Command>copy craftos2-luajit\src\luajit51.dll x64\ReleaseStandalone\luajit51.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-luajit\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;SDL2_mixer.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;luajit51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;SDL2_mixer.lib;iphlpapi.lib;libpng16.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -345,7 +345,7 @@
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-luajit\src\lua51.dll x64\ReleaseC\lua51.dll</Command>
+      <Command>copy craftos2-luajit\src\luajit51.dll x64\ReleaseC\luajit51.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
