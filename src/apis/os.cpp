@@ -126,7 +126,7 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
 static int os_startTimer(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    if (luaL_checknumber(L, 1) <= 0.0) {
+    if (luaL_checknumber(L, 1) < 0.001) {
         queueEvent(computer, [](lua_State *L, void*)->std::string {lua_pushinteger(L, 1); return "timer"; }, NULL);
         lua_pushinteger(L, 1);
         return 1;
@@ -139,7 +139,7 @@ static int os_startTimer(lua_State *L) {
         struct timer_data_t * data = (timer_data_t*)a;
         Uint32 time = (Uint32)(lua_tonumber(L, 1) * 1000);
         if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
-        data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
+        data->timer = SDL_AddTimer(time, notifyEvent, data);
         return NULL;
     }, data);
     runningTimerData->insert(std::make_pair(data->timer, data));
