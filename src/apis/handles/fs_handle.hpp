@@ -19,7 +19,6 @@ extern int fs_handle_readLine(lua_State *L);
 extern int fs_handle_readChar(lua_State *L);
 extern int fs_handle_readByte(lua_State *L);
 extern int fs_handle_readAllByte(lua_State *L);
-extern int fs_handle_istream_free(lua_State *L);
 extern int fs_handle_istream_close(lua_State *L);
 extern int fs_handle_istream_readAll(lua_State *L);
 extern int fs_handle_istream_readLine(lua_State *L);
