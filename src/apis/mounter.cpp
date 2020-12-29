@@ -71,7 +71,7 @@ static int mounter_unmount(lua_State *L) {
 static int mounter_list(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    lua_newtable(L); // table
+    lua_createtable(L, 0, computer->mounts.size()); // table
     for (auto m : computer->mounts) {
         std::stringstream ss;
         for (const std::string& s : std::get<0>(m)) ss << (ss.tellp() == 0 ? "" : "/") << s;
@@ -79,7 +79,7 @@ static int mounter_list(lua_State *L) {
         lua_gettable(L, -2); // table, value
         if (lua_isnil(L, -1)) {
             lua_pop(L, 1); // table
-            lua_newtable(L); // table, entries
+            lua_createtable(L, 1, 0); // table, entries
         }
         lua_pushinteger(L, lua_objlen(L, -1) + 1); // table, entries, index
         if (std::regex_match(std::get<1>(m), pathregex(WS("\\d+:")))) lua_pushfstring(L, "(virtual mount:%s)", std::get<1>(m).substr(0, std::get<1>(m).size()-1).c_str());

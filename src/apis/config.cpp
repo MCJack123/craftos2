@@ -186,7 +186,7 @@ static int config_set(lua_State *L) {
 
 static int config_list(lua_State *L) {
     lastCFunction = __func__;
-    lua_newtable(L);
+    lua_createtable(L, configSettings.size(), 0);
     int i = 1;
     for (auto it = configSettings.begin(); it != configSettings.end(); it++, i++) {
         lua_pushnumber(L, i);

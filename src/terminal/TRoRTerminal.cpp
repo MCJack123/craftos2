@@ -47,7 +47,7 @@ static std::string trorEvent(lua_State *L, void* userp) {
     if (luaL_loadstring(L, ("return " + *str).c_str())) {
         std::cerr << "Could not load function (" << *str << ")\n";
         delete str;
-        return NULL;
+        return "";
     }
     delete str;
     lua_newtable(L);

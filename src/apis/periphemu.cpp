@@ -72,12 +72,13 @@ static int periphemu_create(lua_State* L) {
     computer->peripherals_mutex.unlock();
     try {
         peripheral * p;
-        if (type == std::string("debugger") && config.debug_enable) p = new debugger(L, side.c_str());
+        if (type == "debugger" && config.debug_enable) p = new debugger(L, side.c_str());
         else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
         else {
             //fprintf(stderr, "not found: %s\n", type.c_str());
             lua_pushboolean(L, false);
-            lua_pushfstring(L, "No peripheral named %s", type.c_str());
+            if (type == "debugger") lua_pushfstring(L, "Set debug_enable to true in the config to enable the debugger");
+            else lua_pushfstring(L, "No peripheral named %s", type.c_str());
             return 2;
         }
         computer->peripherals_mutex.lock();
@@ -119,7 +120,7 @@ static int periphemu_remove(lua_State* L) {
 
 static int periphemu_names(lua_State *L) {
     lastCFunction = __func__;
-    lua_newtable(L);
+    lua_createtable(L, initializers.size() + 1, 0);
     lua_pushinteger(L, 1);
     lua_pushstring(L, "debugger");
     lua_settable(L, -3);

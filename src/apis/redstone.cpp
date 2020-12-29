@@ -10,7 +10,7 @@
 
 #include "../util.hpp"
 static int rs_getSides(lua_State *L) {
-    lua_newtable(L); 
+    lua_createtable(L, 6, 0); 
     lua_pushinteger(L, 1);
     lua_pushstring(L, "bottom");
     lua_settable(L, -3);

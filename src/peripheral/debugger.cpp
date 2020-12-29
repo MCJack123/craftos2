@@ -195,10 +195,10 @@ static int debugger_lib_listBreakpoints(lua_State *L) {
     lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    lua_newtable(L);
+    lua_createtable(L, dbg->computer->breakpoints.size(), 0);
     for (const auto& bp : dbg->computer->breakpoints) {
         lua_pushinteger(L, bp.first);
-        lua_newtable(L);
+        lua_createtable(L, 0, 2);
         lua_pushstring(L, "file");
         lua_pushstring(L, bp.second.first.c_str());
         lua_settable(L, -3);
@@ -325,14 +325,14 @@ static int debugger_lib_profile(lua_State *L) {
     lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    lua_newtable(L);
+    lua_createtable(L, 0, dbg->profile.size());
     for (const auto& e : dbg->profile) {
         if (!e.second.empty()) {
             lua_pushstring(L, e.first.c_str());
-            lua_newtable(L);
+            lua_createtable(L, 0, e.second.size());
             for (const auto& ee : e.second) {
                 lua_pushstring(L, ee.first.c_str());
-                lua_newtable(L);
+                lua_createtable(L, 0, 2);
                 lua_pushinteger(L, ee.second.count);
                 lua_setfield(L, -2, "count");
                 lua_pushnumber(L, std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(ee.second.time).count());
@@ -393,7 +393,7 @@ static int debugger_lib_getLocals(lua_State *L) {
         else { lua_pushvalue(L, -2); lua_remove(L, -3); }
         lua_settable(L, -3);
     }
-    lua_newtable(L);
+    lua_createtable(L, 0, 1);
     lua_pushcfunction(L, debugger_lib_local_index);
     lua_setfield(L, -2, "__index");
     lua_setmetatable(L, -2);

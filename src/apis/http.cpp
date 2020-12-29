@@ -74,11 +74,11 @@ static std::string http_success(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
     lua_pushlstring(L, handle->url.c_str(), handle->url.size());
-    lua_newtable(L);
+    lua_createtable(L, 0, 5);
 
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, handle);
-    lua_newtable(L);
+    lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
     lua_pushlightuserdata(L, handle);
     lua_pushcclosure(L, http_handle_free, 1);
@@ -128,11 +128,11 @@ static std::string http_failure(lua_State *L, void* data) {
     lua_pushlstring(L, handle->url.c_str(), handle->url.size());
     if (!handle->failureReason.empty()) lua_pushstring(L, handle->failureReason.c_str());
     if (handle->stream != NULL) {
-        lua_newtable(L);
+        lua_createtable(L, 0, 5);
 
         lua_pushstring(L, "close");
         lua_pushlightuserdata(L, handle);
-        lua_newtable(L);
+        lua_createtable(L, 0, 1);
         lua_pushstring(L, "__gc");
         lua_pushlightuserdata(L, handle);
         lua_pushcclosure(L, http_handle_free, 1);
@@ -458,7 +458,7 @@ static std::string http_request_event(lua_State *L, void* userp) {
     bool* closed = &data->closed;
     *closed = false;
     lua_pushinteger(L, data->port);
-    lua_newtable(L);
+    lua_createtable(L, 0, 7);
 
     lua_pushstring(L, "read");
     lua_pushlightuserdata(L, data->req);
@@ -481,7 +481,7 @@ static std::string http_request_event(lua_State *L, void* userp) {
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, data->req);
     lua_pushlightuserdata(L, closed);
-    lua_newtable(L);
+    lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
     lua_pushlightuserdata(L, closed);
     lua_pushcclosure(L, req_free, 1);
@@ -508,7 +508,7 @@ static std::string http_request_event(lua_State *L, void* userp) {
     lua_pushcclosure(L, req_getRequestHeaders, 2);
     lua_settable(L, -3);
 
-    lua_newtable(L);
+    lua_createtable(L, 0, 5);
 
     lua_pushstring(L, "write");
     lua_pushlightuserdata(L, data->res);
@@ -697,11 +697,11 @@ static std::string websocket_success(lua_State *L, void* userp) {
     luaL_checkstack(L, 10, "Could not grow stack for websocket_success");
     if (ws->url.empty()) lua_pushnil(L);
     else lua_pushstring(L, ws->url.c_str());
-    lua_newtable(L);
+    lua_createtable(L, 0, 4);
 
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, ws);
-    lua_newtable(L);
+    lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
     lua_pushlightuserdata(L, ws);
     lua_pushcclosure(L, websocket_free, 1);

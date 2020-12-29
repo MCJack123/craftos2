@@ -238,7 +238,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_settable(L, LUA_REGISTRYINDEX);
         if (::config.debug_enable) {
             lua_newtable(L);
-            lua_newtable(L);
+            lua_createtable(L, 0, 1);
             lua_pushstring(L, "v");
             lua_setfield(L, -2, "__mode");
             lua_setmetatable(L, -2);

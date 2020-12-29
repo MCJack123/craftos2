@@ -165,7 +165,7 @@ int http_handle_getResponseHeaders(lua_State *L) {
     lastCFunction = __func__;
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed) return luaL_error(L, "attempt to use a closed file");
-    lua_newtable(L);
+    lua_createtable(L, 0, handle->handle->size());
     for (const auto& h : *handle->handle) {
         lua_pushstring(L, h.first.c_str());
         lua_pushstring(L, h.second.c_str());
@@ -240,7 +240,7 @@ int req_getRequestHeaders(lua_State *L) {
     lastCFunction = __func__;
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2))) return luaL_error(L, "attempt to use a closed file");
-    lua_newtable(L);
+    lua_createtable(L, 0, req->size());
     for (const auto& h : *req) {
         lua_pushstring(L, h.first.c_str());
         lua_pushstring(L, h.second.c_str());

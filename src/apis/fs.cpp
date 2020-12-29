@@ -88,7 +88,7 @@ static int fs_list(lua_State *L) {
     std::set<std::string> all;
     std::set_union(entries.begin(), entries.end(), mounts.begin(), mounts.end(), std::inserter(all, all.begin()));
     int i = 1;
-    lua_newtable(L);
+    lua_createtable(L, all.size(), 0);
     for (const std::string& p : all) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, p.c_str());
@@ -403,7 +403,7 @@ static int fs_open(lua_State *L) {
         }
 #endif
         if (strcmp(mode, "r") == 0) {
-            lua_newtable(L);
+            lua_createtable(L, 0, 4);
             lua_pushstring(L, "close");
             lua_pushvalue(L, fpid);
             lua_pushcclosure(L, fs_handle_istream_close, 1);
@@ -425,7 +425,7 @@ static int fs_open(lua_State *L) {
             lua_pushcclosure(L, fs_handle_istream_readChar, 1);
             lua_settable(L, -3);
         } else if (strcmp(mode, "rb") == 0) {
-            lua_newtable(L);
+            lua_createtable(L, 0, 5);
             lua_pushstring(L, "close");
             lua_pushvalue(L, fpid);
             lua_pushcclosure(L, fs_handle_istream_close, 1);
@@ -486,7 +486,7 @@ static int fs_open(lua_State *L) {
             lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, lua_tostring(L, 1), false, false)).c_str());
             return 2; 
         }
-        lua_newtable(L);
+        lua_createtable(L, 0, 4);
         lua_pushstring(L, "close");
         lua_pushvalue(L, fpid);
         lua_pushcclosure(L, fs_handle_close, 1);
@@ -631,7 +631,7 @@ static int fs_find(lua_State *L) {
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
     while (!pathc.empty() && pathc.back().empty()) pathc.pop_back();
     if (pathc.empty()) {
-        lua_newtable(L);
+        lua_createtable(L, 1, 0);
         lua_pushstring(L, "");
         lua_rawseti(L, -2, 1);
         return 1;
@@ -639,7 +639,7 @@ static int fs_find(lua_State *L) {
     std::list<std::string> matches = matchWildcard(get_comp(L), {""}, pathc.begin(), pathc.end());
     matches.sort();
     matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
-    lua_newtable(L);
+    lua_createtable(L, matches.size(), 0);
     lua_Integer i = 0;
     for (const std::string& m : matches) {
         lua_pushinteger(L, ++i);
@@ -680,11 +680,11 @@ static int fs_attributes(lua_State *L) {
     if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
         try {
             const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
-            lua_newtable(L);
-            lua_pushinteger(L, 0);
-            lua_setfield(L, -2, "access");
+            lua_createtable(L, 0, 5);
             lua_pushinteger(L, 0);
             lua_setfield(L, -2, "modification");
+            lua_pushinteger(L, 0);
+            lua_setfield(L, -2, "modified");
             lua_pushinteger(L, 0);
             lua_setfield(L, -2, "created");
             lua_pushinteger(L, d.isDir ? 0 : d.data.length());
@@ -698,9 +698,7 @@ static int fs_attributes(lua_State *L) {
             lua_pushnil(L);
             return 1;
         }
-        lua_newtable(L);
-        lua_pushinteger(L, st_time_ms(st.st_a));
-        lua_setfield(L, -2, "access");
+        lua_createtable(L, 0, 5);
         lua_pushinteger(L, st_time_ms(st.st_m));
         lua_setfield(L, -2, "modification");
         lua_pushinteger(L, st_time_ms(st.st_m));
