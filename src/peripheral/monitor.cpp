@@ -478,6 +478,28 @@ int monitor::getPixels(lua_State* L) {
     return 1;
 }
 
+int monitor::screenshot(lua_State *L) {
+    lastCFunction = __func__;
+    if (selectedRenderer != 0 && selectedRenderer != 5) return 0;
+    SDLTerminal * term = dynamic_cast<SDLTerminal*>(this->term);
+    if (term == NULL) return 0;
+    if (std::chrono::system_clock::now() - term->lastScreenshotTime < std::chrono::milliseconds(1000 / config.recordingFPS)) return 0;
+    // Specifying a save path is no longer supported.
+    if (lua_toboolean(L, 1)) term->screenshot("clipboard");
+    else term->screenshot();
+    term->lastScreenshotTime = std::chrono::system_clock::now();
+    return 0;
+}
+
+int monitor::setFrozen(lua_State *L) {
+    lastCFunction = __func__;
+    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    if (term == NULL) return 0;
+    std::lock_guard<std::mutex> lock(term->locked);
+    term->frozen = lua_toboolean(L, 1);
+    return 0;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
@@ -511,6 +533,8 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "getTextScale") return getTextScale(L);
     else if (m == "drawPixels") return drawPixels(L);
     else if (m == "getPixels") return getPixels(L);
+    else if (m == "screenshot") return screenshot(L);
+    else if (m == "setFrozen") return setFrozen(L);
     else return 0;
 }
 

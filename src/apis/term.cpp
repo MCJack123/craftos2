@@ -572,6 +572,16 @@ static int term_showMouse(lua_State *L) {
     return 0;
 }
 
+static int term_setFrozen(lua_State *L) {
+    lastCFunction = __func__;
+    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    Terminal * term = get_comp(L)->term;
+    if (term == NULL) return 0;
+    std::lock_guard<std::mutex> lock(term->locked);
+    term->frozen = lua_toboolean(L, 1);
+    return 0;
+}
+
 /* export */ int term_benchmark(lua_State *L) {
     lastCFunction = __func__;
     if (get_comp(L)->term == NULL) return 0;
@@ -615,6 +625,7 @@ static luaL_reg term_reg[] = {
     {"drawPixels", term_drawPixels},
     {"getPixels", term_getPixels},
     {"showMouse", term_showMouse},
+    {"setFrozen", term_setFrozen},
     {NULL, NULL}
 };
 

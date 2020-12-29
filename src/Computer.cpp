@@ -332,6 +332,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
             lua_setfield(L, -2, "screenshot");
             lua_pushnil(L);
             lua_setfield(L, -2, "setMouse");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setFrozen");
             lua_pop(L, 1);
             if (config.http_enable) {
                 lua_getglobal(L, "http");

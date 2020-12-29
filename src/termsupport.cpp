@@ -576,6 +576,7 @@ void termRenderLoop() {
                 term->last_blink = std::chrono::high_resolution_clock::now();
                 term->changed = true;
             }
+            if (term->frozen) continue;
             const bool changed = term->changed;
             try {
                 term->render();
