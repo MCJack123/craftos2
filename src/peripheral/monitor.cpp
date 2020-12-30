@@ -439,42 +439,83 @@ int monitor::drawPixels(lua_State *L) {
 int monitor::getPixels(lua_State* L) {
     lastCFunction = __func__;
 
-    const int init_x = (int) luaL_checkinteger(L, 1),
-        init_y = (int) luaL_checkinteger(L, 2),
-        end_w = (int) luaL_checkinteger(L, 3),
-        end_h = (int) luaL_checkinteger(L, 4);
+    const int pixelWidth = term->width * Terminal::fontWidth,
+              pixelHeight = term->height * Terminal::fontHeight;
 
-    if (end_w < 0 || end_h < 0) {
-        return luaL_error(L, "Invalid size");
-    }
+    const int init_x = (int) luaL_checkinteger(L, 1),
+              init_y = (int) luaL_checkinteger(L, 2),
+              end_w = (int) luaL_checkinteger(L, 3),
+              end_h = (int) luaL_checkinteger(L, 4);
+
+    if (end_w < 0) return luaL_argerror(L, 3, "width cannot be negative");
+    else if (end_h < 0) return luaL_argerror(L, 4, "height cannot be negative");
+    else if (!lua_isnoneornil(L, 5) && !lua_isboolean(L, 5))
+        return luaL_typerror(L, 5, "boolean");
+
+    const bool use_strings = lua_toboolean(L, 5);
 
     lua_createtable(L, 0, end_h);
 
+    const int cool_min_h = max(-init_y, 0);
+    const int cool_max_h = min(end_h, pixelHeight - init_y);
+    const int cool_min_w = max(-init_x, 0);
+    const int cool_max_w = min(end_w, pixelWidth - init_x);
+
+    // scratch space for drawing background color from
+    char* bg = new char[end_w];
+    memset(bg, 15, end_w);
+
     for (int h = 0; h < end_h; h++) {
         lua_pushnumber(L, h + 1);
-        lua_createtable(L, end_w, 0);
 
-        for (int w = 0; w < end_w; w++) {
-            lua_pushnumber(L, w + 1);
+        if (use_strings) {
+            if (h < cool_min_h || h >= cool_max_h || cool_min_w >= cool_max_w) {
+                lua_pushlstring(L, bg, end_w);
+            } else {
+                int concats = 1;
 
-            const int x = init_x + w,
-                y = init_y + h;
+                if (cool_min_w > 0) {
+                    lua_pushlstring(L, bg, cool_min_w);
+                    concats++;
+                }
 
-            if (x < 0 || y < 0
-                || (unsigned) x >= term->width * Terminal::fontWidth
-                || (unsigned) y >= term->height * Terminal::fontHeight)
-                lua_pushnil(L);
-            else if (term->mode == 2)
-                lua_pushinteger(L, term->pixels[y][x]);
-            else
-                lua_pushinteger(L, 1 << term->pixels[y][x]);
+                lua_pushlstring(L,
+                    (const char *) &term->pixels[init_y + h][init_x + cool_min_w],
+                    max(cool_max_w - cool_min_w, 0)
+                );
 
-            lua_settable(L, -3);
+                if (cool_max_w < end_w) {
+                    lua_pushlstring(L, bg, end_w - cool_max_w);
+                    concats++;
+                }
+
+                lua_concat(L, concats);
+            }
+        } else {
+            lua_createtable(L, end_w, 0);
+
+            for (int w = 0; w < end_w; w++) {
+                lua_pushnumber(L, w + 1);
+
+                const int x = init_x + w,
+                          y = init_y + h;
+
+                if (h < cool_min_h || h >= cool_max_h ||
+                    w < cool_min_w || w >= cool_max_w)
+                    lua_pushinteger(L, -1);
+                else if (term->mode == 2)
+                    lua_pushinteger(L, term->pixels[y][x]);
+                else
+                    lua_pushinteger(L, 1 << term->pixels[y][x]);
+
+                lua_settable(L, -3);
+            }
         }
 
         lua_settable(L, -3);
     }
 
+    delete[] bg;
     return 1;
 }
 
