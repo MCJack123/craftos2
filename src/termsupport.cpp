@@ -681,7 +681,11 @@ std::string termGetEvent(lua_State *L) {
             else if (e.key.keysym.sym == SDLK_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
 #endif
             else if (e.key.keysym.sym == SDLK_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
+#ifdef __APPLE__
+            else if (e.key.keysym.sym == SDLK_F8 && ((e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_LGUI || (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_RGUI) && sdlterm != NULL && !config.ignoreHotkeys) {
+#else
             else if (e.key.keysym.sym == SDLK_F8 && ((e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_LCTRL || (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_RCTRL) && sdlterm != NULL && !config.ignoreHotkeys) {
+#endif
                 sdlterm->isOnTop = !sdlterm->isOnTop;
                 setFloating(sdlterm->win, sdlterm->isOnTop);
             } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_t : e.key.keysym.sym == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
