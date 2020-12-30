@@ -331,7 +331,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             lua_pushnil(L);
             lua_setfield(L, -2, "screenshot");
             lua_pushnil(L);
-            lua_setfield(L, -2, "setMouse");
+            lua_setfield(L, -2, "showMouse");
             lua_pushnil(L);
             lua_setfield(L, -2, "setFrozen");
             lua_pop(L, 1);

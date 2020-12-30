@@ -85,4 +85,6 @@ void copyImage(SDL_Surface* surf) {}
 
 void setupCrashHandler() {}
 
+void setFloating(SDL_Window* win, bool state) {}
+
 #endif

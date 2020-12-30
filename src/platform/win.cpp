@@ -19,6 +19,7 @@
 #include <processenv.h>
 #include <Shlwapi.h>
 #include <dirent.h>
+#include <SDL2/SDL_syswm.h>
 #include <sys/stat.h>
 #include "../util.hpp"
 
@@ -243,6 +244,14 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 void setupCrashHandler() {
     SetUnhandledExceptionFilter(exceptionHandler);
     _set_invalid_parameter_handler(invalidParameterHandler);
+}
+
+void setFloating(SDL_Window* win, bool state) {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(win, &info);
+    if (info.subsystem != SDL_SYSWM_WINDOWS) return; // should always be true
+    SetWindowPos(info.info.win.window, state ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 }
 
 #endif

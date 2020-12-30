@@ -208,9 +208,12 @@ static void downloadThread(void* arg) {
     if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
     size_t requestSize = param->postData.size();
     for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
-    if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
-    if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
-    if (!param->postData.empty()) request.setContentLength(param->postData.size());
+    if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
+    if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
+    if (!param->postData.empty()) {
+        if (request.getContentLength() == HTTPRequest::UNKNOWN_CONTENT_LENGTH) request.setContentLength(param->postData.size());
+        if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
+    }
     if (config.http_max_upload > 0 && requestSize > (unsigned)config.http_max_upload) {
         http_handle_t * err = new http_handle_t(NULL);
         err->url = param->url;
