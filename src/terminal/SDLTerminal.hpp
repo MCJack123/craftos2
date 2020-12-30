@@ -55,6 +55,7 @@ public:
     std::chrono::system_clock::time_point lastScreenshotTime;
     unsigned char cursorColor = 0;
     bool useOrigFont = false;
+    bool isOnTop = false;
 
     static void init();
     static void quit();

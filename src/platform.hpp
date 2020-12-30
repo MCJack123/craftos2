@@ -76,4 +76,5 @@ extern void updateNow(const std::string& tag_name);
 extern void migrateData();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();
+extern void setFloating(SDL_Window* win, bool state);
 #endif
