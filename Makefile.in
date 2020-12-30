@@ -10,6 +10,9 @@ ifeq (@OUT_TARGET@, craftos)
 ifeq ($(shell uname), Darwin)
 LIBS+= -framework ApplicationServices
 endif
+ifeq ($(shell uname), Linux)
+LIBS+= -lX11
+endif
 endif
 endif
 PREFIX?=@prefix@

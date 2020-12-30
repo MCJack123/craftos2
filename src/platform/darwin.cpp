@@ -265,7 +265,7 @@ void setFloating(SDL_Window* win, bool state) {
     SDL_VERSION(&info.version);
     SDL_GetWindowWMInfo(win, &info);
     if (info.subsystem == SDL_SYSWM_COCOA) {
-        info.info.cocoa.window.level = state ? NSFloatingWindowLevel : NSNormalWindowLevel;
+        fprintf(stderr, "Warning: Mac console builds do not support keeping windows on top.\n");
     } else if (info.subsystem == SDL_SYSWM_X11) {
         // rare, but it's possible if someone built it for XQuartz
 #ifdef _X11_XLIB_H_
