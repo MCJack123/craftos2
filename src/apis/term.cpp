@@ -623,6 +623,14 @@ static int term_setFrozen(lua_State *L) {
     return 0;
 }
 
+static int term_getFrozen(lua_State *L) {
+    lastCFunction = __func__;
+    Terminal * term = get_comp(L)->term;
+    if (term == NULL) return 0;
+    lua_pushboolean(L, term->frozen);
+    return 1;
+}
+
 /* export */ int term_benchmark(lua_State *L) {
     lastCFunction = __func__;
     if (get_comp(L)->term == NULL) return 0;
@@ -667,6 +675,7 @@ static luaL_reg term_reg[] = {
     {"getPixels", term_getPixels},
     {"showMouse", term_showMouse},
     {"setFrozen", term_setFrozen},
+    {"getFrozen", term_getFrozen},
     {NULL, NULL}
 };
 
