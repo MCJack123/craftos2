@@ -28,6 +28,8 @@ private:
     int getCursorPos(lua_State *L);
     int getCursorBlink(lua_State *L);
     int getSize(lua_State *L);
+    int getPixelSize(lua_State *L);
+    int getFontSize(lua_State *L);
     int clear(lua_State *L);
     int clearLine(lua_State *L);
     int setTextColor(lua_State *L);

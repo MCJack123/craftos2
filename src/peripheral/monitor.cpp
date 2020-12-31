@@ -118,6 +118,20 @@ int monitor::getSize(lua_State *L) {
     return 2;
 }
 
+int monitor::getPixelSize(lua_State *L) {
+    lastCFunction = __func__;
+    lua_pushinteger(L, term->width * Terminal::fontWidth);
+    lua_pushinteger(L, term->height * Terminal::fontHeight);
+    return 2;
+}
+
+int monitor::getFontSize(lua_State *L) {
+    lastCFunction = __func__;
+    lua_pushinteger(L, Terminal::fontWidth);
+    lua_pushinteger(L, Terminal::fontHeight);
+    return 2;
+}
+
 int monitor::clear(lua_State *L) {
     lastCFunction = __func__;
     if (selectedRenderer == 4) printf("TE:%d;\n", term->id);
@@ -556,6 +570,8 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "setCursorBlink") return setCursorBlink(L);
     else if (m == "getCursorPos") return getCursorPos(L);
     else if (m == "getSize") return getSize(L);
+    else if (m == "getPixelSize") return getPixelSize(L);
+    else if (m == "getFontSize") return getFontSize(L);
     else if (m == "clear") return clear(L);
     else if (m == "clearLine") return clearLine(L);
     else if (m == "setTextColour") return setTextColor(L);

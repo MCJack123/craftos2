@@ -140,6 +140,34 @@ static int term_getSize(lua_State *L) {
     return 2;
 }
 
+static int term_getPixelSize(lua_State* L) {
+    lastCFunction = __func__;
+
+    if (selectedRenderer == 1) {
+        lua_pushinteger(L, 51 * Terminal::fontWidth);
+        lua_pushinteger(L, 19 * Terminal::fontHeight);
+        return 2;
+    }
+
+    Terminal* term = get_comp(L)->term;
+    if (term == NULL) return 0;
+
+    lua_pushinteger(L, term->width * Terminal::fontWidth);
+    lua_pushinteger(L, term->height * Terminal::fontHeight);
+    return 2;
+}
+
+static int term_getFontSize(lua_State* L) {
+    lastCFunction = __func__;
+
+    Terminal* term = get_comp(L)->term;
+    if (term == NULL) return 0;
+
+    lua_pushinteger(L, Terminal::fontWidth);
+    lua_pushinteger(L, Terminal::fontHeight);
+    return 2;
+}
+
 static int term_clear(lua_State *L) {
     lastCFunction = __func__;
     if (selectedRenderer == 1) {
@@ -647,6 +675,8 @@ static luaL_reg term_reg[] = {
     {"getCursorPos", term_getCursorPos},
     {"getCursorBlink", term_getCursorBlink},
     {"getSize", term_getSize},
+    {"getPixelSize", term_getPixelSize},
+    {"getFontSize", term_getFontSize},
     {"clear", term_clear},
     {"clearLine", term_clearLine},
     {"setTextColour", term_setTextColor},

@@ -317,6 +317,10 @@ void runComputer(Computer * self, const path_t& bios_name) {
             lua_setglobal(L, "periphemu");
             lua_getglobal(L, "term");
             lua_pushnil(L);
+            lua_setfield(L, -2, "getPixelSize");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "getFontSize");
+            lua_pushnil(L);
             lua_setfield(L, -2, "getGraphicsMode");
             lua_pushnil(L);
             lua_setfield(L, -2, "setGraphicsMode");
