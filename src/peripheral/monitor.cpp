@@ -541,6 +541,13 @@ int monitor::setFrozen(lua_State *L) {
     return 0;
 }
 
+int monitor::getFrozen(lua_State *L) {
+    lastCFunction = __func__;
+    if (term == NULL) return 0;
+    lua_pushboolean(L, term->frozen);
+    return 1;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
@@ -576,6 +583,7 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "getPixels") return getPixels(L);
     else if (m == "screenshot") return screenshot(L);
     else if (m == "setFrozen") return setFrozen(L);
+    else if (m == "getFrozen") return getFrozen(L);
     else return 0;
 }
 
