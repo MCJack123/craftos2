@@ -334,6 +334,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
             lua_setfield(L, -2, "showMouse");
             lua_pushnil(L);
             lua_setfield(L, -2, "setFrozen");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "getFrozen");
             lua_pop(L, 1);
             if (config.http_enable) {
                 lua_getglobal(L, "http");
