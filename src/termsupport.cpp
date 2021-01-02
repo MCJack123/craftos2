@@ -716,7 +716,9 @@ std::string termGetEvent(lua_State *L) {
 #endif
               SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
-                std::string str = utf8_to_string(text, std::locale("C"));
+                std::string str;
+                try {str = utf8_to_string(text, std::locale("C"));}
+                catch (std::exception &e) {return "";}
                 str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
                 lua_pushstring(L, str.c_str());
                 SDL_free(text);
@@ -734,8 +736,10 @@ std::string termGetEvent(lua_State *L) {
                 return "key_up";
             }
         } else if (e.type == SDL_TEXTINPUT) {
-            std::string str = utf8_to_string(e.text.text, std::locale("C"));
-            if (str[0] != '\0') {
+            std::string str;
+            try {str = utf8_to_string(e.text.text, std::locale("C"));}
+            catch (std::exception &ignored) {str = "?";}
+            if (!str.empty()) {
                 lua_pushlstring(L, str.c_str(), 1);
                 return "char";
             }

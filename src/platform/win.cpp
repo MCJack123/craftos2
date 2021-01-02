@@ -30,7 +30,8 @@ wchar_t expand_tmp[32767];
 static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 path_t wstr(std::string str) {
-    return converter.from_bytes(str);
+    try {return converter.from_bytes(str);}
+    catch (std::exception &e) {return L"";}
 }
 
 std::string astr(path_t str) {
