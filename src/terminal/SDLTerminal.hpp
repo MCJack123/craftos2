@@ -31,6 +31,7 @@ class SDLTerminal: public Terminal {
     friend void mainLoop();
     friend int termPanic(lua_State *L);
     friend int runRenderer();
+    friend class HardwareSDLTerminal;
 protected:
     bool shouldScreenshot = false;
     bool shouldRecord = false;
