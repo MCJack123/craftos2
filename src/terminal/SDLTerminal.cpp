@@ -108,7 +108,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         charHeight = fontHeight * 2/fontScale * charScale;
     }
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
-    if (win == NULL)
+    if (win == NULL) {
 #endif
     win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), SDL_WINDOW_SHOWN | 
 #if !(defined(__EMSCRIPTEN__) && defined(NO_EMSCRIPTEN_HIDPI))
@@ -119,6 +119,11 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         overridden = true;
         throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
     }
+    realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+    realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+#if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
+    }
+#endif
 #ifndef __EMSCRIPTEN__
     id = SDL_GetWindowID(win);
 #else
@@ -189,6 +194,8 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -372,6 +379,7 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 bool SDLTerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
+    SDL_GetWindowSize(win, &realWidth, &realHeight);
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
     while (gotResizeEvent) std::this_thread::yield();

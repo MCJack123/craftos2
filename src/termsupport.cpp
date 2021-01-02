@@ -243,9 +243,8 @@ int convertX(SDLTerminal * term, int x) {
             return (int)(Terminal::fontWidth * term->width - 1);
         return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
     } else {
-        if (x < 2 * (int)term->charScale) x = (int)(2 * term->charScale * (2 / SDLTerminal::fontScale));
-        else if ((unsigned)x > term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale))
-            x = (int)(term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale));
+        if (x < 2 * (int)term->charScale) return 1;
+        else if ((unsigned)x >= term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->width;
         return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charWidth + 1);
     }
 }
@@ -257,9 +256,8 @@ int convertY(SDLTerminal * term, int x) {
             return (int)(Terminal::fontHeight * term->height - 1);
         return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
     } else {
-        if (x < 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) x = 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale);
-        else if ((unsigned)x > term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale))
-            x = (int)(term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale));
+        if (x < 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) return 1;
+        else if ((unsigned)x >= term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->height;
         return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charHeight + 1);
     }
 }

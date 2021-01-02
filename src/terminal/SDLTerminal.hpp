@@ -43,6 +43,8 @@ protected:
     std::mutex recorderMutex;
     std::mutex renderlock;
     bool overridden = false;
+    int realWidth = 620;
+    int realHeight = 350;
 public:
     static unsigned fontScale;
     unsigned charScale = 2;

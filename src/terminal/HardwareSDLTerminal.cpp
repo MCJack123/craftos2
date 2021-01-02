@@ -137,6 +137,8 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -323,6 +325,7 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         std::lock_guard<std::mutex> lock(locked);
         newWidth = w;
         newHeight = h;
+        SDL_GetWindowSize(win, &realWidth, &realHeight);
         gotResizeEvent = (newWidth != width || newHeight != height);
         if (!gotResizeEvent) return false;
         SDL_DestroyRenderer(ren);
