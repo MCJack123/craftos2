@@ -5,7 +5,7 @@
  * This plugin adds support for joystick input to CraftOS-PC.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include <CraftOS-PC.hpp>

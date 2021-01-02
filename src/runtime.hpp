@@ -5,7 +5,7 @@
  * This file defines some common methods for the CraftOS-PC runtime.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifndef RUNTIME_HPP

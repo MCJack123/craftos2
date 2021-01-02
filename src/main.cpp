@@ -6,7 +6,7 @@
  * first computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include "main.hpp"
@@ -502,7 +502,7 @@ int main(int argc, char*argv[]) {
 #else
             std::cout << " print_txt";
 #endif
-            std::cout << "\nCopyright (c) 2019-2020 JackMacWindows. Licensed under the MIT License.\n";
+            std::cout << "\nCopyright (c) 2019-2021 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             checkTTY();

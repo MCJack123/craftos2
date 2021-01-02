@@ -5,7 +5,7 @@
  * This file implements the HardwareSDLTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include <configuration.hpp>

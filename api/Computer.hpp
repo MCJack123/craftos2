@@ -6,7 +6,7 @@
  * computer.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_COMPUTER_HPP

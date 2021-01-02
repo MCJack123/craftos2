@@ -79,7 +79,7 @@ BEGIN
             VALUE "FileDescription", "CraftOS-PC"
             VALUE "FileVersion", "2.5.1.0"
             VALUE "InternalName", "CraftOS-PC.exe"
-            VALUE "LegalCopyright", "Copyright (C) 2019-2020 JackMacWindows."
+            VALUE "LegalCopyright", "Copyright (C) 2019-2021 JackMacWindows."
             VALUE "OriginalFilename", "CraftOS-PC.exe"
             VALUE "ProductName", "CraftOS-PC"
             VALUE "ProductVersion", "2.5.1.0"
