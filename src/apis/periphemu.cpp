@@ -5,7 +5,7 @@
  * This file implements the methods for the periphemu API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include <algorithm>
@@ -72,12 +72,13 @@ static int periphemu_create(lua_State* L) {
     computer->peripherals_mutex.unlock();
     try {
         peripheral * p;
-        if (type == std::string("debugger") && config.debug_enable) p = new debugger(L, side.c_str());
+        if (type == "debugger" && config.debug_enable) p = new debugger(L, side.c_str());
         else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
         else {
             //fprintf(stderr, "not found: %s\n", type.c_str());
             lua_pushboolean(L, false);
-            lua_pushfstring(L, "No peripheral named %s", type.c_str());
+            if (type == "debugger") lua_pushfstring(L, "Set debug_enable to true in the config to enable the debugger");
+            else lua_pushfstring(L, "No peripheral named %s", type.c_str());
             return 2;
         }
         computer->peripherals_mutex.lock();
@@ -119,11 +120,13 @@ static int periphemu_remove(lua_State* L) {
 
 static int periphemu_names(lua_State *L) {
     lastCFunction = __func__;
-    lua_newtable(L);
-    lua_pushinteger(L, 1);
-    lua_pushstring(L, "debugger");
-    lua_settable(L, -3);
-    int i = 2;
+    lua_createtable(L, initializers.size() + 1, 0);
+    int i = 1;
+    if (config.debug_enable) {
+        lua_pushinteger(L, i++);
+        lua_pushstring(L, "debugger");
+        lua_settable(L, -3);
+    }
     for (const auto& entry : initializers) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, entry.first.c_str());

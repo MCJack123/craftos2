@@ -5,7 +5,7 @@
  * This file implements some helper functions for terminal interaction.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include <cerrno>
@@ -18,7 +18,9 @@
 #include <unordered_map>
 #include <Computer.hpp>
 #include <configuration.hpp>
+#ifndef NO_CLI
 #include <curses.h>
+#endif
 #include <Terminal.hpp>
 #include "apis.hpp"
 #include "runtime.hpp"
@@ -243,9 +245,8 @@ int convertX(SDLTerminal * term, int x) {
             return (int)(Terminal::fontWidth * term->width - 1);
         return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
     } else {
-        if (x < 2 * (int)term->charScale) x = (int)(2 * term->charScale * (2 / SDLTerminal::fontScale));
-        else if ((unsigned)x > term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale))
-            x = (int)(term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale));
+        if (x < 2 * (int)term->charScale) return 1;
+        else if ((unsigned)x >= term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->width;
         return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charWidth + 1);
     }
 }
@@ -257,9 +258,8 @@ int convertY(SDLTerminal * term, int x) {
             return (int)(Terminal::fontHeight * term->height - 1);
         return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
     } else {
-        if (x < 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) x = 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale);
-        else if ((unsigned)x > term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale))
-            x = (int)(term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale));
+        if (x < 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) return 1;
+        else if ((unsigned)x >= term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->height;
         return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charHeight + 1);
     }
 }
@@ -283,6 +283,8 @@ int termPanic(lua_State *L) {
         else if (comp->term != NULL) queueTask([comp](void* L_)->void*{comp->term->showMessage(SDL_MESSAGEBOX_ERROR, "Lua Panic", ("An unexpected error occurred in a Lua function: (unknown): " + std::string(!lua_isstring((lua_State*)L_, 1) ? "(null)" : lua_tostring((lua_State*)L_, 1)) + ". The computer will now shut down.").c_str()); return NULL;}, L);
     }
     comp->event_lock.notify_all();
+    // Stop all open websockets
+    while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
     for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
     lua_close(comp->L);   /* Cya, Lua */
     comp->L = NULL;
@@ -397,6 +399,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     // In standards mode we give no second chances - just crash and burn
                     displayFailure(computer->term, "Error running computer", "Too long without yielding");
                     computer->event_lock.notify_all();
+                    // Stop all open websockets
+                    while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
                     for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
                     lua_close(computer->L);   /* Cya, Lua */
                     computer->L = NULL;
@@ -418,6 +422,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
                         msg.colorScheme = NULL;
                         if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
                             computer->event_lock.notify_all();
+                            // Stop all open websockets
+                            while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
                             for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
                             lua_close(computer->L);   /* Cya, Lua */
                             computer->L = NULL;
@@ -566,6 +572,7 @@ void termRenderLoop() {
                 term->last_blink = std::chrono::high_resolution_clock::now();
                 term->changed = true;
             }
+            if (term->frozen) continue;
             const bool changed = term->changed;
             try {
                 term->render();
@@ -670,7 +677,14 @@ std::string termGetEvent(lua_State *L) {
             else if (e.key.keysym.sym == SDLK_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
 #endif
             else if (e.key.keysym.sym == SDLK_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
-            else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_t : e.key.keysym.sym == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
+#ifdef __APPLE__
+            else if (e.key.keysym.sym == SDLK_F8 && ((e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_LGUI || (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_RGUI) && sdlterm != NULL && !config.ignoreHotkeys) {
+#else
+            else if (e.key.keysym.sym == SDLK_F8 && ((e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_LCTRL || (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_RCTRL) && sdlterm != NULL && !config.ignoreHotkeys) {
+#endif
+                sdlterm->isOnTop = !sdlterm->isOnTop;
+                setFloating(sdlterm->win, sdlterm->isOnTop);
+            } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_t : e.key.keysym.sym == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 1) {
                     computer->waitingForTerminate |= 2;
                     computer->waitingForTerminate &= ~1;
@@ -698,7 +712,9 @@ std::string termGetEvent(lua_State *L) {
 #endif
               SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
-                std::string str = utf8_to_string(text, std::locale("C"));
+                std::string str;
+                try {str = utf8_to_string(text, std::locale("C"));}
+                catch (std::exception &e) {return "";}
                 str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
                 lua_pushstring(L, str.c_str());
                 SDL_free(text);
@@ -716,8 +732,10 @@ std::string termGetEvent(lua_State *L) {
                 return "key_up";
             }
         } else if (e.type == SDL_TEXTINPUT) {
-            std::string str = utf8_to_string(e.text.text, std::locale("C"));
-            if (str[0] != '\0') {
+            std::string str;
+            try {str = utf8_to_string(e.text.text, std::locale("C"));}
+            catch (std::exception &ignored) {str = "?";}
+            if (!str.empty()) {
                 lua_pushlstring(L, str.c_str(), 1);
                 return "char";
             }

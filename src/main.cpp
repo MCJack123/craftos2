@@ -6,7 +6,7 @@
  * first computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include "main.hpp"
@@ -81,7 +81,7 @@ static void* releaseNotesThread(void* data) {
         runComputer(comp, WS("debug/bios.lua"));
 #endif
     } catch (std::exception &e) {
-        fprintf(stderr, "Uncaught exception while executing computer %d: %s\n", comp->id, e.what());
+        fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
         queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
         if (comp->L != NULL) {
             comp->event_lock.notify_all();
@@ -210,18 +210,23 @@ static void update_thread() {
                         SDL_MessageBoxData msg;
                         SDL_MessageBoxButtonData buttons[] = {
                             {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "OK"},
-                            {0, 1, "Release Notes"}
+                            {0, 1, "Release Notes"},
+                            {0, 2, "Don't Ask Again"}
                         };
                         msg.flags = SDL_MESSAGEBOX_INFORMATION;
                         msg.window = NULL;
                         msg.title = "Update available!";
                         msg.message = (const char*)arg;
-                        msg.numbuttons = 2;
+                        msg.numbuttons = 3;
                         msg.buttons = buttons;
                         msg.colorScheme = NULL;
                         int choice = 0;
                         SDL_ShowMessageBox(&msg, &choice);
                         if (choice == 1) showReleaseNotes();
+                        else if (choice == 2) {
+                            config.skipUpdate = CRAFTOSPC_VERSION;
+                            config_save();
+                        }
                         return NULL;
                     }, (void*)(std::string("A new update to CraftOS-PC is available (") + obj->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + obj->getValue<std::string>("html_url") + " to download the new version.").c_str());
 #endif
@@ -508,7 +513,7 @@ int main(int argc, char*argv[]) {
 #else
             std::cout << " print_txt";
 #endif
-            std::cout << "\nCopyright (c) 2019-2020 JackMacWindows. Licensed under the MIT License.\n";
+            std::cout << "\nCopyright (c) 2019-2021 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             checkTTY();
@@ -585,7 +590,7 @@ int main(int argc, char*argv[]) {
 #endif
     startComputer(manualID ? id : config.initialComputer);
 #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop(mainLoop, 60, 1);
+    emscripten_set_main_loop(mainLoop, 0, false);
     return 0;
 #else
     try {

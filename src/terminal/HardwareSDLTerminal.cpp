@@ -5,7 +5,7 @@
  * This file implements the HardwareSDLTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include <configuration.hpp>
@@ -39,6 +39,7 @@ extern float getBackingScaleFactor(SDL_Window *win);
 #ifdef __EMSCRIPTEN__
 SDL_Renderer *HardwareSDLTerminal::ren = NULL;
 SDL_Texture *HardwareSDLTerminal::font = NULL;
+SDL_Texture *HardwareSDLTerminal::pixtex = NULL;
 #endif
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
@@ -90,6 +91,13 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
         SDL_DestroyWindow(win);
         throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
     }
+    pixtex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, (int)(width * charWidth * dpiScale), (int)(height * charHeight * dpiScale));
+    if (pixtex == (SDL_Texture*)0) {
+        SDL_DestroyTexture(font);
+        SDL_DestroyRenderer(ren);
+        SDL_DestroyWindow(win);
+        throw window_exception("Failed to create texture for pixels: " + std::string(SDL_GetError()));
+    }
 #ifdef __EMSCRIPTEN__
     }
 #endif
@@ -98,12 +106,10 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
 HardwareSDLTerminal::~HardwareSDLTerminal() {
 #ifndef __EMSCRIPTEN__
     if (!overridden) {
-        if (pixtex != NULL) SDL_DestroyTexture(pixtex);
+        SDL_DestroyTexture(pixtex);
         SDL_DestroyTexture(font);
         SDL_DestroyRenderer(ren);
     }
-#else
-    if (pixtex != NULL) SDL_DestroyTexture(pixtex);
 #endif
 }
 
@@ -137,6 +143,8 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -172,7 +180,7 @@ static unsigned char circlePix[] = {
 
 void HardwareSDLTerminal::render() {
 #ifdef __EMSCRIPTEN__
-    if (*HardwareSDLTerminal::renderTarget != this) return;
+    if (*renderTarget != this) return;
 #endif
     if (width == 0 || height == 0) return; // don't render if we don't have a valid screen size
     // copy the screen data so we can let Lua keep going without waiting for the mutex
@@ -212,13 +220,12 @@ void HardwareSDLTerminal::render() {
     Color bgcolor = newmode == 0 ? newpalette[15] : defaultPalette[15];
     if (SDL_SetRenderDrawColor(ren, bgcolor.r, bgcolor.g, bgcolor.b, 0xFF) != 0) return;
     if (SDL_RenderClear(ren) != 0) return;
-    if (pixtex != NULL) {
-        SDL_DestroyTexture(pixtex);
-        pixtex = NULL;
-    }
     SDL_Rect rect;
     if (newmode != 0) {
-        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormat(0, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale), 24, SDL_PIXELFORMAT_RGB888);
+        void * pixels = NULL;
+        int pitch = 0;
+        SDL_LockTexture(pixtex, setRect(&rect, 0, 0, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)), &pixels, &pitch);
+        SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormatFrom(pixels, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale), 24, pitch, SDL_PIXELFORMAT_RGB888);
         for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale*dpiScale) {
             for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale*dpiScale) {
                 unsigned char c = (*newpixels)[y / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale / dpiScale][x / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale / dpiScale];
@@ -226,8 +233,7 @@ void HardwareSDLTerminal::render() {
                 if (SDL_FillRect(surf, setRect(&rect, (int)x, (int)y, (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale)), rgb(newpalette[(int)c])) != 0) return;
             }
         }
-        pixtex = SDL_CreateTextureFromSurface(ren, surf);
-        SDL_FreeSurface(surf);
+        SDL_UnlockTexture(pixtex);
         SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)(2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
     } else {
         for (unsigned y = 0; y < newheight; y++) {
@@ -323,11 +329,13 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         std::lock_guard<std::mutex> lock(locked);
         newWidth = w;
         newHeight = h;
+        SDL_GetWindowSize(win, &realWidth, &realHeight);
         gotResizeEvent = (newWidth != width || newHeight != height);
         if (!gotResizeEvent) return false;
         SDL_DestroyRenderer(ren);
-        ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);}, win);
+        ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));}, win);
         font = SDL_CreateTextureFromSurface(ren, bmp);
+        pixtex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, (int)(w * charWidth * dpiScale), (int)(h * charHeight * dpiScale));
     }
     while (gotResizeEvent) std::this_thread::yield();
     return true;
@@ -337,6 +345,9 @@ void HardwareSDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
+#ifdef __EMSCRIPTEN__
+    SDL_SetHint(SDL_HINT_EMSCRIPTEN_ASYNCIFY, "0");
+#endif
 #if SDL_VERSION_ATLEAST(2, 0, 8)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
@@ -382,7 +393,7 @@ void HardwareSDLTerminal::quit() {
 }
 
 #ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *HardwareSDLTerminal::renderTarget || findMonitorFromWindowID(c, (*HardwareSDLTerminal::renderTarget)->id, tmps) != NULL)
+#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
 #else
 #define checkWindowID(c, wid) ((wid) == ( c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
@@ -407,6 +418,7 @@ bool HardwareSDLTerminal::pollEvents() {
             }
         } else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
+            std::lock_guard<std::mutex> lock(((SDLTerminal*)*renderTarget)->renderlock);
             SDL_RenderPresent(HardwareSDLTerminal::ren);
             SDL_UpdateWindowSurface(SDLTerminal::win);
 #else

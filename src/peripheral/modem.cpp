@@ -5,7 +5,7 @@
  * This file defines the methods for the modem peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include "../runtime.hpp"
@@ -96,9 +96,9 @@ int modem::isWireless(lua_State *L) {
 
 int modem::getNamesRemote(lua_State *L) {
     lastCFunction = __func__;
-    lua_newtable(L);
     int i = 1;
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
+    lua_createtable(L, comp->peripherals.size(), 0);
     for (const auto& p : comp->peripherals) {
         if (p.first != "top" && p.first != "bottom" && p.first != "left" && p.first != "right" && p.first != "front" && p.first != "back") {
             lua_pushinteger(L, i++);

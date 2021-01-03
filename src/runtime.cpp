@@ -6,7 +6,7 @@
  * the CraftOS-PC emulation session.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include <cerrno>
@@ -134,7 +134,7 @@ void mainLoop() {
 
         std::this_thread::yield();
 #ifdef __EMSCRIPTEN__
-        if (!rawClient && computers.size() == 0) exiting = true;
+        if (!rawClient && computers->size() == 0) exiting = true;
 #else
     }
     exiting = true;
@@ -220,13 +220,14 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     lua_xmove(param, L, count);
     lua_remove(computer->paramQueue, 1);
     if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > 200) {
-        if (computer->eventTimeout != 0)
 #ifdef __EMSCRIPTEN__
-            queueTask([computer](void*)->void*{SDL_RemoveTimer(computer->eventTimeout); return NULL;}, NULL);
-#else
-            SDL_RemoveTimer(computer->eventTimeout);
+        queueTask([computer](void*)->void*{
 #endif
+        if (computer->eventTimeout != 0) SDL_RemoveTimer(computer->eventTimeout);
         computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
+#ifdef __EMSCRIPTEN__
+        return NULL;}, NULL);
+#endif
     }
     computer->last_event = std::chrono::high_resolution_clock::now();
     computer->getting_event = false;

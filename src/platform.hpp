@@ -6,7 +6,7 @@
  * the platform the program is built for.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifndef PLATFORM_HPP
@@ -76,4 +76,5 @@ extern void updateNow(const std::string& tag_name);
 extern void migrateData();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();
+extern void setFloating(SDL_Window* win, bool state);
 #endif

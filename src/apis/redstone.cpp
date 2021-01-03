@@ -5,12 +5,12 @@
  * This file implements the methods for the redstone/rs API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include "../util.hpp"
 static int rs_getSides(lua_State *L) {
-    lua_newtable(L); 
+    lua_createtable(L, 6, 0); 
     lua_pushinteger(L, 1);
     lua_pushstring(L, "bottom");
     lua_settable(L, -3);

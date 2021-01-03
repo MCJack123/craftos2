@@ -7,6 +7,10 @@ assignees: ''
 
 ---
 
+<!--
+Before reporting a bug, check https://github.com/MCJack123/craftos2/discussions/174 to see if it's a known issue.
+-->
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 

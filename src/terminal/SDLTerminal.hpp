@@ -5,7 +5,7 @@
  * This file defines the SDLTerminal class, which is the default renderer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifndef TERMINAL_SDLTERMINAL_HPP
@@ -31,6 +31,7 @@ class SDLTerminal: public Terminal {
     friend void mainLoop();
     friend int termPanic(lua_State *L);
     friend int runRenderer();
+    friend class HardwareSDLTerminal;
 protected:
     bool shouldScreenshot = false;
     bool shouldRecord = false;
@@ -43,6 +44,8 @@ protected:
     std::mutex recorderMutex;
     std::mutex renderlock;
     bool overridden = false;
+    int realWidth = 620;
+    int realHeight = 350;
 public:
     static unsigned fontScale;
     unsigned charScale = 2;
@@ -55,6 +58,7 @@ public:
     std::chrono::system_clock::time_point lastScreenshotTime;
     unsigned char cursorColor = 0;
     bool useOrigFont = false;
+    bool isOnTop = false;
 
     static void init();
     static void quit();

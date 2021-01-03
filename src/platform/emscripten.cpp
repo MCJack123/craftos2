@@ -5,7 +5,7 @@
  * This file implements functions specific to the Emscripten/WASM platform.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifdef __EMSCRIPTEN__
@@ -84,5 +84,7 @@ void migrateData() {}
 void copyImage(SDL_Surface* surf) {}
 
 void setupCrashHandler() {}
+
+void setFloating(SDL_Window* win, bool state) {}
 
 #endif

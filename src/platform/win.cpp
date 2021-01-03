@@ -5,7 +5,7 @@
  * This file implements functions specific to Windows.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifdef _WIN32
@@ -19,6 +19,7 @@
 #include <processenv.h>
 #include <Shlwapi.h>
 #include <dirent.h>
+#include <SDL2/SDL_syswm.h>
 #include <sys/stat.h>
 #include "../util.hpp"
 
@@ -29,7 +30,8 @@ wchar_t expand_tmp[32767];
 static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 path_t wstr(std::string str) {
-    return converter.from_bytes(str);
+    try {return converter.from_bytes(str);}
+    catch (std::exception &e) {return L"";}
 }
 
 std::string astr(path_t str) {
@@ -243,6 +245,14 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 void setupCrashHandler() {
     SetUnhandledExceptionFilter(exceptionHandler);
     _set_invalid_parameter_handler(invalidParameterHandler);
+}
+
+void setFloating(SDL_Window* win, bool state) {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(win, &info);
+    if (info.subsystem != SDL_SYSWM_WINDOWS) return; // should always be true
+    SetWindowPos(info.info.win.window, state ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 }
 
 #endif

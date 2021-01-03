@@ -5,7 +5,7 @@
  * This file implements the methods for the monitor peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include "monitor.hpp"
@@ -113,8 +113,13 @@ int monitor::getCursorBlink(lua_State *L) {
 
 int monitor::getSize(lua_State *L) {
     lastCFunction = __func__;
-    lua_pushinteger(L, term->width);
-    lua_pushinteger(L, term->height);
+    if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
+        lua_pushinteger(L, term->width * Terminal::fontWidth);
+        lua_pushinteger(L, term->height * Terminal::fontHeight);
+    } else if (lua_isnoneornil(L, 1) || lua_isboolean(L, 1) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0)) {
+        lua_pushinteger(L, term->width);
+        lua_pushinteger(L, term->height);
+    } else luaL_typerror(L, 1, "boolean or number");
     return 2;
 }
 
@@ -316,8 +321,14 @@ int monitor::getTextScale(lua_State *L) {
 int monitor::drawPixels(lua_State *L) {
     lastCFunction = __func__;
 
+    const int pixelWidth = term->width * Terminal::fontWidth,
+              pixelHeight = term->height * Terminal::fontHeight;
+
     const int init_x = (int)luaL_checkinteger(L, 1),
               init_y = (int)luaL_checkinteger(L, 2);
+
+    if (init_x >= pixelWidth) return 0;
+    else if (init_y >= pixelHeight) return 0;
 
     const int fillType = lua_type(L, 3);
     const bool isSolidFill = fillType == LUA_TNUMBER;
@@ -326,43 +337,51 @@ int monitor::drawPixels(lua_State *L) {
         return luaL_typerror(L, 3, "table or number");
 
     bool undefinedWidth;
-    int width, height;
-    int color;
+    unsigned width, height;
+    unsigned color;
 
-    if (isSolidFill) {
-        undefinedWidth = false;
-        width = luaL_checkinteger(L, 4);
-        height = luaL_checkinteger(L, 5);
-    } else {
-        undefinedWidth = lua_isnoneornil(L, 4);
-        width = luaL_optinteger(L, 4, 0);
-        height = luaL_optinteger(L, 5, lua_objlen(L, 3));
+    {
+        int width_, height_;
+        if (isSolidFill) {
+            undefinedWidth = false;
+            width_ = luaL_checkinteger(L, 4);
+            height_ = luaL_checkinteger(L, 5);
+        } else {
+            undefinedWidth = lua_isnoneornil(L, 4);
+            width_ = luaL_optinteger(L, 4, 0);
+            height_ = luaL_optinteger(L, 5, lua_objlen(L, 3));
+        }
+
+        if (width_ < 0)
+            return luaL_argerror(L, 4, "width cannot be negative");
+        else if (height_ < 0)
+            return luaL_argerror(L, 5, "height cannot be negative");
+
+        width = (unsigned) width_;
+        height = (unsigned) height_;
     }
 
-    if (width < 0)
-        return luaL_argerror(L, 4, "width cannot be negative");
-    else if (height < 0)
-        return luaL_argerror(L, 5, "height cannot be negative");
-
     if (isSolidFill) {
-        color = lua_tonumber(L, 3);
+        int color_ = lua_tonumber(L, 3);
 
-        if (color < 0) return 0;
-        else if (term->mode == 2 ? color > 255 : log2i(color) > 15)
+        if (color_ < 0) return 0;
+        else if (term->mode == 2 ? color_ > 255 : log2i(color_) > 15)
             return luaL_argerror(L, 3, "color index out of bounds");
+
+        color = (unsigned) color_;
     }
 
     std::lock_guard<std::mutex> lock(term->locked);
 
-    const int pixelWidth = term->width * Terminal::fontWidth,
-              pixelHeight = term->height * Terminal::fontHeight;
-
     if (isSolidFill) {
-        const int index = term->mode == 2 ? color : log2i(color),
-                  memset_x = max(init_x, 0),
-                  memset_len = min(width, max(pixelWidth - init_x, 0)) + min(init_x, 0);
+        const unsigned char index = term->mode == 2
+            ? (unsigned char) color
+            : (unsigned char) log2i(color);
 
-        const int cool_height = min(height, pixelHeight - init_y);
+        const unsigned memset_x = max(init_x, 0),
+                       memset_len = min((int) width, max(pixelWidth - init_x, 0)) + min(init_x, 0);
+
+        const int cool_height = min((int) height, pixelHeight - init_y);
         for (int h = max(-init_y, 0); h < cool_height; h++) {
             memset(&term->pixels[init_y + h][memset_x], index, memset_len);
         }
@@ -372,12 +391,10 @@ int monitor::drawPixels(lua_State *L) {
     }
 
     const int str_offset = init_x < 0 ? -init_x : 0,
-        str_maxlen = init_x > pixelWidth ? 0 : pixelWidth - init_x;
+              str_maxlen = init_x > pixelWidth ? 0 : pixelWidth - init_x;
 
-    for (unsigned h = 0; h < height; h++) {
-        if (init_y + h < 0) continue;
-        if (init_y + h >= pixelHeight) break;
-
+    const unsigned cool_height = min((int) height, pixelHeight - init_y);
+    for (unsigned h = max(-init_y, 0); h < cool_height; h++) {
         lua_pushinteger(L, h + 1);
         lua_gettable(L, 3);
 
@@ -395,8 +412,12 @@ int monitor::drawPixels(lua_State *L) {
                        len - str_offset
                 );
         } else if (lua_istable(L, -1)) {
-            unsigned max = undefinedWidth ? lua_objlen(L, -1) : width;
-            for (unsigned w = 0; w < max; w++) {
+            // lol
+            const unsigned cool_width = (unsigned) undefinedWidth
+                ? (int) min(lua_objlen(L, -1), (size_t) (max(pixelWidth - init_x, 0)))
+                : (int) min((int) width, pixelWidth - init_x);
+
+            for (unsigned w = max(-init_x, 0); w < cool_width; w++) {
                 lua_pushinteger(L, w + 1);
                 lua_gettable(L, -2);
 
@@ -405,8 +426,8 @@ int monitor::drawPixels(lua_State *L) {
 
                     if (color >= 0)
                         term->pixels[init_y + h][init_x + w] = term->mode == 2
-                            ? lua_tointeger(L, -1)
-                            : log2i(lua_tointeger(L, -1));
+                            ? color
+                            : log2i(color);
                 }
 
                 lua_pop(L, 1);
@@ -423,42 +444,112 @@ int monitor::drawPixels(lua_State *L) {
 int monitor::getPixels(lua_State* L) {
     lastCFunction = __func__;
 
-    const int init_x = (int) luaL_checkinteger(L, 1),
-        init_y = (int) luaL_checkinteger(L, 2),
-        end_w = (int) luaL_checkinteger(L, 3),
-        end_h = (int) luaL_checkinteger(L, 4);
+    const int pixelWidth = term->width * Terminal::fontWidth,
+              pixelHeight = term->height * Terminal::fontHeight;
 
-    if (end_w < 0 || end_h < 0) {
-        return luaL_error(L, "Invalid size");
-    }
+    const int init_x = (int) luaL_checkinteger(L, 1),
+              init_y = (int) luaL_checkinteger(L, 2),
+              end_w = (int) luaL_checkinteger(L, 3),
+              end_h = (int) luaL_checkinteger(L, 4);
+
+    if (end_w < 0) return luaL_argerror(L, 3, "width cannot be negative");
+    else if (end_h < 0) return luaL_argerror(L, 4, "height cannot be negative");
+    else if (!lua_isnoneornil(L, 5) && !lua_isboolean(L, 5))
+        return luaL_typerror(L, 5, "boolean");
+
+    const bool use_strings = lua_toboolean(L, 5);
 
     lua_createtable(L, 0, end_h);
 
+    const int cool_min_h = max(-init_y, 0);
+    const int cool_max_h = min(end_h, pixelHeight - init_y);
+    const int cool_min_w = max(-init_x, 0);
+    const int cool_max_w = min(end_w, pixelWidth - init_x);
+
+    // scratch space for drawing background color from
+    char* bg = new char[end_w];
+    memset(bg, 15, end_w);
+
     for (int h = 0; h < end_h; h++) {
         lua_pushnumber(L, h + 1);
-        lua_createtable(L, end_w, 0);
 
-        for (int w = 0; w < end_w; w++) {
-            lua_pushnumber(L, w + 1);
+        if (use_strings) {
+            if (h < cool_min_h || h >= cool_max_h || cool_min_w >= cool_max_w) {
+                lua_pushlstring(L, bg, end_w);
+            } else {
+                int concats = 1;
 
-            const int x = init_x + w,
-                y = init_y + h;
+                if (cool_min_w > 0) {
+                    lua_pushlstring(L, bg, cool_min_w);
+                    concats++;
+                }
 
-            if (x < 0 || y < 0
-                || (unsigned) x >= term->width * Terminal::fontWidth
-                || (unsigned) y >= term->height * Terminal::fontHeight)
-                lua_pushnil(L);
-            else if (term->mode == 2)
-                lua_pushinteger(L, term->pixels[y][x]);
-            else
-                lua_pushinteger(L, 1 << term->pixels[y][x]);
+                lua_pushlstring(L,
+                    (const char *) &term->pixels[init_y + h][init_x + cool_min_w],
+                    max(cool_max_w - cool_min_w, 0)
+                );
 
-            lua_settable(L, -3);
+                if (cool_max_w < end_w) {
+                    lua_pushlstring(L, bg, end_w - cool_max_w);
+                    concats++;
+                }
+
+                lua_concat(L, concats);
+            }
+        } else {
+            lua_createtable(L, end_w, 0);
+
+            for (int w = 0; w < end_w; w++) {
+                lua_pushnumber(L, w + 1);
+
+                const int x = init_x + w,
+                          y = init_y + h;
+
+                if (h < cool_min_h || h >= cool_max_h ||
+                    w < cool_min_w || w >= cool_max_w)
+                    lua_pushinteger(L, -1);
+                else if (term->mode == 2)
+                    lua_pushinteger(L, term->pixels[y][x]);
+                else
+                    lua_pushinteger(L, 1 << term->pixels[y][x]);
+
+                lua_settable(L, -3);
+            }
         }
 
         lua_settable(L, -3);
     }
 
+    delete[] bg;
+    return 1;
+}
+
+int monitor::screenshot(lua_State *L) {
+    lastCFunction = __func__;
+    if (selectedRenderer != 0 && selectedRenderer != 5) return 0;
+    SDLTerminal * term = dynamic_cast<SDLTerminal*>(this->term);
+    if (term == NULL) return 0;
+    if (std::chrono::system_clock::now() - term->lastScreenshotTime < std::chrono::milliseconds(1000 / config.recordingFPS)) return 0;
+    // Specifying a save path is no longer supported.
+    if (lua_toboolean(L, 1)) term->screenshot("clipboard");
+    else term->screenshot();
+    term->lastScreenshotTime = std::chrono::system_clock::now();
+    return 0;
+}
+
+int monitor::setFrozen(lua_State *L) {
+    lastCFunction = __func__;
+    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    if (term == NULL) return 0;
+    std::lock_guard<std::mutex> lock(term->locked);
+    term->frozen = lua_toboolean(L, 1);
+    return 0;
+}
+
+int monitor::getFrozen(lua_State *L) {
+    lastCFunction = __func__;
+    if (term == NULL) return 0;
+    lua_pushboolean(L, term->frozen);
     return 1;
 }
 
@@ -495,6 +586,9 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "getTextScale") return getTextScale(L);
     else if (m == "drawPixels") return drawPixels(L);
     else if (m == "getPixels") return getPixels(L);
+    else if (m == "screenshot") return screenshot(L);
+    else if (m == "setFrozen") return setFrozen(L);
+    else if (m == "getFrozen") return getFrozen(L);
     else return 0;
 }
 

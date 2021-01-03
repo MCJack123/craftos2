@@ -5,7 +5,7 @@
  * This file defines the HardwareSDLTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifndef TERMINAL_HARDWARESDLTERMINAL_HPP
@@ -27,10 +27,11 @@ private:
 #ifdef __EMSCRIPTEN__
     static SDL_Renderer *ren;
     static SDL_Texture *font;
+    static SDL_Texture *pixtex;
 #else
     SDL_Renderer *ren = NULL;
     SDL_Texture *font = NULL;
-#endif
     SDL_Texture *pixtex = NULL;
+#endif
 };
 #endif

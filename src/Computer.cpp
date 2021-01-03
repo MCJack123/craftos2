@@ -5,7 +5,7 @@
  * This file implements the methods of the Computer class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 extern "C" {
@@ -42,7 +42,6 @@ extern std::string standaloneBIOS;
 #endif
 
 extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
-extern void stopWebsocket(void*);
 extern int term_benchmark(lua_State *L);
 extern int onboardingMode;
 ProtectedObject<std::vector<Computer*> > computers;
@@ -98,7 +97,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
     for (auto m : customMounts) {
-        bool ok;
+        bool ok = false;
         switch (std::get<2>(m)) {
             case -1: if (::config.mount_mode != MOUNT_MODE_NONE) ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
             case 0: ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), true); break; // force RO
@@ -216,6 +215,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             self->term->pixels = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
             memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
             self->term->mode = 0;
+            if (dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->cursorColor = 0;
         }
         self->colors = 0xF0;
 
@@ -242,7 +242,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_settable(L, LUA_REGISTRYINDEX);
         if (::config.debug_enable) {
             lua_newtable(L);
-            lua_newtable(L);
+            lua_createtable(L, 0, 1);
             lua_pushstring(L, "v");
             lua_setfield(L, -2, "__mode");
             lua_setmetatable(L, -2);
@@ -342,7 +342,11 @@ void runComputer(Computer * self, const path_t& bios_name) {
             lua_pushnil(L);
             lua_setfield(L, -2, "screenshot");
             lua_pushnil(L);
-            lua_setfield(L, -2, "setMouse");
+            lua_setfield(L, -2, "showMouse");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setFrozen");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "getFrozen");
             lua_pop(L, 1);
             if (config.http_enable) {
                 lua_getglobal(L, "http");
@@ -454,7 +458,11 @@ void runComputer(Computer * self, const path_t& bios_name) {
         status = LUA_YIELD;
         int narg = 0;
         self->running = 1;
+#ifdef __EMSCRIPTEN__
+        queueTask([self](void*)->void*{self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self); return NULL;}, NULL);
+#else
         self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
+#endif
         while (status == LUA_YIELD && self->running == 1) {
             status = lua_resume(self->coro, narg);
             if (status == LUA_YIELD) {
@@ -473,6 +481,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
         
         // Shutdown threads
         self->event_lock.notify_all();
+        // Stop all open websockets
+        while (!self->openWebsockets.empty()) stopWebsocket(*self->openWebsockets.begin());
         for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(self);
         lua_close(L);   /* Cya, Lua */
         self->L = NULL;
@@ -483,9 +493,9 @@ void runComputer(Computer * self, const path_t& bios_name) {
 bool Computer_getEvent(Computer * self, SDL_Event* e) {
     std::lock_guard<std::mutex> lock(self->termEventQueueMutex);
     if (self->termEventQueue.empty()) return false;
-    SDL_Event& front = self->termEventQueue.front();
-    if (&front == NULL || e == NULL) return false;
-    memcpy(e, &front, sizeof(SDL_Event));
+    SDL_Event* front = &self->termEventQueue.front();
+    if (front == NULL || e == NULL) return false;
+    memcpy(e, front, sizeof(SDL_Event));
     self->termEventQueue.pop();
     return true;
 }
@@ -508,10 +518,12 @@ void* computerThread(void* data) {
         runComputer(comp, WS("bios.lua"));
 #endif
     } catch (std::exception &e) {
-        fprintf(stderr, "Uncaught exception while executing computer %d: %s\n", comp->id, e.what());
+        fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
         queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
         if (comp->L != NULL) {
             comp->event_lock.notify_all();
+            // Stop all open websockets
+            while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
             for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
             lua_close(comp->L);   /* Cya, Lua */
             comp->L = NULL;

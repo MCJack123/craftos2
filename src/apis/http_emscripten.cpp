@@ -6,7 +6,7 @@
  * support the standard HTTP implementation using Poco.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #define CRAFTOSPC_INTERNAL

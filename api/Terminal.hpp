@@ -6,7 +6,7 @@
  * renderer classes.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_TERMINAL_HPP
@@ -135,6 +135,7 @@ public:
     int errorcount = 0; // The number of consecutive errors that have happened while rendering (used to detect crashes)
     bool grayscale = false; // Whether the terminal should display in grayscale
     bool errorMode = false; // For standards mode: whether the screen should stay on-screen after the computer terminates, for use with CC-style error screens
+    bool frozen = false; // Whether the terminal should stop rendering
 protected:
     // Initial constructor to fill the contents with their defaults for the specified width and height
     Terminal(unsigned w, unsigned h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {

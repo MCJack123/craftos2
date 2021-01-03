@@ -5,7 +5,7 @@
  * This file implements the SDLTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #include <sstream>
@@ -53,30 +53,30 @@ std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > SDL
 /* export */ std::list<Terminal*> renderTargets;
 /* export */ std::mutex renderTargetsLock;
 #ifdef __EMSCRIPTEN__
-/* export */ std::list<Terminal*>::iterator renderTarget = Terminal::renderTargets.end();
+/* export */ std::list<Terminal*>::iterator renderTarget = renderTargets.end();
 SDL_Window *SDLTerminal::win = NULL;
 static int nextWindowID = 1;
 
 extern "C" {
     void EMSCRIPTEN_KEEPALIVE nextRenderTarget() {
-        if (++Terminal::renderTarget == Terminal::renderTargets.end()) Terminal::renderTarget = Terminal::renderTargets.begin();
-        (*Terminal::renderTarget)->changed = true;
+        if (++renderTarget == renderTargets.end()) renderTarget = renderTargets.begin();
+        (*renderTarget)->changed = true;
     }
 
     void EMSCRIPTEN_KEEPALIVE previousRenderTarget() {
-        if (Terminal::renderTarget == Terminal::renderTargets.begin()) Terminal::renderTarget = Terminal::renderTargets.end();
-        Terminal::renderTarget--;
-        (*Terminal::renderTarget)->changed = true;
+        if (renderTarget == renderTargets.begin()) renderTarget = renderTargets.end();
+        renderTarget--;
+        (*renderTarget)->changed = true;
     }
 
     bool EMSCRIPTEN_KEEPALIVE selectRenderTarget(int id) {
-        for (Terminal::renderTarget = Terminal::renderTargets.begin(); Terminal::renderTarget != Terminal::renderTargets.end(); Terminal::renderTarget++) if ((*Terminal::renderTarget)->id == id) break;
-        (*Terminal::renderTarget)->changed = true;
-        return Terminal::renderTarget != Terminal::renderTargets.end();
+        for (renderTarget = renderTargets.begin(); renderTarget != renderTargets.end(); renderTarget++) if ((*renderTarget)->id == id) break;
+        (*renderTarget)->changed = true;
+        return renderTarget != renderTargets.end();
     }
 
     const char * EMSCRIPTEN_KEEPALIVE getRenderTargetName() {
-        return (*Terminal::renderTarget)->title.c_str();
+        return (*renderTarget)->title.c_str();
     }
 
     extern void syncfs();
@@ -108,7 +108,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         charHeight = fontHeight * 2/fontScale * charScale;
     }
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
-    if (win == NULL)
+    if (win == NULL) {
 #endif
     win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), SDL_WINDOW_SHOWN | 
 #if !(defined(__EMSCRIPTEN__) && defined(NO_EMSCRIPTEN_HIDPI))
@@ -119,6 +119,11 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         overridden = true;
         throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
     }
+    realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+    realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+#if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
+    }
+#endif
 #ifndef __EMSCRIPTEN__
     id = SDL_GetWindowID(win);
 #else
@@ -189,6 +194,8 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -372,6 +379,7 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 bool SDLTerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
+    SDL_GetWindowSize(win, &realWidth, &realHeight);
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
     while (gotResizeEvent) std::this_thread::yield();
@@ -498,6 +506,10 @@ void SDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
+    //SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
+#ifdef __EMSCRIPTEN__
+    SDL_SetHint(SDL_HINT_EMSCRIPTEN_ASYNCIFY, "0");
+#endif
 #if SDL_VERSION_ATLEAST(2, 0, 8)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
@@ -540,7 +552,7 @@ void SDLTerminal::quit() {
 }
 
 #ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
+#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
 #else
 #define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
@@ -565,7 +577,7 @@ bool SDLTerminal::pollEvents() {
             }
         } else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
-            SDLTerminal* term = dynamic_cast<SDLTerminal*>(*SDLTerminal::renderTarget);
+            SDLTerminal* term = dynamic_cast<SDLTerminal*>(*renderTarget);
             if (term != NULL) {
                 std::lock_guard<std::mutex> lock(term->locked);
                 if (term->surf != NULL) {

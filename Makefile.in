@@ -12,6 +12,9 @@ CFLAGS+= -fno-stack-check
 LDFLAGS+= -pagezero_size 10000 -image_base 100000000
 LIBS+= -framework ApplicationServices
 endif
+ifeq ($(shell uname), Linux)
+LIBS+= -lX11
+endif
 endif
 endif
 PREFIX?=@prefix@

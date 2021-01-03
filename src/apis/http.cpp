@@ -5,7 +5,7 @@
  * This file implements the methods for the http API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifdef __EMSCRIPTEN__
@@ -74,11 +74,11 @@ static std::string http_success(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
     lua_pushlstring(L, handle->url.c_str(), handle->url.size());
-    lua_newtable(L);
+    lua_createtable(L, 0, 5);
 
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, handle);
-    lua_newtable(L);
+    lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
     lua_pushlightuserdata(L, handle);
     lua_pushcclosure(L, http_handle_free, 1);
@@ -128,11 +128,11 @@ static std::string http_failure(lua_State *L, void* data) {
     lua_pushlstring(L, handle->url.c_str(), handle->url.size());
     if (!handle->failureReason.empty()) lua_pushstring(L, handle->failureReason.c_str());
     if (handle->stream != NULL) {
-        lua_newtable(L);
+        lua_createtable(L, 0, 5);
 
         lua_pushstring(L, "close");
         lua_pushlightuserdata(L, handle);
-        lua_newtable(L);
+        lua_createtable(L, 0, 1);
         lua_pushstring(L, "__gc");
         lua_pushlightuserdata(L, handle);
         lua_pushcclosure(L, http_handle_free, 1);
@@ -208,9 +208,12 @@ static void downloadThread(void* arg) {
     if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
     size_t requestSize = param->postData.size();
     for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
-    if (!request.has("User-Agent")) request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
-    if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
-    if (!param->postData.empty()) request.setContentLength(param->postData.size());
+    if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
+    if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
+    if (!param->postData.empty()) {
+        if (request.getContentLength() == HTTPRequest::UNKNOWN_CONTENT_LENGTH) request.setContentLength(param->postData.size());
+        if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
+    }
     if (config.http_max_upload > 0 && requestSize > (unsigned)config.http_max_upload) {
         http_handle_t * err = new http_handle_t(NULL);
         err->url = param->url;
@@ -458,7 +461,7 @@ static std::string http_request_event(lua_State *L, void* userp) {
     bool* closed = &data->closed;
     *closed = false;
     lua_pushinteger(L, data->port);
-    lua_newtable(L);
+    lua_createtable(L, 0, 7);
 
     lua_pushstring(L, "read");
     lua_pushlightuserdata(L, data->req);
@@ -481,7 +484,7 @@ static std::string http_request_event(lua_State *L, void* userp) {
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, data->req);
     lua_pushlightuserdata(L, closed);
-    lua_newtable(L);
+    lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
     lua_pushlightuserdata(L, closed);
     lua_pushcclosure(L, req_free, 1);
@@ -508,7 +511,7 @@ static std::string http_request_event(lua_State *L, void* userp) {
     lua_pushcclosure(L, req_getRequestHeaders, 2);
     lua_settable(L, -3);
 
-    lua_newtable(L);
+    lua_createtable(L, 0, 5);
 
     lua_pushstring(L, "write");
     lua_pushlightuserdata(L, data->res);
@@ -697,11 +700,11 @@ static std::string websocket_success(lua_State *L, void* userp) {
     luaL_checkstack(L, 10, "Could not grow stack for websocket_success");
     if (ws->url.empty()) lua_pushnil(L);
     else lua_pushstring(L, ws->url.c_str());
-    lua_newtable(L);
+    lua_createtable(L, 0, 4);
 
     lua_pushstring(L, "close");
     lua_pushlightuserdata(L, ws);
-    lua_newtable(L);
+    lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
     lua_pushlightuserdata(L, ws);
     lua_pushcclosure(L, websocket_free, 1);
@@ -863,11 +866,12 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
     wsh->binary = binary;
     comp->openWebsockets.push_back(wsh);
     queueEvent(comp, websocket_success, wsh);
+    char * buf = new char[config.http_max_websocket_message];
     while (!wsh->closed) {
-        Poco::Buffer<char> buf(config.http_max_websocket_message);
         int flags = 0;
+        int res;
         try {
-            int res = ws->receiveFrame(buf, flags);
+            res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
             if (res == 0) {
                 wsh->closed = true;
                 wsh->url = "";
@@ -906,11 +910,12 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
         } else {
             ws_message * message = new ws_message;
             message->url = str;
-            message->data = std::string(buf.begin(), buf.end());
+            message->data = std::string((const char*)buf, res);
             queueEvent(comp, websocket_message, message);
         }
         std::this_thread::yield();
     }
+    delete[] buf;
     wsh->url = "";
     try {if (!wsh->externalClosed) ws->shutdown();} catch (...) {}
     for (auto it = comp->openWebsockets.begin(); it != comp->openWebsockets.end(); ++it) {

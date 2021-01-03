@@ -5,7 +5,7 @@
  * This file implements functions specific to macOS app binaries.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 extern "C" {
@@ -323,4 +323,48 @@ float getBackingScaleFactor(SDL_Window *win) {
     if ([info.info.cocoa.window.screen respondsToSelector:@selector(backingScaleFactor)])  // Mac OS X 10.7 and later
         return [info.info.cocoa.window.screen backingScaleFactor];
     return 1.0f;
+}
+
+#ifdef _X11_XLIB_H_
+// thanks sgx1: https://stackoverflow.com/questions/20733215/how-to-make-a-window-always-on-top
+#define _NET_WM_STATE_REMOVE        0    /* remove/unset property */
+#define _NET_WM_STATE_ADD           1    /* add/set property */
+#define _NET_WM_STATE_TOGGLE        2    /* toggle property  */
+// change a window's _NET_WM_STATE property so that it can be kept on top.
+// @display: x11 display singleton.
+// @xid    : the window to set on top.
+Status x11_window_set_on_top (Display* display, Window xid, bool state)
+{
+    XEvent event;
+    event.xclient.type = ClientMessage;
+    event.xclient.serial = 0;
+    event.xclient.send_event = True;
+    event.xclient.display = display;
+    event.xclient.window  = xid;
+    event.xclient.message_type = XInternAtom (display, "_NET_WM_STATE", False);
+    event.xclient.format = 32;
+
+    event.xclient.data.l[0] = state ? _NET_WM_STATE_ADD : _NET_WM_STATE_REMOVE;
+    event.xclient.data.l[1] = XInternAtom (display, "_NET_WM_STATE_ABOVE", False);
+    event.xclient.data.l[2] = 0; //unused.
+    event.xclient.data.l[3] = 0;
+    event.xclient.data.l[4] = 0;
+
+    return XSendEvent (display, DefaultRootWindow(display), False,
+                       SubstructureRedirectMask|SubstructureNotifyMask, &event);
+}
+#endif
+
+void setFloating(SDL_Window* win, bool state) {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(win, &info);
+    if (info.subsystem == SDL_SYSWM_COCOA) {
+        info.info.cocoa.window.level = state ? NSFloatingWindowLevel : NSNormalWindowLevel;
+    } else if (info.subsystem == SDL_SYSWM_X11) {
+        // rare, but it's possible if someone built it for XQuartz
+#ifdef _X11_XLIB_H_
+        x11_window_set_on_top(info.info.x11.display, info.info.x11.window, state);
+#endif
+    }
 }

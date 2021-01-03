@@ -5,7 +5,7 @@
  * This file defines some common functions used by various parts of the program.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2020 JackMacWindows.
+ * Copyright (c) 2019-2021 JackMacWindows.
  */
 
 #ifndef UTIL_HPP
@@ -24,7 +24,7 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.5-luajit"
+#define CRAFTOSPC_VERSION    "v2.5.1-luajit"
 #define CRAFTOSPC_CC_VERSION "1.95.0"
 #define CRAFTOSPC_INDEV      false
 
