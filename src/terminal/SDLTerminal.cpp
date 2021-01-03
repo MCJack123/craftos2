@@ -53,30 +53,30 @@ std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > SDL
 /* export */ std::list<Terminal*> renderTargets;
 /* export */ std::mutex renderTargetsLock;
 #ifdef __EMSCRIPTEN__
-/* export */ std::list<Terminal*>::iterator renderTarget = Terminal::renderTargets.end();
+/* export */ std::list<Terminal*>::iterator renderTarget = renderTargets.end();
 SDL_Window *SDLTerminal::win = NULL;
 static int nextWindowID = 1;
 
 extern "C" {
     void EMSCRIPTEN_KEEPALIVE nextRenderTarget() {
-        if (++Terminal::renderTarget == Terminal::renderTargets.end()) Terminal::renderTarget = Terminal::renderTargets.begin();
-        (*Terminal::renderTarget)->changed = true;
+        if (++renderTarget == renderTargets.end()) renderTarget = renderTargets.begin();
+        (*renderTarget)->changed = true;
     }
 
     void EMSCRIPTEN_KEEPALIVE previousRenderTarget() {
-        if (Terminal::renderTarget == Terminal::renderTargets.begin()) Terminal::renderTarget = Terminal::renderTargets.end();
-        Terminal::renderTarget--;
-        (*Terminal::renderTarget)->changed = true;
+        if (renderTarget == renderTargets.begin()) renderTarget = renderTargets.end();
+        renderTarget--;
+        (*renderTarget)->changed = true;
     }
 
     bool EMSCRIPTEN_KEEPALIVE selectRenderTarget(int id) {
-        for (Terminal::renderTarget = Terminal::renderTargets.begin(); Terminal::renderTarget != Terminal::renderTargets.end(); Terminal::renderTarget++) if ((*Terminal::renderTarget)->id == id) break;
-        (*Terminal::renderTarget)->changed = true;
-        return Terminal::renderTarget != Terminal::renderTargets.end();
+        for (renderTarget = renderTargets.begin(); renderTarget != renderTargets.end(); renderTarget++) if ((*renderTarget)->id == id) break;
+        (*renderTarget)->changed = true;
+        return renderTarget != renderTargets.end();
     }
 
     const char * EMSCRIPTEN_KEEPALIVE getRenderTargetName() {
-        return (*Terminal::renderTarget)->title.c_str();
+        return (*renderTarget)->title.c_str();
     }
 
     extern void syncfs();
@@ -506,6 +506,10 @@ void SDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
+    //SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
+#ifdef __EMSCRIPTEN__
+    SDL_SetHint(SDL_HINT_EMSCRIPTEN_ASYNCIFY, "0");
+#endif
 #if SDL_VERSION_ATLEAST(2, 0, 8)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
@@ -548,7 +552,7 @@ void SDLTerminal::quit() {
 }
 
 #ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *SDLTerminal::renderTarget || findMonitorFromWindowID(c, (*SDLTerminal::renderTarget)->id, tmps) != NULL)
+#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
 #else
 #define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
@@ -573,7 +577,7 @@ bool SDLTerminal::pollEvents() {
             }
         } else if (e.type == render_event_type) {
 #ifdef __EMSCRIPTEN__
-            SDLTerminal* term = dynamic_cast<SDLTerminal*>(*SDLTerminal::renderTarget);
+            SDLTerminal* term = dynamic_cast<SDLTerminal*>(*renderTarget);
             if (term != NULL) {
                 std::lock_guard<std::mutex> lock(term->locked);
                 if (term->surf != NULL) {

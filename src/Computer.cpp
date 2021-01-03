@@ -97,7 +97,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
     for (auto m : customMounts) {
-        bool ok;
+        bool ok = false;
         switch (std::get<2>(m)) {
             case -1: if (::config.mount_mode != MOUNT_MODE_NONE) ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
             case 0: ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), true); break; // force RO
@@ -447,7 +447,11 @@ void runComputer(Computer * self, const path_t& bios_name) {
         status = LUA_YIELD;
         int narg = 0;
         self->running = 1;
+#ifdef __EMSCRIPTEN__
+        queueTask([self](void*)->void*{self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self); return NULL;}, NULL);
+#else
         self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
+#endif
         while (status == LUA_YIELD && self->running == 1) {
             status = lua_resume(self->coro, narg);
             if (status == LUA_YIELD) {

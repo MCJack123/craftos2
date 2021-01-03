@@ -27,10 +27,11 @@ private:
 #ifdef __EMSCRIPTEN__
     static SDL_Renderer *ren;
     static SDL_Texture *font;
+    static SDL_Texture *pixtex;
 #else
     SDL_Renderer *ren = NULL;
     SDL_Texture *font = NULL;
-#endif
     SDL_Texture *pixtex = NULL;
+#endif
 };
 #endif

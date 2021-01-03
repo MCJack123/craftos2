@@ -579,7 +579,7 @@ int main(int argc, char*argv[]) {
 #endif
     startComputer(manualID ? id : config.initialComputer);
 #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop(mainLoop, 60, 1);
+    emscripten_set_main_loop(mainLoop, 0, false);
     return 0;
 #else
     try {
