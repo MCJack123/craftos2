@@ -207,18 +207,23 @@ static void update_thread() {
                 SDL_MessageBoxData msg;
                 SDL_MessageBoxButtonData buttons[] = {
                     {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "OK"},
-                    {0, 1, "Release Notes"}
+                    {0, 1, "Release Notes"},
+                    {0, 2, "Don't Ask Again"}
                 };
                 msg.flags = SDL_MESSAGEBOX_INFORMATION;
                 msg.window = NULL;
                 msg.title = "Update available!";
                 msg.message = (const char*)arg;
-                msg.numbuttons = 2;
+                msg.numbuttons = 3;
                 msg.buttons = buttons;
                 msg.colorScheme = NULL;
                 int choice = 0;
                 SDL_ShowMessageBox(&msg, &choice);
                 if (choice == 1) showReleaseNotes();
+                else if (choice == 2) {
+                    config.skipUpdate = CRAFTOSPC_VERSION;
+                    config_save();
+                }
                 return NULL;
             }, (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
 #endif

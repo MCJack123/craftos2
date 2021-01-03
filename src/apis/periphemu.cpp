@@ -121,10 +121,12 @@ static int periphemu_remove(lua_State* L) {
 static int periphemu_names(lua_State *L) {
     lastCFunction = __func__;
     lua_createtable(L, initializers.size() + 1, 0);
-    lua_pushinteger(L, 1);
-    lua_pushstring(L, "debugger");
-    lua_settable(L, -3);
-    int i = 2;
+    int i = 1;
+    if (config.debug_enable) {
+        lua_pushinteger(L, i++);
+        lua_pushstring(L, "debugger");
+        lua_settable(L, -3);
+    }
     for (const auto& entry : initializers) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, entry.first.c_str());
