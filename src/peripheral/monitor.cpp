@@ -113,8 +113,13 @@ int monitor::getCursorBlink(lua_State *L) {
 
 int monitor::getSize(lua_State *L) {
     lastCFunction = __func__;
-    lua_pushinteger(L, term->width);
-    lua_pushinteger(L, term->height);
+    if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
+        lua_pushinteger(L, term->width * Terminal::fontWidth);
+        lua_pushinteger(L, term->height * Terminal::fontHeight);
+    } else if (lua_isnoneornil(L, 1) || (lua_isboolean(L, 1) && !lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0)) {
+        lua_pushinteger(L, term->width);
+        lua_pushinteger(L, term->height);
+    } else luaL_typerror(L, 1, "boolean or number");
     return 2;
 }
 
