@@ -24,7 +24,7 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.5.1"
+#define CRAFTOSPC_VERSION    "v2.5.1.1"
 #define CRAFTOSPC_CC_VERSION "1.95.0"
 #define CRAFTOSPC_INDEV      false
 
