@@ -462,12 +462,12 @@ RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, conf
     std::move(title.begin(), title.end(), this->title.begin());
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
     currentIDs.insert(id);
-    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this](std::ostream& output) {
+    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
         output.put(0);
         output.put(0);
         output.write((char*)&width, 2);
         output.write((char*)&height, 2);
-        output.write(this->title.c_str(), strlen(this->title.c_str()));
+        output.write(title.c_str(), strlen(title.c_str()));
         output.put(0);
     });
     renderTargets.push_back(this);
