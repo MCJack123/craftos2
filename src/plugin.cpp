@@ -23,7 +23,7 @@
 #endif
 
 std::string loadingPlugin;
-static std::unordered_map<path_t, std::pair<void*, PluginInfo*> > loadedPlugins;
+static std::map<path_t, std::pair<void*, PluginInfo*> > loadedPlugins;
 
 static library_t * getLibrary(const std::string& name) {
     if (name == "config") return &config_lib;
