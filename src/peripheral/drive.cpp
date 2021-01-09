@@ -132,7 +132,7 @@ int drive::insertDisk(lua_State *L, bool init) {
         comp->usedDriveMounts.insert(i);
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
         comp->mounter_initializing = true;
-#ifdef WIN32
+#ifdef _WIN32
         createDirectory(computerDir + WS("\\disk\\") + to_path_t(id));
         addMount(comp, computerDir + WS("\\disk\\") + to_path_t(id), mount_path.c_str(), false);
 #else
@@ -145,20 +145,32 @@ int drive::insertDisk(lua_State *L, bool init) {
         struct_stat st;
 #ifndef STANDALONE_ROM
         if (path.substr(0, 9) == WS("treasure:")) {
-#ifdef WIN32
+#ifdef _WIN32
             for (size_t i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
             path = getROMPath() + WS("\\treasure\\") + path.substr(9);
 #else
             path = getROMPath() + WS("/treasure/") + path.substr(9);
 #endif
         } else if (path.substr(0, 7) == WS("record:")) {
-#ifdef WIN32
+#ifdef _WIN32
             path = getROMPath() + WS("\\sounds\\minecraft\\sounds\\records\\") + path.substr(7) + WS(".ogg");
 #else
             path = getROMPath() + WS("/sounds/minecraft/sounds/records/") + path.substr(7) + WS(".ogg");
 #endif
-        }
+        } else
 #endif
+        if (path.substr(0, 9) == WS("computer:")) {
+            try {std::stoi(path.substr(9));}
+            catch (std::invalid_argument &e) {
+                if (init) throw std::invalid_argument("Could not mount: Invalid computer ID");
+                else luaL_error(L, "Could not mount: Invalid computer ID");
+            }
+#ifdef _WIN32
+            path = getBasePath() + WS("\\computer\\") + path.substr(9);
+#else
+            path = getBasePath() + WS("/computer/") + path.substr(9);
+#endif
+        }
         if (platform_stat(path.c_str(), &st) != 0) {
             if (init) throw std::system_error(errno, std::system_category(), "Could not mount: ");
             else luaL_error(L, "Could not mount: %s", strerror(errno));
