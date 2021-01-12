@@ -194,7 +194,7 @@ void updateNow(const std::string& tag_name) {
     win.maxSize = {480, 103};
     win.releasedWhenClosed = YES;
     [win makeKeyAndOrderFront:NSApp];
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [win, tagname](std::istream * shain, Poco::Exception * e){
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/sha256-hashes.txt", [win, tag_name](std::istream * shain, Poco::Exception * e) {
         if (e != NULL) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
             [win release];
