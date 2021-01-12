@@ -781,7 +781,7 @@ std::string termGetEvent(lua_State *L) {
             } else {
                 int x = 0, y = 0;
                 term->getMouse(&x, &y);
-                lua_pushinteger(L, max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
+                lua_pushinteger(L, max(min(-e.wheel.y, 1), -1));
                 lua_pushinteger(L, convertX(term, x));
                 lua_pushinteger(L, convertY(term, y));
                 if (e.wheel.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
