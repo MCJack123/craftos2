@@ -15,6 +15,9 @@
 #ifdef __APPLE__
 #include "platform/darwin.cpp"
 #else
+#ifdef __ANDROID__
+#include "platform/android.cpp"
+#else
 #ifdef __linux__
 #include "platform/linux.cpp"
 #else
@@ -22,6 +25,7 @@
 #include "platform/emscripten.cpp"
 #else
 #error Unknown platform
+#endif
 #endif
 #endif
 #endif
