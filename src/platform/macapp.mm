@@ -30,6 +30,7 @@ extern "C" {
 #include <unistd.h>
 #include <wordexp.h>
 #include <png++/png.hpp>
+#include <Poco/SHA2Engine.h>
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/SSLException.h>
 #include <Poco/Net/HTTPRequest.h>
@@ -197,8 +198,7 @@ void updateNow(const std::string& tag_name) {
     HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/sha256-hashes.txt", [win, tag_name](std::istream * shain, Poco::Exception * e) {
         if (e != NULL) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
-            [win release];
-            [vc release];
+            [win close];
             return;
         }
         std::string line;
@@ -209,16 +209,14 @@ void updateNow(const std::string& tag_name) {
         }
         if (!found) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "A file required for verification could not be downloaded sucessfully. Please download the installer manually.", NULL);
-            [win release];
-            [vc release];
+            [win close];
             return;
         }
         std::string hash = line.substr(0, 64);
         HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC.dmg", [hash, win](std::istream * in, Poco::Exception * e) {
             if (e != NULL) {
                 SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
-                [win release];
-                [vc release];
+                [win close];
                 return;
             }
             std::stringstream ss;
@@ -229,8 +227,7 @@ void updateNow(const std::string& tag_name) {
             std::string myhash = Poco::SHA2Engine::digestToHex(engine.digest());
             if (hash != myhash) {
                 SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "The installer file could not be verified. Please try again later. If this issue persists, please download the installer manually.", NULL);
-                [win release];
-                [vc release];
+                [win close];
                 return;
             }
             @autoreleasepool {
