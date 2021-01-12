@@ -74,6 +74,8 @@ struct configuration {
     int http_max_upload;
     int http_max_download;
     int http_timeout;
+    std::string http_proxy_server;
+    int http_proxy_port;
 };
 
 // A smaller structure that holds the configuration for a single computer.

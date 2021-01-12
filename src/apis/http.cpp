@@ -203,6 +203,7 @@ static void downloadThread(void* arg) {
         const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
         session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
     }
+    if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
     if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
@@ -317,18 +318,23 @@ static void downloadThread(void* arg) {
     delete param;
 }
 
-void HTTPDownload(const std::string& url, const std::function<void(std::istream&)>& callback) {
+void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback) {
     Poco::URI uri(url);
     HTTPSClientSession session(uri.getHost(), uri.getPort(), new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
     request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
-    session.sendRequest(request);
-    std::istream& stream = session.receiveResponse(response);
-    if (response.getStatus() / 100 == 3 && response.has("Location")) 
-        return HTTPDownload(response.get("Location"), callback);
-    callback(stream);
+    try {
+        session.sendRequest(request);
+        std::istream& stream = session.receiveResponse(response);
+        if (response.getStatus() / 100 == 3 && response.has("Location")) 
+            return HTTPDownload(response.get("Location"), callback);
+        callback(&stream, NULL);
+    } catch (Poco::Exception &e) {
+        callback(NULL, &e);
+    }
 }
 
 static void* checkThread(void* arg) {
@@ -840,6 +846,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
         return;
     }
     if (uri.getPathAndQuery().empty()) uri.setPath("/");
+    if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     request.set("origin", "http://www.websocket.org");
     for (std::pair<std::string, std::string> h : headers) request.set(h.first, h.second);

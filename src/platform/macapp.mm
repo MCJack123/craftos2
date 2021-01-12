@@ -194,78 +194,116 @@ void updateNow(const std::string& tag_name) {
     win.maxSize = {480, 103};
     win.releasedWhenClosed = YES;
     [win makeKeyAndOrderFront:NSApp];
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC.dmg", [win](std::istream& in) {
-        @autoreleasepool {
-            NSString *tempFileTemplate = [NSTemporaryDirectory() stringByAppendingPathComponent:@"CraftOS-PC.dmg"];
-            const char *tempFileTemplateCString = [tempFileTemplate fileSystemRepresentation];
-            std::ofstream out(tempFileTemplateCString, std::ios::binary);
-            char c = in.get();
-            while (in.good()) {out.put(c); c = in.get();}
-            out.close();
-            fprintf(stderr, "Wrote: %s\n", tempFileTemplateCString);
-            NSError * err = nil;
-            NSUserUnixTask * task = [[NSUserUnixTask alloc] initWithURL:[NSURL fileURLWithPath:@"/usr/bin/hdiutil" isDirectory:false] error:&err];
-            if (err != nil) {
-                NSLog(@"Could not open mount task: %@\n", [err localizedDescription]);
-                [win close];
-                if (exiting) exit(0);
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [win, tagname](std::istream * shain, Poco::Exception * e){
+        if (e != NULL) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
+            [win release];
+            [vc release];
+            return;
+        }
+        std::string line;
+        bool found = false;
+        while (!shain->eof()) {
+            std::getline(*shain, line);
+            if (line.find("CraftOS-PC.dmg") != std::string::npos) {found = true; break;}
+        }
+        if (!found) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "A file required for verification could not be downloaded sucessfully. Please download the installer manually.", NULL);
+            [win release];
+            [vc release];
+            return;
+        }
+        std::string hash = line.substr(0, 64);
+        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC.dmg", [hash, win](std::istream * in, Poco::Exception * e) {
+            if (e != NULL) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
+                [win release];
+                [vc release];
                 return;
             }
-            NSPipe * pipe = [NSPipe pipe];
-            task.standardOutput = [pipe fileHandleForWriting];
-            [task executeWithArguments:@[@"attach", @"-plist", tempFileTemplate] completionHandler:^(NSError *error){
-                NSError * err2 = nil;
-                if (error == NULL) {
-                    NSDictionary * res = [NSPropertyListSerialization propertyListWithData:[[pipe fileHandleForReading] readDataToEndOfFile] options:NSPropertyListImmutable format:nil error:&err2];
-                    if (err2 != nil) {
-                        NSLog(@"Could not read property list: %@\n", [err2 localizedDescription]);
-                        [win close];
-                        if (exiting) exit(0);
-                        return;
-                    }
-                    NSString * pathstr = NULL;
-                    for (int i = 0; i < ((NSArray*)res[@"system-entities"]).count; i++)
-                        if ([((NSDictionary*)res[@"system-entities"][i]) valueForKey:@"mount-point"] != nil)
-                            pathstr = res[@"system-entities"][i][@"mount-point"];
-                    if (pathstr == NULL) {
-                        NSLog(@"Could not find mount point: %@\n", [err2 localizedDescription]);
-                        [win close];
-                        if (exiting) exit(0);
-                        return;
-                    }
-                    NSURL * path = [NSURL fileURLWithPath:@".install" relativeToURL:[NSURL fileURLWithPath:pathstr isDirectory:true]];
-                    if (![[NSFileManager defaultManager] isReadableFileAtPath:[path path]]) {
-                        [res retain];
-                        [path retain];
-                        queueTask([win, path, res, pathstr](void*)->void*{
-                            NSLog(@"Could not find %@\n", [path path]); 
-                            system((std::string("/usr/bin/hdiutil detach ") + [pathstr cStringUsingEncoding:NSASCIIStringEncoding]).c_str());
-                            [res release];
-                            [path release];
-                            NSAlert * alert = [[NSAlert alloc] init];
-                            alert.informativeText = @"This version does not support auto updating. Please go to https://github.com/MCJack123/craftos2/releases to install manually.";
-                            alert.messageText = @"Update failed";
-                            [alert beginSheetModalForWindow:win completionHandler:^(NSModalResponse returnCode) {
-                                [alert.window close];
-                                SDL_AddTimer(500, [](Uint32 interval, void* win)->Uint32{[((NSWindow*)win) close]; if (exiting) exit(0); return interval;}, win);
-                            }];
-                            return NULL;
-                        }, NULL);
-                        return;
-                    }
-                    int pid = fork();
-                    if (pid < 0) fprintf(stderr, "Could not fork: %d\n", pid);
-                    else if (pid == 0) {
-                        if ([[NSFileManager defaultManager] isWritableFileAtPath:[NSBundle mainBundle].bundlePath]) system(("/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation])).c_str());
-                        else system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str());
-                        exit(0);
-                    }
+            std::stringstream ss;
+            ss << in->rdbuf();
+            std::string data = ss.str();
+            Poco::SHA2Engine engine;
+            engine.update(data);
+            std::string myhash = Poco::SHA2Engine::digestToHex(engine.digest());
+            if (hash != myhash) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "The installer file could not be verified. Please try again later. If this issue persists, please download the installer manually.", NULL);
+                [win release];
+                [vc release];
+                return;
+            }
+            @autoreleasepool {
+                NSString *tempFileTemplate = [NSTemporaryDirectory() stringByAppendingPathComponent:@"CraftOS-PC.dmg"];
+                const char *tempFileTemplateCString = [tempFileTemplate fileSystemRepresentation];
+                std::ofstream out(tempFileTemplateCString, std::ios::binary);
+                out << data;
+                out.close();
+                fprintf(stderr, "Wrote: %s\n", tempFileTemplateCString);
+                NSError * err = nil;
+                NSUserUnixTask * task = [[NSUserUnixTask alloc] initWithURL:[NSURL fileURLWithPath:@"/usr/bin/hdiutil" isDirectory:false] error:&err];
+                if (err != nil) {
+                    NSLog(@"Could not open mount task: %@\n", [err localizedDescription]);
                     [win close];
-                    exit(0);
-                } else NSLog(@"Error: %@\n", [error localizedDescription]);
-                [win close];
-            }];
-        }
+                    if (exiting) exit(0);
+                    return;
+                }
+                NSPipe * pipe = [NSPipe pipe];
+                task.standardOutput = [pipe fileHandleForWriting];
+                [task executeWithArguments:@[@"attach", @"-plist", tempFileTemplate] completionHandler:^(NSError *error){
+                    NSError * err2 = nil;
+                    if (error == NULL) {
+                        NSDictionary * res = [NSPropertyListSerialization propertyListWithData:[[pipe fileHandleForReading] readDataToEndOfFile] options:NSPropertyListImmutable format:nil error:&err2];
+                        if (err2 != nil) {
+                            NSLog(@"Could not read property list: %@\n", [err2 localizedDescription]);
+                            [win close];
+                            if (exiting) exit(0);
+                            return;
+                        }
+                        NSString * pathstr = NULL;
+                        for (int i = 0; i < ((NSArray*)res[@"system-entities"]).count; i++)
+                            if ([((NSDictionary*)res[@"system-entities"][i]) valueForKey:@"mount-point"] != nil)
+                                pathstr = res[@"system-entities"][i][@"mount-point"];
+                        if (pathstr == NULL) {
+                            NSLog(@"Could not find mount point: %@\n", [err2 localizedDescription]);
+                            [win close];
+                            if (exiting) exit(0);
+                            return;
+                        }
+                        NSURL * path = [NSURL fileURLWithPath:@".install" relativeToURL:[NSURL fileURLWithPath:pathstr isDirectory:true]];
+                        if (![[NSFileManager defaultManager] isReadableFileAtPath:[path path]]) {
+                            [res retain];
+                            [path retain];
+                            queueTask([win, path, res, pathstr](void*)->void*{
+                                NSLog(@"Could not find %@\n", [path path]); 
+                                system((std::string("/usr/bin/hdiutil detach ") + [pathstr cStringUsingEncoding:NSASCIIStringEncoding]).c_str());
+                                [res release];
+                                [path release];
+                                NSAlert * alert = [[NSAlert alloc] init];
+                                alert.informativeText = @"This version does not support auto updating. Please go to https://github.com/MCJack123/craftos2/releases to install manually.";
+                                alert.messageText = @"Update failed";
+                                [alert beginSheetModalForWindow:win completionHandler:^(NSModalResponse returnCode) {
+                                    [alert.window close];
+                                    SDL_AddTimer(500, [](Uint32 interval, void* win)->Uint32{[((NSWindow*)win) close]; if (exiting) exit(0); return interval;}, win);
+                                }];
+                                return NULL;
+                            }, NULL);
+                            return;
+                        }
+                        int pid = fork();
+                        if (pid < 0) fprintf(stderr, "Could not fork: %d\n", pid);
+                        else if (pid == 0) {
+                            if ([[NSFileManager defaultManager] isWritableFileAtPath:[NSBundle mainBundle].bundlePath]) system(("/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation])).c_str());
+                            else system(("/usr/bin/osascript -e 'do shell script \"/bin/sh " + std::string([path fileSystemRepresentation]) + " " + std::string([[NSBundle mainBundle].bundlePath fileSystemRepresentation]) + "\" with administrator privileges'").c_str());
+                            exit(0);
+                        }
+                        [win close];
+                        exit(0);
+                    } else NSLog(@"Error: %@\n", [error localizedDescription]);
+                    [win close];
+                }];
+            }
+        });
     });
 }
 

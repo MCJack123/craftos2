@@ -182,7 +182,9 @@ void config_init() {
         16,
         4194304,
         16777216,
-        30000
+        30000,
+        "",
+        0
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -262,6 +264,8 @@ void config_init() {
     readConfigSetting(http_max_upload, Int);
     readConfigSetting(http_max_download, Int);
     readConfigSetting(http_timeout, Int);
+    readConfigSetting(http_proxy_server, String);
+    readConfigSetting(http_proxy_port, Int);
     if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
@@ -316,6 +320,8 @@ void config_save() {
     root["http_max_upload"] = config.http_max_upload;
     root["http_max_download"] = config.http_max_download;
     root["http_timeout"] = config.http_timeout;
+    root["http_proxy_server"] = config.http_proxy_server;
+    root["http_proxy_port"] = config.http_proxy_port;
     root["lastVersion"] = CRAFTOSPC_VERSION;
     root["pluginData"] = Value();
     for (const auto& e : config.pluginData) root["pluginData"][e.first] = e.second;

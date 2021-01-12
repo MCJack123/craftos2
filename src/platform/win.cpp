@@ -16,6 +16,7 @@
 #include <fstream>
 #include <cstring>
 #include <codecvt>
+#include <Poco/SHA2Engine.h>
 #include <processenv.h>
 #include <Shlwapi.h>
 #include <dirent.h>
@@ -160,21 +161,52 @@ int removeDirectory(const std::wstring& path) {
 }
 
 void updateNow(const std::string& tagname) {
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [](std::istream& in) {
-        char str[261];
-        GetTempPathA(261, str);
-        const std::string path = std::string(str) + "\\setup.exe";
-        std::ofstream out(path, std::ios::binary);
-        out << in.rdbuf();
-        out.close();
-        STARTUPINFOA info;
-        memset(&info, 0, sizeof(info));
-        info.cb = sizeof(info);
-        PROCESS_INFORMATION process;
-        CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
-        CloseHandle(process.hProcess);
-        CloseHandle(process.hThread);
-        exit(0);
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname](std::istream * shain, Poco::Exception * e){
+        if (e != NULL) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
+            return;
+        }
+        std::string line;
+        bool found = false;
+        while (!shain->eof()) {
+            std::getline(*shain, line);
+            if (line.find("CraftOS-PC-Setup.exe") != std::string::npos) {found = true; break;}
+        }
+        if (!found) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "A file required for verification could not be downloaded sucessfully. Please download the installer manually.", NULL);
+            return;
+        }
+        std::string hash = line.substr(0, 64);
+        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [hash](std::istream * in, Poco::Exception * e) {
+            if (e != NULL) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
+                return;
+            }
+            std::stringstream ss;
+            ss << in->rdbuf();
+            std::string data = ss.str();
+            Poco::SHA2Engine engine;
+            engine.update(data);
+            std::string myhash = Poco::SHA2Engine::digestToHex(engine.digest());
+            if (hash != myhash) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "The installer file could not be verified. Please try again later. If this issue persists, please download the installer manually.", NULL);
+                return;
+            }
+            char str[261];
+            GetTempPathA(261, str);
+            const std::string path = std::string(str) + "\\setup.exe";
+            std::ofstream out(path, std::ios::binary);
+            out << data;
+            out.close();
+            STARTUPINFOA info;
+            memset(&info, 0, sizeof(info));
+            info.cb = sizeof(info);
+            PROCESS_INFORMATION process;
+            //CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
+            //CloseHandle(process.hProcess);
+            //CloseHandle(process.hThread);
+            exit(0);
+        });
     });
 }
 

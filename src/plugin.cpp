@@ -57,7 +57,7 @@ static void setConfigSettingBool(const std::string& name, bool value) {config.pl
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    0,
+    1,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,
