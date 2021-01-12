@@ -142,7 +142,7 @@ static int config_set(lua_State *L) {
         config.http_whitelist = lua_to(L, 2);
     else if (strcmp(name, "http_blacklist") == 0)
         config.http_blacklist = lua_to(L, 2);*/
-    setConfigSettingI(showFPS);
+    setConfigSetting(showFPS, boolean);
     setConfigSettingI(abortTimeout);
     setConfigSetting(ignoreHotkeys, boolean);
     else if (strcmp(name, "isColor") == 0) {
