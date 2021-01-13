@@ -354,6 +354,7 @@ void HardwareSDLTerminal::init() {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     if (!overrideHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, overrideHardwareDriver.c_str());
     else if (!config.preferredHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, config.preferredHardwareDriver.c_str());
+    SDL_StartTextInput();
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
