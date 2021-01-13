@@ -144,10 +144,11 @@ static int fs_isReadOnly(lua_State *L) {
 #ifdef WIN32
     else if (S_ISDIR(st.st_mode)) {
         const path_t file = path + WS("\\a");
+        const bool didexist = platform_stat(file.c_str(), &st);
         FILE * fp = platform_fopen(file.c_str(), "a");
         lua_pushboolean(L, fp == NULL);
         if (fp != NULL) fclose(fp);
-        if (platform_stat(file.c_str(), &st) == 0) platform_remove(file.c_str());
+        if (!didexist && platform_stat(file.c_str(), &st) == 0) platform_remove(file.c_str());
     }
 #endif
     else lua_pushboolean(L, platform_access(path.c_str(), W_OK) != 0);
@@ -680,7 +681,7 @@ static int fs_attributes(lua_State *L) {
     if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
         try {
             const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
-            lua_createtable(L, 0, 5);
+            lua_createtable(L, 0, 6);
             lua_pushinteger(L, 0);
             lua_setfield(L, -2, "modification");
             lua_pushinteger(L, 0);
@@ -691,14 +692,19 @@ static int fs_attributes(lua_State *L) {
             lua_setfield(L, -2, "size");
             lua_pushboolean(L, d.isDir);
             lua_setfield(L, -2, "isDir");
-        } catch (...) {err(L, 1, "No such file");}
+            lua_pushboolean(L, true);
+            lua_setfield(L, -2, "isReadOnly");
+        } catch (...) {
+            lua_pushnil(L);
+            return 1;
+        }
     } else {
         struct_stat st;
         if (platform_stat(path.c_str(), &st) != 0) {
             lua_pushnil(L);
             return 1;
         }
-        lua_createtable(L, 0, 5);
+        lua_createtable(L, 0, 6);
         lua_pushinteger(L, st_time_ms(st.st_m));
         lua_setfield(L, -2, "modification");
         lua_pushinteger(L, st_time_ms(st.st_m));
@@ -709,6 +715,23 @@ static int fs_attributes(lua_State *L) {
         lua_setfield(L, -2, "size");
         lua_pushboolean(L, S_ISDIR(st.st_mode));
         lua_setfield(L, -2, "isDir");
+        if (fixpath_ro(get_comp(L), luaL_checkstring(L, 1))) lua_pushboolean(L, true);
+        else {
+            struct_stat st;
+            if (platform_stat(path.c_str(), &st) != 0) lua_pushboolean(L, false);
+        #ifdef WIN32
+            else if (S_ISDIR(st.st_mode)) {
+                const path_t file = path + WS("\\a");
+                const bool didexist = platform_stat(file.c_str(), &st);
+                FILE * fp = platform_fopen(file.c_str(), "a");
+                lua_pushboolean(L, fp == NULL);
+                if (fp != NULL) fclose(fp);
+                if (!didexist && platform_stat(file.c_str(), &st) == 0) platform_remove(file.c_str());
+            }
+        #endif
+            else lua_pushboolean(L, platform_access(path.c_str(), W_OK) != 0);
+        }
+        lua_setfield(L, -2, "isReadOnly");
     }
     return 1;
 }
