@@ -144,7 +144,7 @@ static int fs_isReadOnly(lua_State *L) {
 #ifdef WIN32
     else if (S_ISDIR(st.st_mode)) {
         const path_t file = path + WS("\\a");
-        const bool didexist = platform_stat(file.c_str(), &st);
+        const bool didexist = platform_stat(file.c_str(), &st) == 0;
         FILE * fp = platform_fopen(file.c_str(), "a");
         lua_pushboolean(L, fp == NULL);
         if (fp != NULL) fclose(fp);
@@ -722,7 +722,7 @@ static int fs_attributes(lua_State *L) {
         #ifdef WIN32
             else if (S_ISDIR(st.st_mode)) {
                 const path_t file = path + WS("\\a");
-                const bool didexist = platform_stat(file.c_str(), &st);
+                const bool didexist = platform_stat(file.c_str(), &st) == 0;
                 FILE * fp = platform_fopen(file.c_str(), "a");
                 lua_pushboolean(L, fp == NULL);
                 if (fp != NULL) fclose(fp);
