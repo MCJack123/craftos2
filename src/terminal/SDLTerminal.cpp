@@ -579,7 +579,7 @@ bool SDLTerminal::pollEvents() {
 #ifdef __EMSCRIPTEN__
             SDLTerminal* term = dynamic_cast<SDLTerminal*>(*renderTarget);
             if (term != NULL) {
-                std::lock_guard<std::mutex> lock(term->locked);
+                std::lock_guard<std::mutex> lock(term->renderlock);
                 if (term->surf != NULL) {
                     SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
                     SDL_UpdateWindowSurface(SDLTerminal::win);
