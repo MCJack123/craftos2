@@ -467,6 +467,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
                 break;
             } else self->running = 0;
         }
+
+        if (status == 0 && config.standardsMode) displayFailure(self->term, "Error running computer");
         
         // Shutdown threads
         self->event_lock.notify_all();
