@@ -76,6 +76,7 @@ struct configuration {
     int http_timeout;
     std::string http_proxy_server;
     int http_proxy_port;
+    bool extendMargins;
 };
 
 // A smaller structure that holds the configuration for a single computer.

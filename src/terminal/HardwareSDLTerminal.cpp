@@ -138,7 +138,7 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         (int)(fontHeight * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale)
     };
     SDL_Rect bgdestrect = destrect;
-    if (config.standardsMode) {
+    if (config.standardsMode || config.extendMargins) {
         if (x == 0) bgdestrect.x -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
