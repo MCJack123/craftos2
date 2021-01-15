@@ -232,7 +232,7 @@ static int os_epoch(lua_State *L) {
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     } else if (tmp == "local") {
         time_t t = time(NULL);
-        const long long off = (long long)mktime(localtime(&t)) - t;
+        const long long off = (long long)mktime(localtime(&t)) - (long long)mktime(gmtime(&t));
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000));
     } else if (tmp == "ingame") {
         const double m_time = (double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
