@@ -133,7 +133,7 @@ int removeDirectory(const std::string& path) {
 unsigned long long getFreeSpace(const std::string& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
-        if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
+        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
     }
     return [(NSNumber*)dict[NSFileSystemFreeSize] unsignedLongLongValue];
@@ -142,7 +142,7 @@ unsigned long long getFreeSpace(const std::string& path) {
 unsigned long long getCapacity(const std::string& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
-        if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
+        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getCapacity(path.substr(0, path.find_last_of("/")-1));
     }
     return [(NSNumber*)dict[NSFileSystemSize] unsignedLongLongValue];

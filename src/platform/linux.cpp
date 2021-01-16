@@ -142,7 +142,7 @@ int removeDirectory(const std::string& path) {
 unsigned long long getFreeSpace(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
-        if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
+        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
     }
     return st.f_bavail * st.f_bsize;
@@ -151,7 +151,7 @@ unsigned long long getFreeSpace(const std::string& path) {
 unsigned long long getCapacity(const std::string& path) {
     struct statvfs st;
     if (statvfs(path.c_str(), &st) != 0) {
-        if (path.substr(0, path.find_last_of("/")-1).empty()) return 0;
+        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
         else return getCapacity(path.substr(0, path.find_last_of("/")-1));
     }
     return st.f_blocks * st.f_frsize;
