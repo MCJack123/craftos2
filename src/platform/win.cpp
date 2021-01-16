@@ -117,7 +117,7 @@ char* dirname(char* path) {
 unsigned long long getFreeSpace(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
-        if (path.find_last_of("\\") == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
+        if (path.find_last_of('\\') == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of('\\')-1));
     }
     return retval.QuadPart;
@@ -126,7 +126,7 @@ unsigned long long getFreeSpace(const std::wstring& path) {
 unsigned long long getCapacity(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
-        if (path.find_last_of("\\") == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
+        if (path.find_last_of('\\') == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
         else return getCapacity(path.substr(0, path.find_last_of('\\')-1));
     }
     return retval.QuadPart;
