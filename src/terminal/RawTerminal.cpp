@@ -459,6 +459,7 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
 }
 
 RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, config.defaultHeight) {
+    this->title.reserve(title.size());
     std::move(title.begin(), title.end(), this->title.begin());
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
     currentIDs.insert(id);
@@ -470,17 +471,6 @@ RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, conf
         output.write(title.c_str(), strlen(title.c_str()));
         output.put(0);
     });
-    // For some reason Linux has some real problems when this is not called. I don't even know how `locked`
-    // becomes locked, as it is in the standard that a new `std::mutex` is initialized unlocked, and I
-    // never call `locked.lock()` or `lock_guard lock(locked)` anywhere else, except on the computer
-    // thread during initialization (which is another place it can hang). This only occurs in raw mode,
-    // which is probably the most bizarre part because other modes shouldn't really be doing much different
-    // from this.
-    //
-    // Oh yeah, this makes no difference on macOS - it still throws a system_error, crashing the entire program.
-#ifdef __linux__
-    locked.unlock();
-#endif
     std::lock_guard<std::mutex> rlock(renderTargetsLock);
     renderTargets.push_back(this);
 }

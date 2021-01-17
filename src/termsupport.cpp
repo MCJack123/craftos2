@@ -728,7 +728,7 @@ std::string termGetEvent(lua_State *L) {
             else lua_pushinteger(L, keymap.at(e.key.keysym.sym));
             lua_pushboolean(L, e.key.repeat);
             return "key";
-        } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.sym) != keymap.end())) {
+        } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || selectedRenderer == 3 || keymap.find(e.key.keysym.sym) != keymap.end())) {
             if (e.key.keysym.sym != SDLK_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
                 if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.sym); 
