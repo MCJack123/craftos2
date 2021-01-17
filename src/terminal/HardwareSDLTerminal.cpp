@@ -197,13 +197,13 @@ void HardwareSDLTerminal::render() {
         if (ren == NULL || font == NULL) return; // race condition since HardwareSDLTerminal() is called after SDLTerminal(), which adds the terminal to the render targets
                                                  // wait until the renderer and font are initialized before doing any rendering
         if (gotResizeEvent) {
-            gotResizeEvent = false;
             this->screen.resize(newWidth, newHeight, ' ');
             this->colors.resize(newWidth, newHeight, 0xF0);
             this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
             this->width = newWidth;
             this->height = newHeight;
             changed = true;
+            gotResizeEvent = false;
         }
         if (!changed && !shouldScreenshot && !shouldRecord) return;
         newscreen = std::make_unique<vector2d<unsigned char> >(screen);

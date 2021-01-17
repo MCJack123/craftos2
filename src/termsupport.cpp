@@ -662,10 +662,6 @@ std::string termGetEvent(lua_State *L) {
         return p.first(L, p.second);
     }
     computer->event_provider_queue_mutex.unlock();
-    if (computer->lastResizeEvent) {
-        computer->lastResizeEvent = false;
-        return "term_resize";
-    }
     if (computer->running != 1) return "";
     SDL_Event e;
     std::string tmpstrval;
@@ -821,10 +817,8 @@ std::string termGetEvent(lua_State *L) {
                     h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
                 } else {w = 51; h = 19;}
             } else {w = e.window.data1; h = e.window.data2;}
-            if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) {
-                computer->lastResizeEvent = true;
-                return "term_resize";
-            } else {
+            if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) return "term_resize";
+            else {
                 std::string side;
                 monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
                 if (m != NULL && m->term->resize(w, h)) {

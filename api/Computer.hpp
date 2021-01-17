@@ -83,7 +83,7 @@ struct Computer {
     SDL_TimerID eventTimeout = 0; // A timer that fires after config.abortTimeout to notify the computer to error
     int timeoutCheckCount = 0; // The number of seconds the computer has attempted to terminate a long-running task
     bool getting_event = false; // Whether the computer is currently waiting for an event
-    bool lastResizeEvent = false; // Whether the last event sent was a resize event
+    bool lastResizeEvent = false; // Whether the last event sent was a resize event (no longer used)
     mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()}; // Storage for the next mouse_move event if it was debounced
     mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()}; // Data about the last mouse event
     SDL_TimerID mouseMoveDebounceTimer = 0; // A timer that fires when the next mouse movement event is ready
