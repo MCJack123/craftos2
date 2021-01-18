@@ -276,8 +276,8 @@ int monitor::setPixel(lua_State *L) {
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     const int x = (int)luaL_checkinteger(L, 1);
     const int y = (int)luaL_checkinteger(L, 2);
-    std::lock_guard<std::mutex> lock(term->locked);
     const int color = term->mode == 1 ? log2i((int)lua_tointeger(L, 3)) : (int)lua_tointeger(L, 3);
+    std::lock_guard<std::mutex> lock(term->locked);
     if (x < 0 || y < 0 || (unsigned)x >= term->width * 6 || (unsigned)y >= term->height * 9) return 0;
     if (color < 0 || color > (term->mode == 2 ? 255 : 15)) return luaL_error(L, "bad argument #3 (invalid color %d)", color);
     term->pixels[y][x] = color;
