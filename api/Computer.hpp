@@ -15,6 +15,7 @@ extern "C" {
 #include <lua.h>
 }
 #include <csetjmp>
+#include <cstdint>
 #include <condition_variable>
 #include <functional>
 #include <list>
@@ -109,7 +110,13 @@ struct Computer {
     std::unordered_map<unsigned, const FileEntry *> virtualMounts; // Maps virtual mount IDs to virtual filesystem references
     bool requestedExit = false; // Stores a temporary value indicating whether the quit button was pressed and is waiting for exit
     std::mutex timerIDsMutex; // A mutex locking timerIDs
+
+    // The following fields are available in API version 10.1 and later.
     bool forceCheckTimeout = false; // Whether to force checking for a timeout
+    uint8_t redstoneInputs[6] = {0, 0, 0, 0, 0, 0}; // Standard redstone inputs (for plugins)
+    uint8_t redstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Standard redstone outputs
+    uint16_t bundledRedstoneInputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone inputs (for plugins)
+    uint16_t bundledRedstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone outputs
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

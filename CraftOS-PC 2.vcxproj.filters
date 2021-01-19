@@ -319,11 +319,11 @@
     <ClCompile Include="src\util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\apis\redstone.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\plugin.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apis\redstone.cpp">
+      <Filter>Source Files\apis</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

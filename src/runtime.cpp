@@ -243,6 +243,8 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
         else if (s != "." && !s.empty()) pathc.push_back(s);
     }
+    for (const auto& m : comp->mounts)
+        if (std::get<0>(m) == pathc && std::get<1>(m) == real_path) return false;
     int selected = 1;
     if (!comp->mounter_initializing && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
         SDL_MessageBoxData data;

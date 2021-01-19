@@ -60,8 +60,8 @@ static int mounter_unmount(lua_State *L) {
     for (auto it = computer->mounts.begin(); it != computer->mounts.end(); ++it) {
         if (pathc.size() == std::get<0>(*it).size() && std::equal(std::get<0>(*it).begin(), std::get<0>(*it).end(), pathc.begin())) {
             it = computer->mounts.erase(it);
-            if (it == computer->mounts.end()) break;
             found = true;
+            if (it == computer->mounts.end()) break;
         }
     }
     lua_pushboolean(L, found);

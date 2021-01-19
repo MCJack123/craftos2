@@ -23,7 +23,7 @@
 
 // This structure holds all available configuration variables. See https://www.craftos-pc.cc/docs/config for information about what each of these means.
 struct configuration {
-    // The following fields are available in API version 10.0. No structure version check is required to use these.
+    // The following fields are available in API version 10.0 and later. No structure version check is required to use these.
     bool http_enable;
     bool debug_enable;
     int mount_mode;
@@ -74,6 +74,8 @@ struct configuration {
     int http_max_upload;
     int http_max_download;
     int http_timeout;
+
+    // The following fields are available in API version 10.1 and later.
     std::string http_proxy_server;
     int http_proxy_port;
     bool extendMargins;
