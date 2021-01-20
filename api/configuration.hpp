@@ -79,6 +79,7 @@ struct configuration {
     std::string http_proxy_server;
     int http_proxy_port;
     bool extendMargins;
+    bool snapToSize;
 };
 
 // A smaller structure that holds the configuration for a single computer.

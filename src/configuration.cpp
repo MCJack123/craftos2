@@ -113,7 +113,8 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"http_max_upload", {0, 1}},
     {"http_max_download", {0, 1}},
     {"http_timeout", {0, 1}},
-    {"extendMargins", {0, 0}}
+    {"extendMargins", {0, 0}},
+    {"snapToSize", {0, 0}}
 };
 
 const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion"};
@@ -186,7 +187,8 @@ void config_init() {
         30000,
         "",
         0,
-        false
+        false,
+        true
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -269,6 +271,7 @@ void config_init() {
     readConfigSetting(http_proxy_server, String);
     readConfigSetting(http_proxy_port, Int);
     readConfigSetting(extendMargins, Bool);
+    readConfigSetting(snapToSize, Bool);
     if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
@@ -326,6 +329,7 @@ void config_save() {
     root["http_proxy_server"] = config.http_proxy_server;
     root["http_proxy_port"] = config.http_proxy_port;
     root["extendMargins"] = config.extendMargins;
+    root["snapToSize"] = config.snapToSize;
     root["lastVersion"] = CRAFTOSPC_VERSION;
     root["pluginData"] = Value();
     for (const auto& e : config.pluginData) root["pluginData"][e.first] = e.second;
