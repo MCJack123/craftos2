@@ -361,7 +361,6 @@
     <None Include="resources\.install" />
     <None Include="resources\BenchmarkRenderers.lua" />
     <None Include="resources\BenchmarkRenderers.sh.bat" />
-    <None Include="resources\CCEmuXConverter.java" />
     <None Include="resources\CCT-Test-Bootstrap.lua" />
     <None Include="resources\CCT-Tests.patch" />
     <None Include="resources\CraftOSTest.lua" />
@@ -378,6 +377,7 @@
     <ClCompile Include="src\apis\peripheral.cpp" />
     <ClCompile Include="src\apis\term.cpp" />
     <ClCompile Include="src\configuration.cpp" />
+    <ClCompile Include="src\platform\android.cpp" />
     <ClCompile Include="src\platform\macapp.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
@@ -385,6 +385,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <None Include="src\platform\ios.mm" />
     <None Include="vcpkg.json" />
   </ItemGroup>
   <ItemGroup>

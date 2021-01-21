@@ -73,9 +73,6 @@
     <None Include="resources\.install">
       <Filter>Other Files</Filter>
     </None>
-    <None Include="resources\CCEmuXConverter.java">
-      <Filter>Other Files</Filter>
-    </None>
     <None Include="resources\CCT-Test-Bootstrap.lua">
       <Filter>Other Files</Filter>
     </None>
@@ -99,6 +96,9 @@
     </None>
     <None Include="vcpkg.json">
       <Filter>Other Files</Filter>
+    </None>
+    <None Include="src\platform\ios.mm">
+      <Filter>Source Files\platform</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -324,6 +324,9 @@
     </ClCompile>
     <ClCompile Include="src\apis\redstone.cpp">
       <Filter>Source Files\apis</Filter>
+    </ClCompile>
+    <ClCompile Include="src\platform\android.cpp">
+      <Filter>Source Files\platform</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

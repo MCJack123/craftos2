@@ -29,12 +29,6 @@ extern "C" {
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
 
-#ifdef WIN32
-#define PATH_SEPC '\\'
-#else
-#define PATH_SEPC '/'
-#endif
-
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
 extern FileEntry standaloneDebug;

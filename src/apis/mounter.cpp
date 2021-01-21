@@ -17,10 +17,8 @@
 #include "../terminal/SDLTerminal.hpp"
 #ifdef WIN32
 #include <dirent.h>
-#define PATH_SEP L"\\"
 #else
 #include <libgen.h>
-#define PATH_SEP "/"
 #endif
 
 #ifdef STANDALONE_ROM

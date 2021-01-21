@@ -145,7 +145,7 @@ void updateNow(std::string tag_name) {
     
 }
 
-void migrateData() {
+void migrateOldData() {
     
 }
 

@@ -19,13 +19,8 @@
 #include "runtime.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "util.hpp"
-#ifdef WIN32
-#define PATH_SEP L"\\"
-#define PATH_SEPC '\\'
-#else
+#ifndef WIN32
 #include <libgen.h>
-#define PATH_SEP "/"
-#define PATH_SEPC '/'
 #endif
 
 #ifdef STANDALONE_ROM

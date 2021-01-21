@@ -16,11 +16,6 @@
 #include "platform.hpp"
 #include "runtime.hpp"
 #include "util.hpp"
-#ifdef _WIN32
-#define PATH_SEP L"\\"
-#else
-#define PATH_SEP "/"
-#endif
 
 std::string loadingPlugin;
 static std::map<path_t, std::pair<void*, PluginInfo*> > loadedPlugins;

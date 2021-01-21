@@ -26,12 +26,9 @@
 #ifdef WIN32
 #include <io.h>
 #define W_OK 0x02
-#define PATH_SEP L"\\"
 #else
 #include <libgen.h>
 #include <unistd.h>
-#define PATH_SEP "/"
-#define PATH_SEPC '/'
 #endif
 #if defined(__INTELLISENSE__) && !defined(S_ISDIR)
 #define S_ISDIR(m) 1 // silence errors in IntelliSense (which isn't very intelligent for its name)
@@ -249,9 +246,9 @@ static int fs_move(lua_State *L) {
     return 0;
 }
 
-static std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath) {
+std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures) {
     struct_stat st;
-    if (platform_stat(toPath.c_str(), &st) == 0) return std::make_pair(2, "File exists");
+    if (failures == NULL && platform_stat(toPath.c_str(), &st) == 0) return std::make_pair(2, "File exists");
     else if (platform_stat(fromPath.c_str(), &st) != 0) return std::make_pair(1, "No such file"); // likely redundant
     else if (S_ISDIR(st.st_mode)) {
         struct_dirent *dir;
@@ -263,8 +260,11 @@ static std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const p
                 for (const path_t& ign : ignored_files)
                     if (pathcmp(dir->d_name, ign.c_str()) == 0) found = true;
                 if (!found) {
-                    auto retval = recursiveCopy(fromPath + PATH_SEP + dir->d_name, toPath + PATH_SEP + dir->d_name);
-                    if (retval.first > 0) return retval;
+                    auto retval = recursiveCopy(fromPath + PATH_SEP + dir->d_name, toPath + PATH_SEP + dir->d_name, failures);
+                    if (retval.first > 0) {
+                        if (failures == NULL) return retval;
+                        failures->push_back(retval.first == 1 ? fromPath + PATH_SEP + dir->d_name : toPath + PATH_SEP + dir->d_name);
+                    }
                 }
             }
             platform_closedir(d);

@@ -304,7 +304,7 @@ void updateNow(const std::string& tag_name) {
     });
 }
 
-void migrateData() {
+void migrateOldData() {
     wordexp_t p;
     struct stat st;
     wordexp("$HOME/.craftos", &p, 0);

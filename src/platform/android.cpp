@@ -158,7 +158,7 @@ int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) 
     } else return -1;
 }
 
-void migrateData() {
+void migrateOldData() {
     
 }
 

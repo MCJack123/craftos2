@@ -212,7 +212,7 @@ void updateNow(const std::string& tagname) {
 
 std::vector<std::wstring> failedCopy;
 
-int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
+static int recursiveMove(const std::wstring& path, const std::wstring& toPath) {
     const DWORD attr = GetFileAttributesW(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
     if (attr & FILE_ATTRIBUTE_DIRECTORY) {
@@ -228,7 +228,7 @@ int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
                     std::wstring newpath = path;
                     if (path[path.size() - 1] != '\\') newpath += L"\\";
                     newpath += find.cFileName;
-                    const int res = recursiveCopy(newpath, toPath + L"\\" + std::wstring(find.cFileName));
+                    const int res = recursiveMove(newpath, toPath + L"\\" + std::wstring(find.cFileName));
                     if (res) failedCopy.push_back(toPath + L"\\" + std::wstring(find.cFileName));
                 }
             } while (FindNextFileW(h, &find));
@@ -238,12 +238,12 @@ int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
     } else return MoveFileW(path.c_str(), toPath.c_str()) ? 0 : (int)GetLastError();
 }
 
-void migrateData() {
+void migrateOldData() {
     ExpandEnvironmentStringsW(L"%USERPROFILE%\\.craftos", expand_tmp, 32767);
     const std::wstring oldpath = expand_tmp;
     struct_stat st;
     if (platform_stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && platform_stat(getBasePath().c_str(), &st) != 0)
-        recursiveCopy(oldpath, getBasePath());
+        recursiveMove(oldpath, getBasePath());
     if (!failedCopy.empty())
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
 }

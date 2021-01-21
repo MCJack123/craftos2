@@ -150,7 +150,7 @@ void updateNow(const std::string& tag_name) {
     fprintf(stderr, "Updating is not available on Mac terminal builds.\n");
 }
 
-int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) {
+static int recursiveMove(const std::string& fromDir, const std::string& toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -163,7 +163,7 @@ int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) 
                 while (!r && (p=readdir(d))) {
                     /* Skip the names "." and ".." as we don't want to recurse on them. */
                     if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-                    r = recursiveCopyPlatform(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
+                    r = recursiveMove(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
                 }
                 closedir(d);
             }
@@ -173,7 +173,7 @@ int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) 
     } else return -1;
 }
 
-void migrateData() {
+void migrateOldData() {
     wordexp_t p;
     struct stat st;
     wordexp("$HOME/.craftos", &p, 0);
@@ -181,7 +181,7 @@ void migrateData() {
     for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
     wordfree(&p);
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
-        recursiveCopyPlatform(oldpath, getBasePath());
+        recursiveMove(oldpath, getBasePath());
 }
 
 void copyImage(SDL_Surface* surf) {

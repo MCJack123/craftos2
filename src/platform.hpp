@@ -73,7 +73,7 @@ extern path_t getROMPath();
 extern path_t getPlugInPath();
 extern path_t getMCSavePath();
 extern void updateNow(const std::string& tag_name);
-extern void migrateData();
+extern void migrateOldData();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();
 extern void setFloating(SDL_Window* win, bool state);
