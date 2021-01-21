@@ -19,6 +19,7 @@ static void* releaseNotesThread(void* data);
 #include <thread>
 #include <Computer.hpp>
 #include <configuration.hpp>
+#include <sys/stat.h>
 #include "peripheral/drive.hpp"
 #include "peripheral/speaker.hpp"
 #include "platform.hpp"
@@ -112,6 +113,7 @@ static void* releaseNotesThread(void* data) {
     return NULL;
 }
 
+#if !CRAFTOSPC_INDEV
 static void showReleaseNotes() {
     Computer * comp;
     try {comp = new Computer(-1, true);} catch (std::exception &e) {
@@ -128,6 +130,7 @@ static void showReleaseNotes() {
     setThreadName(*th, "Release Note Viewer Thread");
     computerThreads.push_back(th);
 }
+#endif
 
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void update_thread() {
@@ -400,7 +403,7 @@ static int runRenderer() {
     return 0;
 }
 
-#define migrateSetting(oldname, newname, type) if (oldroot.isMember(oldname)) config.##newname = oldroot[oldname].as##type()
+#define migrateSetting(oldname, newname, type) if (oldroot.isMember(oldname)) config.newname = oldroot[oldname].as##type()
 
 static void migrateData(bool forced) {
     migrateOldData();
