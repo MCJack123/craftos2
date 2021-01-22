@@ -330,11 +330,14 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         newWidth = w;
         newHeight = h;
         // not really a fan of having two tasks queued here, but there's not a whole lot we can do
-        if (config.snapToSize) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
-        SDL_GetWindowSize(win, &realWidth, &realHeight);
-        gotResizeEvent = (newWidth != width || newHeight != height);
-        if (!gotResizeEvent) return false;
-        SDL_DestroyRenderer(ren);
+        if (config.snapToSize && !fullscreen) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
+        {
+            std::lock_guard<std::mutex> lock2(renderlock);
+            SDL_GetWindowSize(win, &realWidth, &realHeight);
+            gotResizeEvent = (newWidth != width || newHeight != height);
+            if (!gotResizeEvent) return false;
+            SDL_DestroyRenderer(ren);
+        }
         ren = (SDL_Renderer*)queueTask([this, w, h](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));}, win);
         font = SDL_CreateTextureFromSurface(ren, bmp);
         pixtex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, (int)(w * charWidth * dpiScale), (int)(h * charHeight * dpiScale));
