@@ -172,7 +172,11 @@ void config_init() {
         51,
         19,
         false,
+#ifdef __EMSCRIPTEN
+        EM_ASM_INT(return navigator.platform == "MacIntel" ? 1 : 0) ~= 0, // will Apple decide to use "MacARM" in the future? if so, this will break
+#else
         false,
+#endif
         "",
         false,
         false,
