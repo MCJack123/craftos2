@@ -40,9 +40,9 @@ if test "x$enable_wasm" = "xyes"; then
     SQBRCL=@:>@
     CC=emcc
     CXX=em++
-    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -DNO_CLI -DNO_PNG -DNO_MIXER -DPRINT_TYPE=1"
-    CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1"
-    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -lidbfs.js -s USE_SDL=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL -s ASYNCIFY"
+    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -Iapi -DNO_CLI -DNO_PNG -DPRINT_TYPE=1"
+    CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1 -s USE_SDL_MIXER=2 -Wno-implicit-const-int-float-conversion -Wno-pthreads-mem-growth"
+    LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -lidbfs.js -s USE_SDL=2 -s USE_SDL_MIXER=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 --no-heap-copy -Wno-pthreads-mem-growth"
 fi
 
 # Check language

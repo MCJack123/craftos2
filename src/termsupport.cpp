@@ -658,10 +658,6 @@ std::string termGetEvent(lua_State *L) {
         return p.first(L, p.second);
     }
     computer->event_provider_queue_mutex.unlock();
-    if (computer->lastResizeEvent) {
-        computer->lastResizeEvent = false;
-        return "term_resize";
-    }
     if (computer->running != 1) return "";
     SDL_Event e;
     std::string tmpstrval;
@@ -724,7 +720,7 @@ std::string termGetEvent(lua_State *L) {
             else lua_pushinteger(L, keymap.at(e.key.keysym.sym));
             lua_pushboolean(L, e.key.repeat);
             return "key";
-        } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || keymap.find(e.key.keysym.sym) != keymap.end())) {
+        } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || selectedRenderer == 3 || keymap.find(e.key.keysym.sym) != keymap.end())) {
             if (e.key.keysym.sym != SDLK_F2 || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
                 if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.sym); 
@@ -777,7 +773,7 @@ std::string termGetEvent(lua_State *L) {
             } else {
                 int x = 0, y = 0;
                 term->getMouse(&x, &y);
-                lua_pushinteger(L, max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
+                lua_pushinteger(L, max(min(-e.wheel.y, 1), -1));
                 lua_pushinteger(L, convertX(term, x));
                 lua_pushinteger(L, convertY(term, y));
                 if (e.wheel.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
@@ -817,10 +813,8 @@ std::string termGetEvent(lua_State *L) {
                     h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
                 } else {w = 51; h = 19;}
             } else {w = e.window.data1; h = e.window.data2;}
-            if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) {
-                computer->lastResizeEvent = true;
-                return "term_resize";
-            } else {
+            if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) return "term_resize";
+            else {
                 std::string side;
                 monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
                 if (m != NULL && m->term->resize(w, h)) {

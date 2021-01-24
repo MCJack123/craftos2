@@ -112,7 +112,9 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"http_max_requests", {0, 1}},
     {"http_max_upload", {0, 1}},
     {"http_max_download", {0, 1}},
-    {"http_timeout", {0, 1}}
+    {"http_timeout", {0, 1}},
+    {"extendMargins", {0, 0}},
+    {"snapToSize", {0, 0}}
 };
 
 const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion"};
@@ -170,7 +172,11 @@ void config_init() {
         51,
         19,
         false,
+#ifdef __EMSCRIPTEN
+        EM_ASM_INT(return navigator.platform == "MacIntel" ? 1 : 0) ~= 0, // will Apple decide to use "MacARM" in the future? if so, this will break
+#else
         false,
+#endif
         "",
         false,
         false,
@@ -182,7 +188,11 @@ void config_init() {
         16,
         4194304,
         16777216,
-        30000
+        30000,
+        "",
+        0,
+        false,
+        true
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -262,10 +272,15 @@ void config_init() {
     readConfigSetting(http_max_upload, Int);
     readConfigSetting(http_max_download, Int);
     readConfigSetting(http_timeout, Int);
+    readConfigSetting(http_proxy_server, String);
+    readConfigSetting(http_proxy_port, Int);
+    readConfigSetting(extendMargins, Bool);
+    readConfigSetting(snapToSize, Bool);
     readConfigSetting(jit_ffi_enable, Bool);
     if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
-    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')) != std::string(CRAFTOSPC_VERSION).substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')))) { onboardingMode = 2; config_save(); }    for (const auto& e : root)
+    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')) != std::string(CRAFTOSPC_VERSION).substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')))) { onboardingMode = 2; config_save(); }
+    for (const auto& e : root)
         if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
             unknownOptions.insert(e);
 }
@@ -316,6 +331,10 @@ void config_save() {
     root["http_max_upload"] = config.http_max_upload;
     root["http_max_download"] = config.http_max_download;
     root["http_timeout"] = config.http_timeout;
+    root["http_proxy_server"] = config.http_proxy_server;
+    root["http_proxy_port"] = config.http_proxy_port;
+    root["extendMargins"] = config.extendMargins;
+    root["snapToSize"] = config.snapToSize;
     root["jit_ffi_enable"] = config.jit_ffi_enable;
     root["lastVersion"] = CRAFTOSPC_VERSION;
     root["pluginData"] = Value();

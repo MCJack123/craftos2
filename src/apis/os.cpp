@@ -126,7 +126,7 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
 static int os_startTimer(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    if (luaL_checknumber(L, 1) < 0.001) {
+    if (luaL_checknumber(L, 1) < 0.001 && !config.standardsMode) {
         queueEvent(computer, [](lua_State *L, void*)->std::string {lua_pushinteger(L, 1); return "timer"; }, NULL);
         lua_pushinteger(L, 1);
         return 1;
@@ -138,7 +138,10 @@ static int os_startTimer(lua_State *L) {
     queueTask([L](void*a)->void* {
         struct timer_data_t * data = (timer_data_t*)a;
         Uint32 time = (Uint32)(lua_tonumber(L, 1) * 1000);
-        if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
+        if (config.standardsMode) {
+            if (time < 50) time = 50;
+            else time = (Uint32)ceil(time / 50.0) * 50;
+        }
         data->timer = SDL_AddTimer(time, notifyEvent, data);
         return NULL;
     }, data);
@@ -229,7 +232,7 @@ static int os_epoch(lua_State *L) {
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     } else if (tmp == "local") {
         time_t t = time(NULL);
-        const long long off = (long long)mktime(localtime(&t)) - t;
+        const long long off = (long long)mktime(localtime(&t)) - (long long)mktime(gmtime(&t));
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000));
     } else if (tmp == "ingame") {
         const double m_time = (double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;

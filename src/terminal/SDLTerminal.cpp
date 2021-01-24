@@ -189,7 +189,7 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         (int)(fontHeight * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale)
     };
     SDL_Rect bgdestrect = destrect;
-    if (config.standardsMode) {
+    if (config.standardsMode || config.extendMargins) {
         if (x == 0) bgdestrect.x -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
@@ -238,13 +238,13 @@ void SDLTerminal::render() {
     {
         std::lock_guard<std::mutex> locked_g(locked);
         if (gotResizeEvent) {
-            gotResizeEvent = false;
             this->screen.resize(newWidth, newHeight, ' ');
             this->colors.resize(newWidth, newHeight, 0xF0);
             this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
             this->width = newWidth;
             this->height = newHeight;
             changed = true;
+            gotResizeEvent = false;
         }
         if (!changed && !shouldScreenshot && !shouldRecord) return;
         newscreen = std::make_unique<vector2d<unsigned char> >(screen);
@@ -379,10 +379,11 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 bool SDLTerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
+    if (config.snapToSize && !fullscreen) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
     SDL_GetWindowSize(win, &realWidth, &realHeight);
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
-    while (gotResizeEvent) std::this_thread::yield();
+    while (gotResizeEvent) std::this_thread::yield(); // this should probably be a condition variable
     return true;
 }
 
@@ -513,6 +514,7 @@ void SDLTerminal::init() {
 #if SDL_VERSION_ATLEAST(2, 0, 8)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
+    SDL_StartTextInput();
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);
@@ -579,7 +581,7 @@ bool SDLTerminal::pollEvents() {
 #ifdef __EMSCRIPTEN__
             SDLTerminal* term = dynamic_cast<SDLTerminal*>(*renderTarget);
             if (term != NULL) {
-                std::lock_guard<std::mutex> lock(term->locked);
+                std::lock_guard<std::mutex> lock(term->renderlock);
                 if (term->surf != NULL) {
                     SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
                     SDL_UpdateWindowSurface(SDLTerminal::win);

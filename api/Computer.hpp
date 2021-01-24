@@ -15,6 +15,7 @@ extern "C" {
 #include <lua.h>
 }
 #include <csetjmp>
+#include <cstdint>
 #include <condition_variable>
 #include <functional>
 #include <list>
@@ -83,7 +84,7 @@ struct Computer {
     SDL_TimerID eventTimeout = 0; // A timer that fires after config.abortTimeout to notify the computer to error
     int timeoutCheckCount = 0; // The number of seconds the computer has attempted to terminate a long-running task
     bool getting_event = false; // Whether the computer is currently waiting for an event
-    bool lastResizeEvent = false; // Whether the last event sent was a resize event
+    bool lastResizeEvent = false; // Whether the last event sent was a resize event (no longer used)
     mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()}; // Storage for the next mouse_move event if it was debounced
     mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()}; // Data about the last mouse event
     SDL_TimerID mouseMoveDebounceTimer = 0; // A timer that fires when the next mouse movement event is ready
@@ -109,7 +110,13 @@ struct Computer {
     std::unordered_map<unsigned, const FileEntry *> virtualMounts; // Maps virtual mount IDs to virtual filesystem references
     bool requestedExit = false; // Stores a temporary value indicating whether the quit button was pressed and is waiting for exit
     std::mutex timerIDsMutex; // A mutex locking timerIDs
+
+    // The following fields are available in API version 10.1 and later.
     bool forceCheckTimeout = false; // Whether to force checking for a timeout
+    uint8_t redstoneInputs[6] = {0, 0, 0, 0, 0, 0}; // Standard redstone inputs (for plugins)
+    uint8_t redstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Standard redstone outputs
+    uint16_t bundledRedstoneInputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone inputs (for plugins)
+    uint16_t bundledRedstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone outputs
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

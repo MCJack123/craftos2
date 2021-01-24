@@ -459,6 +459,7 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
 }
 
 RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, config.defaultHeight) {
+    this->title.reserve(title.size());
     std::move(title.begin(), title.end(), this->title.begin());
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
     currentIDs.insert(id);
@@ -470,6 +471,7 @@ RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, conf
         output.write(title.c_str(), strlen(title.c_str()));
         output.put(0);
     });
+    std::lock_guard<std::mutex> rlock(renderTargetsLock);
     renderTargets.push_back(this);
 }
 
@@ -490,6 +492,7 @@ RawTerminal::~RawTerminal() {
 }
 
 void RawTerminal::render() {
+    std::lock_guard<std::mutex> lock(locked);
     if (gotResizeEvent) {
         gotResizeEvent = false;
         this->screen.resize(newWidth, newHeight, ' ');

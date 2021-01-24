@@ -29,12 +29,6 @@ extern "C" {
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
 
-#ifdef WIN32
-#define PATH_SEPC '\\'
-#else
-#define PATH_SEPC '/'
-#endif
-
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
 extern FileEntry standaloneDebug;
@@ -478,6 +472,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
                 break;
             } else self->running = 0;
         }
+
+        if (status == 0 && config.standardsMode) displayFailure(self->term, "Error running computer");
         
         // Shutdown threads
         self->event_lock.notify_all();

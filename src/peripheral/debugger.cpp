@@ -273,6 +273,8 @@ static int debugger_lib_local_tostring(lua_State *L) {
     return 1;
 }
 
+static int _echo(lua_State *L) {return lua_gettop(L);}
+
 static int debugger_lib_run(lua_State *L) {
     lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
@@ -292,7 +294,14 @@ static int debugger_lib_run(lua_State *L) {
     lua_pushcfunction(dbg->thread, debugger_lib_local_tostring); // ..., func, getenv, locals, mt, __tostring
     lua_setfield(dbg->thread, -2, "__tostring"); // ..., func, getenv, locals, mt
     lua_setmetatable(dbg->thread, -2); // ..., func, getenv, locals (w/mt)
-    lua_call(dbg->thread, 1, 1); // ..., func, env
+    const int status = lua_pcall(dbg->thread, 1, 1, 0); // ..., func, env
+    if (status != 0) {
+        fprintf(stderr, "Error while loading debug environment: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+        lua_createtable(L, 0, 1);
+        lua_pushcfunction(L, _echo);
+        lua_setfield(L, -2, "_echo");
+    }
     lua_setfenv(dbg->thread, -2); // ..., func (w/env)
     lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0)); // ..., results...
     const int top2 = lua_gettop(dbg->thread) - top; // #{..., results...} - #{...} = #{results...}

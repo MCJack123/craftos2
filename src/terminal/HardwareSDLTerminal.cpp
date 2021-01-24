@@ -138,7 +138,7 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         (int)(fontHeight * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale)
     };
     SDL_Rect bgdestrect = destrect;
-    if (config.standardsMode) {
+    if (config.standardsMode || config.extendMargins) {
         if (x == 0) bgdestrect.x -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
@@ -197,13 +197,13 @@ void HardwareSDLTerminal::render() {
         if (ren == NULL || font == NULL) return; // race condition since HardwareSDLTerminal() is called after SDLTerminal(), which adds the terminal to the render targets
                                                  // wait until the renderer and font are initialized before doing any rendering
         if (gotResizeEvent) {
-            gotResizeEvent = false;
             this->screen.resize(newWidth, newHeight, ' ');
             this->colors.resize(newWidth, newHeight, 0xF0);
             this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
             this->width = newWidth;
             this->height = newHeight;
             changed = true;
+            gotResizeEvent = false;
         }
         if (!changed && !shouldScreenshot && !shouldRecord) return;
         newscreen = std::make_unique<vector2d<unsigned char> >(screen);
@@ -329,11 +329,16 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         std::lock_guard<std::mutex> lock(locked);
         newWidth = w;
         newHeight = h;
-        SDL_GetWindowSize(win, &realWidth, &realHeight);
-        gotResizeEvent = (newWidth != width || newHeight != height);
-        if (!gotResizeEvent) return false;
-        SDL_DestroyRenderer(ren);
-        ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));}, win);
+        // not really a fan of having two tasks queued here, but there's not a whole lot we can do
+        if (config.snapToSize && !fullscreen) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
+        {
+            std::lock_guard<std::mutex> lock2(renderlock);
+            SDL_GetWindowSize(win, &realWidth, &realHeight);
+            gotResizeEvent = (newWidth != width || newHeight != height);
+            if (!gotResizeEvent) return false;
+            SDL_DestroyRenderer(ren);
+        }
+        ren = (SDL_Renderer*)queueTask([this, w, h](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));}, win);
         font = SDL_CreateTextureFromSurface(ren, bmp);
         pixtex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, (int)(w * charWidth * dpiScale), (int)(h * charHeight * dpiScale));
     }
@@ -354,6 +359,7 @@ void HardwareSDLTerminal::init() {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     if (!overrideHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, overrideHardwareDriver.c_str());
     else if (!config.preferredHardwareDriver.empty()) SDL_SetHint(SDL_HINT_RENDER_DRIVER, config.preferredHardwareDriver.c_str());
+    SDL_StartTextInput();
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);

@@ -16,14 +16,9 @@
 #include "platform.hpp"
 #include "runtime.hpp"
 #include "util.hpp"
-#ifdef _WIN32
-#define PATH_SEP L"\\"
-#else
-#define PATH_SEP "/"
-#endif
 
 std::string loadingPlugin;
-static std::unordered_map<path_t, std::pair<void*, PluginInfo*> > loadedPlugins;
+static std::map<path_t, std::pair<void*, PluginInfo*> > loadedPlugins;
 
 static library_t * getLibrary(const std::string& name) {
     if (name == "config") return &config_lib;
@@ -57,7 +52,7 @@ static void setConfigSettingBool(const std::string& name, bool value) {config.pl
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    0,
+    1,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,

@@ -165,9 +165,9 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     lua_sethook(L, termHook, lua_gethookmask(L) & ~LUA_MASKCOUNT, 0);
     std::string ev;
     computer->getting_event = true;
-    if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param;
     do {
+        if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
         param = lua_newthread(computer->paramQueue);
         while (termHasEvent(computer)/* && computer->eventQueue.size() < 25*/) {
             if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
@@ -175,6 +175,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
             if (!name.empty()) {
                 if (name == "die") { computer->running = 0; name = "terminate"; }
                 computer->eventQueue.push(name);
+                if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
                 param = lua_newthread(computer->paramQueue);
             }
         }
@@ -191,6 +192,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
                 if (!name.empty()) {
                     if (name == "die") { computer->running = 0; name = "terminate"; }
                     computer->eventQueue.push(name);
+                    if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
                     param = lua_newthread(computer->paramQueue);
                 }
             }
@@ -243,6 +245,8 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
         else if (s != "." && !s.empty()) pathc.push_back(s);
     }
+    for (const auto& m : comp->mounts)
+        if (std::get<0>(m) == pathc && std::get<1>(m) == real_path) return false;
     int selected = 1;
     if (!comp->mounter_initializing && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
         SDL_MessageBoxData data;

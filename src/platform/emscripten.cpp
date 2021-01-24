@@ -79,7 +79,7 @@ std::string getMCSavePath() {
 
 void updateNow(const std::string& tag_name) {}
 
-void migrateData() {}
+void migrateOldData() {}
 
 void copyImage(SDL_Surface* surf) {}
 

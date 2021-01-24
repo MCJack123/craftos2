@@ -24,8 +24,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.5.1.1-luajit"
-#define CRAFTOSPC_CC_VERSION "1.95.0"
+#define CRAFTOSPC_VERSION    "v2.5.2-luajit"
+#define CRAFTOSPC_CC_VERSION "1.95.2"
 #define CRAFTOSPC_INDEV      false
 
 // for some reason Clang complains if this isn't present
@@ -81,7 +81,7 @@ class Value {
 public:
     Value() { obj = Poco::JSON::Object(); }
     Value(Poco::Dynamic::Var o) : obj(o) {}
-    Value operator[](std::string key) { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); }
+    Value operator[](std::string key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
     void operator=(int v) { obj = v; updateParent(); }
     void operator=(bool v) { obj = v; updateParent(); }
     void operator=(const char * v) { obj = std::string(v); updateParent(); }
@@ -91,20 +91,21 @@ public:
     int asInt() { return obj.convert<int>(); }
     float asFloat() { return obj.convert<float>(); }
     std::string asString() { return obj.toString(); }
+    Poco::JSON::Array asArray() { try {return obj.extract<Poco::JSON::Array>();} catch (Poco::BadCastException &e) {return *obj.extract<Poco::JSON::Array::Ptr>();} }
     //const char * asCString() { return obj.toString().c_str(); }
     bool isArray() { return obj.isArray(); }
     bool isBoolean() { return obj.isBoolean(); }
     bool isInt() { return obj.isInteger(); }
     bool isString() { return obj.isString(); }
-    bool isObject() { try { obj.extract<Poco::JSON::Object>(); return true; } catch (Poco::BadCastException &e) { return false; } }
-    bool isMember(std::string key) { return obj.extract<Poco::JSON::Object>().has(key); }
+    bool isObject() { try { obj.extract<Poco::JSON::Object>(); return true; } catch (Poco::BadCastException &e) { try { obj.extract<Poco::JSON::Object::Ptr>(); return true; } catch (Poco::BadCastException &e2) { return false; } } }
+    bool isMember(std::string key) { try { return obj.extract<Poco::JSON::Object>().has(key); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->has(key); } }
     Poco::JSON::Object::Ptr parse(std::istream& in) { Poco::JSON::Object::Ptr p = Poco::JSON::Parser().parse(in).extract<Poco::JSON::Object::Ptr>(); obj = *p; return p; }
     friend std::ostream& operator<<(std::ostream &out, Value &v) { v.obj.extract<Poco::JSON::Object>().stringify(out, 4, -1); return out; }
     //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
-    Poco::JSON::Array::ConstIterator arrayBegin() { return obj.extract<Poco::JSON::Array>().begin(); }
-    Poco::JSON::Array::ConstIterator arrayEnd() { return obj.extract<Poco::JSON::Array>().end(); }
-    Poco::JSON::Object::ConstIterator begin() { return obj.extract<Poco::JSON::Object>().begin(); }
-    Poco::JSON::Object::ConstIterator end() { return obj.extract<Poco::JSON::Object>().end(); }
+    Poco::JSON::Array::ConstIterator arrayBegin() { try { return obj.extract<Poco::JSON::Array>().begin(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Array::Ptr>()->begin(); } }
+    Poco::JSON::Array::ConstIterator arrayEnd() { try { return obj.extract<Poco::JSON::Array>().end(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Array::Ptr>()->end(); } }
+    Poco::JSON::Object::ConstIterator begin() { try { return obj.extract<Poco::JSON::Object>().begin(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->begin(); } }
+    Poco::JSON::Object::ConstIterator end() { try { return obj.extract<Poco::JSON::Object>().end(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->end(); } }
 };
 
 inline int log2i(int num) {
@@ -126,6 +127,14 @@ inline std::string asciify(std::string str) {
     for (char c : str) { if (c < 32 || c > 127) retval += '?'; else retval += c; }
     return retval;
 }
+
+#ifdef WIN32
+#define PATH_SEP L"\\"
+#define PATH_SEPC '\\'
+#else
+#define PATH_SEP "/"
+#define PATH_SEPC '/'
+#endif
 
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
@@ -151,7 +160,7 @@ extern std::string b64decode(const std::string& orig);
 extern std::vector<std::string> split(const std::string& strToSplit, char delimeter);
 extern std::vector<std::wstring> split(const std::wstring& strToSplit, wchar_t delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
-extern void HTTPDownload(const std::string& url, const std::function<void(std::istream&)>& callback);
+extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback);
 extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
 extern bool fixpath_ro(Computer *comp, const char * path);
 extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);
@@ -162,5 +171,6 @@ extern void setComputerConfig(int id, const computer_configuration& cfg);
 extern void config_init();
 extern void config_save();
 extern void xcopy(lua_State *from, lua_State *to, int n);
+extern std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures = NULL);
 
 #endif

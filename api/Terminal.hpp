@@ -109,6 +109,7 @@ public:
 // The Terminal class is the base class for all renderers. It stores the basic info about all terminal objects, as well as its contents.
 class Terminal {
 public:
+    // The following fields are available in API version 10.0 and later. No structure version check is required to use these.
     int type = -1;
     unsigned id = 0; // The ID of the terminal
     unsigned width; // The width of the terminal in characters
@@ -135,7 +136,10 @@ public:
     int errorcount = 0; // The number of consecutive errors that have happened while rendering (used to detect crashes)
     bool grayscale = false; // Whether the terminal should display in grayscale
     bool errorMode = false; // For standards mode: whether the screen should stay on-screen after the computer terminates, for use with CC-style error screens
+
+    // The following fields are available in API version 10.1 and later.
     bool frozen = false; // Whether the terminal should stop rendering
+
 protected:
     // Initial constructor to fill the contents with their defaults for the specified width and height
     Terminal(unsigned w, unsigned h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
@@ -147,6 +151,7 @@ protected:
         const uint8_t avg = ((int)c.r + (int)c.g + (int)c.b) / 3;
         return {avg, avg, avg};
     }
+
 public:
     virtual ~Terminal() = default;
     virtual void render()=0; // Called every render tick to update the window with the terminal's contents

@@ -14,10 +14,12 @@ static int runRenderer();
 static void showReleaseNotes();
 static void* releaseNotesThread(void* data);
 #include <functional>
+#include <fstream>
 #include <iomanip>
 #include <thread>
 #include <Computer.hpp>
 #include <configuration.hpp>
+#include <sys/stat.h>
 #include "peripheral/drive.hpp"
 #include "peripheral/speaker.hpp"
 #include "platform.hpp"
@@ -111,6 +113,7 @@ static void* releaseNotesThread(void* data) {
     return NULL;
 }
 
+#if !CRAFTOSPC_INDEV
 static void showReleaseNotes() {
     Computer * comp;
     try {comp = new Computer(-1, true);} catch (std::exception &e) {
@@ -127,11 +130,13 @@ static void showReleaseNotes() {
     setThreadName(*th, "Release Note Viewer Thread");
     computerThreads.push_back(th);
 }
+#endif
 
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void update_thread() {
     try {
         Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+        if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
         Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases", Poco::Net::HTTPMessage::HTTP_1_1);
         Poco::Net::HTTPResponse response;
         session.setTimeout(Poco::Timespan(5000000));
@@ -404,6 +409,80 @@ static int runRenderer() {
     return 0;
 }
 
+#define migrateSetting(oldname, newname, type) if (oldroot.isMember(oldname)) config.newname = oldroot[oldname].as##type()
+
+static void migrateData(bool forced) {
+    migrateOldData();
+    struct_stat st;
+    if ((forced || platform_stat(getBasePath().c_str(), &st) != 0) && platform_stat((getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux")).c_str(), &st) == 0) {
+        if (!forced) {
+            SDL_MessageBoxData data;
+            data.title = "Migrate Data";
+            data.message = "An existing installation of CCEmuX has been detected. Would you like to migrate your data from that installation? The old data will not be deleted. (You can do this at any time with the '--migrate' flag.)";
+            data.colorScheme = NULL;
+            data.window = NULL;
+            data.flags = SDL_MESSAGEBOX_INFORMATION;
+            SDL_MessageBoxButtonData buttons[2] = {
+                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No"},
+                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Yes"}
+            };
+            data.numbuttons = 2;
+            data.buttons = buttons;
+            int retval = 0;
+            SDL_ShowMessageBox(&data, &retval);
+            if (!retval) return;
+        }
+        // Copy computer data
+        std::list<path_t> failures;
+        const auto retval = recursiveCopy(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("computer"), getBasePath() + PATH_SEP "computer", &failures);
+        if (retval.first != 0) failures.push_back(retval.first == 1 ? getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("computer") : getBasePath() + PATH_SEP "computer");
+        // Copy config file
+        std::ifstream in(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
+        if (in.is_open()) {
+            Value oldroot;
+            Poco::JSON::Object::Ptr p;
+            try {
+                config_init();
+                p = oldroot.parse(in);
+                migrateSetting("maximumFilesOpen", maximumFilesOpen, Int);
+                migrateSetting("maxComputerCapacity", computerSpaceLimit, Int);
+                migrateSetting("httpEnable", http_enable, Bool);
+                migrateSetting("disableLua51Features", disable_lua51_features, Bool);
+                migrateSetting("defaultComputerSettings", default_computer_settings, String);
+                migrateSetting("debugEnable", debug_enable, Bool);
+                migrateSetting("termWidth", defaultWidth, Int);
+                migrateSetting("termHeight", defaultHeight, Int);
+                if (oldroot.isMember("httpWhitelist")) {
+                    config.http_whitelist = std::vector<std::string>();
+                    for (auto it = oldroot["httpWhitelist"].arrayBegin(); it != oldroot["httpWhitelist"].arrayEnd(); ++it) config.http_whitelist.push_back(it->convert<std::string>());
+                }
+                if (oldroot.isMember("httpBlacklist")) {
+                    config.http_blacklist = std::vector<std::string>();
+                    for (auto it = oldroot["httpBlacklist"].arrayBegin(); it != oldroot["httpBlacklist"].arrayEnd(); ++it) config.http_blacklist.push_back(it->convert<std::string>());
+                }
+                if (oldroot.isMember("plugins") && oldroot["plugins"].isMember("net.clgd.ccemux.plugins.builtin.HDFontPlugin") && oldroot["plugins"]["net.clgd.ccemux.plugins.builtin.HDFontPlugin"].isMember("enabled") && !oldroot["plugins"]["net.clgd.ccemux.plugins.builtin.HDFontPlugin"]["enabled"].asBool())
+                    config.customFontPath = "";
+                else config.customFontPath = "hdfont";
+                if (oldroot.isMember("http")) {
+                    oldroot = oldroot["http"];
+                    migrateSetting("websocketEnabled", http_websocket_enabled, Bool);
+                    migrateSetting("max_requests", http_max_requests, Int);
+                    migrateSetting("max_websockets", http_max_websockets, Int);
+                }
+                config_save();
+            } catch (Poco::JSON::JSONException &e) {
+                fprintf(stderr, "Could not read CCEmuX config file: %s\n", e.displayText().c_str());
+                failures.push_back(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
+            }
+        } else failures.push_back(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
+        if (!failures.empty()) {
+            fprintf(stderr, "Failed to copy the following files while migrating CCEmuX data:\n");
+            for (const path_t& p : failures) fprintf(stderr, "%s\n", astr(p).c_str());
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files failed to be copied while migrating from CCEmuX. Check the console to see what failed.\n", NULL);
+        } else if (forced) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Migration Success", "The migration of CCEmuX data to CraftOS-PC has completed successfully.", NULL);
+    }
+}
+
 #ifdef WINDOWS_SUBSYSTEM
 #define checkTTY() {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Unsupported command-line argument", "This build of CraftOS-PC does not support console input/output, which is required for one or more arguments passed to CraftOS-PC. Please use CraftOS-PC_console.exe instead, as this supports console I/O. If it is not present in the install directory, please reinstall CraftOS-PC with the console build option enabled.", NULL); return 5;}
 #else
@@ -418,6 +497,7 @@ int main(int argc, char*argv[]) {
 #endif
     int id = 0;
     bool manualID = false;
+    bool forceMigrate = false;
     std::string base_path_storage;
     std::string rom_path_storage;
     path_t customDataDir;
@@ -447,6 +527,7 @@ int main(int argc, char*argv[]) {
         else if (arg == "--mc-save") computerDir = getMCSavePath() + argv[++i] + "/computer";
 #endif
         else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
+        else if (arg == "--migrate") forceMigrate = true;
         else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
             std::string mount_path = argv[++i];
             if (mount_path.find('=') == std::string::npos) {
@@ -566,7 +647,7 @@ int main(int argc, char*argv[]) {
 #endif
     if (!customDataDir.empty()) customDataDirs[id] = customDataDir;
     setupCrashHandler();
-    migrateData();
+    migrateData(forceMigrate);
     config_init();
     if (selectedRenderer == -1) selectedRenderer = config.useHardwareRenderer ? 5 : 0;
     if (rawClient) return runRenderer();

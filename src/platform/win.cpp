@@ -16,6 +16,7 @@
 #include <fstream>
 #include <cstring>
 #include <codecvt>
+#include <Poco/SHA2Engine.h>
 #include <processenv.h>
 #include <Shlwapi.h>
 #include <dirent.h>
@@ -116,7 +117,7 @@ char* dirname(char* path) {
 unsigned long long getFreeSpace(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
-        if (path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
+        if (path.find_last_of('\\') == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
         else return getFreeSpace(path.substr(0, path.find_last_of('\\')-1));
     }
     return retval.QuadPart;
@@ -125,7 +126,7 @@ unsigned long long getFreeSpace(const std::wstring& path) {
 unsigned long long getCapacity(const std::wstring& path) {
     ULARGE_INTEGER retval;
     if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
-        if (path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
+        if (path.find_last_of('\\') == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
         else return getCapacity(path.substr(0, path.find_last_of('\\')-1));
     }
     return retval.QuadPart;
@@ -160,27 +161,58 @@ int removeDirectory(const std::wstring& path) {
 }
 
 void updateNow(const std::string& tagname) {
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [](std::istream& in) {
-        char str[261];
-        GetTempPathA(261, str);
-        const std::string path = std::string(str) + "\\setup.exe";
-        std::ofstream out(path, std::ios::binary);
-        out << in.rdbuf();
-        out.close();
-        STARTUPINFOA info;
-        memset(&info, 0, sizeof(info));
-        info.cb = sizeof(info);
-        PROCESS_INFORMATION process;
-        CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
-        CloseHandle(process.hProcess);
-        CloseHandle(process.hThread);
-        exit(0);
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname](std::istream * shain, Poco::Exception * e){
+        if (e != NULL) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
+            return;
+        }
+        std::string line;
+        bool found = false;
+        while (!shain->eof()) {
+            std::getline(*shain, line);
+            if (line.find("CraftOS-PC-Setup.exe") != std::string::npos) {found = true; break;}
+        }
+        if (!found) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "A file required for verification could not be downloaded sucessfully. Please download the installer manually.", NULL);
+            return;
+        }
+        std::string hash = line.substr(0, 64);
+        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [hash](std::istream * in, Poco::Exception * e) {
+            if (e != NULL) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
+                return;
+            }
+            std::stringstream ss;
+            ss << in->rdbuf();
+            std::string data = ss.str();
+            Poco::SHA2Engine engine;
+            engine.update(data);
+            std::string myhash = Poco::SHA2Engine::digestToHex(engine.digest());
+            if (hash != myhash) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "The installer file could not be verified. Please try again later. If this issue persists, please download the installer manually.", NULL);
+                return;
+            }
+            char str[261];
+            GetTempPathA(261, str);
+            const std::string path = std::string(str) + "\\setup.exe";
+            std::ofstream out(path, std::ios::binary);
+            out << data;
+            out.close();
+            STARTUPINFOA info;
+            memset(&info, 0, sizeof(info));
+            info.cb = sizeof(info);
+            PROCESS_INFORMATION process;
+            //CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
+            //CloseHandle(process.hProcess);
+            //CloseHandle(process.hThread);
+            exit(0);
+        });
     });
 }
 
 std::vector<std::wstring> failedCopy;
 
-int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
+static int recursiveMove(const std::wstring& path, const std::wstring& toPath) {
     const DWORD attr = GetFileAttributesW(path.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
     if (attr & FILE_ATTRIBUTE_DIRECTORY) {
@@ -196,7 +228,7 @@ int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
                     std::wstring newpath = path;
                     if (path[path.size() - 1] != '\\') newpath += L"\\";
                     newpath += find.cFileName;
-                    const int res = recursiveCopy(newpath, toPath + L"\\" + std::wstring(find.cFileName));
+                    const int res = recursiveMove(newpath, toPath + L"\\" + std::wstring(find.cFileName));
                     if (res) failedCopy.push_back(toPath + L"\\" + std::wstring(find.cFileName));
                 }
             } while (FindNextFileW(h, &find));
@@ -206,12 +238,12 @@ int recursiveCopy(const std::wstring& path, const std::wstring& toPath) {
     } else return MoveFileW(path.c_str(), toPath.c_str()) ? 0 : (int)GetLastError();
 }
 
-void migrateData() {
+void migrateOldData() {
     ExpandEnvironmentStringsW(L"%USERPROFILE%\\.craftos", expand_tmp, 32767);
     const std::wstring oldpath = expand_tmp;
     struct_stat st;
     if (platform_stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && platform_stat(getBasePath().c_str(), &st) != 0)
-        recursiveCopy(oldpath, getBasePath());
+        recursiveMove(oldpath, getBasePath());
     if (!failedCopy.empty())
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
 }

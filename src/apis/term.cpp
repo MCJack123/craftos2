@@ -346,10 +346,10 @@ static int term_setPixel(lua_State *L) {
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    std::lock_guard<std::mutex> lock(term->locked);
     const int x = (int)luaL_checkinteger(L, 1);
     const int y = (int)luaL_checkinteger(L, 2);
     const int color = term->mode == 2 ? (int)luaL_checkinteger(L, 3) : log2i((int)luaL_checkinteger(L, 3));
+    std::lock_guard<std::mutex> lock(term->locked);
     if (x < 0 || y < 0 || (unsigned)x >= term->width * Terminal::fontWidth || (unsigned)y >= term->height * Terminal::fontHeight) return 0;
     if (color < 0 || color > (term->mode == 2 ? 255 : 15)) return luaL_error(L, "bad argument #3 (invalid color %d)", color);
     term->pixels[y][x] = (unsigned char)color;
