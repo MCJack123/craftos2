@@ -210,7 +210,7 @@ int drive::insertDisk(lua_State *L, bool init) {
 void driveInit() {
 #ifndef NO_MIXER
     Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
-    Mix_OpenAudio(44100, AUDIO_S16, 2, 4096);
+    Mix_OpenAudio(44100, AUDIO_S16, 2, 512);
 #endif
 }
 

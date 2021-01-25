@@ -12,8 +12,8 @@
 #define CRAFTOS_PC_LIB_HPP
 
 extern "C" {
-#include <lua.h>
-#include <lauxlib.h>
+#include "lua.h"
+#include "lauxlib.h"
 }
 #include <functional>
 #include <string>
