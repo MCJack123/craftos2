@@ -238,15 +238,17 @@ void SDLTerminal::render() {
     {
         std::lock_guard<std::mutex> locked_g(locked);
         if (gotResizeEvent) {
-            this->screen.resize(newWidth, newHeight, ' ');
-            this->colors.resize(newWidth, newHeight, 0xF0);
-            this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+            if (newWidth > 0 && newHeight > 0) {
+                this->screen.resize(newWidth, newHeight, ' ');
+                this->colors.resize(newWidth, newHeight, 0xF0);
+                this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+                changed = true;
+            } else changed = false;
             this->width = newWidth;
             this->height = newHeight;
-            changed = true;
             gotResizeEvent = false;
         }
-        if (!changed && !shouldScreenshot && !shouldRecord) return;
+        if ((!changed && !shouldScreenshot && !shouldRecord) || width == 0 || height == 0) return;
         newscreen = std::make_unique<vector2d<unsigned char> >(screen);
         newcolors = std::make_unique<vector2d<unsigned char> >(colors);
         newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
@@ -440,10 +442,12 @@ void SDLTerminal::record(std::string path) {
     changed = true;
 }
 
+#ifndef __APPLE__
 static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
     for (size_t i = 0; i < num; i++) memcpy(&ptr[i], &value, 4);
     return &ptr[num];
 }
+#endif
 
 void SDLTerminal::stopRecording() {
     shouldRecord = false;
@@ -594,7 +598,7 @@ bool SDLTerminal::pollEvents() {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);
-                    if (sdlterm->surf != NULL) {
+                    if (sdlterm->surf != NULL && !(sdlterm->width == 0 || sdlterm->height == 0)) {
                         SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
                         SDL_UpdateWindowSurface(sdlterm->win);
                         SDL_FreeSurface(sdlterm->surf);

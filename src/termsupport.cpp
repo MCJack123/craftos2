@@ -813,8 +813,10 @@ std::string termGetEvent(lua_State *L) {
             if (selectedRenderer == 0 || selectedRenderer == 5) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
                 if (sdlterm != NULL) {
-                    w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
-                    h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
+                    if (e.window.data1 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) w = 0;
+                    else w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
+                    if (e.window.data2 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) h = 0;
+                    else h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
                 } else {w = 51; h = 19;}
             } else {w = e.window.data1; h = e.window.data2;}
             if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) return "term_resize";
