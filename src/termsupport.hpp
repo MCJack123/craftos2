@@ -27,8 +27,6 @@ extern Uint32 task_event_type;
 extern Uint32 render_event_type;
 
 extern std::string termGetEvent(lua_State *L);
-extern int buttonConvert(Uint8 button);
-extern int buttonConvert2(Uint32 state);
 extern int convertX(SDLTerminal *term, int x);
 extern int convertY(SDLTerminal *term, int y);
 extern void termRenderLoop();

@@ -224,20 +224,6 @@ std::thread * renderThread;
 Uint32 task_event_type;
 Uint32 render_event_type;
 
-int buttonConvert(Uint8 button) {
-    switch (button) {
-        case SDL_BUTTON_RIGHT: return 2;
-        case SDL_BUTTON_MIDDLE: return 3;
-        default: return 1;
-    }
-}
-
-int buttonConvert2(Uint32 state) {
-    if (state & SDL_BUTTON_RMASK) return 2;
-    else if (state & SDL_BUTTON_MMASK) return 3;
-    else return 1;
-}
-
 int convertX(SDLTerminal * term, int x) {
     if (term->mode != 0) {
         if (x < 2 * (int)term->charScale) return 0;
@@ -748,9 +734,19 @@ std::string termGetEvent(lua_State *L) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
             if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 0) return "";
+            if (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) {
+                switch (e.button.button) {
+                case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
+                case SDL_BUTTON_RIGHT: lua_pushinteger(L, 2); break;
+                case SDL_BUTTON_MIDDLE: lua_pushinteger(L, 3); break;
+                default:
+                    if (config.standardsMode) return "";
+                    else lua_pushinteger(L, e.button.button);
+                    break;
+                }
+            } else lua_pushstring(L, tmpstrval.c_str());
             computer->lastMouse = {x, y, e.button.button, 0, ""};
-            if (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) lua_pushinteger(L, buttonConvert(e.button.button));
-            else lua_pushstring(L, tmpstrval.c_str());
+            term->mouseButtonOrder.push_back(e.button.button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
@@ -764,8 +760,17 @@ std::string termGetEvent(lua_State *L) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
             if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 1) return "";
+            switch (e.button.button) {
+            case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
+            case SDL_BUTTON_RIGHT: lua_pushinteger(L, 2); break;
+            case SDL_BUTTON_MIDDLE: lua_pushinteger(L, 3); break;
+            default:
+                if (config.standardsMode) return "";
+                else lua_pushinteger(L, e.button.button);
+                break;
+            }
             computer->lastMouse = {x, y, e.button.button, 1, ""};
-            lua_pushinteger(L, buttonConvert(e.button.button));
+            term->mouseButtonOrder.remove(e.button.button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
@@ -792,8 +797,19 @@ std::string termGetEvent(lua_State *L) {
             } else if (term != NULL) {
                 x = convertX(term, e.motion.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
             }
-            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == buttonConvert2(e.motion.state) && computer->lastMouse.event == 2) return "";
-            computer->lastMouse = {x, y, (uint8_t)buttonConvert2(e.motion.state), 2, ""};
+            std::list<Uint8> used_buttons;
+            for (Uint8 i = 0; i < 32; i++) if (e.motion.state & (1 << i)) used_buttons.push_back(i + 1);
+            for (auto it = term->mouseButtonOrder.begin(); it != term->mouseButtonOrder.end();) {
+                auto pos = std::find(used_buttons.begin(), used_buttons.end(), *it);
+                if (pos == used_buttons.end()) it = term->mouseButtonOrder.erase(it);
+                else ++it;
+            }
+            Uint8 button = used_buttons.back();
+            if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
+            if (button == SDL_BUTTON_MIDDLE) button = 3;
+            else if (button == SDL_BUTTON_RIGHT) button = 2;
+            if ((computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == button && computer->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
+            computer->lastMouse = {x, y, button, 2, ""};
             if (!e.motion.state) {
                 if (computer->mouseMoveDebounceTimer == 0) {
                     computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
@@ -803,7 +819,7 @@ std::string termGetEvent(lua_State *L) {
                     return "";
                 }
             }
-            lua_pushinteger(L, buttonConvert2(e.motion.state));
+            lua_pushinteger(L, button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());

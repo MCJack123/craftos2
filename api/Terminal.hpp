@@ -140,6 +140,9 @@ public:
     // The following fields are available in API version 10.1 and later.
     bool frozen = false; // Whether the terminal should stop rendering
 
+    // The following fields are available in API version 10.2 and later.
+    std::list<Uint8> mouseButtonOrder; // An ordered list of mouse buttons that have been pressed
+
 protected:
     // Initial constructor to fill the contents with their defaults for the specified width and height
     Terminal(unsigned w, unsigned h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
