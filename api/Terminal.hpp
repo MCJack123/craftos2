@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstring>
 #include <chrono>
+#include <list>
 #include <mutex>
 #include <string>
 #include <vector>
