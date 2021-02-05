@@ -80,6 +80,15 @@ static int config_get(lua_State *L) {
         if (config.customFontPath.empty()) lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
         else lua_pushnil(L);
+    } else if (userConfig.find(name) != userConfig.end()) {
+        try {
+            switch (std::get<0>(userConfig[name])) {
+                case 0: lua_pushboolean(L, config.pluginData[name] == "true"); break;
+                case 1: lua_pushinteger(L, std::stoi(config.pluginData[name])); break;
+                case 2: lua_pushlstring(L, config.pluginData[name].c_str(), config.pluginData[name].size()); break;
+                default: lua_pushnil(L); break;
+            }
+        } catch (...) {lua_pushnil(L);}
     } else lua_pushnil(L);
     return 1;
 }
@@ -89,6 +98,7 @@ static int config_set(lua_State *L) {
     if (config.configReadOnly) luaL_error(L, "Configuration is read-only");
     Computer * computer = get_comp(L);
     const char * name = luaL_checkstring(L, 1);
+    bool isUserConfig = false;
     if (strcmp(name, "http_enable") == 0)
         config.http_enable = lua_toboolean(L, 2);
     setConfigSetting(debug_enable, boolean);
@@ -181,10 +191,24 @@ static int config_set(lua_State *L) {
     setConfigSetting(snapToSize, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
-    else luaL_error(L, "Unknown configuration option '%s'", lua_tostring(L, 1));
+    else if (userConfig.find(name) != userConfig.end()) {
+        isUserConfig = true;
+        switch (std::get<0>(userConfig[name])) {
+            case 0: config.pluginData[name] = lua_toboolean(L, 2) ? "true" : "false"; break;
+            case 1: config.pluginData[name] = std::to_string(luaL_checkinteger(L, 2)); break;
+            case 2: config.pluginData[name] = std::string(luaL_checkstring(L, 2), lua_strlen(L, 2)); break;
+        }
+        if (std::get<1>(userConfig[name]) != nullptr) {
+            const int retval = std::get<1>(userConfig[name])(name, std::get<2>(userConfig[name]));
+            if (retval) lua_pushstring(L, config_set_action_names[retval]);
+            else lua_pushnil(L);
+        } else lua_pushnil(L);
+    } else luaL_error(L, "Unknown configuration option '%s'", lua_tostring(L, 1));
     config_save();
-    if (configSettings[std::string(name)].first) lua_pushstring(L, config_set_action_names[configSettings[std::string(name)].first]);
-    else lua_pushnil(L);
+    if (!isUserConfig) {
+        if (configSettings[std::string(name)].first) lua_pushstring(L, config_set_action_names[configSettings[std::string(name)].first]);
+        else lua_pushnil(L);
+    }
     return 1;
 }
 
@@ -192,7 +216,12 @@ static int config_list(lua_State *L) {
     lastCFunction = __func__;
     lua_createtable(L, configSettings.size(), 0);
     int i = 1;
-    for (auto it = configSettings.begin(); it != configSettings.end(); it++, i++) {
+    for (auto it = configSettings.begin(); it != configSettings.end(); ++it, i++) {
+        lua_pushnumber(L, i);
+        lua_pushstring(L, it->first.c_str());
+        lua_settable(L, -3);
+    }
+    for (auto it = userConfig.begin(); it != userConfig.end(); ++it, i++) {
         lua_pushnumber(L, i);
         lua_pushstring(L, it->first.c_str());
         lua_settable(L, -3);
@@ -203,8 +232,17 @@ static int config_list(lua_State *L) {
 static int config_getType(lua_State *L) {
     lastCFunction = __func__;
     const std::string name = luaL_checkstring(L, 1);
-    if (configSettings.find(name) == configSettings.end()) lua_pushnil(L);
-    else {
+    if (configSettings.find(name) == configSettings.end()) {
+        if (userConfig.find(name) == userConfig.end()) lua_pushnil(L);
+        else {
+            switch (std::get<0>(userConfig[name])) {
+                case 0: lua_pushstring(L, "boolean"); break;
+                case 1: lua_pushstring(L, "number"); break;
+                case 2: lua_pushstring(L, "string"); break;
+                default: lua_pushnil(L);
+            }
+        }
+    } else {
         switch (configSettings[name].second) {
             case 0: lua_pushstring(L, "boolean"); break;
             case 1: lua_pushstring(L, "number"); break;

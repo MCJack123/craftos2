@@ -117,7 +117,7 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"snapToSize", {0, 0}}
 };
 
-const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion"};
+const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion", "pluginData", "http_proxy_server", "http_proxy_port", "cliControlKeyMode", "serverMode"};
 
 std::unordered_map<std::string, Poco::Dynamic::Var> unknownOptions;
 
@@ -335,8 +335,9 @@ void config_save() {
     root["extendMargins"] = config.extendMargins;
     root["snapToSize"] = config.snapToSize;
     root["lastVersion"] = CRAFTOSPC_VERSION;
-    root["pluginData"] = Value();
-    for (const auto& e : config.pluginData) root["pluginData"][e.first] = e.second;
+    Value pluginRoot;
+    for (const auto& e : config.pluginData) pluginRoot[e.first] = e.second;
+    root["pluginData"] = pluginRoot;
     for (const auto& opt : unknownOptions) root[opt.first] = opt.second;
     std::ofstream out(getBasePath() + WS("/config/global.json"));
     out << root;

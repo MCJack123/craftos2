@@ -79,7 +79,7 @@ class Value {
         parent->obj = o;
     }
 public:
-    Value() { obj = Poco::JSON::Object(); }
+    Value() { obj = Poco::Dynamic::Var(Poco::JSON::Object()); }
     Value(Poco::Dynamic::Var o) : obj(o) {}
     Value operator[](std::string key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
     void operator=(int v) { obj = v; updateParent(); }
@@ -87,6 +87,7 @@ public:
     void operator=(const char * v) { obj = std::string(v); updateParent(); }
     void operator=(std::string v) { obj = v; updateParent(); }
     void operator=(Poco::Dynamic::Var v) { obj = v; updateParent(); }
+    void operator=(const Value& v) { obj = v.obj; updateParent(); }
     bool asBool() { return obj.convert<bool>(); }
     int asInt() { return obj.convert<int>(); }
     float asFloat() { return obj.convert<float>(); }
@@ -138,6 +139,7 @@ inline std::string asciify(std::string str) {
 
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
+extern std::unordered_map<std::string, std::tuple<int, std::function<int(const std::string&, void*)>, void*> > userConfig;
 extern std::list<Terminal*> renderTargets;
 extern std::mutex renderTargetsLock;
 #ifdef __EMSCRIPTEN__

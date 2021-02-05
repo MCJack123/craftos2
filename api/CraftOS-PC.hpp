@@ -205,6 +205,20 @@ struct PluginFunctions {
      * @param value The value of the setting
      */
     void (*setConfigSettingBool)(const std::string& name, bool value);
+
+    // The following fields are available in API version 10.2.
+
+    /**
+     * Registers a custom config setting so it can be accessed with the config
+     * API, with an optional callback. Pass nullptr to callback to ignore.
+     * @param name The name of the setting
+     * @param callback A callback to call when the setting is changed. This
+     * takes the name and userdata, and returns 0 for immediate use, 1 to
+     * reboot the computer, and 2 to restart CraftOS-PC before taking effect.
+     * Set this to nullptr to not call a function.
+     * @param userdata An optional opaque pointer to pass to the function.
+     */
+    void (*registerConfigSetting)(const std::string& name, int type, const std::function<int(const std::string&, void*)>& callback, void* userdata);
 };
 
 /**
@@ -237,6 +251,19 @@ struct PluginInfo {
         info->failureReason = err;
         return info;
     }
+};
+
+// Some enums for ease-of-use.
+enum ConfigType {
+    CONFIG_TYPE_BOOLEAN,
+    CONFIG_TYPE_INTEGER,
+    CONFIG_TYPE_STRING
+};
+
+enum ConfigEffect {
+    CONFIG_EFFECT_IMMEDIATE,
+    CONFIG_EFFECT_REBOOT,
+    CONFIG_EFFECT_REOPEN
 };
 
 #endif
