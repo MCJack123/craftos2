@@ -3,7 +3,7 @@
   <assemblyIdentity
       type="win32"
       name="CraftOS-PC"
-      version="2.5.2.0"
+      version="2.5.3.0"
       processorArchitecture="amd64"
     />
   <description>Advanced ComputerCraft Emulator</description>
