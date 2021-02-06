@@ -421,7 +421,7 @@ int speaker::listSounds(lua_State *L) {
     lastCFunction = __func__;
     lua_newtable(L);
     for (const auto& ev : soundEvents) {
-        std::vector<std::string> parts = split(ev.first.substr(ev.first.find(':') + 1), '.');
+        std::vector<std::string> parts = split(ev.first.substr(ev.first.find(':') + 1), ".");
         std::string back = parts.back();
         parts.pop_back();
         lua_pushstring(L, ev.first.substr(0, ev.first.find(':')).c_str());

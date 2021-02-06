@@ -237,11 +237,11 @@ int getNextEvent(lua_State *L, const std::string& filter) {
 bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only) {
     struct_stat st;
     if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
-    std::vector<std::string> elems = split(comp_path, '/');
+    std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
-        else if (s != "." && !s.empty()) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     for (const auto& m : comp->mounts)
         if (std::get<0>(m) == pathc && std::get<1>(m) == real_path) return false;
@@ -273,11 +273,11 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
 }
 
 bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path) {
-    std::vector<std::string> elems = split(comp_path, '/');
+    std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
-        else if (s != "." && !s.empty()) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     unsigned idx;
     for (idx = 0; comp->virtualMounts.find(idx) != comp->virtualMounts.end() && idx < UINT_MAX; idx++) {}

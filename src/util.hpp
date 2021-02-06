@@ -159,8 +159,8 @@ template<typename T>
 inline T max(T a, T b) { return a > b ? a : b; }
 extern std::string b64encode(const std::string& orig);
 extern std::string b64decode(const std::string& orig);
-extern std::vector<std::string> split(const std::string& strToSplit, char delimeter);
-extern std::vector<std::wstring> split(const std::wstring& strToSplit, wchar_t delimeter);
+extern std::vector<std::string> split(const std::string& strToSplit, const char * delimeter);
+extern std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
 extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback);
 extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
