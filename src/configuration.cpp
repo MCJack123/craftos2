@@ -125,7 +125,7 @@ void config_init() {
     createDirectory(getBasePath() + WS("/config"));
     config = {
         true,
-        false,
+        true,
         MOUNT_MODE_RO_STRICT,
         {"*"},
         {

@@ -365,69 +365,25 @@ void termHook(lua_State *L, lua_Debug *ar) {
         return;
     }
     Computer * computer = get_comp(L);
-    if (ar->event == LUA_HOOKCOUNT && !computer->forceCheckTimeout) return;
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;
         lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
         for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
             lua_rawgeti(L, -1, (int)i);
-            if (lua_isthread(L, -1)) lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+            if (lua_isthread(L, -1)) lua_sethook(lua_tothread(L, -1), NULL, 0, 0); //lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
-        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        /*lua_sethook(computer->L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        lua_sethook(computer->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        lua_sethook(L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);*/
+        lua_sethook(computer->L, NULL, 0, 0);
+        lua_sethook(computer->coro, NULL, 0, 0);
+        lua_sethook(L, NULL, 0, 0);
         queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
         computer->debugger = NULL;
     }
-    if (ar->event == LUA_HOOKCOUNT) {
-        if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > (config.standardsMode ? 7000 : config.abortTimeout)) {
-            computer->forceCheckTimeout = false;
-            if (++computer->timeoutCheckCount >= 5) {
-                if (config.standardsMode) {
-                    // In standards mode we give no second chances - just crash and burn
-                    displayFailure(computer->term, "Error running computer", "Too long without yielding");
-                    computer->event_lock.notify_all();
-                    // Stop all open websockets
-                    while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
-                    for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
-                    lua_close(computer->L);   /* Cya, Lua */
-                    computer->L = NULL;
-                    computer->running = 0;
-                    longjmp(computer->on_panic, 0);
-                } else {
-                    if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
-                        SDL_MessageBoxData msg;
-                        SDL_MessageBoxButtonData buttons[] = {
-                            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
-                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
-                        };
-                        msg.flags = SDL_MESSAGEBOX_WARNING;
-                        msg.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
-                        msg.title = "Computer not responding";
-                        msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
-                        msg.numbuttons = 2;
-                        msg.buttons = buttons;
-                        msg.colorScheme = NULL;
-                        if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
-                            computer->event_lock.notify_all();
-                            // Stop all open websockets
-                            while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
-                            for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
-                            lua_close(computer->L);   /* Cya, Lua */
-                            computer->L = NULL;
-                            computer->running = 2;
-                            longjmp(computer->on_panic, 0);
-                        } else {
-                            computer->timeoutCheckCount = -15;
-                        }
-                    }
-                }
-            }
-            luaL_error(L, "Too long without yielding");
-        }
-    } else {if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
+    if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
         if (computer->debugger == NULL && computer->hasBreakpoints) {
             lua_getinfo(L, "Sl", ar);
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
@@ -514,32 +470,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
             if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
                 if (debuggerBreak(L, computer, dbg, "Yield")) return;
         }
-    }}
-    if (ar->event != LUA_HOOKCOUNT && (computer->hookMask & (1 << ar->event))) {
-        lua_pushlightuserdata(L, (void*)&KEY_HOOK);
-        lua_gettable(L, LUA_REGISTRYINDEX);
-        if (lua_istable(L, -1)) {
-            lua_pushlightuserdata(L, L);
-            lua_gettable(L, -2);
-            if (lua_istable(L, -1)) {
-                lua_getfield(L, -1, "mask");
-                if (lua_tointeger(L, -1) & ((lua_Integer)1 << ar->event)) {
-                    lua_pop(L, 1);
-                    lua_getfield(L, -1, "func");
-                    if (lua_isfunction(L, -1)) {
-                        static const char *const hooknames[] = {"call", "return", "line", "count", "tail return", "error", "resume", "yield"};
-                        lua_pushstring(L, hooknames[ar->event]);
-                        if (ar->event == LUA_HOOKLINE) {
-                            lua_getinfo(L, "l", ar);
-                            lua_pushinteger(L, ar->currentline);
-                        }
-                        else lua_pushnil(L);
-                        lua_icall(L, 2, 0, 1);
-                    } else lua_pop(L, 1);
-                } else lua_pop(L, 1);
-            }
-            lua_pop(L, 1);
-        } else lua_pop(L, 1);
     }
 }
 

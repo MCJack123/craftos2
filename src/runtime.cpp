@@ -47,7 +47,7 @@ ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, 
 ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
-
+static char abortErrorTmp[LUA_IDSIZE+40];
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
 
@@ -141,10 +141,42 @@ void mainLoop() {
 #endif
 }
 
+extern library_t * libraries[8];
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
-    if (freedComputers.find((Computer*)param) != freedComputers.end()) return 0;
-    if (((Computer*)param)->getting_event) return 0;
-    ((Computer*)param)->forceCheckTimeout = true;
+    Computer * computer = (Computer*)param;
+    if (freedComputers.find(computer) != freedComputers.end()) return 0;
+    if (computer->getting_event) return 0;
+    if (++computer->timeoutCheckCount >= 5) {
+        if (config.standardsMode) {
+            // In standards mode we give no second chances - just crash and burn
+            displayFailure(computer->term, "Error running computer", "Too long without yielding");
+            computer->running = 0;
+            lua_halt(computer->L);
+            return 0;
+        } else if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
+            SDL_MessageBoxData msg;
+            SDL_MessageBoxButtonData buttons[] = {
+                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
+                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
+            };
+            msg.flags = SDL_MESSAGEBOX_WARNING;
+            msg.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
+            msg.title = "Computer not responding";
+            msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
+            msg.numbuttons = 2;
+            msg.buttons = buttons;
+            msg.colorScheme = NULL;
+            if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
+                computer->running = 2;
+                lua_halt(computer->L);
+                return 0;
+            } else {
+                computer->timeoutCheckCount = -15;
+                return 1000;
+            }
+        }
+    }
+    lua_externalerror(computer->L, "Too long without yielding");
     return 1000;
 }
 
