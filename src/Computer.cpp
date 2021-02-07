@@ -234,7 +234,8 @@ static const char * yield_loader(lua_State *L, void* data, size_t *size) {
             ctx->argcount = lua_gettop(coro);
             lua_xmove(coro, ctx->L, ctx->argcount);
             ctx->notify.notify_all();
-            ctx->notify.wait(lock);
+            while (ctx->status == 1) ctx->notify.wait(lock);
+            if (ctx->status == 3) luaL_error(L, "");
             lua_xmove(ctx->L, coro, ctx->argcount);
             ctx->status = 0;
         } else {
@@ -246,6 +247,7 @@ static const char * yield_loader(lua_State *L, void* data, size_t *size) {
 
 static void load_thread(load_ctx* ctx) {
     int status = lua_load(ctx->coro, yield_loader, ctx, ctx->name);
+    if (ctx->status == 3) return;
     std::unique_lock<std::mutex> lock(ctx->lock);
     if (status == 0) {
         ctx->argcount = 1;
@@ -257,6 +259,22 @@ static void load_thread(load_ctx* ctx) {
     }
     ctx->status = 2;
     ctx->notify.notify_all();
+}
+
+static int load_ctx_gc(lua_State *L) {
+    load_ctx* ctx = (load_ctx*)lua_touserdata(L, 1);
+    if (ctx->thread.joinable()) {
+        {
+            std::unique_lock<std::mutex> lock(ctx->lock);
+            ctx->status = 3;
+            ctx->notify.notify_all();
+        }
+        ctx->thread.join();
+    }
+    ctx->thread.~thread();
+    ctx->lock.~mutex();
+    ctx->notify.~condition_variable();
+    return 0;
 }
 
 static int yieldable_load(lua_State *L) {
@@ -271,7 +289,14 @@ static int yieldable_load(lua_State *L) {
     } else {
         luaL_checktype(L, 1, LUA_TFUNCTION);
         const char * name = luaL_optstring(L, 2, "=(load)");
-        ctx = new load_ctx;
+        load_ctx * basectx = new load_ctx;
+        ctx = (load_ctx*)lua_newuserdata(L, sizeof(load_ctx));
+        memcpy(ctx, basectx, sizeof(load_ctx));
+        delete basectx;
+        lua_createtable(L, 0, 1);
+        lua_pushcfunction(L, load_ctx_gc);
+        lua_setfield(L, -2, "__gc");
+        lua_setmetatable(L, -2);
         ctx->thread = std::thread(load_thread, ctx);
         setThreadName(ctx->thread, "Loader Thread: " + std::string(name));
         ctx->status = 0;
@@ -288,7 +313,7 @@ static int yieldable_load(lua_State *L) {
             int argcount = ctx->argcount;
             ctx->argcount = lua_gettop(L) - ctx->argcount;
             return lua_vyield(L, argcount, ctx);
-        }
+        } else if (ctx->status == 3) return 0; // this should never happen
     }
     return ctx->argcount;
 }

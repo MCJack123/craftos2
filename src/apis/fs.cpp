@@ -743,6 +743,9 @@ static int fs_getCapacity(lua_State *L) {
     if (mountPath == "rom") {
         lua_pushnil(L);
         return 1;
+    } else if (mountPath == "hdd" && config.standardsMode) {
+        lua_pushinteger(L, config.computerSpaceLimit);
+        return 1;
     }
     if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
     lua_pushinteger(L, getCapacity(path));
