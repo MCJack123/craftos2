@@ -47,6 +47,19 @@ std::list<path_t> customPlugins;
 std::list<std::tuple<std::string, std::string, int> > customMounts;
 std::unordered_set<Terminal*> orphanedTerminals;
 
+// Context structure for yieldable load
+struct load_ctx {
+    std::thread thread;
+    std::mutex lock;
+    std::condition_variable notify;
+    int oldtop;
+    int status;
+    int argcount;
+    lua_State *L;
+    lua_State *coro;
+    const char * name;
+};
+
 // Basic CraftOS libraries
 library_t * libraries[] = {
     &config_lib,
@@ -193,6 +206,93 @@ static const char * file_reader(lua_State *L, void * ud, size_t *size) {
     return file_read_tmp;
 }
 
+// These functions implement a strategy for allowing `load` to yield.
+// Basically, it spins up a new thread that runs the actual parser, and
+// when the function yields, the thread signals the computer thread to
+// yield itself. Once the computer thread resumes loading, the contents
+// are sent to the loader thread, and parsing continues. This continues
+// until the loader finishes, at which point the loader signals the
+// computer thread that it's done. The results are copied back to the
+// main state, and the loader returns.
+
+static const char * yield_loader(lua_State *L, void* data, size_t *size) {
+    load_ctx* ctx = (load_ctx*)data;
+    lua_State *coro = lua_newthread(L);
+    lua_pushvalue(ctx->coro, 1);
+    lua_xmove(ctx->coro, coro, 1);
+    ctx->argcount = 0;
+    int status;
+    do {
+        status = lua_resume(coro, ctx->argcount);
+        if (status == 0) {
+            if (lua_isnoneornil(coro, 1)) return NULL;
+            else if (lua_isstring(coro, 1)) return lua_tolstring(coro, 1, size);
+            else luaL_error(L, "reader function must return a string");
+        } else if (status == LUA_YIELD) {
+            std::unique_lock<std::mutex> lock(ctx->lock);
+            ctx->status = 1;
+            ctx->argcount = lua_gettop(coro);
+            lua_xmove(coro, ctx->L, ctx->argcount);
+            ctx->notify.notify_all();
+            ctx->notify.wait(lock);
+            lua_xmove(ctx->L, coro, ctx->argcount);
+            ctx->status = 0;
+        } else {
+            lua_error(L);
+        }
+    } while (status == LUA_YIELD);
+    return NULL;
+}
+
+static void load_thread(load_ctx* ctx) {
+    int status = lua_load(ctx->coro, yield_loader, ctx, ctx->name);
+    std::unique_lock<std::mutex> lock(ctx->lock);
+    if (status == 0) {
+        ctx->argcount = 1;
+        lua_xmove(ctx->coro, ctx->L, 1);
+    } else {
+        ctx->argcount = 2;
+        lua_pushnil(ctx->L);
+        lua_xmove(ctx->coro, ctx->L, 1);
+    }
+    ctx->status = 2;
+    ctx->notify.notify_all();
+}
+
+static int yieldable_load(lua_State *L) {
+    load_ctx* ctx;
+    if (lua_vcontext(L)) {
+        ctx = (load_ctx*)lua_vcontext(L);
+        std::unique_lock<std::mutex> lock(ctx->lock);
+        ctx->status = 0;
+        ctx->L = L;
+        ctx->argcount = lua_gettop(L) - ctx->argcount;
+        ctx->notify.notify_all();
+    } else {
+        luaL_checktype(L, 1, LUA_TFUNCTION);
+        const char * name = luaL_optstring(L, 2, "=(load)");
+        ctx = new load_ctx;
+        ctx->thread = std::thread(load_thread, ctx);
+        setThreadName(ctx->thread, "Loader Thread: " + std::string(name));
+        ctx->status = 0;
+        ctx->name = name;
+        ctx->L = L;
+        ctx->coro = lua_newthread(L);
+        lua_pushvalue(L, 1);
+        lua_xmove(L, ctx->coro, 1);
+    }
+    while (ctx->status != 2) {
+        std::unique_lock<std::mutex> lock(ctx->lock);
+        ctx->notify.wait(lock);
+        if (ctx->status == 1) {
+            int argcount = ctx->argcount;
+            ctx->argcount = lua_gettop(L) - ctx->argcount;
+            return lua_vyield(L, argcount, ctx);
+        }
+    }
+    return ctx->argcount;
+}
+
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
     if (self->config->startFullscreen && dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->toggleFullscreen();
@@ -263,6 +363,11 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_pop(L, 1);
         lua_pushnil(L);
         lua_setglobal(L, "os_date");
+        if (config.standardsMode) {
+            // Override the default loader to allow yielding from `load`
+            lua_pushcfunction(L, yieldable_load);
+            lua_setglobal(L, "load");
+        }
 
         // Load any plugins available
         if (!config.vanilla) {
