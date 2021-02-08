@@ -280,6 +280,15 @@ int termPanic(lua_State *L) {
 static bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, const char * reason) {
     const bool lastBlink = computer->term->canBlink;
     computer->term->canBlink = false;
+    if (computer->eventTimeout != 0) 
+#ifdef __EMSCRIPTEN__
+        queueTask([computer](void*)->void*{
+#endif
+        SDL_RemoveTimer(computer->eventTimeout);
+#ifdef __EMSCRIPTEN__
+        return NULL;}, NULL);
+#endif
+    computer->eventTimeout = 0;
     dbg->thread = L;
     dbg->breakReason = reason;
     while (!dbg->didBreak) {
@@ -291,6 +300,13 @@ static bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, con
     while (dbg->didBreak) dbg->breakNotify.wait_for(lock, std::chrono::milliseconds(500));
     const bool retval = !dbg->running;
     dbg->thread = NULL;
+#ifdef __EMSCRIPTEN__
+    queueTask([computer](void*)->void*{
+#endif
+    computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
+#ifdef __EMSCRIPTEN__
+    return NULL;}, NULL);
+#endif
     computer->last_event = std::chrono::high_resolution_clock::now();
     computer->term->canBlink = lastBlink;
     return retval;

@@ -32,6 +32,7 @@ extern int getNextEvent(lua_State* L, const std::string& filter);
 extern void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async = false);
 extern void runComputer(Computer * self, const path_t& bios_name);
 extern bool Computer_getEvent(Computer * self, SDL_Event* e);
+extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 extern void queueEvent(Computer *comp, const event_provider& p, void* data);

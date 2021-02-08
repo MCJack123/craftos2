@@ -653,11 +653,11 @@ void* computerThread(void* data) {
         for (auto it = computers->begin(); it != computers->end(); ++it) {
             if (*it == comp) {
                 it = computers->erase(it);
-                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
                 if (it == computers->end()) break;
             }
         }
     }
+    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
     if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
         {LockGuard lock(taskQueue);}
         while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));
