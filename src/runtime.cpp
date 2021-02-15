@@ -47,7 +47,6 @@ ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, 
 ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
-static char abortErrorTmp[LUA_IDSIZE+40];
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
 

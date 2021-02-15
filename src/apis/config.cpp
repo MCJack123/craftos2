@@ -76,6 +76,7 @@ static int config_get(lua_State *L) {
     getConfigSetting(http_timeout, integer);
     getConfigSetting(extendMargins, boolean);
     getConfigSetting(snapToSize, boolean);
+    getConfigSetting(snooperEnabled, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath.empty()) lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -189,6 +190,7 @@ static int config_set(lua_State *L) {
     setConfigSettingI(http_timeout);
     setConfigSetting(extendMargins, boolean);
     setConfigSetting(snapToSize, boolean);
+    setConfigSetting(snooperEnabled, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else if (userConfig.find(name) != userConfig.end()) {

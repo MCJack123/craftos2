@@ -46,6 +46,7 @@ extern "C" {
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
 extern library_t * libraries[8];
+extern int onboardingMode;
 #ifdef WIN32
 extern void* kernel32handle;
 #endif
@@ -66,6 +67,7 @@ std::string updateAtQuit;
 int returnValue = 0;
 std::unordered_map<path_t, std::string> globalPluginErrors;
 
+#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void* releaseNotesThread(void* data) {
     Computer * comp = (Computer*)data;
 #ifdef __APPLE__
@@ -113,7 +115,6 @@ static void* releaseNotesThread(void* data) {
     return NULL;
 }
 
-#if !CRAFTOSPC_INDEV
 static void showReleaseNotes() {
     Computer * comp;
     try {comp = new Computer(-1, true);} catch (std::exception &e) {
@@ -130,9 +131,7 @@ static void showReleaseNotes() {
     setThreadName(*th, "Release Note Viewer Thread");
     computerThreads.push_back(th);
 }
-#endif
 
-#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void update_thread() {
     try {
         Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
@@ -662,6 +661,23 @@ int main(int argc, char*argv[]) {
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
     if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
+#endif
+#if defined(_WIN32) && defined(CRASHREPORT_API_KEY)
+    if (onboardingMode && !config.snooperEnabled) {
+        SDL_MessageBoxData data;
+        data.title = "Allow analytics?";
+        data.message = "CraftOS-PC can automatically upload crash logs to help bugs get fixed. These files don't contain direct personal data, but they do include general info such as OS version, processor, computer name, and some install paths, possibly including the name of your user folder. Would you like to allow crash logs to be uploaded?";
+        data.colorScheme = NULL;
+        data.window = NULL;
+        data.flags = SDL_MESSAGEBOX_INFORMATION;
+        SDL_MessageBoxButtonData buttons[2] = {
+            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Deny"},
+            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Allow"}
+        };
+        data.numbuttons = 2;
+        data.buttons = buttons;
+        SDL_ShowMessageBox(&data, &config.snooperEnabled);
+    }
 #endif
     startComputer(manualID ? id : config.initialComputer);
 #ifdef __EMSCRIPTEN__

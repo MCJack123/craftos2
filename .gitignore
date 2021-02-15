@@ -39,3 +39,4 @@ src/fs_standalone.cpp
 include_arm
 vcpkg_installed
 /ignored.txt
+/src/apikey.cpp
