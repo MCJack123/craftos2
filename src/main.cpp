@@ -676,7 +676,9 @@ int main(int argc, char*argv[]) {
         };
         data.numbuttons = 2;
         data.buttons = buttons;
-        SDL_ShowMessageBox(&data, &config.snooperEnabled);
+        int res = 0;
+        SDL_ShowMessageBox(&data, &res);
+        config.snooperEnabled = res;
     }
 #endif
     startComputer(manualID ? id : config.initialComputer);

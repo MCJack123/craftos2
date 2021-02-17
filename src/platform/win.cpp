@@ -9,8 +9,7 @@
  */
 
 #ifdef _WIN32
-#include <Windows.h>
-#include "../platform.hpp"
+//#include <Windows.h>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -27,6 +26,7 @@
 #include <SDL2/SDL_syswm.h>
 #include <sys/stat.h>
 #include <zlib.h>
+#include "../platform.hpp"
 #include "../util.hpp"
 
 const wchar_t * base_path = L"%appdata%\\CraftOS-PC";
@@ -279,28 +279,29 @@ LONG WINAPI exceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
 void invalidParameterHandler(const wchar_t * expression, const wchar_t * function, const wchar_t * file, unsigned int line, uintptr_t pReserved) {}
 
 #ifdef CRASHREPORT_API_KEY
-#include "../apikey.cpp"
+#include "../apikey.cpp" // if you get an error here, please go into Project Properties => C/C++ => Preprocessor => Preprocessor Defines and remove "CRASHREPORT_API_KEY" from the list
 
-static void pushCrashDump(const char * data, const size_t size, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
+static void pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
     Poco::URI uri(url);
-    HTTPSClientSession session(uri.getHost(), uri.getPort(), new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
-    HTTPRequest request(method, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
-    HTTPResponse response;
+    Poco::Net::HTTPRequest request(method, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
+    Poco::Net::HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
     request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     request.add("X-API-Key", getAPIKey());
-    request.add("Content-Type", "application/gzip");
+    request.setContentType("application/gzip");
+    request.setContentLength(size);
     try {
         session.sendRequest(request).write(data, size);
         std::istream& stream = session.receiveResponse(response);
         if (response.getStatus() / 100 == 3 && response.has("Location")) 
-            return pushCrashDump(data, size, response.get("Location"));
+            return pushCrashDump(data, size, path, response.get("Location"));
         else if (response.getStatus() == 200 && method == "POST") {
             Value root;
             Poco::JSON::Object::Ptr p = root.parse(stream);
             if (root.isMember("uploadURL")) {
-                return pushCrashDump(data, size, root["uploadURL"], "PUT");
+                return pushCrashDump(data, size, path, root["uploadURL"].asString(), "PUT");
             } else if (root.isMember("error")) {
                 fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), root["error"].asString().c_str());
             } else if (root.isMember("message")) {
@@ -308,7 +309,7 @@ static void pushCrashDump(const char * data, const size_t size, const std::strin
             }
         }
     } catch (Poco::Exception &e) {
-        fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), e.message());
+        fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), e.displayText().c_str());
     }
 }
 #endif
@@ -319,66 +320,68 @@ void setupCrashHandler() {
     SetUnhandledExceptionFilter(exceptionHandler);
     _set_invalid_parameter_handler(invalidParameterHandler);
 #ifdef CRASHREPORT_API_KEY
-    WIN32_FIND_DATAW find;
-    wchar_t path[32767];
-    ExpandEnvironmentStringsW(L"%LOCALAPPDATA%\\CrashDumps\\", path, 32767);
-    std::wstring searchpath = std::wstring(path) + "CraftOS-PC.exe.*.dmp";
-    const HANDLE h = FindFirstFileW(searchpath.c_str(), &find);
-    if (h != INVALID_HANDLE_VALUE) {
-        do {
-            std::wstring newpath = path + find.cFileName;
-            std::stringstream ss;
-            FILE * source = platform_fopen(newpath.c_str(), "rb");
-
-            int ret, flush;
-            unsigned have;
-            z_stream strm;
-            unsigned char in[CHUNK];
-            unsigned char out[CHUNK];
-
-            /* allocate deflate state */
-            strm.zalloc = Z_NULL;
-            strm.zfree = Z_NULL;
-            strm.opaque = Z_NULL;
-            ret = deflateInit2(&strm, level, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
-            if (ret != Z_OK) {
-                fclose(source);
-                continue;
-            }
-
-            /* compress until end of file */
+    if (config.snooperEnabled) {
+        WIN32_FIND_DATAW find;
+        wchar_t path[32767];
+        ExpandEnvironmentStringsW(L"%LOCALAPPDATA%\\CrashDumps\\", path, 32767);
+        std::wstring searchpath = std::wstring(path) + L"CraftOS-PC.exe.*.dmp";
+        const HANDLE h = FindFirstFileW(searchpath.c_str(), &find);
+        if (h != INVALID_HANDLE_VALUE) {
             do {
-                strm.avail_in = fread(in, 1, 16384, source);
-                if (ferror(source)) {
-                    (void)deflateEnd(&strm);
+                std::wstring newpath = std::wstring(path) + find.cFileName;
+                std::stringstream ss;
+                FILE * source = platform_fopen(newpath.c_str(), "rb");
+
+                int ret, flush;
+                unsigned have;
+                z_stream strm;
+                unsigned char in[16384];
+                unsigned char out[16384];
+
+                /* allocate deflate state */
+                strm.zalloc = Z_NULL;
+                strm.zfree = Z_NULL;
+                strm.opaque = Z_NULL;
+                ret = deflateInit2(&strm, 7, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
+                if (ret != Z_OK) {
                     fclose(source);
                     continue;
                 }
-                flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
-                strm.next_in = in;
 
-                /* run deflate() on input until output buffer not full, finish
-                compression if all of source has been read in */
+                /* compress until end of file */
                 do {
-                    strm.avail_out = 16384;
-                    strm.next_out = out;
-                    ret = deflate(&strm, flush);    /* no bad return value */
-                    assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
-                    have = 16384 - strm.avail_out;
-                    ss.write(out, have);
-                } while (strm.avail_out == 0);
+                    strm.avail_in = fread(in, 1, 16384, source);
+                    if (ferror(source)) {
+                        (void)deflateEnd(&strm);
+                        fclose(source);
+                        continue;
+                    }
+                    flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
+                    strm.next_in = in;
 
-                /* done when last data in file processed */
-            } while (flush != Z_FINISH);
+                    /* run deflate() on input until output buffer not full, finish
+                    compression if all of source has been read in */
+                    do {
+                        strm.avail_out = 16384;
+                        strm.next_out = out;
+                        ret = deflate(&strm, flush);    /* no bad return value */
+                        assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
+                        have = 16384 - strm.avail_out;
+                        ss.write((const char*)out, have);
+                    } while (strm.avail_out == 0);
 
-            /* clean up and return */
-            (void)deflateEnd(&strm);
-            fclose(source);
-            std::string data = ss.str();
-            pushCrashDump(ss.c_str(), ss.size());
-            DeleteFileW(newpath.c_str());
-        } while (FindNextFileW(h, &find));
-        FindClose(h);
+                    /* done when last data in file processed */
+                } while (flush != Z_FINISH);
+
+                /* clean up and return */
+                (void)deflateEnd(&strm);
+                fclose(source);
+                std::string data = ss.str();
+                pushCrashDump(data.c_str(), data.size(), newpath);
+                DeleteFileW(newpath.c_str());
+            } while (FindNextFileW(h, &find));
+            FindClose(h);
+        }
     }
 #endif
 }
