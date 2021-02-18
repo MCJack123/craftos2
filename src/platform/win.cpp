@@ -319,6 +319,9 @@ static void pushCrashDump(const char * data, const size_t size, const path_t& pa
 void setupCrashHandler() {
     SetUnhandledExceptionFilter(exceptionHandler);
     _set_invalid_parameter_handler(invalidParameterHandler);
+}
+
+void uploadCrashDumps() {
 #ifdef CRASHREPORT_API_KEY
     if (config.snooperEnabled) {
         WIN32_FIND_DATAW find;

@@ -680,6 +680,7 @@ int main(int argc, char*argv[]) {
         SDL_ShowMessageBox(&data, &res);
         config.snooperEnabled = res;
     }
+    uploadCrashDumps();
 #endif
     startComputer(manualID ? id : config.initialComputer);
 #ifdef __EMSCRIPTEN__
