@@ -342,7 +342,7 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         newWidth = w;
         newHeight = h;
         // not really a fan of having two tasks queued here, but there's not a whole lot we can do
-        if (config.snapToSize && !fullscreen) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth+(4 * charScale * (2 / fontScale))), (int)(h*charHeight+(4 * charScale * (2 / fontScale)))); return NULL;}, NULL);
+        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth+(4 * charScale * (2 / fontScale))), (int)(h*charHeight+(4 * charScale * (2 / fontScale)))); return NULL;}, NULL);
         {
             std::lock_guard<std::mutex> lock2(renderlock);
             SDL_GetWindowSize(win, &realWidth, &realHeight);
