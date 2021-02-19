@@ -666,7 +666,7 @@ int main(int argc, char*argv[]) {
     if (onboardingMode && !config.snooperEnabled) {
         SDL_MessageBoxData data;
         data.title = "Allow analytics?";
-        data.message = "CraftOS-PC can automatically upload crash logs to help bugs get fixed. These files don't contain direct personal data, but they do include general info such as OS version, processor, computer name, and some install paths, possibly including the name of your user folder. Would you like to allow crash logs to be uploaded?";
+        data.message = "CraftOS-PC can automatically upload crash logs to help bugs get fixed. These files are sent anonymously and don't contain direct personal data, but they do include general system information (see https://www.craftos-pc.cc/docs/privacy for more info). Would you like to allow crash logs to be uploaded?";
         data.colorScheme = NULL;
         data.window = NULL;
         data.flags = SDL_MESSAGEBOX_INFORMATION;
