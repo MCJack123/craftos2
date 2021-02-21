@@ -328,7 +328,7 @@ void uploadCrashDumps() {
         WIN32_FIND_DATAW find;
         wchar_t path[32767];
         ExpandEnvironmentStringsW(L"%LOCALAPPDATA%\\CrashDumps\\", path, 32767);
-        std::wstring searchpath = std::wstring(path) + L"CraftOS-PC.exe.*.dmp";
+        std::wstring searchpath = std::wstring(path) + L"CraftOS-PC-Accelerated.exe.*.dmp";
         const HANDLE h = FindFirstFileW(searchpath.c_str(), &find);
         if (h != INVALID_HANDLE_VALUE) {
             do {
