@@ -16,11 +16,6 @@ static std::string modem_message(lua_State *message, void* data);
 #include <configuration.hpp>
 #include "../apis.hpp"
 
-extern "C" {
-    extern void _lua_lock(lua_State *L);
-    extern void _lua_unlock(lua_State *L);
-}
-
 static std::unordered_map<int, std::list<modem*>> network;
 
 // todo: probably check port range

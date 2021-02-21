@@ -224,20 +224,6 @@ std::thread * renderThread;
 Uint32 task_event_type;
 Uint32 render_event_type;
 
-int buttonConvert(Uint8 button) {
-    switch (button) {
-        case SDL_BUTTON_RIGHT: return 2;
-        case SDL_BUTTON_MIDDLE: return 3;
-        default: return 1;
-    }
-}
-
-int buttonConvert2(Uint32 state) {
-    if (state & SDL_BUTTON_RMASK) return 2;
-    else if (state & SDL_BUTTON_MMASK) return 3;
-    else return 1;
-}
-
 int convertX(SDLTerminal * term, int x) {
     if (term->mode != 0) {
         if (x < 2 * (int)term->charScale) return 0;
@@ -375,69 +361,25 @@ void termHook(lua_State *L, lua_Debug *ar) {
                       // I've had issues with it randomly moving scope boundaries around (see apis/config.cpp:101, runtime.cpp:249),
                       // so I'm not surprised about it happening again.
     Computer * computer = get_comp(L);
-    if (ar->event == LUA_HOOKCOUNT && !computer->forceCheckTimeout) return;
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;
         lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
         for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
             lua_rawgeti(L, -1, (int)i);
-            if (lua_isthread(L, -1)) lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+            if (lua_isthread(L, -1)) lua_sethook(lua_tothread(L, -1), NULL, 0, 0); //lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
-        lua_sethook(computer->L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        /*lua_sethook(computer->L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         lua_sethook(computer->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
-        lua_sethook(L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        lua_sethook(L, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);*/
+        lua_sethook(computer->L, NULL, 0, 0);
+        lua_sethook(computer->coro, NULL, 0, 0);
+        lua_sethook(L, NULL, 0, 0);
         queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
         computer->debugger = NULL;
     }
-    if (ar->event == LUA_HOOKCOUNT) {
-        if (!computer->getting_event && !(!computer->isDebugger && computer->debugger != NULL && ((debugger*)computer->debugger)->thread != NULL) && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > (config.standardsMode ? 7000 : config.abortTimeout)) {
-            computer->forceCheckTimeout = false;
-            if (++computer->timeoutCheckCount >= 5) {
-                if (config.standardsMode) {
-                    // In standards mode we give no second chances - just crash and burn
-                    displayFailure(computer->term, "Error running computer", "Too long without yielding");
-                    computer->event_lock.notify_all();
-                    // Stop all open websockets
-                    while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
-                    for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
-                    lua_close(computer->L);   /* Cya, Lua */
-                    computer->L = NULL;
-                    computer->running = 0;
-                    longjmp(computer->on_panic, 0);
-                } else {
-                    if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
-                        SDL_MessageBoxData msg;
-                        SDL_MessageBoxButtonData buttons[] = {
-                            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Restart"},
-                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Wait"}
-                        };
-                        msg.flags = SDL_MESSAGEBOX_WARNING;
-                        msg.window = dynamic_cast<SDLTerminal*>(computer->term)->win;
-                        msg.title = "Computer not responding";
-                        msg.message = "A long-running task has caused this computer to stop responding. You can either force restart the computer, or wait for the program to respond.";
-                        msg.numbuttons = 2;
-                        msg.buttons = buttons;
-                        msg.colorScheme = NULL;
-                        if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
-                            computer->event_lock.notify_all();
-                            // Stop all open websockets
-                            while (!computer->openWebsockets.empty()) stopWebsocket(*computer->openWebsockets.begin());
-                            for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(computer);
-                            lua_close(computer->L);   /* Cya, Lua */
-                            computer->L = NULL;
-                            computer->running = 2;
-                            longjmp(computer->on_panic, 0);
-                        } else {
-                            computer->timeoutCheckCount = -15;
-                        }
-                    }
-                }
-            }
-            luaL_error(L, "Too long without yielding");
-        }
-    } else {if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
+    if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
         if (computer->debugger == NULL && computer->hasBreakpoints) {
             lua_getinfo(L, "Sl", ar);
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
@@ -524,32 +466,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
             if (dbg->thread == NULL && (dbg->breakMask & DEBUGGER_BREAK_FUNC_YIELD)) 
                 if (debuggerBreak(L, computer, dbg, "Yield")) return;
         }
-    }}
-    if (ar->event != LUA_HOOKCOUNT && (computer->hookMask & (1 << ar->event))) {
-        lua_pushlightuserdata(L, (void*)&KEY_HOOK);
-        lua_gettable(L, LUA_REGISTRYINDEX);
-        if (lua_istable(L, -1)) {
-            lua_pushlightuserdata(L, L);
-            lua_gettable(L, -2);
-            if (lua_istable(L, -1)) {
-                lua_getfield(L, -1, "mask");
-                if (lua_tointeger(L, -1) & ((lua_Integer)1 << ar->event)) {
-                    lua_pop(L, 1);
-                    lua_getfield(L, -1, "func");
-                    if (lua_isfunction(L, -1)) {
-                        static const char *const hooknames[] = {"call", "return", "line", "count", "tail return", "error", "resume", "yield"};
-                        lua_pushstring(L, hooknames[ar->event]);
-                        if (ar->event == LUA_HOOKLINE) {
-                            lua_getinfo(L, "l", ar);
-                            lua_pushinteger(L, ar->currentline);
-                        }
-                        else lua_pushnil(L);
-                        lua_call(L, 2, 0);
-                    } else lua_pop(L, 1);
-                } else lua_pop(L, 1);
-            }
-            lua_pop(L, 1);
-        } else lua_pop(L, 1);
     }
 }
 
@@ -616,8 +532,7 @@ void termRenderLoop() {
     }
 }
 
-static std::string utf8_to_string(const char *utf8str, const std::locale& loc)
-{
+static std::string utf8_to_string(const char *utf8str, const std::locale& loc) {
     // UTF-8 to wstring
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
     const std::wstring wstr = wconv.from_bytes(utf8str);
@@ -744,9 +659,19 @@ std::string termGetEvent(lua_State *L) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
             if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 0) return "";
+            if (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) {
+                switch (e.button.button) {
+                case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
+                case SDL_BUTTON_RIGHT: lua_pushinteger(L, 2); break;
+                case SDL_BUTTON_MIDDLE: lua_pushinteger(L, 3); break;
+                default:
+                    if (config.standardsMode) return "";
+                    else lua_pushinteger(L, e.button.button);
+                    break;
+                }
+            } else lua_pushstring(L, tmpstrval.c_str());
             computer->lastMouse = {x, y, e.button.button, 0, ""};
-            if (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) lua_pushinteger(L, buttonConvert(e.button.button));
-            else lua_pushstring(L, tmpstrval.c_str());
+            term->mouseButtonOrder.push_back(e.button.button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
@@ -760,8 +685,17 @@ std::string termGetEvent(lua_State *L) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
             if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 1) return "";
+            switch (e.button.button) {
+            case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
+            case SDL_BUTTON_RIGHT: lua_pushinteger(L, 2); break;
+            case SDL_BUTTON_MIDDLE: lua_pushinteger(L, 3); break;
+            default:
+                if (config.standardsMode) return "";
+                else lua_pushinteger(L, e.button.button);
+                break;
+            }
             computer->lastMouse = {x, y, e.button.button, 1, ""};
-            lua_pushinteger(L, buttonConvert(e.button.button));
+            term->mouseButtonOrder.remove(e.button.button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
@@ -788,8 +722,19 @@ std::string termGetEvent(lua_State *L) {
             } else if (term != NULL) {
                 x = convertX(term, e.motion.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
             }
-            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == buttonConvert2(e.motion.state) && computer->lastMouse.event == 2) return "";
-            computer->lastMouse = {x, y, (uint8_t)buttonConvert2(e.motion.state), 2, ""};
+            std::list<Uint8> used_buttons;
+            for (Uint8 i = 0; i < 32; i++) if (e.motion.state & (1 << i)) used_buttons.push_back(i + 1);
+            for (auto it = term->mouseButtonOrder.begin(); it != term->mouseButtonOrder.end();) {
+                auto pos = std::find(used_buttons.begin(), used_buttons.end(), *it);
+                if (pos == used_buttons.end()) it = term->mouseButtonOrder.erase(it);
+                else ++it;
+            }
+            Uint8 button = used_buttons.back();
+            if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
+            if (button == SDL_BUTTON_MIDDLE) button = 3;
+            else if (button == SDL_BUTTON_RIGHT) button = 2;
+            if ((computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == button && computer->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
+            computer->lastMouse = {x, y, button, 2, ""};
             if (!e.motion.state) {
                 if (computer->mouseMoveDebounceTimer == 0) {
                     computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
@@ -799,7 +744,7 @@ std::string termGetEvent(lua_State *L) {
                     return "";
                 }
             }
-            lua_pushinteger(L, buttonConvert2(e.motion.state));
+            lua_pushinteger(L, button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
@@ -809,8 +754,10 @@ std::string termGetEvent(lua_State *L) {
             if (selectedRenderer == 0 || selectedRenderer == 5) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
                 if (sdlterm != NULL) {
-                    w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
-                    h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
+                    if (e.window.data1 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) w = 0;
+                    else w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
+                    if (e.window.data2 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) h = 0;
+                    else h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
                 } else {w = 51; h = 19;}
             } else {w = e.window.data1; h = e.window.data2;}
             if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) return "term_resize";

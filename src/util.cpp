@@ -64,24 +64,26 @@ std::string b64decode(const std::string& orig) {
     return ss.str();
 }
 
-std::vector<std::string> split(const std::string& strToSplit, char delimeter) {
-    std::stringstream ss(strToSplit);
-    std::string item;
-    std::vector<std::string> splittedStrings;
-    while (std::getline(ss, item, delimeter)) {
-        splittedStrings.push_back(item);
+std::vector<std::string> split(const std::string& strToSplit, const char * delims) {
+    std::vector<std::string> retval;
+    size_t pos = strToSplit.find_first_not_of(delims);
+    while (pos != std::string::npos) {
+        const size_t end = strToSplit.find_first_of(delims, pos);
+        retval.push_back(strToSplit.substr(pos, end - pos));
+        pos = strToSplit.find_first_not_of(delims, end);
     }
-    return splittedStrings;
+    return retval;
 }
 
-std::vector<std::wstring> split(const std::wstring& strToSplit, wchar_t delimeter) {
-    std::wstringstream ss(strToSplit);
-    std::wstring item;
-    std::vector<std::wstring> splittedStrings;
-    while (std::getline(ss, item, delimeter)) {
-        splittedStrings.push_back(item);
+std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * delims) {
+    std::vector<std::wstring> retval;
+    size_t pos = strToSplit.find_first_not_of(delims);
+    while (pos != std::string::npos) {
+        const size_t end = strToSplit.find_first_of(delims, pos);
+        retval.push_back(strToSplit.substr(pos, end - pos));
+        pos = strToSplit.find_first_not_of(delims, end);
     }
-    return splittedStrings;
+    return retval;
 }
 
 static std::string concat(const std::list<std::string> &c, char sep) {
@@ -95,19 +97,20 @@ static std::string concat(const std::list<std::string> &c, char sep) {
     return ss.str();
 }
 
-static std::list<std::string> split_list(const std::string& strToSplit, char delimeter) {
-    std::stringstream ss(strToSplit);
-    std::string item;
-    std::list<std::string> splittedStrings;
-    while (std::getline(ss, item, delimeter)) {
-        splittedStrings.push_back(item);
+static std::list<std::string> split_list(const std::string& strToSplit, const char * delims) {
+    std::list<std::string> retval;
+    size_t pos = strToSplit.find_first_not_of(delims);
+    while (pos != std::string::npos) {
+        size_t end = strToSplit.find_first_of(delims, pos);
+        retval.push_back(strToSplit.substr(pos, end - pos));
+        pos = strToSplit.find_first_not_of(delims, end);
     }
-    return splittedStrings;
+    return retval;
 }
 
 path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md, std::string * mountPath) {
     if (md && fixpath_ro(comp, path.c_str())) return path_t();
-    std::list<std::string> components = path.find('/') != path_t::npos ? split_list(path, '/') : split_list(path, '\\');
+    std::list<std::string> components = split_list(path, "/\\");
     while (!components.empty() && components.front().empty()) components.pop_front();
     if (components.empty()) return fixpath(comp, "", true);
     components.pop_back();
@@ -137,14 +140,14 @@ inline bool isVFSPath(path_t path) {
 }
 
 path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
-    std::vector<std::string> elems = split(path, '/');
+    std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") {
             if (pathc.empty() && addExt) return path_t();
             else if (pathc.empty()) pathc.push_back("..");
             else pathc.pop_back();
-        } else if (s != "." && !s.empty()) pathc.push_back(s);
+        } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua")
@@ -227,10 +230,11 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
 }
 
 bool fixpath_ro(Computer *comp, const char * path) {
-    std::vector<std::string> elems = split(path, '/');
+    std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
-        if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); } else if (s != "." && !s.empty()) pathc.push_back(s);
+        if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     std::pair<size_t, bool> max_path = std::make_pair(0, false);
     for (const auto& m : comp->mounts)
@@ -240,11 +244,12 @@ bool fixpath_ro(Computer *comp, const char * path) {
 }
 
 std::set<std::string> getMounts(Computer * computer, const char * comp_path) {
-    std::vector<std::string> elems = split(comp_path, '/');
+    std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     std::set<std::string> retval;
     for (const std::string& s : elems) {
-        if (s == "..") { if (pathc.empty()) return retval; else pathc.pop_back(); } else if (s != "." && !s.empty()) pathc.push_back(s);
+        if (s == "..") { if (pathc.empty()) return retval; else pathc.pop_back(); }
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     for (const auto& m : computer->mounts)
         if (pathc.size() + 1 == std::get<0>(m).size() && std::equal(pathc.begin(), pathc.end(), std::get<0>(m).begin()))

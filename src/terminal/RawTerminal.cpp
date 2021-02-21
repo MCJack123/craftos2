@@ -182,7 +182,12 @@ void sendRawEvent(SDL_Event e) {
     else if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end())
         sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.button.windowID], [e](std::ostream &output) {
             output.put(e.type == SDL_MOUSEBUTTONUP);
-            output.put(buttonConvert(e.button.button));
+            switch (e.button.button) {
+            case SDL_BUTTON_LEFT: output.put(1); break;
+            case SDL_BUTTON_RIGHT: output.put(2); break;
+            case SDL_BUTTON_MIDDLE: output.put(3); break;
+            default: output.put(e.button.button); break;
+            }
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
             uint16_t x, y;
             if (sdlterm != NULL) {
@@ -212,10 +217,21 @@ void sendRawEvent(SDL_Event e) {
             output.write((char*)&x, 2);
             output.write((char*)&y, 2);
         });
-    else if (e.type == SDL_MOUSEMOTION && e.motion.state && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end())
-        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.motion.windowID], [e](std::ostream &output) {
+    else if (e.type == SDL_MOUSEMOTION && e.motion.state && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end()) {
+        std::list<Uint8> used_buttons;
+        for (Uint8 i = 0; i < 32; i++) if (e.motion.state & (1 << i)) used_buttons.push_back(i + 1);
+        for (auto it = rawClientTerminals[e.button.windowID]->mouseButtonOrder.begin(); it != rawClientTerminals[e.button.windowID]->mouseButtonOrder.end();) {
+            auto pos = std::find(used_buttons.begin(), used_buttons.end(), *it);
+            if (pos == used_buttons.end()) it = rawClientTerminals[e.button.windowID]->mouseButtonOrder.erase(it);
+            else ++it;
+        }
+        Uint8 button = used_buttons.back();
+        if (!rawClientTerminals[e.button.windowID]->mouseButtonOrder.empty()) button = rawClientTerminals[e.button.windowID]->mouseButtonOrder.back();
+        if (button == SDL_BUTTON_MIDDLE) button = 3;
+        else if (button == SDL_BUTTON_RIGHT) button = 2;
+        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.motion.windowID], [e, button](std::ostream &output) {
             output.put(3);
-            output.put(buttonConvert2(e.motion.state));
+            output.put(button);
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
             uint16_t x, y;
             if (sdlterm != NULL) {
@@ -228,7 +244,7 @@ void sendRawEvent(SDL_Event e) {
             output.write((char*)&x, 2);
             output.write((char*)&y, 2);
         });
-    else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE)
+    } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE)
         sendRawData(CCPC_RAW_TERMINAL_CHANGE, rawClientTerminalIDs[e.window.windowID], [](std::ostream &output) {
             output.put(1);
             for (int i = 0; i < 6; i++) output.put(0);
@@ -255,10 +271,14 @@ struct rawMouseProviderData {
 
 static std::string rawMouseProvider(lua_State *L, void* data) {
     struct rawMouseProviderData * d = (rawMouseProviderData*)data;
+    if (config.standardsMode && d->button > 3) {
+        delete d;
+        return "";
+    }
     lua_pushinteger(L, d->button);
     lua_pushinteger(L, d->x);
     lua_pushinteger(L, d->y);
-    const char * retval = NULL;
+    std::string retval;
     if (d->evtype == 0) retval = "mouse_click";
     else if (d->evtype == 1) retval = "mouse_up";
     else if (d->evtype == 2) retval = "mouse_scroll";

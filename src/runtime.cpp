@@ -47,7 +47,6 @@ ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, 
 ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
-
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
 
@@ -141,14 +140,6 @@ void mainLoop() {
 #endif
 }
 
-Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
-    if (freedComputers.find((Computer*)param) != freedComputers.end()) return 0;
-    if (((Computer*)param)->getting_event) return 0;
-    lua_sethook(((Computer*)param)->L, termHook, lua_gethookmask(((Computer*)param)->L) | LUA_MASKCOUNT, 1);
-    ((Computer*)param)->forceCheckTimeout = true;
-    return 1000;
-}
-
 void queueEvent(Computer *comp, const event_provider& p, void* data) {
     if (freedComputers.find(comp) != freedComputers.end()) return;
     {
@@ -221,16 +212,6 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     lua_pushstring(L, ev.c_str());
     lua_xmove(param, L, count);
     lua_remove(computer->paramQueue, 1);
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - computer->last_event).count() > 200) {
-#ifdef __EMSCRIPTEN__
-        queueTask([computer](void*)->void*{
-#endif
-        if (computer->eventTimeout != 0) SDL_RemoveTimer(computer->eventTimeout);
-        computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
-#ifdef __EMSCRIPTEN__
-        return NULL;}, NULL);
-#endif
-    }
     computer->last_event = std::chrono::high_resolution_clock::now();
     computer->getting_event = false;
     return count + 1;
@@ -239,11 +220,11 @@ int getNextEvent(lua_State *L, const std::string& filter) {
 bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only) {
     struct_stat st;
     if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
-    std::vector<std::string> elems = split(comp_path, '/');
+    std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
-        else if (s != "." && !s.empty()) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     for (const auto& m : comp->mounts)
         if (std::get<0>(m) == pathc && std::get<1>(m) == real_path) return false;
@@ -275,11 +256,11 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
 }
 
 bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path) {
-    std::vector<std::string> elems = split(comp_path, '/');
+    std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
-        else if (s != "." && !s.empty()) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     unsigned idx;
     for (idx = 0; comp->virtualMounts.find(idx) != comp->virtualMounts.end() && idx < UINT_MAX; idx++) {}

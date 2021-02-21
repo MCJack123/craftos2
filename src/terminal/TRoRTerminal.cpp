@@ -69,7 +69,7 @@ static void trorInputLoop() {
         std::string payload = line.substr(line.find(';') + 1);
         const unsigned id = meta.empty() ? 0 : std::stoi(meta);
         if (code == "SP") {
-            std::vector<std::string> args = split(payload, '-');
+            std::vector<std::string> args = split(payload, "-");
             for (const std::string& a : args) if (!a.empty()) trorExtensions.insert(a);
         } else if (code == "EV") {
             LockGuard lock(computers);

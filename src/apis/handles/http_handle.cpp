@@ -39,7 +39,14 @@ struct http_res {
 
 int http_handle_free(lua_State *L) {
     lastCFunction = __func__;
-    delete (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
+    http_handle_t* handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
+    if (!handle->closed) {
+        handle->closed = true;
+        if (handle->failureReason.empty()) get_comp(L)->requests_open--;
+        delete handle->handle;
+        delete handle->session;
+    }
+    delete handle;
     return 0;
 }
 

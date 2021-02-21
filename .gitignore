@@ -3,8 +3,10 @@ craftos
 /.vs
 /Debug
 /packages
+/x86
 /x64
-*.app
+/ARM64
+CraftOS-PC*.app
 /autoscan.log
 /Makefile - Copy
 /autom4te.cache
@@ -38,3 +40,4 @@ src/fs_standalone.cpp
 include_arm
 vcpkg_installed
 /ignored.txt
+/src/apikey.cpp

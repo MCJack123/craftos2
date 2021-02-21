@@ -238,15 +238,17 @@ void SDLTerminal::render() {
     {
         std::lock_guard<std::mutex> locked_g(locked);
         if (gotResizeEvent) {
-            this->screen.resize(newWidth, newHeight, ' ');
-            this->colors.resize(newWidth, newHeight, 0xF0);
-            this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+            if (newWidth > 0 && newHeight > 0) {
+                this->screen.resize(newWidth, newHeight, ' ');
+                this->colors.resize(newWidth, newHeight, 0xF0);
+                this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+                changed = true;
+            } else changed = false;
             this->width = newWidth;
             this->height = newHeight;
-            changed = true;
             gotResizeEvent = false;
         }
-        if (!changed && !shouldScreenshot && !shouldRecord) return;
+        if ((!changed && !shouldScreenshot && !shouldRecord) || width == 0 || height == 0) return;
         newscreen = std::make_unique<vector2d<unsigned char> >(screen);
         newcolors = std::make_unique<vector2d<unsigned char> >(colors);
         newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
@@ -379,7 +381,7 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 bool SDLTerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
-    if (config.snapToSize && !fullscreen) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
+    if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
     SDL_GetWindowSize(win, &realWidth, &realHeight);
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
@@ -440,10 +442,12 @@ void SDLTerminal::record(std::string path) {
     changed = true;
 }
 
+#ifndef __APPLE__
 static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
     for (size_t i = 0; i < num; i++) memcpy(&ptr[i], &value, 4);
     return &ptr[num];
 }
+#endif
 
 void SDLTerminal::stopRecording() {
     shouldRecord = false;
@@ -594,7 +598,7 @@ bool SDLTerminal::pollEvents() {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);
-                    if (sdlterm->surf != NULL) {
+                    if (sdlterm->surf != NULL && !(sdlterm->width == 0 || sdlterm->height == 0)) {
                         SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
                         SDL_UpdateWindowSurface(sdlterm->win);
                         SDL_FreeSurface(sdlterm->surf);
@@ -643,28 +647,6 @@ bool SDLTerminal::pollEvents() {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
-                            if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == c->term->id) {
-                                if (c->requestedExit) {
-                                    SDL_MessageBoxData msg;
-                                    msg.flags = SDL_MESSAGEBOX_INFORMATION;
-                                    msg.title = "Computer Unresponsive";
-                                    msg.message = "The computer appears to be unresponsive. Would you like to force the computer to shut down? All unsaved data will be lost.";
-                                    SDL_MessageBoxButtonData buttons[2] = {
-                                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Cancel"},
-                                        {0, 1, "Shut Down"}
-                                    };
-                                    msg.buttons = buttons;
-                                    msg.numbuttons = 2;
-                                    msg.window = ((SDLTerminal*)c->term)->win;
-                                    int id = 0;
-                                    SDL_ShowMessageBox(&msg, &id);
-                                    if (id == 1) {
-                                        // Forcefully halt the Lua state
-                                        c->running = 0;
-                                        lua_halt(c->L);
-                                    }
-                                } else c->requestedExit = true;
-                            }
                         }
                     }
                 }

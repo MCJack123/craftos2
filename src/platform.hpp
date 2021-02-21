@@ -39,6 +39,7 @@ extern std::string astr(path_t str);
 
 extern char* basename(char* path);
 extern char* dirname(char* path);
+extern void uploadCrashDumps();
 #else
 //typedef std::string path_t;
 #define pathstream_t std::stringstream

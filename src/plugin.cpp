@@ -19,6 +19,7 @@
 
 std::string loadingPlugin;
 static std::map<path_t, std::pair<void*, PluginInfo*> > loadedPlugins;
+std::unordered_map<std::string, std::tuple<int, std::function<int(const std::string&, void*)>, void*> > userConfig;
 
 static library_t * getLibrary(const std::string& name) {
     if (name == "config") return &config_lib;
@@ -49,10 +50,11 @@ static bool getConfigSettingBool(const std::string& name) {
 static void setConfigSetting(const std::string& name, const std::string& value) {config.pluginData[name] = value;}
 static void setConfigSettingInt(const std::string& name, int value) {config.pluginData[name] = std::to_string(value);}
 static void setConfigSettingBool(const std::string& name, bool value) {config.pluginData[name] = value ? "true" : "false";}
+static void registerConfigSetting(const std::string& name, int type, const std::function<int(const std::string&, void*)>& callback, void* userdata) {userConfig[name] = std::make_tuple(type, callback, userdata);}
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    1,
+    2,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,
@@ -73,6 +75,7 @@ static const PluginFunctions function_map = {
     &setConfigSetting,
     &setConfigSettingInt,
     &setConfigSettingBool,
+    &registerConfigSetting,
 };
 
 std::unordered_map<path_t, std::string> initializePlugins() {
@@ -211,6 +214,7 @@ void loadPlugins(Computer * comp) {
 }
 
 void deinitializePlugins() {
+    userConfig.clear();
     for (const auto& p : loadedPlugins) {
         loadingPlugin = astr(p.first.substr(p.first.find_last_of('/') + 1));
         const auto plugin_deinit = (void(*)(PluginInfo*))SDL_LoadFunction(p.second.first, "plugin_deinit");

@@ -98,6 +98,10 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
         SDL_DestroyWindow(win);
         throw window_exception("Failed to create texture for pixels: " + std::string(SDL_GetError()));
     }
+#ifdef __APPLE__
+    // macOS has some weird scaling bug on non-Retina displays that this fixes for some reason?
+    SDL_SetWindowSize(win, realWidth, realHeight);
+#endif
 #ifdef __EMSCRIPTEN__
     }
 #endif
@@ -182,7 +186,6 @@ void HardwareSDLTerminal::render() {
 #ifdef __EMSCRIPTEN__
     if (*renderTarget != this) return;
 #endif
-    if (width == 0 || height == 0) return; // don't render if we don't have a valid screen size
     // copy the screen data so we can let Lua keep going without waiting for the mutex
     std::unique_ptr<vector2d<unsigned char> > newscreen;
     std::unique_ptr<vector2d<unsigned char> > newcolors;
@@ -197,15 +200,17 @@ void HardwareSDLTerminal::render() {
         if (ren == NULL || font == NULL) return; // race condition since HardwareSDLTerminal() is called after SDLTerminal(), which adds the terminal to the render targets
                                                  // wait until the renderer and font are initialized before doing any rendering
         if (gotResizeEvent) {
-            this->screen.resize(newWidth, newHeight, ' ');
-            this->colors.resize(newWidth, newHeight, 0xF0);
-            this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+            if (newWidth > 0 && newHeight > 0) {
+                this->screen.resize(newWidth, newHeight, ' ');
+                this->colors.resize(newWidth, newHeight, 0xF0);
+                this->pixels.resize(newWidth * fontWidth, newHeight * fontHeight, 0x0F);
+                changed = true;
+            } else changed = false;
             this->width = newWidth;
             this->height = newHeight;
-            changed = true;
             gotResizeEvent = false;
         }
-        if (!changed && !shouldScreenshot && !shouldRecord) return;
+        if ((!changed && !shouldScreenshot && !shouldRecord) || width == 0 || height == 0) return;
         newscreen = std::make_unique<vector2d<unsigned char> >(screen);
         newcolors = std::make_unique<vector2d<unsigned char> >(colors);
         newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
@@ -327,20 +332,38 @@ void HardwareSDLTerminal::render() {
 bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
     {
         std::lock_guard<std::mutex> lock(locked);
+        float dpi, defaultDpi;
+#ifdef __APPLE__
+        dpi = getBackingScaleFactor(win), defaultDpi = 1.0;
+#else
+        MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
+#endif
+        dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5f ? (int)ceil(dpi / defaultDpi) : (int)floor(dpi / defaultDpi);
         newWidth = w;
         newHeight = h;
         // not really a fan of having two tasks queued here, but there's not a whole lot we can do
-        if (config.snapToSize && !fullscreen) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
+        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth+(4 * charScale * (2 / fontScale))), (int)(h*charHeight+(4 * charScale * (2 / fontScale)))); return NULL;}, NULL);
         {
             std::lock_guard<std::mutex> lock2(renderlock);
             SDL_GetWindowSize(win, &realWidth, &realHeight);
             gotResizeEvent = (newWidth != width || newHeight != height);
             if (!gotResizeEvent) return false;
+#ifdef __APPLE__
+        }
+        ren = (SDL_Renderer*)queueTask([this](void*win)->void*{
+            SDL_DestroyRenderer(ren);
+            return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
+        }, win);
+#else
             SDL_DestroyRenderer(ren);
         }
-        ren = (SDL_Renderer*)queueTask([this, w, h](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));}, win);
-        font = SDL_CreateTextureFromSurface(ren, bmp);
+        ren = (SDL_Renderer*)queueTask([](void*win)->void*{return SDL_CreateRenderer((SDL_Window*)win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));}, win);
+#endif
+        font = SDL_CreateTextureFromSurface(ren, useOrigFont ? origfont : bmp);
         pixtex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, (int)(w * charWidth * dpiScale), (int)(h * charHeight * dpiScale));
+#ifdef __APPLE__
+        queueTask([this](void*)->void*{SDL_SetWindowSize(win, realWidth, realHeight); return NULL;}, NULL);
+#endif
     }
     while (gotResizeEvent) std::this_thread::yield();
     return true;
@@ -432,7 +455,7 @@ bool HardwareSDLTerminal::pollEvents() {
                 HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);
-                    if (sdlterm->gotResizeEvent) continue;
+                    if (sdlterm->gotResizeEvent || sdlterm->width == 0 || sdlterm->height == 0) continue;
                     SDL_RenderPresent(sdlterm->ren);
                     SDL_UpdateWindowSurface(sdlterm->win);
                 }
@@ -477,28 +500,6 @@ bool HardwareSDLTerminal::pollEvents() {
                             e.type == SDL_QUIT) {
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
-                            if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == c->term->id) {
-                                if (c->requestedExit) {
-                                    SDL_MessageBoxData msg;
-                                    msg.flags = SDL_MESSAGEBOX_INFORMATION;
-                                    msg.title = "Computer Unresponsive";
-                                    msg.message = "The computer appears to be unresponsive. Would you like to force the computer to shut down? All unsaved data will be lost.";
-                                    SDL_MessageBoxButtonData buttons[2] = {
-                                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Cancel"},
-                                        {0, 1, "Shut Down"}
-                                    };
-                                    msg.buttons = buttons;
-                                    msg.numbuttons = 2;
-                                    msg.window = ((SDLTerminal*)c->term)->win;
-                                    int id = 0;
-                                    SDL_ShowMessageBox(&msg, &id);
-                                    if (id == 1) {
-                                        // Forcefully halt the Lua state
-                                        c->running = 0;
-                                        lua_halt(c->L);
-                                    }
-                                } else c->requestedExit = true;
-                            }
                         }
                     }
                 }

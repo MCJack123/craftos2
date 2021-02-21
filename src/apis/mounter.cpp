@@ -41,14 +41,14 @@ static int mounter_unmount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
-    std::vector<std::string> elems = split(comp_path, '/');
+    std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { 
             if (pathc.empty()) luaL_error(L, "Not a directory");
             else pathc.pop_back();
         } 
-        else if (s != "." && !s.empty()) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     if (pathc.front() == "rom" && config.romReadOnly) {
         lua_pushboolean(L, false);
@@ -95,13 +95,13 @@ static int mounter_isReadOnly(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
-    std::vector<std::string> elems = split(comp_path, '/');
+    std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") {
             if (pathc.empty()) luaL_error(L, "Not a directory");
             else pathc.pop_back();
-        } else if (s != "." && !s.empty()) pathc.push_back(s);
+        } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     for (const auto& e : computer->mounts) {
         if (std::get<0>(e).size() == pathc.size() && std::equal(std::get<0>(e).begin(), std::get<0>(e).end(), pathc.begin())) {

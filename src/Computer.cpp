@@ -35,7 +35,6 @@ extern FileEntry standaloneDebug;
 extern std::string standaloneBIOS;
 #endif
 
-extern Uint32 eventTimeoutEvent(Uint32 interval, void* param);
 extern int term_benchmark(lua_State *L);
 extern int onboardingMode;
 ProtectedObject<std::vector<Computer*> > computers;
@@ -46,6 +45,19 @@ std::unordered_map<int, path_t> customDataDirs;
 std::list<path_t> customPlugins;
 std::list<std::tuple<std::string, std::string, int> > customMounts;
 std::unordered_set<Terminal*> orphanedTerminals;
+
+// Context structure for yieldable load
+struct load_ctx {
+    std::thread thread;
+    std::mutex lock;
+    std::condition_variable notify;
+    int oldtop;
+    int status;
+    int argcount;
+    lua_State *L;
+    lua_State *coro;
+    const char * name;
+};
 
 // Basic CraftOS libraries
 library_t * libraries[] = {
@@ -145,7 +157,6 @@ Computer::~Computer() {
     }
     // Cancel the mouse_move debounce timer if active
     if (mouseMoveDebounceTimer != 0) SDL_RemoveTimer(mouseMoveDebounceTimer);
-    if (eventTimeout != 0) SDL_RemoveTimer(eventTimeout);
     // Stop all open websockets
     while (!openWebsockets.empty()) stopWebsocket(*openWebsockets.begin());
 }
@@ -169,8 +180,10 @@ extern "C" {
             computer->breakpoints.erase((int)lua_tointeger(L, 1));
             if (computer->breakpoints.empty()) {
                 computer->hasBreakpoints = false;
-                lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-                lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+                //lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+                //lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+                lua_sethook(computer->L, NULL, 0, 0);
+                lua_sethook(L, NULL, 0, 0);
             }
             lua_pushboolean(L, true);
         } else lua_pushboolean(L, false);
@@ -249,9 +262,10 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
-        if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        else lua_sethook(self->coro, termHook, LUA_MASKERROR, 0);
+        // TODO: Fix logErrors since error hooks are no longer enabled
+        if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        //else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        //else lua_sethook(self->coro, termHook, LUA_MASKERROR, 0);
         lua_atpanic(L, termPanic);
         for (library_t * lib : libraries) load_library(self, self->coro, *lib);
         if (config.http_enable) load_library(self, self->coro, http_lib);
@@ -452,17 +466,12 @@ void runComputer(Computer * self, const path_t& bios_name) {
         status = LUA_YIELD;
         int narg = 0;
         self->running = 1;
-#ifdef __EMSCRIPTEN__
-        queueTask([self](void*)->void*{self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self); return NULL;}, NULL);
-#else
-        self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
-#endif
         while (status == LUA_YIELD && self->running == 1) {
             status = lua_resume(self->coro, narg);
             if (status == LUA_YIELD) {
                 if (lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_strlen(self->coro, -1)));
                 else narg = getNextEvent(self->coro, "");
-            } else if (status != 0) {
+            } else if (status != 0 && self->running == 1) {
                 // Catch runtime error
                 self->running = 0;
                 lua_pushcfunction(self->coro, termPanic);
@@ -470,10 +479,10 @@ void runComputer(Computer * self, const path_t& bios_name) {
                 else lua_pushnil(self->coro);
                 lua_call(self->coro, 1, 0);
                 break;
-            } else self->running = 0;
+            } else if (self->running == 1) self->running = 0;
         }
 
-        if (status == 0 && config.standardsMode) displayFailure(self->term, "Error running computer");
+        if (status == 0 && config.standardsMode && !self->term->errorMode) displayFailure(self->term, "Error running computer");
         
         // Shutdown threads
         self->event_lock.notify_all();
@@ -531,11 +540,11 @@ void* computerThread(void* data) {
         for (auto it = computers->begin(); it != computers->end(); ++it) {
             if (*it == comp) {
                 it = computers->erase(it);
-                queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
                 if (it == computers->end()) break;
             }
         }
     }
+    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
     if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
         {LockGuard lock(taskQueue);}
         while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));

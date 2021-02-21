@@ -114,10 +114,11 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"http_max_download", {0, 1}},
     {"http_timeout", {0, 1}},
     {"extendMargins", {0, 0}},
-    {"snapToSize", {0, 0}}
+    {"snapToSize", {0, 0}},
+    {"snooperEnabled", {2, 0}}
 };
 
-const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion"};
+const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion", "pluginData", "http_proxy_server", "http_proxy_port", "cliControlKeyMode", "serverMode"};
 
 std::unordered_map<std::string, Poco::Dynamic::Var> unknownOptions;
 
@@ -125,7 +126,7 @@ void config_init() {
     createDirectory(getBasePath() + WS("/config"));
     config = {
         true,
-        false,
+        true,
         MOUNT_MODE_RO_STRICT,
         {"*"},
         {
@@ -192,7 +193,8 @@ void config_init() {
         "",
         0,
         false,
-        true
+        true,
+        false
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -276,6 +278,7 @@ void config_init() {
     readConfigSetting(http_proxy_port, Int);
     readConfigSetting(extendMargins, Bool);
     readConfigSetting(snapToSize, Bool);
+    readConfigSetting(snooperEnabled, Bool);
     readConfigSetting(jit_ffi_enable, Bool);
     if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
@@ -335,10 +338,12 @@ void config_save() {
     root["http_proxy_port"] = config.http_proxy_port;
     root["extendMargins"] = config.extendMargins;
     root["snapToSize"] = config.snapToSize;
+    root["snooperEnabled"] = config.snooperEnabled;
     root["jit_ffi_enable"] = config.jit_ffi_enable;
     root["lastVersion"] = CRAFTOSPC_VERSION;
-    root["pluginData"] = Value();
-    for (const auto& e : config.pluginData) root["pluginData"][e.first] = e.second;
+    Value pluginRoot;
+    for (const auto& e : config.pluginData) pluginRoot[e.first] = e.second;
+    root["pluginData"] = pluginRoot;
     for (const auto& opt : unknownOptions) root[opt.first] = opt.second;
     std::ofstream out(getBasePath() + WS("/config/global.json"));
     out << root;

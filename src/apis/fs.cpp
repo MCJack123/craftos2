@@ -55,7 +55,7 @@ static int fs_list(lua_State *L) {
     struct_dirent *dir;
     const path_t paths = fixpath(get_comp(L), luaL_checkstring(L, 1), true, true, NULL, true);
     if (paths.empty()) err(L, 1, "Not a directory");
-    std::vector<path_t> possible_paths = split(paths, WS('\n'));
+    std::vector<path_t> possible_paths = split(paths, WS("\n"));
     bool gotdir = false;
     std::set<std::string> entries;
     for (const path_t& path : possible_paths) {
@@ -304,7 +304,7 @@ static int fs_copy(lua_State *L) {
             const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul(fromPath.substr(0, fromPath.find_first_of(':')))]->path(fromPath.substr(fromPath.find_first_of(':') + 1));
             if (d.isDir) err(L, 1, "Is a directory");
             FILE * tofp = platform_fopen(toPath.c_str(), "w");
-            if (tofp == NULL) err(L, 2, "Cannot write file");
+            if (tofp == NULL) return err(L, 2, "Cannot write file");
             fwrite(d.data.c_str(), d.data.size(), 1, tofp);
             fclose(tofp);
         } catch (...) {err(L, 1, "No such file");}
@@ -317,7 +317,7 @@ static int fs_copy(lua_State *L) {
             isFSCaseSensitive = stat(name, &st);
             remove(name);
         }*/
-        std::vector<std::string> fromElems = split(lua_tostring(L, 1), '/'), toElems = split(lua_tostring(L, 2), '/');
+        std::vector<std::string> fromElems = split(lua_tostring(L, 1), "/\\"), toElems = split(lua_tostring(L, 2), "/\\");
         while (!fromElems.empty() && fromElems.front().empty()) fromElems.erase(fromElems.begin());
         while (!toElems.empty() && toElems.front().empty()) toElems.erase(toElems.begin());
         while (!fromElems.empty() && fromElems.back().empty()) fromElems.pop_back();
@@ -590,7 +590,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
         struct_dirent *dir;
         path_t paths = fixpath(comp, opt.c_str(), true, true, NULL, true);
         if (paths.empty()) continue;
-        std::vector<path_t> possible_paths = split(paths, '\n');
+        std::vector<path_t> possible_paths = split(paths, WS("\n"));
         for (const path_t& path : possible_paths) {
             if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
                 try {
@@ -620,14 +620,14 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
 
 static int fs_find(lua_State *L) {
     lastCFunction = __func__;
-    std::vector<std::string> elems = split(luaL_checkstring(L, 1), '/');
+    std::vector<std::string> elems = split(luaL_checkstring(L, 1), "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { 
             if (pathc.empty()) luaL_error(L, "Not a directory");
             else pathc.pop_back(); 
         }
-        else if (s != "." && !s.empty()) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
     }
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
     while (!pathc.empty() && pathc.back().empty()) pathc.pop_back();
@@ -742,6 +742,9 @@ static int fs_getCapacity(lua_State *L) {
     const path_t path = fixpath(get_comp(L), luaL_checkstring(L, 1), false, true, &mountPath);
     if (mountPath == "rom") {
         lua_pushnil(L);
+        return 1;
+    } else if (mountPath == "hdd" && config.standardsMode) {
+        lua_pushinteger(L, config.computerSpaceLimit);
         return 1;
     }
     if (path.empty()) luaL_error(L, "%s: Invalid path", lua_tostring(L, 1));
