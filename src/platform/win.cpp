@@ -290,6 +290,7 @@ static void pushCrashDump(const char * data, const size_t size, const path_t& pa
     session.setTimeout(Poco::Timespan(5000000));
     request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     request.add("X-API-Key", getAPIKey());
+    request.add("x-amz-server-side-encryption", "AES256");
     request.setContentType("application/gzip");
     request.setContentLength(size);
     try {
