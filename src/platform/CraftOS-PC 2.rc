@@ -60,7 +60,7 @@ MANIFEST                RT_MANIFEST             "..\\..\\resources\\CraftOS-PC.e
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,5,3,0
+ FILEVERSION 2,5,3,1
  PRODUCTVERSION 2,5,3,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
@@ -77,7 +77,7 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "CraftOS-PC"
-            VALUE "FileVersion", "2.5.3.0"
+            VALUE "FileVersion", "2.5.3.1"
             VALUE "InternalName", "CraftOS-PC.exe"
             VALUE "LegalCopyright", "Copyright (C) 2019-2021 JackMacWindows."
             VALUE "OriginalFilename", "CraftOS-PC.exe"
