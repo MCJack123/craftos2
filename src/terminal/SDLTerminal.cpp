@@ -119,6 +119,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         overridden = true;
         throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
     }
+    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM") SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
     realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)

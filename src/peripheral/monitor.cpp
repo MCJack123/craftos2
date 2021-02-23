@@ -17,6 +17,7 @@
 #include "../terminal/HardwareSDLTerminal.hpp"
 
 monitor::monitor(lua_State *L, const char * side) {
+    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM") throw std::runtime_error("Monitors are not available when using the Linux framebuffer");
 #ifndef NO_CLI
     if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
     else
