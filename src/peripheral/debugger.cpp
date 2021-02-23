@@ -541,7 +541,8 @@ struct debugger_param {
 };
 
 debugger::debugger(lua_State *L, const char * side) {
-    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM") throw std::runtime_error("Debuggers are not available when using the Linux framebuffer");
+    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")
+        throw std::runtime_error("Debuggers are not available when using the Linux framebuffer");
     didBreak = false;
     running = true;
     computer = get_comp(L);
