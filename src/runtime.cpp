@@ -106,7 +106,6 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
 }
 
 void mainLoop() {
-    mainThreadID = std::this_thread::get_id();
 #ifndef __EMSCRIPTEN__
     while (rawClient ? !exiting : !computers->empty() || !orphanedTerminals.empty()) {
 #endif

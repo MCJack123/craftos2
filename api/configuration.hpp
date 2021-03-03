@@ -91,6 +91,10 @@ struct computer_configuration {
     bool isColor;
     bool loadFailure;
     bool startFullscreen;
+
+	// The following fields are available in API version 10.3 and later.
+	int computerWidth;
+	int computerHeight;
 };
 
 #endif

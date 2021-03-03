@@ -87,7 +87,13 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
     else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
     else term = new SDLTerminal(term_title);
-    if (term) term->grayscale = !_config.isColor;
+    if (term) {
+        term->grayscale = !_config.isColor;
+        unsigned w = term->width, h = term->height;
+        if (_config.computerWidth > 0) w = (unsigned)_config.computerWidth;
+        if (_config.computerHeight > 0) h = (unsigned)_config.computerHeight;
+        if (w != term->width || h != term->height) term->resize(w, h);
+    }
     // Tell the mounter it's initializing to prevent checking rom remounts
     mounter_initializing = true;
 #ifdef STANDALONE_ROM

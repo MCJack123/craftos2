@@ -54,7 +54,7 @@ static void registerConfigSetting(const std::string& name, int type, const std::
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    2,
+    3,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,

@@ -25,7 +25,7 @@ extern "C" {extern void syncfs(); }
 #endif
 
 struct computer_configuration getComputerConfig(int id) {
-    struct computer_configuration cfg = {"", true, false, false};
+    struct computer_configuration cfg = {"", true, false, false, 0, 0};
     std::ifstream in(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
     if (!in.is_open()) return cfg;
     if (in.peek() == std::ifstream::traits_type::eof()) { in.close(); return cfg; } // treat an empty file as if it didn't exist in the first place
@@ -48,6 +48,8 @@ struct computer_configuration getComputerConfig(int id) {
         else cfg.label = std::string(root["label"].asString());
     }
     if (root.isMember("startFullscreen")) cfg.startFullscreen = root["startFullscreen"].asBool();
+    if (root.isMember("computerWidth")) cfg.computerWidth = root["computerWidth"].asInt();
+    if (root.isMember("computerHeight")) cfg.computerHeight = root["computerHeight"].asInt();
     return cfg;
 }
 
@@ -58,6 +60,8 @@ void setComputerConfig(int id, const computer_configuration& cfg) {
     root["isColor"] = cfg.isColor;
     root["base64"] = true;
     root["startFullscreen"] = cfg.startFullscreen;
+    root["computerWidth"] = cfg.computerWidth;
+    root["computerHeight"] = cfg.computerHeight;
     std::ofstream out(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
     out << root;
     out.close();
@@ -115,7 +119,9 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"http_timeout", {0, 1}},
     {"extendMargins", {0, 0}},
     {"snapToSize", {0, 0}},
-    {"snooperEnabled", {2, 0}}
+    {"snooperEnabled", {2, 0}},
+    {"computerWidth", {2, 1}},
+    {"computerHeight", {2, 1}}
 };
 
 const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion", "pluginData", "http_proxy_server", "http_proxy_port", "cliControlKeyMode", "serverMode"};
@@ -173,7 +179,7 @@ void config_init() {
         51,
         19,
         false,
-#ifdef __EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
         EM_ASM_INT(return navigator.platform == "MacIntel" ? 1 : 0) ~= 0, // will Apple decide to use "MacARM" in the future? if so, this will break
 #else
         false,

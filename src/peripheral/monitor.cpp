@@ -35,6 +35,10 @@ monitor::monitor(lua_State *L, const char * side) {
         }, (void*)side);
     } else throw std::invalid_argument("Monitors are not available in headless mode");
     term->canBlink = false;
+    unsigned w = term->width, h = term->height;
+    if (lua_isnumber(L, 3)) w = (unsigned)lua_tointeger(L, 3);
+    if (lua_isnumber(L, 4)) h = (unsigned)lua_tointeger(L, 4);
+    if (w != term->width || h != term->height) term->resize(w, h);
 }
 
 monitor::~monitor() {delete term;}

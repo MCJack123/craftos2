@@ -49,6 +49,10 @@ static int config_get(lua_State *L) {
         lua_pushboolean(L, computer->config->isColor);
     else if (strcmp(name, "startFullscreen") == 0)
         lua_pushboolean(L, computer->config->startFullscreen);
+    else if (strcmp(name, "computerWidth") == 0)
+        lua_pushinteger(L, computer->config->computerWidth);
+    else if (strcmp(name, "computerHeight") == 0)
+        lua_pushinteger(L, computer->config->computerHeight);
     getConfigSetting(checkUpdates, boolean);
     getConfigSetting(romReadOnly, boolean);
     getConfigSetting(configReadOnly, boolean);
@@ -164,6 +168,12 @@ static int config_set(lua_State *L) {
         setComputerConfig(computer->id, *computer->config);
     } else if (strcmp(name, "startFullscreen") == 0) {
         computer->config->startFullscreen = lua_toboolean(L, 2);
+        setComputerConfig(computer->id, *computer->config);
+    } else if (strcmp(name, "computerWidth") == 0) {
+        computer->config->computerWidth = luaL_checkinteger(L, 2);
+        setComputerConfig(computer->id, *computer->config);
+    } else if (strcmp(name, "computerHeight") == 0) {
+        computer->config->computerHeight = luaL_checkinteger(L, 2);
         setComputerConfig(computer->id, *computer->config);
     }
     setConfigSetting(checkUpdates, boolean);
