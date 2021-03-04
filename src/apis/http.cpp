@@ -960,7 +960,7 @@ static int http_websocket(lua_State *L) {
         std::thread th(websocket_client_thread, comp, url, lua_isboolean(L, 3) && lua_toboolean(L, 3), headers);
         setThreadName(th, "WebSocket Client Thread");
         th.detach();
-    } else if (!config.serverMode && lua_isnoneornil(L, 1)) {
+    } else if (!(config.serverMode || config.vanilla) && lua_isnoneornil(L, 1)) {
         std::unordered_map<std::string, std::string> headers;
         if (lua_istable(L, 2)) {
             lua_pushvalue(L, 2);
@@ -981,7 +981,7 @@ static int http_websocket(lua_State *L) {
             return 2;
         }
         f->srv->start();
-    } else luaL_error(L, config.serverMode ? "bad argument #1 (expected string, got %s)" : "bad argument #1 (expected string or nil, got %s)", lua_typename(L, lua_type(L, 1)));
+    } else luaL_error(L, (config.serverMode || config.vanilla) ? "bad argument #1 (expected string, got %s)" : "bad argument #1 (expected string or nil, got %s)", lua_typename(L, lua_type(L, 1)));
     lua_pushboolean(L, true);
     return 1;
 }
