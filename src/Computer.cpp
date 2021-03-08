@@ -618,7 +618,7 @@ bool Computer_getEvent(Computer * self, SDL_Event* e) {
     std::lock_guard<std::mutex> lock(self->termEventQueueMutex);
     if (self->termEventQueue.empty()) return false;
     SDL_Event* front = &self->termEventQueue.front();
-    if (front == NULL || e == NULL) return false;
+    if (front == NULL || e == NULL) {self->termEventQueue.pop(); return false;}
     memcpy(e, front, sizeof(SDL_Event));
     self->termEventQueue.pop();
     return true;

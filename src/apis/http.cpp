@@ -863,7 +863,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
         queueEvent(comp, websocket_failure, data);
         return;
     }
-    if (config.http_timeout > 0) ws->setReceiveTimeout(Poco::Timespan(config.http_timeout * 1000));
+    //if (config.http_timeout > 0) ws->setReceiveTimeout(Poco::Timespan(config.http_timeout * 1000));
+    ws->setReceiveTimeout(Poco::Timespan(1, 0));
 #if POCO_VERSION >= 0x01090100
     if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
 #endif

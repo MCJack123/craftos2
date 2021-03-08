@@ -258,8 +258,8 @@ int getNextEvent(lua_State *L, const std::string& filter) {
 #ifdef __EMSCRIPTEN__
         return NULL;}, NULL);
 #endif
+        computer->last_event = std::chrono::high_resolution_clock::now();
     }
-    computer->last_event = std::chrono::high_resolution_clock::now();
     computer->getting_event = false;
     return count + 1;
 }

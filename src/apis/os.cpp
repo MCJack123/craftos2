@@ -145,7 +145,9 @@ static int os_startTimer(lua_State *L) {
         data->timer = SDL_AddTimer(time, notifyEvent, data);
         return NULL;
     }, data);
+    runningTimerData.lock();
     runningTimerData->insert(std::make_pair(data->timer, data));
+    runningTimerData.unlock();
     lua_pushinteger(L, data->timer);
     std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
@@ -155,9 +157,11 @@ static int os_startTimer(lua_State *L) {
 static int os_cancelTimer(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
+    runningTimerData.lock();
     if (runningTimerData->find(id) == runningTimerData->end()) return 0;
     timer_data_t * data = (*runningTimerData)[id];
     runningTimerData->erase(id);
+    runningTimerData.unlock();
     data->lock->lock();
 #ifdef __EMSCRIPTEN__
     queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
@@ -279,7 +283,9 @@ static int os_setAlarm(lua_State *L) {
         data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
         return NULL;
     }, data);
+    runningTimerData.lock();
     runningTimerData->insert(std::make_pair(data->timer, data));
+    runningTimerData.unlock();
     lua_pushinteger(L, data->timer);
     std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
@@ -289,9 +295,11 @@ static int os_setAlarm(lua_State *L) {
 static int os_cancelAlarm(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
+    runningTimerData.lock();
     if (runningTimerData->find(id) == runningTimerData->end()) return 0;
     timer_data_t * data = (*runningTimerData)[id];
     runningTimerData->erase(id);
+    runningTimerData.unlock();
     data->lock->lock();
 #ifdef __EMSCRIPTEN__
     queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
