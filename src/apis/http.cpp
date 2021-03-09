@@ -625,7 +625,6 @@ static int http_removeListener(lua_State *L) {
 struct ws_handle {
     bool closed;
     std::string url;
-    bool binary;
     int externalClosed;
     WebSocket * ws;
 };
@@ -664,7 +663,7 @@ static int websocket_send(lua_State *L) {
     if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     if (ws->closed) return 0;
-    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(ws->binary ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
+    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
         ws->closed = true;
     return 0;
 }
@@ -753,9 +752,8 @@ class websocket_server: public HTTPRequestHandler {
 public:
     Computer * comp;
     HTTPServer *srv;
-    bool binary;
     std::unordered_map<std::string, std::string> headers;
-    websocket_server(Computer * c, bool b, HTTPServer *s, const std::unordered_map<std::string, std::string>& h): comp(c), srv(s), binary(b), headers(h) {}
+    websocket_server(Computer * c, HTTPServer *s, const std::unordered_map<std::string, std::string>& h): comp(c), srv(s), headers(h) {}
     void handleRequest(HTTPServerRequest &request, HTTPServerResponse &response) override {
         WebSocket * ws = NULL;
         try {
@@ -776,7 +774,6 @@ public:
         wsh->closed = false;
         wsh->ws = ws;
         wsh->url = "";
-        wsh->binary = binary;
         queueEvent(comp, websocket_success, wsh);
         while (!wsh->closed) {
             Poco::Buffer<char> buf(config.http_max_websocket_message);
@@ -809,11 +806,10 @@ public:
     public:
         Computer *comp;
         HTTPServer *srv = NULL;
-        bool binary;
         std::unordered_map<std::string, std::string> headers;
-        Factory(Computer *c, bool b, const std::unordered_map<std::string, std::string>& h): comp(c), binary(b), headers(h) {}
+        Factory(Computer *c, const std::unordered_map<std::string, std::string>& h): comp(c), headers(h) {}
         HTTPRequestHandler* createRequestHandler(const HTTPServerRequest&) override {
-            return new websocket_server(comp, binary, srv, headers);
+            return new websocket_server(comp, srv, headers);
         }
     };
 };
@@ -830,7 +826,7 @@ public:
     handle->externalClosed = 3;
 }
 
-static void websocket_client_thread(Computer *comp, const std::string& str, bool binary, const std::unordered_map<std::string, std::string>& headers) {
+static void websocket_client_thread(Computer *comp, const std::string& str, const std::unordered_map<std::string, std::string>& headers) {
 #ifdef __APPLE__
     pthread_setname_np("WebSocket Client Thread");
 #endif
@@ -873,7 +869,6 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
     wsh->externalClosed = false;
     wsh->url = str;
     wsh->ws = ws;
-    wsh->binary = binary;
     comp->openWebsockets.push_back(wsh);
     queueEvent(comp, websocket_success, wsh);
     char * buf = new char[config.http_max_websocket_message];
@@ -942,7 +937,6 @@ static void websocket_client_thread(Computer *comp, const std::string& str, bool
 static int http_websocket(lua_State *L) {
     lastCFunction = __func__;
     if (!config.http_websocket_enabled) luaL_error(L, "Websocket connections are disabled");
-    if (!lua_isnoneornil(L, 3) && !lua_isboolean(L, 3)) luaL_error(L, "bad argument #3 (expected boolean or nil, got %s)", lua_typename(L, lua_type(L, 3)));
     if (lua_isstring(L, 1)) {
         Computer * comp = get_comp(L);
         if (config.http_max_websockets > 0 && comp->openWebsockets.size() >= (unsigned)config.http_max_websockets) luaL_error(L, "Too many websockets already open");
@@ -958,10 +952,10 @@ static int http_websocket(lua_State *L) {
             }
             lua_pop(L, 1);
         }
-        std::thread th(websocket_client_thread, comp, url, lua_isboolean(L, 3) && lua_toboolean(L, 3), headers);
+        std::thread th(websocket_client_thread, comp, url, headers);
         setThreadName(th, "WebSocket Client Thread");
         th.detach();
-    } else if (!(config.serverMode || config.vanilla) && lua_isnoneornil(L, 1)) {
+    } else if (!(config.serverMode || config.vanilla) && (lua_isnoneornil(L, 1) || lua_isnumber(L, 1))) {
         std::unordered_map<std::string, std::string> headers;
         if (lua_istable(L, 2)) {
             lua_pushvalue(L, 2);
@@ -973,8 +967,8 @@ static int http_websocket(lua_State *L) {
             }
             lua_pop(L, 1);
         } else if (!lua_isnoneornil(L, 2)) luaL_error(L, "bad argument #2 (expected table or nil, got %s)", lua_typename(L, lua_type(L, 2)));
-        websocket_server::Factory * f = new websocket_server::Factory(get_comp(L), lua_isboolean(L, 3) && lua_toboolean(L, 3), headers);
-        try {f->srv = new HTTPServer(f, 80);}
+        websocket_server::Factory * f = new websocket_server::Factory(get_comp(L), headers);
+        try {f->srv = new HTTPServer(f, lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 80);}
         catch (Poco::Exception& e) {
             fprintf(stderr, "Could not open server: %s\n", e.displayText().c_str());
             lua_pushboolean(L, false);
@@ -982,7 +976,7 @@ static int http_websocket(lua_State *L) {
             return 2;
         }
         f->srv->start();
-    } else luaL_error(L, (config.serverMode || config.vanilla) ? "bad argument #1 (expected string, got %s)" : "bad argument #1 (expected string or nil, got %s)", lua_typename(L, lua_type(L, 1)));
+    } else luaL_error(L, (config.serverMode || config.vanilla) ? "bad argument #1 (expected string, got %s)" : "bad argument #1 (expected string, number, or nil, got %s)", lua_typename(L, lua_type(L, 1)));
     lua_pushboolean(L, true);
     return 1;
 }
