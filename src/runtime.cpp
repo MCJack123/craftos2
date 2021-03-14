@@ -143,7 +143,7 @@ extern library_t * libraries[8];
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
     Computer * computer = (Computer*)param;
     if (freedComputers.find(computer) != freedComputers.end()) return 0;
-    if (computer->getting_event) return 0;
+    if (computer->L == NULL || computer->getting_event) return 0;
     if (++computer->timeoutCheckCount >= 5) {
         if (config.standardsMode) {
             // In standards mode we give no second chances - just crash and burn

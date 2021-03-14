@@ -343,6 +343,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
             self->term->mode = 0;
             if (dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->cursorColor = 0;
+            self->term->changed = true;
         }
         self->colors = 0xF0;
 
@@ -611,6 +612,19 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_close(L);   /* Cya, Lua */
         self->L = NULL;
     }
+    if (self->term != NULL) {
+        // Reset terminal contents
+        std::lock_guard<std::mutex> lock(self->term->locked);
+        self->term->blinkX = 0;
+        self->term->blinkY = 0;
+        self->term->screen = vector2d<unsigned char>(self->term->width, self->term->height, ' ');
+        self->term->colors = vector2d<unsigned char>(self->term->width, self->term->height, 0xF0);
+        self->term->pixels = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
+        memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
+        self->term->mode = 0;
+        if (dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->cursorColor = 0;
+        self->term->changed = true;
+    }
 }
 
 // Gets the next event for the given computer
@@ -635,24 +649,57 @@ void* computerThread(void* data) {
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);
-    try {
-#ifdef STANDALONE_ROM
-        runComputer(comp, wstr(standaloneBIOS));
-#else
-        runComputer(comp, WS("bios.lua"));
-#endif
-    } catch (std::exception &e) {
-        fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
-        queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
-        if (comp->L != NULL) {
-            comp->event_lock.notify_all();
-            // Stop all open websockets
-            while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
-            for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
-            lua_close(comp->L);   /* Cya, Lua */
-            comp->L = NULL;
+    bool first = true;
+    do {
+        if (!first) {
+            bool ok = true;
+            while (true) {
+                SDL_Event e;
+                std::string tmpstrval;
+                if (Computer_getEvent(comp, &e)) {
+                    if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
+                        if (comp->waitingForTerminate & 16) {
+                            comp->waitingForTerminate |= 32;
+                            comp->waitingForTerminate &= ~16;
+                            break;
+                        } else if ((comp->waitingForTerminate & 48) == 0) comp->waitingForTerminate |= 16;
+                    } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
+                        if (e.window.windowID == comp->term->id) {
+                            ok = false;
+                            break;
+                        } else {
+                            std::string side;
+                            monitor * m = findMonitorFromWindowID(comp, e.window.windowID, side);
+                            if (m != NULL) detachPeripheral(comp, side);
+                        }
+                    } else if (e.type == SDL_QUIT) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if (!ok) break;
         }
-    }
+        try {
+    #ifdef STANDALONE_ROM
+            runComputer(comp, wstr(standaloneBIOS));
+    #else
+            runComputer(comp, WS("bios.lua"));
+    #endif
+        } catch (std::exception &e) {
+            fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
+            queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
+            if (comp->L != NULL) {
+                comp->event_lock.notify_all();
+                // Stop all open websockets
+                while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
+                for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+                lua_close(comp->L);   /* Cya, Lua */
+                comp->L = NULL;
+            }
+        }
+        first = false;
+    } while ((config.keepOpenOnShutdown || config.standardsMode) && !comp->requestedExit);
     freedComputers.insert(comp);
     {
         LockGuard lock(computers);

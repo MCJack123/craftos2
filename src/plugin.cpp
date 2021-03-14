@@ -76,6 +76,8 @@ static const PluginFunctions function_map = {
     &setConfigSettingInt,
     &setConfigSettingBool,
     &registerConfigSetting,
+    &attachPeripheral,
+    &detachPeripheral,
 };
 
 std::unordered_map<path_t, std::string> initializePlugins() {

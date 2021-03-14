@@ -206,7 +206,7 @@ struct PluginFunctions {
      */
     void (*setConfigSettingBool)(const std::string& name, bool value);
 
-    // The following fields are available in API version 10.2.
+    // The following fields are available in API version 10.2 and later.
 
     /**
      * Registers a custom config setting so it can be accessed with the config
@@ -219,6 +219,32 @@ struct PluginFunctions {
      * @param userdata An optional opaque pointer to pass to the function.
      */
     void (*registerConfigSetting)(const std::string& name, int type, const std::function<int(const std::string&, void*)>& callback, void* userdata);
+
+    // The following fields are available in API version 10.3 and later.
+
+    /**
+     * Attaches a peripheral of the specified type to a side, with optional
+     * extended arguments.
+     * @param computer The computer to attach to
+     * @param side The side to attach the peripheral on
+     * @param type The type of peripheral to attach
+     * @param errorReturn A pointer to a string to hold an error message (NULL to ignore)
+     * @param format A format string specifying the arguments passed - 1 character per argument; set to "L" to pass a Lua state instead
+     *   'i' = lua_Integer, 'n' = lua_Number, 's' = const char *, 'b' = bool, 'N' = nil/NULL (pass NULL in the arg list)
+     * @param ... Any arguments to pass to the constructor
+     * @return The new peripheral object, or NULL on error
+     * @throws std::invalid_argument If the format string is invalid
+     * @throws std::exception If the peripheral constructor throws an exception
+     */
+    peripheral* (*attachPeripheral)(Computer * computer, const std::string& side, const std::string& type, std::string * errorReturn, const char * format, ...);
+
+    /**
+     * Detaches a peripheral from a side.
+     * @param computer The computer to detach from
+     * @param side The side to detach
+     * @return Whether the operation succeeded
+     */
+    bool (*detachPeripheral)(Computer * computer, const std::string& side);
 };
 
 /**

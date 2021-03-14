@@ -662,7 +662,7 @@ bool SDLTerminal::pollEvents() {
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
                             if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == c->term->id) {
-                                if (c->requestedExit) {
+                                if (c->requestedExit && c->L) {
                                     SDL_MessageBoxData msg;
                                     msg.flags = SDL_MESSAGEBOX_INFORMATION;
                                     msg.title = "Computer Unresponsive";
