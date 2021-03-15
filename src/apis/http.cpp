@@ -194,14 +194,33 @@ static void downloadThread(void* arg) {
     pthread_setname_np("HTTP Download Thread");
 #endif
     http_param_t* param = (http_param_t*)arg;
+    std::string status;
+    if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
+    else if (param->url.find("://") == std::string::npos) status = "URL malformed";
+    else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
+    if (!status.empty()) {
+        http_handle_t * err = new http_handle_t(NULL);
+        err->url = param->url;
+        err->failureReason = status;
+        queueEvent(param->comp, http_failure, err);
+        delete param;
+        return;
+    }
     Poco::URI uri(param->url);
     if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
     HTTPClientSession * session;
     if (uri.getScheme() == "http") {
         session = new HTTPClientSession(uri.getHost(), uri.getPort());
-    } else {
+    } else if (uri.getScheme() == "https") {
         const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
         session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+    } else {
+        http_handle_t * err = new http_handle_t(NULL);
+        err->url = param->url;
+        err->failureReason = "Invalid protocol '" + uri.getScheme() + "'";
+        queueEvent(param->comp, http_failure, err);
+        delete param;
+        return;
     }
     if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
@@ -837,7 +856,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     else {
         websocket_failure_data * data = new websocket_failure_data;
         data->url = str;
-        data->reason = std::string("Unknown protocol " + uri.getScheme());
+        data->reason = std::string("Invalid scheme '" + uri.getScheme() + "'");
         queueEvent(comp, websocket_failure, data);
         return;
     }
