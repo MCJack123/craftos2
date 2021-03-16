@@ -871,7 +871,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     WebSocket* ws;
     try {
         ws = new WebSocket(*cs, request, response);
-    } catch (Poco::Net::NetException &e) {
+    } catch (NetException &e) {
         websocket_failure_data * data = new websocket_failure_data;
         data->url = str;
         data->reason = e.displayText();
