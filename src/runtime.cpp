@@ -302,6 +302,15 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
     return true;
 }
 
+bool operator==(const FileEntry& lhs, const FileEntry& rhs) {
+    if (lhs.isDir != rhs.isDir) return false;
+    if (lhs.isDir) {
+        return lhs.dir == rhs.dir;
+    } else {
+        return lhs.data == rhs.data;
+    }
+}
+
 bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path) {
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
@@ -311,6 +320,17 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_pa
     }
     unsigned idx;
     for (idx = 0; comp->virtualMounts.find(idx) != comp->virtualMounts.end() && idx < UINT_MAX; idx++) {}
+    for (const auto& v : comp->mounts) {
+        const path_t& path = std::get<1>(v);
+        if (!std::isdigit(path[0])) continue;
+        int end = 0;
+        for (const auto& c : path) {
+            if (c == ':') break;
+            else if (!std::isdigit(c)) {end = -1; break;}
+            end++;
+        }
+        if (end > 0 && std::get<0>(v) == pathc && *comp->virtualMounts[std::stoi(path.substr(0, end))] == vfs) return false;
+    }
     comp->virtualMounts[idx] = &vfs;
     comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), to_path_t(idx) + WS(":"), true));
     return true;
