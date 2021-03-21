@@ -212,6 +212,7 @@ struct PluginFunctions {
      * Registers a custom config setting so it can be accessed with the config
      * API, with an optional callback. Pass nullptr to callback to ignore.
      * @param name The name of the setting
+     * @param type The type of the setting: 0 for boolean, 1 for integer, 2 for string
      * @param callback A callback to call when the setting is changed. This
      * takes the name and userdata, and returns 0 for immediate use, 1 to
      * reboot the computer, and 2 to restart CraftOS-PC before taking effect.

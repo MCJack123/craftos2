@@ -213,25 +213,25 @@ int fs_handle_istream_readChar(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
     std::string retval;
-    for (int i = 0; i < (lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 1) && !fp->eof(); i++) {
+    for (int i = 0; i < luaL_optinteger(L, 1, 1) && !fp->eof(); i++) {
         uint32_t codepoint;
         const int c = fp->get();
         if (c == EOF) break;
-        else if (c < 0) {
+        else if (c > 0x7F) {
             if (c & 64) {
                 const int c2 = fp->get();
                 if (c2 == EOF) {retval += '?'; break;}
-                else if (c2 >= 0 || c2 & 64) codepoint = 1U<<31;
+                else if (c2 < 0x80 || c2 & 64) codepoint = 1U<<31;
                 else if (c & 32) {
                     const int c3 = fp->get();
                     if (c3 == EOF) {retval += '?'; break;}
-                    else if (c3 >= 0 || c3 & 64) codepoint = 1U<<31;
+                    else if (c3 < 0x80 || c3 & 64) codepoint = 1U<<31;
                     else if (c & 16) {
                         if (c & 8) codepoint = 1U<<31;
                         else {
                             const int c4 = fp->get();
                             if (c4 == EOF) {retval += '?'; break;}
-                            else if (c4 >= 0 || c4 & 64) codepoint = 1U<<31;
+                            else if (c4 < 0x80 || c4 & 64) codepoint = 1U<<31;
                             else codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
                         }
                     } else codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
