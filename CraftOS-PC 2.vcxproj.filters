@@ -43,6 +43,9 @@
     <Filter Include="Header Files\api">
       <UniqueIdentifier>{21592f07-c190-4e8a-8564-4f15f122a951}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\api\generic_peripheral">
+      <UniqueIdentifier>{7baa47e9-4c4b-4746-adb0-d1f4dda211d4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -196,6 +199,15 @@
     </ClInclude>
     <ClInclude Include="api\FileEntry.hpp">
       <Filter>Header Files\api</Filter>
+    </ClInclude>
+    <ClInclude Include="api\generic_peripheral\inventory.hpp">
+      <Filter>Header Files\api\generic_peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="api\generic_peripheral\energy_storage.hpp">
+      <Filter>Header Files\api\generic_peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="api\generic_peripheral\fluid_storage.hpp">
+      <Filter>Header Files\api\generic_peripheral</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
