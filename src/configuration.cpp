@@ -91,7 +91,6 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"clockSpeed", {0, 1}},
     {"ignoreHotkeys", {0, 0}},
     {"checkUpdates", {2, 0}},
-    {"romReadOnly", {2, 0}},
     {"useHDFont", {2, 0}},
     {"configReadOnly", {0, 0}},
     {"vanilla", {1, 0}},
@@ -125,7 +124,7 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"keepOpenOnShutdown", {0, 0}}
 };
 
-const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion", "pluginData", "http_proxy_server", "http_proxy_port", "cliControlKeyMode", "serverMode"};
+const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion", "pluginData", "http_proxy_server", "http_proxy_port", "cliControlKeyMode", "serverMode", "romReadOnly"};
 
 std::unordered_map<std::string, Poco::Dynamic::Var> unknownOptions;
 

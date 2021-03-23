@@ -54,7 +54,6 @@ static int config_get(lua_State *L) {
     else if (strcmp(name, "computerHeight") == 0)
         lua_pushinteger(L, computer->config->computerHeight);
     getConfigSetting(checkUpdates, boolean);
-    getConfigSetting(romReadOnly, boolean);
     getConfigSetting(configReadOnly, boolean);
     getConfigSetting(vanilla, boolean);
     getConfigSetting(initialComputer, integer);
