@@ -594,6 +594,9 @@
     <ClInclude Include="api\configuration.hpp" />
     <ClInclude Include="api\CraftOS-PC.hpp" />
     <ClInclude Include="api\FileEntry.hpp" />
+    <ClInclude Include="api\generic_peripheral\energy_storage.hpp" />
+    <ClInclude Include="api\generic_peripheral\fluid_storage.hpp" />
+    <ClInclude Include="api\generic_peripheral\inventory.hpp" />
     <ClInclude Include="api\lib.hpp" />
     <ClInclude Include="api\peripheral.hpp" />
     <ClInclude Include="api\Terminal.hpp" />

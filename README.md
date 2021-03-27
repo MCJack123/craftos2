@@ -26,7 +26,7 @@ Visit the website at https://www.craftos-pc.cc/ for more information, including 
 #### Homebrew Cask
 ```bash
 $ brew tap MCJack123/CraftOSPC
-$ brew cask install craftos-pc-accelerated
+$ brew install --cask craftos-pc-accelerated
 $ open /Applications/CraftOS-PC.app
 ```
 #### Manual

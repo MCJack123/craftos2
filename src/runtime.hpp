@@ -44,5 +44,7 @@ extern std::unordered_map<path_t, std::string> initializePlugins();
 extern void loadPlugins(Computer * comp);
 extern void deinitializePlugins();
 extern void stopWebsocket(void*);
+extern peripheral* attachPeripheral(Computer * computer, const std::string& side, const std::string& type, std::string * errorReturn, const char * format, ...);
+extern bool detachPeripheral(Computer * computer, const std::string& side);
 
 #endif

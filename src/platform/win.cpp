@@ -207,9 +207,9 @@ void updateNow(const std::string& tagname) {
             memset(&info, 0, sizeof(info));
             info.cb = sizeof(info);
             PROCESS_INFORMATION process;
-            //CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
-            //CloseHandle(process.hProcess);
-            //CloseHandle(process.hThread);
+            CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
+            CloseHandle(process.hProcess);
+            CloseHandle(process.hThread);
             exit(0);
         });
     });

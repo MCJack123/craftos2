@@ -17,6 +17,8 @@
 #include "../terminal/HardwareSDLTerminal.hpp"
 
 monitor::monitor(lua_State *L, const char * side) {
+    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")
+        throw std::runtime_error("Monitors are not available when using the Linux framebuffer");
 #ifndef NO_CLI
     if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
     else
@@ -33,6 +35,10 @@ monitor::monitor(lua_State *L, const char * side) {
         }, (void*)side);
     } else throw std::invalid_argument("Monitors are not available in headless mode");
     term->canBlink = false;
+    unsigned w = term->width, h = term->height;
+    if (lua_isnumber(L, 3)) w = (unsigned)lua_tointeger(L, 3);
+    if (lua_isnumber(L, 4)) h = (unsigned)lua_tointeger(L, 4);
+    if (w != term->width || h != term->height) term->resize(w, h);
 }
 
 monitor::~monitor() {delete term;}

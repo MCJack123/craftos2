@@ -50,46 +50,102 @@ static std::string peripheral_detach(lua_State *L, void* arg) {
     return "peripheral_detach";
 }
 
+peripheral* attachPeripheral(Computer * computer, const std::string& side, const std::string& type, std::string * errorReturn, const char * format, ...) {
+    if (config.serverMode && type == "speaker") {
+        if (errorReturn != NULL) *errorReturn = "No peripheral named speaker";
+        return NULL;
+    }
+    computer->peripherals_mutex.lock();
+    if (computer->peripherals.find(side) != computer->peripherals.end()) {
+        computer->peripherals_mutex.unlock();
+        if (errorReturn != NULL) *errorReturn = "Peripheral already attached on side " + side;
+        return NULL;
+    }
+    computer->peripherals_mutex.unlock();
+    lua_State *L;
+    int idx = -1;
+    va_list arg;
+    va_start(arg, format);
+    if (*format == 'L') {
+        L = va_arg(arg, lua_State*);
+    } else {
+        L = lua_newthread(computer->L);
+        idx = lua_gettop(computer->L);
+        lua_pushstring(L, side.c_str());
+        lua_pushstring(L, type.c_str());
+        while (*format) {
+            switch (*format) {
+            case 'i': lua_pushinteger(L, va_arg(arg, lua_Integer)); break;
+            case 'n': lua_pushnumber(L, va_arg(arg, lua_Number)); break;
+            case 's': lua_pushstring(L, va_arg(arg, const char *)); break;
+            case 'b': lua_pushboolean(L, va_arg(arg, bool)); break;
+            case 'N': lua_pushnil(L); va_arg(arg, void*); break;
+            default: throw std::invalid_argument(std::string("Invalid format specifier ") + *format);
+            }
+        }
+    }
+    peripheral * p;
+    if (type == "debugger" && config.debug_enable) p = new debugger(L, side.c_str());
+    else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
+    else {
+        //fprintf(stderr, "not found: %s\n", type.c_str());
+        if (errorReturn != NULL) {
+            if (type == "debugger") *errorReturn = "Set debug_enable to true in the config to enable the debugger";
+            else *errorReturn = "No peripheral named " + type;
+        }
+        return NULL;
+    }
+    computer->peripherals_mutex.lock();
+    try { computer->peripherals[side] = p; } catch (...) {}
+    computer->peripherals_mutex.unlock();
+    if (idx != -1) {
+        if (lua_gettop(computer->L) == idx) lua_pop(computer->L, 1);
+        else lua_remove(computer->L, idx);
+    }
+    std::string * sidearg = new std::string(side);
+    queueEvent(computer, peripheral_attach, sidearg);
+    va_end(arg);
+    return p;
+}
+
+bool detachPeripheral(Computer * computer, const std::string& side) {
+    peripheral * p;
+    {
+        std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+        if (computer->peripherals.find(side) == computer->peripherals.end()) return false;
+        if (std::string(computer->peripherals[side]->getMethods().name) == "drive")
+            computer->peripherals[side]->call(computer->L, "ejectDisk");
+        else if (std::string(computer->peripherals[side]->getMethods().name) == "debugger")
+            computer->peripherals[side]->call(NULL, "deinit");
+        p = computer->peripherals[side];
+        computer->peripherals.erase(side);
+    }
+    queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, p);
+    std::string * sidearg = new std::string(side);
+    queueEvent(computer, peripheral_detach, sidearg);
+    return true;
+}
+
 static int periphemu_create(lua_State* L) {
     lastCFunction = __func__;
     if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_typerror(L, 1, "string or number");
     Computer * computer = get_comp(L);
     const std::string type = luaL_checkstring(L, 2);
-    if (config.serverMode && type == "speaker") {
-        lua_pushboolean(L, false);
-        lua_pushstring(L, "No peripheral named speaker");
-        return 2;
-    }
     std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);
     if (std::all_of(side.begin(), side.end(), ::isdigit)) side = type + "_" + side;
-    computer->peripherals_mutex.lock();
-    if (computer->peripherals.find(side) != computer->peripherals.end()) {
-        computer->peripherals_mutex.unlock();
-        lua_pushboolean(L, false);
-        lua_pushfstring(L, "Peripheral already attached on side %s", side.c_str());
-        return 2;
-    }
-    computer->peripherals_mutex.unlock();
+    peripheral * p;
+    std::string err;
     try {
-        peripheral * p;
-        if (type == "debugger" && config.debug_enable) p = new debugger(L, side.c_str());
-        else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
-        else {
-            //fprintf(stderr, "not found: %s\n", type.c_str());
-            lua_pushboolean(L, false);
-            if (type == "debugger") lua_pushfstring(L, "Set debug_enable to true in the config to enable the debugger");
-            else lua_pushfstring(L, "No peripheral named %s", type.c_str());
-            return 2;
-        }
-        computer->peripherals_mutex.lock();
-        try { computer->peripherals[side] = p; } catch (...) {}
-        computer->peripherals_mutex.unlock();
+        p = attachPeripheral(computer, side, type, &err, "L", L);
     } catch (std::exception &e) {
         return luaL_error(L, "Error while creating peripheral: %s", e.what());
     }
+    if (p == NULL) {
+        lua_pushboolean(L, false);
+        lua_pushstring(L, err.c_str());
+        return 2;
+    }
     lua_pushboolean(L, true);
-    std::string * sidearg = new std::string(side);
-    queueEvent(computer, peripheral_attach, sidearg);
     return 1;
 }
 
@@ -97,24 +153,7 @@ static int periphemu_remove(lua_State* L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const std::string side = luaL_checkstring(L, 1);
-    peripheral * p;
-    {
-        std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
-        if (computer->peripherals.find(side) == computer->peripherals.end()) {
-            lua_pushboolean(L, false);
-            return 1;
-        }
-        if (std::string(computer->peripherals[side]->getMethods().name) == "drive")
-            computer->peripherals[side]->call(L, "ejectDisk");
-        else if (std::string(computer->peripherals[side]->getMethods().name) == "debugger")
-            computer->peripherals[side]->call(L, "deinit");
-        p = computer->peripherals[side];
-        computer->peripherals.erase(side);
-    }
-    queueTask([ ](void* p)->void*{((peripheral*)p)->getDestructor()((peripheral*)p); return NULL;}, p);
-    lua_pushboolean(L, true);
-    std::string * sidearg = new std::string(side);
-    queueEvent(computer, peripheral_detach, sidearg);
+    lua_pushboolean(L, detachPeripheral(computer, side));
     return 1;
 }
 

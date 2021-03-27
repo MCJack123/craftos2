@@ -49,8 +49,11 @@ static int config_get(lua_State *L) {
         lua_pushboolean(L, computer->config->isColor);
     else if (strcmp(name, "startFullscreen") == 0)
         lua_pushboolean(L, computer->config->startFullscreen);
+    else if (strcmp(name, "computerWidth") == 0)
+        lua_pushinteger(L, computer->config->computerWidth);
+    else if (strcmp(name, "computerHeight") == 0)
+        lua_pushinteger(L, computer->config->computerHeight);
     getConfigSetting(checkUpdates, boolean);
-    getConfigSetting(romReadOnly, boolean);
     getConfigSetting(configReadOnly, boolean);
     getConfigSetting(vanilla, boolean);
     getConfigSetting(initialComputer, integer);
@@ -77,6 +80,7 @@ static int config_get(lua_State *L) {
     getConfigSetting(extendMargins, boolean);
     getConfigSetting(snapToSize, boolean);
     getConfigSetting(snooperEnabled, boolean);
+    getConfigSetting(keepOpenOnShutdown, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath.empty()) lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
@@ -165,6 +169,12 @@ static int config_set(lua_State *L) {
     } else if (strcmp(name, "startFullscreen") == 0) {
         computer->config->startFullscreen = lua_toboolean(L, 2);
         setComputerConfig(computer->id, *computer->config);
+    } else if (strcmp(name, "computerWidth") == 0) {
+        computer->config->computerWidth = luaL_checkinteger(L, 2);
+        setComputerConfig(computer->id, *computer->config);
+    } else if (strcmp(name, "computerHeight") == 0) {
+        computer->config->computerHeight = luaL_checkinteger(L, 2);
+        setComputerConfig(computer->id, *computer->config);
     }
     setConfigSetting(checkUpdates, boolean);
     setConfigSetting(vanilla, boolean);
@@ -191,6 +201,7 @@ static int config_set(lua_State *L) {
     setConfigSetting(extendMargins, boolean);
     setConfigSetting(snapToSize, boolean);
     setConfigSetting(snooperEnabled, boolean);
+    setConfigSetting(keepOpenOnShutdown, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else if (userConfig.find(name) != userConfig.end()) {

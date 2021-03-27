@@ -23,16 +23,16 @@ public:
     ~myperipheral(){}
     static peripheral * init(lua_State *L, const char * side) {return new myperipheral(L, side);}
     static void deinit(peripheral * p) {delete (myperipheral*)p;}
-    destructor getDestructor() {return deinit;}
-    int call(lua_State *L, const char * method) {
-        std::string m(method);
+    destructor getDestructor() const override {return deinit;}
+    int call(lua_State *L, const char * method) override {
+        const std::string m(method);
         // Check the value of m for each method:
         // if (m == "a") return a(L);
         // etc...
         // else return 0;
     }
-    void update(){}
-    library_t getMethods() {return methods;}
+    void update() override {}
+    library_t getMethods() const override {return methods;}
 };
 
 static luaL_Reg methods_reg[] = {

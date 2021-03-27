@@ -168,21 +168,25 @@ int fs_handle_readChar(lua_State *L) {
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
     if (feof(fp)) return 0;
     std::string retval;
-    for (int i = 0; i < (lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 1); i++) {
+    for (int i = 0; i < (lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 1) && !feof(fp); i++) {
         uint32_t codepoint;
-        const char c = fgetc(fp);
-        if (c < 0) {
+        const int c = fgetc(fp);
+        if (c == EOF) break;
+        else if (c < 0) {
             if (c & 64) {
-                const char c2 = fgetc(fp);
-                if (c2 >= 0 || c2 & 64) codepoint = 1U<<31;
+                const int c2 = fgetc(fp);
+                if (c2 == EOF) {retval += '?'; break;}
+                else if (c2 >= 0 || c2 & 64) codepoint = 1U<<31;
                 else if (c & 32) {
-                    const char c3 = fgetc(fp);
-                    if (c3 >= 0 || c3 & 64) codepoint = 1U<<31;
+                    const int c3 = fgetc(fp);
+                    if (c3 == EOF) {retval += '?'; break;}
+                    else if (c3 >= 0 || c3 & 64) codepoint = 1U<<31;
                     else if (c & 16) {
                         if (c & 8) codepoint = 1U<<31;
                         else {
-                            const char c4 = fgetc(fp);
-                            if (c4 >= 0 || c4 & 64) codepoint = 1U<<31;
+                            const int c4 = fgetc(fp);
+                            if (c4 == EOF) {retval += '?'; break;}
+                            else if (c4 >= 0 || c4 & 64) codepoint = 1U<<31;
                             else codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
                         }
                     } else codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
@@ -209,21 +213,25 @@ int fs_handle_istream_readChar(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
     std::string retval;
-    for (int i = 0; i < (lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 1); i++) {
+    for (int i = 0; i < luaL_optinteger(L, 1, 1) && !fp->eof(); i++) {
         uint32_t codepoint;
-        const char c = (char)fp->get();
-        if (c < 0) {
+        const int c = fp->get();
+        if (c == EOF) break;
+        else if (c > 0x7F) {
             if (c & 64) {
-                const char c2 = (char)fp->get();
-                if (c2 >= 0 || c2 & 64) codepoint = 1U<<31;
+                const int c2 = fp->get();
+                if (c2 == EOF) {retval += '?'; break;}
+                else if (c2 < 0x80 || c2 & 64) codepoint = 1U<<31;
                 else if (c & 32) {
-                    const char c3 = (char)fp->get();
-                    if (c3 >= 0 || c3 & 64) codepoint = 1U<<31;
+                    const int c3 = fp->get();
+                    if (c3 == EOF) {retval += '?'; break;}
+                    else if (c3 < 0x80 || c3 & 64) codepoint = 1U<<31;
                     else if (c & 16) {
                         if (c & 8) codepoint = 1U<<31;
                         else {
-                            const char c4 = (char)fp->get();
-                            if (c4 >= 0 || c4 & 64) codepoint = 1U<<31;
+                            const int c4 = fp->get();
+                            if (c4 == EOF) {retval += '?'; break;}
+                            else if (c4 < 0x80 || c4 & 64) codepoint = 1U<<31;
                             else codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
                         }
                     } else codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);

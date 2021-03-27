@@ -585,7 +585,7 @@ std::string termGetEvent(lua_State *L) {
             if (e.key.keysym.sym == SDLK_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
             else if (e.key.keysym.sym == SDLK_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
 #ifndef __EMSCRIPTEN__
-            else if (e.key.keysym.sym == SDLK_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleFullscreen();
+            else if (e.key.keysym.sym == SDLK_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys && (std::string(SDL_GetCurrentVideoDriver()) != "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")) sdlterm->toggleFullscreen(); // KMS must be fullscreen
 #endif
             else if (e.key.keysym.sym == SDLK_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
 #ifdef __APPLE__
@@ -774,12 +774,7 @@ std::string termGetEvent(lua_State *L) {
             else {
                 std::string side;
                 monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
-                if (m != NULL) {
-                    lua_pushstring(L, side.c_str());
-                    if (strcmp(periphemu_lib.functions[2].name, "remove") == 0) lua_pop(L, periphemu_lib.functions[2].func(L) + 1);
-                    else for (int i = 0; periphemu_lib.functions[i].name; i++)
-                        if (strcmp(periphemu_lib.functions[i].name, "remove") == 0) {lua_pop(L, periphemu_lib.functions[i].func(L) + 1); break;}
-                }
+                if (m != NULL) detachPeripheral(computer, side);
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_LEAVE && config.mouse_move_throttle >= 0 && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             if (computer->mouseMoveDebounceTimer != 0) {

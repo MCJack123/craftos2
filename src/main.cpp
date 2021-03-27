@@ -645,6 +645,7 @@ int main(int argc, char*argv[]) {
     if (computerDir.empty()) computerDir = getBasePath() + WS("/computer");
 #endif
     if (!customDataDir.empty()) customDataDirs[id] = customDataDir;
+    mainThreadID = std::this_thread::get_id();
     setupCrashHandler();
     migrateData(forceMigrate);
     config_init();

@@ -540,6 +540,8 @@ struct debugger_param {
 };
 
 debugger::debugger(lua_State *L, const char * side) {
+    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")
+        throw std::runtime_error("Debuggers are not available when using the Linux framebuffer");
     didBreak = false;
     running = true;
     computer = get_comp(L);
@@ -614,7 +616,7 @@ int debugger::_deinit(lua_State *L) {
     if (!computer->hasBreakpoints) {
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
         lua_sethook(computer->coro, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        if (L) lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
     }
     return 0;
 }

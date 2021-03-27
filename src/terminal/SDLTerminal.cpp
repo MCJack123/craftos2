@@ -119,6 +119,20 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         overridden = true;
         throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
     }
+    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY") {
+        // KMS requires the window to be fullscreen to work
+        // We also set the resolution to the highest possible so users don't get stuck at 640x480 because it's the default
+        int idx = SDL_GetWindowDisplayIndex(win);
+        SDL_DisplayMode mode, max;
+        SDL_GetCurrentDisplayMode(idx, &max);
+        for (int i = 0; i < SDL_GetNumDisplayModes(idx); i++) {
+            SDL_GetDisplayMode(idx, i, &mode);
+            if (mode.w > max.w || mode.h > max.h || (mode.w == max.w && mode.h == max.h && (mode.refresh_rate > max.refresh_rate || SDL_BITSPERPIXEL(mode.format) > SDL_BITSPERPIXEL(max.format)))) max = mode;
+        }
+        fprintf(stderr, "Setting display mode to %dx%dx%d@%d\n", max.w, max.h, SDL_BITSPERPIXEL(max.format), max.refresh_rate);
+        SDL_SetWindowDisplayMode(win, &max);
+        SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    }
     realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
