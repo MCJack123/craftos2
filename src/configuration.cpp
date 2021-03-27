@@ -16,6 +16,9 @@
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/RawTerminal.hpp"
 #include "terminal/TRoRTerminal.hpp"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 struct configuration config;
 int onboardingMode = 0;
@@ -180,7 +183,7 @@ void config_init() {
         19,
         false,
 #ifdef __EMSCRIPTEN__
-        EM_ASM_INT(return navigator.platform == "MacIntel" ? 1 : 0) ~= 0, // will Apple decide to use "MacARM" in the future? if so, this will break
+        EM_ASM_INT(return navigator.platform == "MacIntel" ? 1 : 0) != 0, // will Apple decide to use "MacARM" in the future? if so, this will break
 #else
         false,
 #endif
@@ -287,12 +290,14 @@ void config_init() {
     readConfigSetting(snapToSize, Bool);
     readConfigSetting(snooperEnabled, Bool);
     readConfigSetting(keepOpenOnShutdown, Bool);
-    if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
+#ifndef __EMSCRIPTEN__
+    if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     for (const auto& e : root)
         if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
             unknownOptions.insert(e);
+#endif
 }
 
 void config_save() {
