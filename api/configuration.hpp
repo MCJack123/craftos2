@@ -84,8 +84,8 @@ struct configuration {
     // The following fields are available in API version 10.2 and later.
     bool snooperEnabled;
 
-	  // The following fields are available in API version 10.3 and later.
-		bool keepOpenOnShutdown;
+    // The following fields are available in API version 10.3 and later.
+    bool keepOpenOnShutdown;
 };
 
 // A smaller structure that holds the configuration for a single computer.
@@ -95,9 +95,9 @@ struct computer_configuration {
     bool loadFailure;
     bool startFullscreen;
 
-	// The following fields are available in API version 10.3 and later.
-	int computerWidth;
-	int computerHeight;
+  // The following fields are available in API version 10.3 and later.
+  int computerWidth;
+  int computerHeight;
 };
 
 #endif
