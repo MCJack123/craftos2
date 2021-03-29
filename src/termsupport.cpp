@@ -647,8 +647,8 @@ std::string termGetEvent(lua_State *L) {
                 std::string str;
                 try {str = utf8_to_string(text, std::locale("C"));}
                 catch (std::exception &e) {return "";}
-                str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
-                lua_pushstring(L, str.c_str());
+                str = str.substr(0, min(str.find_first_of("\r\n"), (std::string::size_type)512));
+                lua_pushlstring(L, str.c_str(), str.size());
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
@@ -657,7 +657,7 @@ std::string termGetEvent(lua_State *L) {
             lua_pushboolean(L, e.key.repeat);
             return "key";
         } else if (e.type == SDL_KEYUP && (selectedRenderer == 2 || selectedRenderer == 3 || keymap.find(e.key.keysym.sym) != keymap.end())) {
-            if (e.key.keysym.sym != SDLK_F2 || config.ignoreHotkeys) {
+            if ((e.key.keysym.sym != SDLK_F2 && e.key.keysym.sym != SDLK_F3 && e.key.keysym.sym != SDLK_F11 && e.key.keysym.sym != SDLK_F12) || config.ignoreHotkeys) {
                 computer->waitingForTerminate = 0;
                 if (selectedRenderer != 0 && selectedRenderer != 5) lua_pushinteger(L, e.key.keysym.sym); 
                 else lua_pushinteger(L, keymap.at(e.key.keysym.sym));
