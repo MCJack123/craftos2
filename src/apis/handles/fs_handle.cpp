@@ -58,19 +58,6 @@ int fs_handle_istream_close(lua_State *L) {
     return 0;
 }
 
-std::string makeASCIISafe(const char * retval, size_t len) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr;
-    try {wstr = converter.from_bytes(retval, retval + len);} 
-    catch (std::exception &e) {
-        fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-        return std::string(retval, len);
-    }
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
-    return out;
-}
-
 int fs_handle_readAll(lua_State *L) {
     lastCFunction = __func__;
     FILE * fp = *(FILE**)lua_touserdata(L, lua_upvalueindex(1));

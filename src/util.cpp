@@ -289,3 +289,16 @@ void xcopy(lua_State *from, lua_State *to, int n) {
     std::unordered_set<const void*> copies;
     xcopy_internal(from, to, n, copies);
 }
+
+std::string makeASCIISafe(const char * retval, size_t len) {
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring wstr;
+    try {wstr = converter.from_bytes(retval, retval + len);} 
+    catch (std::exception &e) {
+        fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
+        return std::string(retval, len);
+    }
+    std::string out;
+    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
+    return out;
+}
