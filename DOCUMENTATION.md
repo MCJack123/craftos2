@@ -181,14 +181,14 @@ int multiply(lua_State *L) {
 _declspec(dllexport) 
 #endif
 int luaopen_example(lua_State *L) {
-    struct luaL_reg M[] =
+    struct luaL_Reg M[] =
     {
       {"addition", addition},
       {"multiply", multiply},
       {NULL,NULL}
     };
 
-    luaL_register(L, "example", M);
+    luaL_Register(L, "example", M);
     return 1;
 }
 

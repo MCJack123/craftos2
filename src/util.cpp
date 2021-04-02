@@ -44,7 +44,9 @@ Computer * _get_comp(lua_State *L) {
 }
 
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {
-    luaL_register(L, lib.name, lib.functions);
+    lua_newtable(L);
+    luaL_setfuncs(L, lib.functions, 0);
+    lua_setglobal(L, lib.name);
     if (lib.init != NULL) lib.init(comp);
 }
 
@@ -260,7 +262,7 @@ std::set<std::string> getMounts(Computer * computer, const char * comp_path) {
 static void xcopy_internal(lua_State *from, lua_State *to, int n, std::unordered_set<const void*>& copies) {
     for (int i = n - 1; i >= 0; i--) {
         if (lua_type(from, -1-i) == LUA_TNUMBER) lua_pushnumber(to, lua_tonumber(from, -1-i));
-        else if (lua_type(from, -1-i) == LUA_TSTRING) lua_pushlstring(to, lua_tostring(from, -1-i), lua_strlen(from, -1-i));
+        else if (lua_type(from, -1-i) == LUA_TSTRING) lua_pushlstring(to, lua_tostring(from, -1-i), lua_rawlen(from, -1-i));
         else if (lua_type(from, -1-i) == LUA_TBOOLEAN) lua_pushboolean(to, lua_toboolean(from, -1-i));
         else if (lua_type(from, -1-i) == LUA_TTABLE) {
             const void* ptr = lua_topointer(from, -1-i);
@@ -278,7 +280,7 @@ static void xcopy_internal(lua_State *from, lua_State *to, int n, std::unordered
         } else if (lua_isnil(from, -1-i)) lua_pushnil(to);
         else {
             if (luaL_callmeta(from, -1-i, "__tostring")) {
-                lua_pushlstring(to, lua_tostring(from, -1), lua_strlen(from, -1));
+                lua_pushlstring(to, lua_tostring(from, -1), lua_rawlen(from, -1));
                 lua_pop(from, 1);
             } else lua_pushfstring(to, "<%s: %p>", lua_typename(from, lua_type(from, -1-i)), lua_topointer(from, -1-i));
         }

@@ -61,7 +61,7 @@ int modem::transmit(lua_State *L) {
         }
         idsToDelete.clear();
     }
-    const int id = (int)lua_objlen(eventQueue, 1) + 1;
+    const int id = (int)lua_rawlen(eventQueue, 1) + 1;
     int * refc = new int(0);
     lua_pushinteger(eventQueue, id);
     lua_newtable(eventQueue);

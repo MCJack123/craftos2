@@ -218,7 +218,7 @@ static int rs_testBundledInput(lua_State *L) {
     return 1;
 }
 
-static luaL_reg rs_reg[] = {
+static luaL_Reg rs_reg[] = {
     {"getSides", rs_getSides},
     {"getInput", rs_getInput},
     {"getOutput", rs_getOutput},

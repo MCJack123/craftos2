@@ -155,7 +155,7 @@ static int fs_isReadOnly(lua_State *L) {
 static int fs_getName(lua_State *L) {
     lastCFunction = __func__;
     luaL_checkstring(L, 1);
-    char * path = new char[lua_strlen(L, 1) + 1];
+    char * path = new char[lua_rawlen(L, 1) + 1];
     strcpy(path, lua_tostring(L, 1));
     lua_pushstring(L, basename(path));
     delete[] path;
@@ -656,7 +656,7 @@ static int fs_getDir(lua_State *L) {
         lua_pushstring(L, "..");
         return 1;
     }
-    const std::unique_ptr<char[]> path(new char[lua_strlen(L, 1) + 1]);
+    const std::unique_ptr<char[]> path(new char[lua_rawlen(L, 1) + 1]);
     strcpy(path.get(), lua_tostring(L, 1));
     if (strrchr(path.get(), '/') <= path.get()) {
         lua_pushstring(L, "");

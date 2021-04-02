@@ -484,7 +484,7 @@ static void migrateData(bool forced) {
 
 int main(int argc, char*argv[]) {
     lualib_debug_ccpc_functions(setcompmask_, db_debug, db_breakpoint, db_unsetbreakpoint);
-    lualib_io_ccpc_functions(mounter_fopen_, mounter_fclose_);
+    //lualib_io_ccpc_functions(mounter_fopen_, mounter_fclose_);
 #ifdef __EMSCRIPTEN__
     while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
 #endif

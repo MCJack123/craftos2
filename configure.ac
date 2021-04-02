@@ -1,5 +1,5 @@
 # Initialize
-AC_INIT([CraftOS-PC], [2.5])
+AC_INIT([CraftOS-PC], [2.6])
 AC_CONFIG_SRCDIR([src/main.cpp])
 m4_include([m4/find_cxx.m4])
 m4_include([m4/find_cxx11.m4])

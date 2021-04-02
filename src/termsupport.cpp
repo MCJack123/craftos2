@@ -334,17 +334,17 @@ static void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
     lua_settable(coro, -3);
     lua_newtable(coro);
     lua_pushstring(coro, "__index");
-    lua_getfenv(L, -2);
+    lua_getupvalue(L, -2, 1);
     lua_xmove(L, coro, 1);
     lua_settable(coro, -3);
     lua_setmetatable(coro, -2);
     lua_pushstring(coro, "/rom/programs/lua.lua");
-    int status = lua_resume(coro, 2);
+    int status = lua_resume(coro, L, 2);
     int narg;
     while (status == LUA_YIELD) {
-        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
+        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_rawlen(coro, -1)));
         else narg = getNextEvent(coro, "");
-        status = lua_resume(coro, narg);
+        status = lua_resume(coro, L, narg);
     }
     lua_pop(L, 1);
     lua_pushnil(L);
@@ -376,7 +376,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
     std::string name; // For some reason MSVC explodes when this isn't at the top of the function
                       // I've had issues with it randomly moving scope boundaries around (see apis/config.cpp:101, runtime.cpp:249),
                       // so I'm not surprised about it happening again.
-    if (lua_icontext(L) == 1) {
+    int ctx = 0;
+    if (lua_getctx(L, &ctx) == LUA_YIELD) {
         lua_pop(L, 1);
         return;
     }
@@ -384,7 +385,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;
         lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
-        for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
+        for (size_t i = 1; i <= lua_rawlen(L, -1); i++) {
             lua_rawgeti(L, -1, (int)i);
             if (lua_isthread(L, -1)) lua_sethook(lua_tothread(L, -1), NULL, 0, 0); //lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
             lua_pop(L, 1);
@@ -444,7 +445,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 if (debuggerBreak(L, computer, dbg, lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2))) return;
         }
     } else if (computer->debugger != NULL && !computer->isDebugger) {
-        if (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET) {
+        if (ar->event == LUA_HOOKRET) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL && debuggerBreak(L, computer, dbg, "Pause")) return;
             if (dbg->isProfiling) {

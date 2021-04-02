@@ -389,7 +389,7 @@ static int http_request(lua_State *L) {
         lua_pushboolean(L, false);
         return 1;
     }
-    if (!lua_isstring(L, 1) && !lua_istable(L, 1)) luaL_typerror(L, 1, "string or table");
+    if (!lua_isstring(L, 1) && !lua_istable(L, 1)) luaL_error(L, "bad argument #1 (expected string or table, got %s)", lua_typename(L, lua_type(L, 1)));
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
     if (lua_istable(L, 1)) {
@@ -400,7 +400,7 @@ static int http_request(lua_State *L) {
         lua_pop(L, 1);
         lua_getfield(L, 1, "body");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'body' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        else if (lua_isstring(L, -1)) param->postData = std::string(lua_tostring(L, -1), lua_strlen(L, -1));
+        else if (lua_isstring(L, -1)) param->postData = std::string(lua_tostring(L, -1), lua_rawlen(L, -1));
         lua_pop(L, 1);
         lua_getfield(L, 1, "binary");
         if (!lua_isnil(L, -1) && !lua_isboolean(L, -1)) {delete param; return luaL_error(L, "bad field 'binary' (boolean expected, got %s)", lua_typename(L, lua_type(L, -1)));}
@@ -428,7 +428,7 @@ static int http_request(lua_State *L) {
         param->url = lua_tostring(L, 1);
         param->old_url = param->url;
         param->isBinary = false;
-        if (lua_isstring(L, 2)) param->postData = std::string(lua_tostring(L, 2), lua_strlen(L, 2));
+        if (lua_isstring(L, 2)) param->postData = std::string(lua_tostring(L, 2), lua_rawlen(L, 2));
         if (lua_istable(L, 3)) {
             lua_pushvalue(L, 3);
             lua_pushnil(L);
@@ -687,10 +687,10 @@ static std::string websocket_closed(lua_State *L, void* userp) {
 static int websocket_send(lua_State *L) {
     lastCFunction = __func__;
     luaL_checkstring(L, 1);
-    if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
+    if (config.http_max_websocket_message > 0 && lua_rawlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     if (ws->closed) return 0;
-    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
+    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_rawlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
         ws->closed = true;
     return 0;
 }
@@ -967,14 +967,14 @@ static int http_websocket(lua_State *L) {
     if (lua_isstring(L, 1)) {
         Computer * comp = get_comp(L);
         if (config.http_max_websockets > 0 && comp->openWebsockets.size() >= (unsigned)config.http_max_websockets) luaL_error(L, "Too many websockets already open");
-        std::string url = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
+        std::string url = std::string(lua_tostring(L, 1), lua_rawlen(L, 1));
         std::unordered_map<std::string, std::string> headers;
         if (lua_istable(L, 2)) {
             lua_pushvalue(L, 2);
             lua_pushnil(L);
             for (int i = 0; lua_next(L, -2); i++) {
                 lua_pushvalue(L, -2);
-                headers[std::string(lua_tostring(L, -1), lua_strlen(L, -1))] = std::string(lua_tostring(L, -2), lua_strlen(L, -2));
+                headers[std::string(lua_tostring(L, -1), lua_rawlen(L, -1))] = std::string(lua_tostring(L, -2), lua_rawlen(L, -2));
                 lua_pop(L, 2);
             }
             lua_pop(L, 1);
@@ -989,7 +989,7 @@ static int http_websocket(lua_State *L) {
             lua_pushnil(L);
             for (int i = 0; lua_next(L, -2); i++) {
                 lua_pushvalue(L, -2);
-                headers[std::string(lua_tostring(L, -1), lua_strlen(L, -1))] = std::string(lua_tostring(L, -2), lua_strlen(L, -2));
+                headers[std::string(lua_tostring(L, -1), lua_rawlen(L, -1))] = std::string(lua_tostring(L, -2), lua_rawlen(L, -2));
                 lua_pop(L, 2);
             }
             lua_pop(L, 1);
