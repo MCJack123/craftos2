@@ -65,22 +65,23 @@ int http_handle_readAll(lua_State *L) {
     lastCFunction = __func__;
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed) return luaL_error(L, "attempt to use a closed file");
-    if (handle->stream->eof()) return 0;
-    const long pos = (long)handle->stream->tellg();
-    handle->stream->seekg(0, std::ios::end);
-    const long size = (long)handle->stream->tellg() - pos;
-    char * retval = new char[size + 1];
-    memset(retval, 0, size + 1);
-    handle->stream->seekg(pos);
-    int i;
-    for (i = 0; !handle->stream->eof() && i < size; i++) {
-        int c = handle->stream->get();
-        if (c == EOF && handle->stream->eof()) c = '\n';
-        if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
-        else retval[i] = (char)c;
+    if (!handle->stream->good()) return 0;
+    std::string ret;
+    char buffer[4096];
+    while (handle->stream->read(buffer, sizeof(buffer)))
+        ret.append(buffer, sizeof(buffer));
+    ret.append(buffer, handle->stream->gcount());
+    ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring wstr;
+    try {wstr = converter.from_bytes(ret.c_str(), ret.c_str() + ret.length());}
+    catch (std::exception & e) {
+        fprintf(stderr, "http_handle_readAll: Error decoding UTF-8: %s\n", e.what());
+        lua_pushlstring(L, ret.c_str(), ret.length());
+        return 1;
     }
-    const std::string out = makeASCIISafe(retval, i - (i == size ? 0 : 1));
-    delete[] retval;
+    std::string out;
+    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }
@@ -89,7 +90,7 @@ int http_handle_readLine(lua_State *L) {
     lastCFunction = __func__;
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed) return luaL_error(L, "attempt to use a closed file");
-    if (handle->stream->bad() || handle->stream->eof()) return 0;
+    if (!handle->stream->good()) return 0;
     std::string retval;
     std::getline(*handle->stream, retval);
     if (retval.empty() && handle->stream->eof()) return 0;
@@ -165,21 +166,14 @@ int http_handle_readAllByte(lua_State *L) {
     lastCFunction = __func__;
     http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
     if (handle->closed) return luaL_error(L, "attempt to use a closed file");
-    if (handle->stream->eof()) return 0;
-    size_t size = 0;
-    char * str = (char*)malloc(512);
-    if (str == NULL) return luaL_error(L, "failed to allocate memory");
-    while (!handle->stream->eof()) {
-        size += handle->stream->readsome(&str[size], 512);
-        if (size % 512 != 0) break;
-        char * strn = (char*)realloc(str, size + 512);
-        if (strn == NULL) {
-            free(str);
-            return luaL_error(L, "failed to allocate memory");
-        }
-        str = strn;
-    }
-    lua_pushlstring(L, str, size);
+    if (!handle->stream->good()) return 0;
+    if (!handle->stream->good()) return 0;
+    std::string ret;
+    char buffer[4096];
+    while (handle->stream->read(buffer, sizeof(buffer)))
+        ret.append(buffer, sizeof(buffer));
+    ret.append(buffer, handle->stream->gcount());
+    lua_pushlstring(L, ret.c_str(), ret.size());
     return 1;
 }
 

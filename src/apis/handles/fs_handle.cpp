@@ -310,6 +310,7 @@ int fs_handle_readAllByte(lua_State *L) {
         str = strn;
     }
     lua_pushlstring(L, str, size);
+    free(str);
     return 1;
 }
 
@@ -332,6 +333,7 @@ int fs_handle_istream_readAllByte(lua_State *L) {
         str = strn;
     }
     lua_pushlstring(L, str, size);
+    free(str);
     return 1;
 }
 
