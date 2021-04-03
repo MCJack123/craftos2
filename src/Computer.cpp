@@ -358,6 +358,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->coro = lua_newthread(L);
         self->paramQueue = lua_newthread(L);
         while (!self->eventQueue.empty()) self->eventQueue.pop();
+        lua_setlockstate(L, false);
 
         // Reinitialize any peripherals that were connected before rebooting
         for (auto p : self->peripherals) p.second->reinitialize(L);

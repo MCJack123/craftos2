@@ -193,12 +193,14 @@ modem::modem(lua_State *L, const char * side) {
     this->side = side;
     if (network.find(netID) == network.end()) network[netID] = std::list<modem*>();
     network[netID].push_back(this);
+    lua_setlockstate(L, true);
 }
 
 void modem::reinitialize(lua_State *L) {
     // eventQueue should be freed and inaccessible since the Lua state was closed
     eventQueue = lua_newthread(L);
     lua_newtable(eventQueue);
+    lua_setlockstate(L, true);
 }
 
 modem::~modem() {
@@ -214,6 +216,10 @@ modem::~modem() {
     }
     lua_pop(eventQueue, 1);
     for (int i = 1; i < lua_gettop(comp->L); i++) if (lua_type(comp->L, i) == LUA_TTHREAD && lua_tothread(comp->L, i) == eventQueue) lua_remove(comp->L, i--);
+    for (const auto& p : comp->peripherals)
+        if (std::string(p.second->getMethods().name) == "modem" && p.second != this)
+            return;
+    lua_setlockstate(comp->L, false);
 }
 
 int modem::call(lua_State *L, const char * method) {
