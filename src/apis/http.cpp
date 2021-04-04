@@ -871,7 +871,6 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     if (uri.getPathAndQuery().empty()) uri.setPath("/");
     if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
-    request.set("origin", "http://www.websocket.org");
     for (std::pair<std::string, std::string> h : headers) request.set(h.first, h.second);
     if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
     if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
