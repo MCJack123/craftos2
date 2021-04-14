@@ -676,7 +676,7 @@ bool SDLTerminal::pollEvents() {
                                     msg.window = ((SDLTerminal*)c->term)->win;
                                     int id = 0;
                                     SDL_ShowMessageBox(&msg, &id);
-                                    if (id == 1) {
+                                    if (id == 1 && c->L) {
                                         // Forcefully halt the Lua state
                                         c->running = 0;
                                         lua_halt(c->L);
