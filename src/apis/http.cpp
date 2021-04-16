@@ -881,10 +881,16 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     WebSocket* ws;
     try {
         ws = new WebSocket(*cs, request, response);
-    } catch (NetException &e) {
+    } catch (Poco::Exception &e) {
         websocket_failure_data * data = new websocket_failure_data;
         data->url = str;
         data->reason = e.displayText();
+        queueEvent(comp, websocket_failure, data);
+        return;
+    } catch (std::exception &e) {
+        websocket_failure_data * data = new websocket_failure_data;
+        data->url = str;
+        data->reason = e.what();
         queueEvent(comp, websocket_failure, data);
         return;
     }
