@@ -651,15 +651,22 @@ int main(int argc, char*argv[]) {
     config_init();
     if (selectedRenderer == -1) selectedRenderer = config.useHardwareRenderer ? 5 : 0;
     if (rawClient) return runRenderer();
+    try {
 #ifndef NO_CLI
-    if (selectedRenderer == 2) CLITerminal::init();
-    else 
+        if (selectedRenderer == 2) CLITerminal::init();
+        else 
 #endif
-    if (selectedRenderer == 3) RawTerminal::init();
-    else if (selectedRenderer == 0) SDLTerminal::init();
-    else if (selectedRenderer == 4) TRoRTerminal::init();
-    else if (selectedRenderer == 5) HardwareSDLTerminal::init();
-    else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
+        if (selectedRenderer == 3) RawTerminal::init();
+        else if (selectedRenderer == 0) SDLTerminal::init();
+        else if (selectedRenderer == 4) TRoRTerminal::init();
+        else if (selectedRenderer == 5) HardwareSDLTerminal::init();
+        else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
+    } catch (std::exception &e) {
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to initialize renderer", ("An error occurred while initializing the renderer: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info. CraftOS-PC will now close").c_str(), NULL);
+        else fprintf(stderr, "An error occurred while initializing the renderer: %s. See https://www.craftos-pc.cc/docs/error-messages for more info. CraftOS-PC will now close.\n", e.what());
+        SDL_Quit();
+        return 2;
+    }
     driveInit();
 #ifndef NO_MIXER
     speakerInit();
@@ -670,7 +677,7 @@ int main(int argc, char*argv[]) {
         std::thread(update_thread).detach();
 #endif
 #if defined(_WIN32) && defined(CRASHREPORT_API_KEY)
-    if (onboardingMode && !config.snooperEnabled) {
+    if (onboardingMode == 1 && !config.snooperEnabled) {
         SDL_MessageBoxData data;
         data.title = "Allow analytics?";
         data.message = "CraftOS-PC can automatically upload crash logs to help bugs get fixed. These files are sent anonymously and don't contain direct personal data, but they do include general system information (see https://www.craftos-pc.cc/docs/privacy for more info). Would you like to allow crash logs to be uploaded?";
@@ -698,7 +705,7 @@ int main(int argc, char*argv[]) {
         mainLoop();
     } catch (std::exception &e) {
         fprintf(stderr, "Uncaught exception on main thread: %s\n", e.what());
-        if (selectedRenderer == 0 || selectedRenderer == 5) queueTask([e](void*t)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", (std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on main thread: ") + e.what() + "\". CraftOS-PC will now close.").c_str(), NULL); return NULL; }, NULL);
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", (std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on main thread: ") + e.what() + "\". CraftOS-PC will now close.").c_str(), NULL);
         for (Computer * c : *computers) {
             c->running = 0;
             c->event_lock.notify_all();

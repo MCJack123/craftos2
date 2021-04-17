@@ -388,19 +388,23 @@ void HardwareSDLTerminal::init() {
     renderThread = new std::thread(termRenderLoop);
     setThreadName(*renderThread, "Render Thread");
     SDL_Surface* old_bmp;
+    std::string bmp_path = "built-in file";
+#ifndef STANDALONE_ROM
+    if (config.customFontPath == "hdfont") bmp_path = astr(getROMPath() + WS("/hdfont.bmp"));
+    else 
+#endif
+    if (!config.customFontPath.empty())
+        bmp_path = config.customFontPath;
     if (config.customFontPath.empty()) 
         old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, (int)font_image.width, (int)font_image.height, (int)font_image.bytes_per_pixel * 8, (int)font_image.bytes_per_pixel * (int)font_image.width, SDL_PIXELFORMAT_RGB565);
-#ifndef STANDALONE_ROM
-    else if (config.customFontPath == "hdfont") old_bmp = SDL_LoadBMP(astr(getROMPath() + WS("/hdfont.bmp")).c_str());
-#endif
-    else old_bmp = SDL_LoadBMP(config.customFontPath.c_str());
+    else old_bmp = SDL_LoadBMP(bmp_path.c_str());
     if (old_bmp == (SDL_Surface*)0) {
-        throw window_exception("Failed to load font: " + std::string(SDL_GetError()));
+        throw std::runtime_error("Failed to load font: " + std::string(SDL_GetError()));
     }
     bmp = SDL_ConvertSurfaceFormat(old_bmp, SDL_PIXELFORMAT_RGBA32, 0);
     if (bmp == (SDL_Surface*)0) {
         SDL_FreeSurface(old_bmp);
-        throw window_exception("Failed to convert font: " + std::string(SDL_GetError()));
+        throw std::runtime_error("Failed to convert font: " + std::string(SDL_GetError()));
     }
     SDL_FreeSurface(old_bmp);
     SDL_SetColorKey(bmp, SDL_TRUE, SDL_MapRGB(bmp->format, 0, 0, 0));

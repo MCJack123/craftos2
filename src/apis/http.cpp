@@ -87,16 +87,15 @@ static std::string http_success(lua_State *L, void* data) {
     lua_pushcclosure(L, http_handle_close, 1);
     lua_settable(L, -3);
 
-    lua_pushstring(L, "readAll");
+    lua_pushstring(L, "readLine");
     lua_pushlightuserdata(L, handle);
-    lua_pushboolean(L, handle->isBinary);
-    lua_pushcclosure(L, http_handle_readAll, 2);
+    lua_pushcclosure(L, http_handle_readLine, 1);
     lua_settable(L, -3);
 
     if (!handle->isBinary) {
-        lua_pushstring(L, "readLine");
+        lua_pushstring(L, "readAll");
         lua_pushlightuserdata(L, handle);
-        lua_pushcclosure(L, http_handle_readLine, 1);
+        lua_pushcclosure(L, http_handle_readAll, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "read");
@@ -104,6 +103,11 @@ static std::string http_success(lua_State *L, void* data) {
         lua_pushcclosure(L, http_handle_readChar, 1);
         lua_settable(L, -3);
     } else {
+        lua_pushstring(L, "readAll");
+        lua_pushlightuserdata(L, handle);
+        lua_pushcclosure(L, http_handle_readAllByte, 1);
+        lua_settable(L, -3);
+
         lua_pushstring(L, "read");
         lua_pushlightuserdata(L, handle);
         lua_pushcclosure(L, http_handle_readByte, 1);
@@ -141,16 +145,15 @@ static std::string http_failure(lua_State *L, void* data) {
         lua_pushcclosure(L, http_handle_close, 1);
         lua_settable(L, -3);
 
-        lua_pushstring(L, "readAll");
+        lua_pushstring(L, "readLine");
         lua_pushlightuserdata(L, handle);
-        lua_pushboolean(L, handle->isBinary);
-        lua_pushcclosure(L, http_handle_readAll, 2);
+        lua_pushcclosure(L, http_handle_readLine, 1);
         lua_settable(L, -3);
 
         if (!handle->isBinary) {
-            lua_pushstring(L, "readLine");
+            lua_pushstring(L, "readAll");
             lua_pushlightuserdata(L, handle);
-            lua_pushcclosure(L, http_handle_readLine, 1);
+            lua_pushcclosure(L, http_handle_readAll, 1);
             lua_settable(L, -3);
 
             lua_pushstring(L, "read");
@@ -158,6 +161,11 @@ static std::string http_failure(lua_State *L, void* data) {
             lua_pushcclosure(L, http_handle_readChar, 1);
             lua_settable(L, -3);
         } else {
+            lua_pushstring(L, "readAll");
+            lua_pushlightuserdata(L, handle);
+            lua_pushcclosure(L, http_handle_readAllByte, 1);
+            lua_settable(L, -3);
+
             lua_pushstring(L, "read");
             lua_pushlightuserdata(L, handle);
             lua_pushcclosure(L, http_handle_readByte, 1);
@@ -411,7 +419,9 @@ static int http_request(lua_State *L) {
         else if (lua_istable(L, -1)) {
             lua_pushnil(L);
             while (lua_next(L, -2)) {
-                param->headers[lua_tostring(L, -2)] = lua_tostring(L, -1);
+                size_t keyn = 0, valn = 0;
+                const char * key = lua_tolstring(L, -2, &keyn), *val = lua_tolstring(L, -1, &valn);
+                if (key && val) param->headers[std::string(key, keyn)] = std::string(val, valn);
                 lua_pop(L, 1);
             }
         }
@@ -425,9 +435,10 @@ static int http_request(lua_State *L) {
             lua_pushvalue(L, 3);
             lua_pushnil(L);
             for (int i = 0; lua_next(L, -2); i++) {
-                lua_pushvalue(L, -2);
-                param->headers[lua_tostring(L, -1)] = lua_tostring(L, -2);
-                lua_pop(L, 2);
+                size_t keyn = 0, valn = 0;
+                const char * key = lua_tolstring(L, -2, &keyn), *val = lua_tolstring(L, -1, &valn);
+                if (key && val) param->headers[std::string(key, keyn)] = std::string(val, valn);
+                lua_pop(L, 1);
             }
             lua_pop(L, 1);
         }
@@ -837,7 +848,7 @@ public:
     ws_handle * handle = (ws_handle*)wsh;
     handle->closed = true; 
     handle->externalClosed = 1;
-    handle->ws->shutdown();
+    try {handle->ws->shutdown();} catch (...) {}
     for (int i = 0; handle->externalClosed != 2; i++) {
         if (i % 4 == 0) fprintf(stderr, "Waiting for WebSocket...\n");
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -863,7 +874,6 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     if (uri.getPathAndQuery().empty()) uri.setPath("/");
     if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
-    request.set("origin", "http://www.websocket.org");
     for (std::pair<std::string, std::string> h : headers) request.set(h.first, h.second);
     if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
     if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
@@ -871,10 +881,16 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     WebSocket* ws;
     try {
         ws = new WebSocket(*cs, request, response);
-    } catch (NetException &e) {
+    } catch (Poco::Exception &e) {
         websocket_failure_data * data = new websocket_failure_data;
         data->url = str;
         data->reason = e.displayText();
+        queueEvent(comp, websocket_failure, data);
+        return;
+    } catch (std::exception &e) {
+        websocket_failure_data * data = new websocket_failure_data;
+        data->url = str;
+        data->reason = e.what();
         queueEvent(comp, websocket_failure, data);
         return;
     }
@@ -965,9 +981,10 @@ static int http_websocket(lua_State *L) {
             lua_pushvalue(L, 2);
             lua_pushnil(L);
             for (int i = 0; lua_next(L, -2); i++) {
-                lua_pushvalue(L, -2);
-                headers[std::string(lua_tostring(L, -1), lua_strlen(L, -1))] = std::string(lua_tostring(L, -2), lua_strlen(L, -2));
-                lua_pop(L, 2);
+                size_t keyn = 0, valn = 0;
+                const char * key = lua_tolstring(L, -2, &keyn), *val = lua_tolstring(L, -1, &valn);
+                if (key && val) headers[std::string(key, keyn)] = std::string(val, valn);
+                lua_pop(L, 1);
             }
             lua_pop(L, 1);
         }
@@ -980,8 +997,9 @@ static int http_websocket(lua_State *L) {
             lua_pushvalue(L, 2);
             lua_pushnil(L);
             for (int i = 0; lua_next(L, -2); i++) {
-                lua_pushvalue(L, -2);
-                headers[std::string(lua_tostring(L, -1), lua_strlen(L, -1))] = std::string(lua_tostring(L, -2), lua_strlen(L, -2));
+                size_t keyn = 0, valn = 0;
+                const char * key = lua_tolstring(L, -2, &keyn), *val = lua_tolstring(L, -1, &valn);
+                if (key && val) headers[std::string(key, keyn)] = std::string(val, valn);
                 lua_pop(L, 2);
             }
             lua_pop(L, 1);

@@ -214,6 +214,9 @@ modem::~modem() {
     }
     lua_pop(eventQueue, 1);
     for (int i = 1; i < lua_gettop(comp->L); i++) if (lua_type(comp->L, i) == LUA_TTHREAD && lua_tothread(comp->L, i) == eventQueue) lua_remove(comp->L, i--);
+    for (const auto& p : comp->peripherals)
+        if (std::string(p.second->getMethods().name) == "modem" && p.second != this)
+            return;
 }
 
 int modem::call(lua_State *L, const char * method) {

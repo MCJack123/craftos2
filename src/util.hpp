@@ -24,7 +24,7 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.5.4-luajit"
+#define CRAFTOSPC_VERSION    "v2.5.5-luajit"
 #define CRAFTOSPC_CC_VERSION "1.95.3"
 #define CRAFTOSPC_INDEV      false
 
@@ -174,5 +174,6 @@ extern void config_init();
 extern void config_save();
 extern void xcopy(lua_State *from, lua_State *to, int n);
 extern std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures = NULL);
+extern std::string makeASCIISafe(const char * retval, size_t len);
 
 #endif
