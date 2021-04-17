@@ -671,7 +671,7 @@ int main(int argc, char*argv[]) {
         std::thread(update_thread).detach();
 #endif
 #if defined(_WIN32) && defined(CRASHREPORT_API_KEY)
-    if (onboardingMode && !config.snooperEnabled) {
+    if (onboardingMode == 1 && !config.snooperEnabled) {
         SDL_MessageBoxData data;
         data.title = "Allow analytics?";
         data.message = "CraftOS-PC can automatically upload crash logs to help bugs get fixed. These files are sent anonymously and don't contain direct personal data, but they do include general system information (see https://www.craftos-pc.cc/docs/privacy for more info). Would you like to allow crash logs to be uploaded?";
