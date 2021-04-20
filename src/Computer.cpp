@@ -329,7 +329,7 @@ static int yieldable_load(lua_State *L) {
 }
 
 static void warnf(void* ud, const char * msg, int tocont) {
-    if (!(*(int*)ud)) fprintf(stderr, "Lua issued a warning: ", msg);
+    if (!(*(int*)ud)) fprintf(stderr, "Lua issued a warning: ");
     fprintf(stderr, "%s\n", msg);
     *(int*)ud = tocont;
 }

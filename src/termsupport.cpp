@@ -377,7 +377,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
     std::string name; // For some reason MSVC explodes when this isn't at the top of the function
                       // I've had issues with it randomly moving scope boundaries around (see apis/config.cpp:101, runtime.cpp:249),
                       // so I'm not surprised about it happening again.
-    int ctx = 0;
     Computer * computer = get_comp(L);
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;
