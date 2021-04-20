@@ -339,12 +339,13 @@ static void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
     lua_settable(coro, -3);
     lua_setmetatable(coro, -2);
     lua_pushstring(coro, "/rom/programs/lua.lua");
-    int status = lua_resume(coro, L, 2);
+    int nresults = 0;
+    int status = lua_resume(coro, L, 2, &nresults);
     int narg;
     while (status == LUA_YIELD) {
-        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_rawlen(coro, -1)));
+        if (nresults > 0 && lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_rawlen(coro, -1)));
         else narg = getNextEvent(coro, "");
-        status = lua_resume(coro, L, narg);
+        status = lua_resume(coro, L, narg, &nresults);
     }
     lua_pop(L, 1);
     lua_pushnil(L);
@@ -377,10 +378,6 @@ void termHook(lua_State *L, lua_Debug *ar) {
                       // I've had issues with it randomly moving scope boundaries around (see apis/config.cpp:101, runtime.cpp:249),
                       // so I'm not surprised about it happening again.
     int ctx = 0;
-    if (lua_getctx(L, &ctx) == LUA_YIELD) {
-        lua_pop(L, 1);
-        return;
-    }
     Computer * computer = get_comp(L);
     if (computer->debugger != NULL && !computer->isDebugger && (computer->shouldDeinitDebugger || ((debugger*)computer->debugger)->running == false)) {
         computer->shouldDeinitDebugger = false;

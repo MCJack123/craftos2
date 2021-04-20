@@ -222,10 +222,6 @@ static const char * file_reader(lua_State *L, void * ud, size_t *size) {
 // computer thread that it's done. The results are copied back to the
 // main state, and the loader returns.
 
-std::vector<load_ctx*> load_ctx_stack; // since Lua 5.2+ stores context as ints, we can't store a pointer -
-                                       // instead, all pointers are placed in this vector and the context is an offset here
-                                       // (maybe we can store a stack index instead?)
-
 static const char * yield_loader(lua_State *L, void* data, size_t *size) {
     load_ctx* ctx = (load_ctx*)data;
     lua_State *coro = lua_newthread(L);
@@ -234,7 +230,7 @@ static const char * yield_loader(lua_State *L, void* data, size_t *size) {
     ctx->argcount = 0;
     int status;
     do {
-        status = lua_resume(coro, ctx->coro, ctx->argcount);
+        status = lua_resume(coro, ctx->coro, ctx->argcount, &ctx->argcount);
         if (status == 0) {
             if (lua_isnoneornil(coro, 1)) return NULL;
             else if (lua_isstring(coro, 1)) return lua_tolstring(coro, 1, size);
@@ -242,7 +238,6 @@ static const char * yield_loader(lua_State *L, void* data, size_t *size) {
         } else if (status == LUA_YIELD) {
             std::unique_lock<std::mutex> lock(ctx->lock);
             ctx->status = 1;
-            ctx->argcount = lua_gettop(coro);
             lua_xmove(coro, ctx->L, ctx->argcount);
             ctx->notify.notify_all();
             while (ctx->status == 1) ctx->notify.wait(lock);
@@ -282,19 +277,16 @@ static int load_ctx_gc(lua_State *L) {
         }
         ctx->thread.join();
     }
-    load_ctx_stack[ctx->id] = NULL;
-    while (!load_ctx_stack.empty() && load_ctx_stack[load_ctx_stack.size()-1] == NULL) load_ctx_stack.erase(load_ctx_stack.end()-1);
     ctx->thread.~thread();
     ctx->lock.~mutex();
     ctx->notify.~condition_variable();
     return 0;
 }
 
-static int yieldable_load(lua_State *L) {
+static int yieldable_loadk(lua_State *L, int status, lua_KContext ctxi) {
     load_ctx* ctx;
-    int ctxid = 0;
-    if (lua_getctx(L, &ctxid) == LUA_YIELD) {
-        ctx = load_ctx_stack[ctxid];
+    if (ctxi) {
+        ctx = (load_ctx*)ctxi;
         std::unique_lock<std::mutex> lock(ctx->lock);
         ctx->status = 0;
         ctx->L = L;
@@ -317,11 +309,6 @@ static int yieldable_load(lua_State *L) {
         ctx->name = name;
         ctx->L = L;
         ctx->coro = lua_newthread(L);
-        for (; ctxid < load_ctx_stack.size(); ctxid++)
-            if (load_ctx_stack[ctxid] == NULL) break;
-        if (ctxid == load_ctx_stack.size()) load_ctx_stack.push_back(ctx);
-        else load_ctx_stack[ctxid] = ctx;
-        ctx->id = ctxid;
         lua_pushvalue(L, 1);
         lua_xmove(L, ctx->coro, 1);
     }
@@ -331,11 +318,16 @@ static int yieldable_load(lua_State *L) {
         if (ctx->status == 1) {
             int argcount = ctx->argcount;
             ctx->argcount = lua_gettop(L) - ctx->argcount;
-            return lua_yieldk(L, argcount, ctxid, yieldable_load);
+            return lua_yieldk(L, argcount, (lua_KContext)ctx, yieldable_loadk);
         } else if (ctx->status == 3) return 0; // this should never happen
     }
     return ctx->argcount;
 }
+
+static int yieldable_load(lua_State *L) {
+    return yieldable_loadk(L, 0, 0);
+}
+
 
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
@@ -602,9 +594,10 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
 #endif
         while (status == LUA_YIELD && self->running == 1) {
-            status = lua_resume(self->coro, NULL, narg);
+            int nresults = 0;
+            status = lua_resume(self->coro, NULL, narg, &nresults);
             if (status == LUA_YIELD) {
-                if (lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_rawlen(self->coro, -1)));
+                if (nresults > 0 && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_rawlen(self->coro, -1)));
                 else narg = getNextEvent(self->coro, "");
             } else if (status != 0 && self->running == 1) {
                 // Catch runtime error

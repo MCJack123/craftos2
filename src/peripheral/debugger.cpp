@@ -493,13 +493,13 @@ static std::string debugger_print(lua_State *L, void* arg) {
     return "debugger_print";
 }
 
+static int lua_converttostringk(lua_State *L, int status, lua_KContext ctx) {return 1;}
 static int lua_converttostring (lua_State *L) {
   int ctx = 0;
-  if (lua_getctx(L, &ctx) == LUA_YIELD) return 1;
   luaL_checkany(L, 1);
   if (luaL_getmetafield(L, 1, "__tostring")) {
     lua_pushvalue(L, 1);
-    lua_callk(L, 1, 1, 1, lua_converttostring);  /* call metamethod */
+    lua_callk(L, 1, 1, 1, lua_converttostringk);  /* call metamethod */
     return 1;
   }
   switch (lua_type(L, 1)) {
