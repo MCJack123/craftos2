@@ -249,12 +249,8 @@ static int term_blit(lua_State *L) {
     std::lock_guard<std::mutex> locked_g(term->locked);
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
-            if ((computer->config->isColor || computer->isDebugger) || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6)
-                computer->colors = (unsigned char)(htoi(bg[i]) << 4) | (computer->colors & 0xF);
-            if ((computer->config->isColor || computer->isDebugger) || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) {
-                computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
-                if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i]);
-            }
+            computer->colors = (unsigned char)(htoi(bg[i]) << 4) | htoi(fg[i]);
+            if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i]);
             if (selectedRenderer == 4)
                 printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[computer->colors & 0xf], term->id, ("0123456789abcdef")[computer->colors >> 4], term->id, str[i]);
             term->screen[term->blinkY][term->blinkX] = str[i];
