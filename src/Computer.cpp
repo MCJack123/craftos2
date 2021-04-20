@@ -328,6 +328,12 @@ static int yieldable_load(lua_State *L) {
     return yieldable_loadk(L, 0, 0);
 }
 
+static void warnf(void* ud, const char * msg, int tocont) {
+    if (!(*(int*)ud)) fprintf(stderr, "Lua issued a warning: ", msg);
+    fprintf(stderr, "%s\n", msg);
+    *(int*)ud = tocont;
+}
+
 
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
@@ -337,6 +343,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
     setjmp(self->on_panic);
     while (self->running) {
         int status;
+        int warnstate = 0;
         if (self->term != NULL) {
             // Initialize terminal contents
             std::lock_guard<std::mutex> lock(self->term->locked);
@@ -391,6 +398,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         //else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         //else lua_sethook(self->coro, termHook, LUA_MASKERROR, 0);
         lua_atpanic(L, termPanic);
+        lua_setwarnf(L, warnf, &warnstate);
         for (library_t * lib : libraries) load_library(self, self->coro, *lib);
         if (config.http_enable) load_library(self, self->coro, http_lib);
         if (self->isDebugger && self->debugger != NULL) load_library(self, self->coro, *((library_t*)self->debugger));
