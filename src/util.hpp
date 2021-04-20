@@ -26,7 +26,7 @@ extern "C" {
 
 #define CRAFTOSPC_VERSION    "v2.6"
 #define CRAFTOSPC_CC_VERSION "2.0.0"
-#define CRAFTOSPC_INDEV      false
+#define CRAFTOSPC_INDEV      true
 
 // for some reason Clang complains if this isn't present
 #ifdef __clang__
