@@ -81,11 +81,24 @@ class Value {
 public:
     Value() { obj = Poco::Dynamic::Var(Poco::JSON::Object()); }
     Value(Poco::Dynamic::Var o) : obj(o) {}
-    Value operator[](std::string key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
+    template<typename T>
+    Value(const std::vector<T>& arr) {
+        Poco::JSON::Array jarr;
+        for (const T& val : arr) jarr.add(val);
+        obj = Poco::Dynamic::Var(jarr);
+    }
+    Value operator[](const std::string& key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
     void operator=(int v) { obj = v; updateParent(); }
     void operator=(bool v) { obj = v; updateParent(); }
     void operator=(const char * v) { obj = std::string(v); updateParent(); }
-    void operator=(std::string v) { obj = v; updateParent(); }
+    void operator=(const std::string& v) { obj = v; updateParent(); }
+    template<typename T>
+    void operator=(const std::vector<T>& v) {
+        Poco::JSON::Array jarr;
+        for (const T& val : v) jarr.add(val);
+        obj = Poco::Dynamic::Var(jarr);
+        updateParent();
+    }
     void operator=(Poco::Dynamic::Var v) { obj = v; updateParent(); }
     void operator=(const Value& v) { obj = v.obj; updateParent(); }
     bool asBool() { return obj.convert<bool>(); }
@@ -175,5 +188,6 @@ extern void config_save();
 extern void xcopy(lua_State *from, lua_State *to, int n);
 extern std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures = NULL);
 extern std::string makeASCIISafe(const char * retval, size_t len);
+extern bool matchIPClass(const std::string& address, const std::string& pattern);
 
 #endif

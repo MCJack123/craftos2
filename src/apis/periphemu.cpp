@@ -78,7 +78,7 @@ peripheral* attachPeripheral(Computer * computer, const std::string& side, const
             case 'i': lua_pushinteger(L, va_arg(arg, lua_Integer)); break;
             case 'n': lua_pushnumber(L, va_arg(arg, lua_Number)); break;
             case 's': lua_pushstring(L, va_arg(arg, const char *)); break;
-            case 'b': lua_pushboolean(L, va_arg(arg, bool)); break;
+            case 'b': lua_pushboolean(L, va_arg(arg, int)); break;
             case 'N': lua_pushnil(L); va_arg(arg, void*); break;
             default: throw std::invalid_argument(std::string("Invalid format specifier ") + *format);
             }

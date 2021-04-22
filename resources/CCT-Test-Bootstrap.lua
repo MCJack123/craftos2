@@ -1,5 +1,6 @@
 if not debug then
     config.set("debug_enable", true)
+    config.add("http_blacklist", "$private")
     os.reboot()
 end
 if ... == "debugger" then

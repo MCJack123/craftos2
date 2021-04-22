@@ -216,6 +216,27 @@ static void downloadThread(void* arg) {
     }
     Poco::URI uri(param->url);
     if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+    bool found = false;
+    for (const std::string& wclass : config.http_whitelist) {
+        if (matchIPClass(uri.getHost(), wclass)) {
+            found = true;
+            for (const std::string& bclass : config.http_blacklist) {
+                if (matchIPClass(uri.getHost(), bclass)) {
+                    found = false;
+                    break;
+                }
+            }
+            if (!found) break;
+        }
+    }
+    if (!found) {
+        http_handle_t * err = new http_handle_t(NULL);
+        err->url = param->url;
+        err->failureReason = "Domain not permitted";
+        queueEvent(param->comp, http_failure, err);
+        delete param;
+        return;
+    }
     HTTPClientSession * session;
     if (uri.getScheme() == "http") {
         session = new HTTPClientSession(uri.getHost(), uri.getPort());
@@ -373,8 +394,23 @@ static void* checkThread(void* arg) {
     if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
     else if (param->url.find("://") == std::string::npos) status = "URL malformed";
     else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
-    // Replace this when implementing the HTTP white/blacklist
-    else if (param->url.find("192.168.") != std::string::npos || param->url.find("10.0.") != std::string::npos || param->url.find("127.") != std::string::npos || param->url.find("localhost") != std::string::npos) status = "Domain not permitted";
+    else {
+        Poco::URI uri(param->url);
+        bool found = false;
+        for (const std::string& wclass : config.http_whitelist) {
+            if (matchIPClass(uri.getHost(), wclass)) {
+                found = true;
+                for (const std::string& bclass : config.http_blacklist) {
+                    if (matchIPClass(uri.getHost(), bclass)) {
+                        found = false;
+                        break;
+                    }
+                }
+                if (!found) break;
+            }
+        }
+        if (!found) status = "Domain not permitted";
+    }
     http_check_t * res = new http_check_t;
     res->url = param->url;
     res->status = status;
@@ -861,13 +897,34 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     pthread_setname_np("WebSocket Client Thread");
 #endif
     Poco::URI uri(str);
+    if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+    bool found = false;
+    for (const std::string& wclass : config.http_whitelist) {
+        if (matchIPClass(uri.getHost(), wclass)) {
+            found = true;
+            for (const std::string& bclass : config.http_blacklist) {
+                if (matchIPClass(uri.getHost(), bclass)) {
+                    found = false;
+                    break;
+                }
+            }
+            if (!found) break;
+        }
+    }
+    if (!found) {
+        websocket_failure_data * data = new websocket_failure_data;
+        data->url = str;
+        data->reason = "Domain not permitted";
+        queueEvent(comp, websocket_failure, data);
+        return;
+    }
     HTTPClientSession * cs;
     if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
     else if (uri.getScheme() == "wss") cs = new HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
     else {
         websocket_failure_data * data = new websocket_failure_data;
         data->url = str;
-        data->reason = std::string("Invalid scheme '" + uri.getScheme() + "'");
+        data->reason = "Invalid scheme '" + uri.getScheme() + "'";
         queueEvent(comp, websocket_failure, data);
         return;
     }

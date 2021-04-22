@@ -302,3 +302,53 @@ std::string makeASCIISafe(const char * retval, size_t len) {
     for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
     return out;
 }
+
+struct IPv6 {uint16_t a, b, c, d, e, f, g, h;};
+
+static constexpr uint32_t makeIP(int a, int b, int c, int d) {return (a << 24) | (b << 16) | (c << 8) | d;}
+
+static std::vector<std::pair<uint32_t, uint8_t> > reservedIPv4s = {
+    {makeIP(10, 0, 0, 0), 8},
+    {makeIP(100, 64, 0, 0), 10},
+    {makeIP(127, 0, 0, 0), 8},
+    {makeIP(169, 254, 0, 0), 16},
+    {makeIP(172, 16, 0, 0), 12},
+    {makeIP(192, 0, 0, 0), 24},
+    {makeIP(192, 0, 2, 0), 24},
+    {makeIP(192, 168, 0, 0), 16},
+    {makeIP(198, 18, 0, 0), 15},
+    {makeIP(255, 255, 255, 255), 32}
+};
+
+static std::vector<std::pair<IPv6, uint8_t> > reservedIPv6s = {
+    {{0, 0, 0, 0, 0, 0, 0, 1}, 128},
+    {{0xfc00, 0, 0, 0, 0, 0, 0, 0}, 7},
+    {{0xfe80, 0, 0, 0, 0, 0, 0, 0}, 10}
+};
+
+bool matchIPClass(const std::string& address, const std::string& pattern) {
+    static const std::regex ipv4_regex("(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)");
+    static const std::regex ipv6_regex("");
+    static const std::regex ipv4_class_regex("(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)/(\\d+)");
+    static const std::regex regex_escape("[\\^\\$\\\\\\.\\+\\?\\(\\)\\[\\]\\{\\}\\|]");
+    static const std::regex regex_wildcard("\\*");
+    if (reservedIPv6s.size() < reservedIPv4s.size())
+        for (const auto& cl : reservedIPv4s)
+            reservedIPv6s.push_back(std::make_pair<IPv6, uint8_t>({0, 0, 0, 0, 0, 0xffff, (uint16_t)(cl.first >> 16), (uint16_t)(cl.first & 0xFFFF)}, cl.second + 96));
+    std::smatch pmatch, amatch;
+    const std::regex patreg(std::regex_replace(std::regex_replace(pattern, regex_escape, "\\$&"), regex_wildcard, ".*"));
+    if ((pattern == "$private" && address == "localhost") || std::regex_match(address, patreg)) return true;
+    else if (std::regex_match(address, amatch, ipv4_regex)) {
+        const int a1 = std::stoi(amatch[1]), a2 = std::stoi(amatch[2]), a3 = std::stoi(amatch[3]), a4 = std::stoi(amatch[4]);
+        const uint32_t ip = makeIP(a1, a2, a3, a4);
+        if (std::regex_match(pattern, pmatch, ipv4_class_regex)) {
+            const int b1 = std::stoi(pmatch[1]), b2 = std::stoi(pmatch[2]), b3 = std::stoi(pmatch[3]), b4 = std::stoi(pmatch[4]);
+            const uint32_t pattern_ip = makeIP(b1, b2, b3, b4);
+            const uint32_t netmask = 0xFFFFFFFFu << std::stoi(pmatch[5]);
+            return (pattern_ip & netmask) == (ip & netmask);
+        } else if (pattern == "$private")
+            for (const auto& cl : reservedIPv4s)
+                if ((ip & (0xFFFFFFFFu << cl.second)) == cl.first) return true;
+    } // check IPv6 addresses
+    return false;
+}

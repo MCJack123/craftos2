@@ -697,6 +697,15 @@ int main(int argc, char*argv[]) {
 #else
     try {
         mainLoop();
+    } catch (Poco::Exception &e) {
+        fprintf(stderr, "Uncaught exception on main thread: %s\n", e.displayText().c_str());
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", ("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Poco exception on main thread: " + e.displayText() + "\". CraftOS-PC will now close.").c_str(), NULL);
+        for (Computer * c : *computers) {
+            c->running = 0;
+            c->event_lock.notify_all();
+        }
+        exiting = true;
+        awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     } catch (std::exception &e) {
         fprintf(stderr, "Uncaught exception on main thread: %s\n", e.what());
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", (std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on main thread: ") + e.what() + "\". CraftOS-PC will now close.").c_str(), NULL);
