@@ -1,8 +1,8 @@
 if not debug then
     config.set("debug_enable", true)
-    config.add("http_blacklist", "$private")
     os.reboot()
 end
+config.add("http_blacklist", "$private")
 if ... == "debugger" then
     periphemu.create("left", "debugger")
     peripheral.call("left", "break")
