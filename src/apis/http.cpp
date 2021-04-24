@@ -197,15 +197,49 @@ static std::string http_check(lua_State *L, void* data) {
     return "http_check";
 }
 
+static inline void replaceAll(std::string& str, const std::string& from, const std::string& to) {
+    
+}
+
 static void downloadThread(void* arg) {
 #ifdef __APPLE__
     pthread_setname_np("HTTP Download Thread");
 #endif
     http_param_t* param = (http_param_t*)arg;
+    Poco::URI uri;
+    HTTPClientSession * session;
     std::string status;
     if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
     else if (param->url.find("://") == std::string::npos) status = "URL malformed";
     else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
+    try {
+        uri = Poco::URI(param->url);
+    } catch (Poco::SyntaxException &e) {
+        status = "URL malformed";
+    }
+    if (status.empty()) {
+        if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+        bool found = false;
+        for (const std::string& wclass : config.http_whitelist) {
+            if (matchIPClass(uri.getHost(), wclass)) {
+                found = true;
+                for (const std::string& bclass : config.http_blacklist) {
+                    if (matchIPClass(uri.getHost(), bclass)) {
+                        found = false;
+                        break;
+                    }
+                }
+                if (!found) break;
+            }
+        }
+        if (!found) status = "Domain not permitted";
+        else if (uri.getScheme() == "http") {
+            session = new HTTPClientSession(uri.getHost(), uri.getPort());
+        } else if (uri.getScheme() == "https") {
+            const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+            session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+        } else status = "Invalid protocol '" + uri.getScheme() + "'";
+    }
     if (!status.empty()) {
         http_handle_t * err = new http_handle_t(NULL);
         err->url = param->url;
@@ -214,43 +248,7 @@ static void downloadThread(void* arg) {
         delete param;
         return;
     }
-    Poco::URI uri(param->url);
-    if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
-    bool found = false;
-    for (const std::string& wclass : config.http_whitelist) {
-        if (matchIPClass(uri.getHost(), wclass)) {
-            found = true;
-            for (const std::string& bclass : config.http_blacklist) {
-                if (matchIPClass(uri.getHost(), bclass)) {
-                    found = false;
-                    break;
-                }
-            }
-            if (!found) break;
-        }
-    }
-    if (!found) {
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = "Domain not permitted";
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        return;
-    }
-    HTTPClientSession * session;
-    if (uri.getScheme() == "http") {
-        session = new HTTPClientSession(uri.getHost(), uri.getPort());
-    } else if (uri.getScheme() == "https") {
-        const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
-        session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
-    } else {
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = "Invalid protocol '" + uri.getScheme() + "'";
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        return;
-    }
+
     if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
@@ -367,7 +365,13 @@ static void downloadThread(void* arg) {
 }
 
 void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback) {
-    Poco::URI uri(url);
+    Poco::URI uri;
+    try {
+        uri = Poco::URI(url);
+    } catch (Poco::SyntaxException &e) {
+        callback(NULL, &e);
+        return;
+    }
     HTTPSClientSession session(uri.getHost(), uri.getPort(), new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
@@ -395,21 +399,28 @@ static void* checkThread(void* arg) {
     else if (param->url.find("://") == std::string::npos) status = "URL malformed";
     else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
     else {
-        Poco::URI uri(param->url);
-        bool found = false;
-        for (const std::string& wclass : config.http_whitelist) {
-            if (matchIPClass(uri.getHost(), wclass)) {
-                found = true;
-                for (const std::string& bclass : config.http_blacklist) {
-                    if (matchIPClass(uri.getHost(), bclass)) {
-                        found = false;
-                        break;
-                    }
-                }
-                if (!found) break;
-            }
+        Poco::URI uri;
+        try {
+            uri = Poco::URI(param->url);
+        } catch (Poco::SyntaxException &e) {
+            status = "URL malformed";
         }
-        if (!found) status = "Domain not permitted";
+        if (status.empty()) {
+            bool found = false;
+            for (const std::string& wclass : config.http_whitelist) {
+                if (matchIPClass(uri.getHost(), wclass)) {
+                    found = true;
+                    for (const std::string& bclass : config.http_blacklist) {
+                        if (matchIPClass(uri.getHost(), bclass)) {
+                            found = false;
+                            break;
+                        }
+                    }
+                    if (!found) break;
+                }
+            }
+            if (!found) status = "Domain not permitted";
+        }
     }
     http_check_t * res = new http_check_t;
     res->url = param->url;
@@ -896,7 +907,16 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
 #ifdef __APPLE__
     pthread_setname_np("WebSocket Client Thread");
 #endif
-    Poco::URI uri(str);
+    Poco::URI uri;
+    try {
+        uri = Poco::URI(str);
+    } catch (Poco::SyntaxException &e) {
+        websocket_failure_data * data = new websocket_failure_data;
+        data->url = str;
+        data->reason = "URL malformed";
+        queueEvent(comp, websocket_failure, data);
+        return;
+    }
     if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
     bool found = false;
     for (const std::string& wclass : config.http_whitelist) {
