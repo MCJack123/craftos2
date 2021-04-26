@@ -257,21 +257,22 @@ std::set<std::string> getMounts(Computer * computer, const char * comp_path) {
     return retval;
 }
 
-static void xcopy_internal(lua_State *from, lua_State *to, int n, std::unordered_set<const void*>& copies) {
+static void xcopy_internal(lua_State *from, lua_State *to, int n, int copies_slot) {
     for (int i = n - 1; i >= 0; i--) {
         if (lua_type(from, -1-i) == LUA_TNUMBER) lua_pushnumber(to, lua_tonumber(from, -1-i));
         else if (lua_type(from, -1-i) == LUA_TSTRING) lua_pushlstring(to, lua_tostring(from, -1-i), lua_strlen(from, -1-i));
         else if (lua_type(from, -1-i) == LUA_TBOOLEAN) lua_pushboolean(to, lua_toboolean(from, -1-i));
         else if (lua_type(from, -1-i) == LUA_TTABLE) {
             const void* ptr = lua_topointer(from, -1-i);
-            if (copies.count(ptr)) {
-                lua_pushstring(to, "<recursive table>");
-                continue;
-            } else copies.insert(ptr);
+            lua_rawgeti(to, copies_slot, (ptrdiff_t)ptr);
+            if (!lua_isnil(to, -1)) continue;
+            lua_pop(to, 1);
             lua_newtable(to);
+            lua_pushvalue(to, -1);
+            lua_rawseti(to, copies_slot, (ptrdiff_t)ptr);
             lua_pushnil(from);
             while (lua_next(from, -2-i) != 0) {
-                xcopy_internal(from, to, 2, copies);
+                xcopy_internal(from, to, 2, copies_slot);
                 lua_settable(to, -3);
                 lua_pop(from, 1);
             }
@@ -286,8 +287,10 @@ static void xcopy_internal(lua_State *from, lua_State *to, int n, std::unordered
 }
 
 void xcopy(lua_State *from, lua_State *to, int n) {
-    std::unordered_set<const void*> copies;
-    xcopy_internal(from, to, n, copies);
+    lua_newtable(to);
+    int cslot = lua_gettop(to);
+    xcopy_internal(from, to, n, cslot);
+    lua_remove(to, cslot);
 }
 
 std::string makeASCIISafe(const char * retval, size_t len) {
