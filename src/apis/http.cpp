@@ -37,6 +37,10 @@
 #include "../runtime.hpp"
 #include "../util.hpp"
 
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
 using namespace Poco::Net;
 
 #ifdef __INTELLISENSE__
@@ -204,6 +208,9 @@ static inline void replaceAll(std::string& str, const std::string& from, const s
 static void downloadThread(void* arg) {
 #ifdef __APPLE__
     pthread_setname_np("HTTP Download Thread");
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     http_param_t* param = (http_param_t*)arg;
     Poco::URI uri;
@@ -392,6 +399,9 @@ void HTTPDownload(const std::string& url, const std::function<void(std::istream*
 static void* checkThread(void* arg) {
 #ifdef __APPLE__
     pthread_setname_np("HTTP Check Thread");
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     http_param_t * param = (http_param_t*)arg;
     std::string status;
@@ -906,6 +916,9 @@ public:
 static void websocket_client_thread(Computer *comp, const std::string& str, const std::unordered_map<std::string, std::string>& headers) {
 #ifdef __APPLE__
     pthread_setname_np("WebSocket Client Thread");
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     Poco::URI uri;
     try {

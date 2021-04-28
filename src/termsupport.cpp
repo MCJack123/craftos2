@@ -32,6 +32,10 @@
 #include "terminal/CLITerminal.hpp"
 #endif
 
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
 std::thread * renderThread;
 /* export */ std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
@@ -226,27 +230,27 @@ Uint32 render_event_type;
 
 int convertX(SDLTerminal * term, int x) {
     if (term->mode != 0) {
-        if (x < 2 * (int)term->charScale) return 0;
-        else if ((unsigned)x >= term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale))
+        if (x < 2 * term->dpiScale * (int)term->charScale) return 0;
+        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale))
             return (int)(Terminal::fontWidth * term->width - 1);
-        return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
+        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)));
     } else {
-        if (x < 2 * (int)term->charScale) return 1;
-        else if ((unsigned)x >= term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->width;
-        return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charWidth + 1);
+        if (x < 2 * term->dpiScale * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) return 1;
+        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) return (int)term->width;
+        return (int)((x - 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) / (term->dpiScale * term->charWidth) + 1);
     }
 }
 
 int convertY(SDLTerminal * term, int x) {
     if (term->mode != 0) {
-        if (x < 2 * (int)term->charScale) return 0;
-        else if ((unsigned)x >= term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale))
+        if (x < 2 * term->dpiScale * (int)term->charScale) return 0;
+        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale))
             return (int)(Terminal::fontHeight * term->height - 1);
-        return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
+        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)));
     } else {
-        if (x < 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) return 1;
-        else if ((unsigned)x >= term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->height;
-        return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charHeight + 1);
+        if (x < 2 * (int)term->charScale * term->dpiScale * (int)(2 / SDLTerminal::fontScale)) return 1;
+        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) return (int)term->height;
+        return (int)((x - 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) / (term->dpiScale * term->charHeight) + 1);
     }
 }
 
@@ -492,6 +496,9 @@ void termHook(lua_State *L, lua_Debug *ar) {
 void termRenderLoop() {
 #ifdef __APPLE__
     pthread_setname_np("Render Thread");
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     while (!exiting) {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
@@ -775,10 +782,10 @@ std::string termGetEvent(lua_State *L) {
             if (selectedRenderer == 0 || selectedRenderer == 5) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
                 if (sdlterm != NULL) {
-                    if (e.window.data1 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) w = 0;
-                    else w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
-                    if (e.window.data2 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) h = 0;
-                    else h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
+                    if (e.window.data1 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) w = 0;
+                    else w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charWidth*sdlterm->dpiScale);
+                    if (e.window.data2 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) h = 0;
+                    else h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
                 } else {w = 51; h = 19;}
             } else {w = e.window.data1; h = e.window.data2;}
             if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) return "term_resize";

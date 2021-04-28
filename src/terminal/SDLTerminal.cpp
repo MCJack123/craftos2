@@ -91,6 +91,11 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #ifdef __EMSCRIPTEN__
     dpiScale = emscripten_get_device_pixel_ratio();
 #endif
+#ifdef __ANDROID__
+    float dpi = 0;
+    SDL_GetDisplayDPI(0, &dpi, NULL, NULL);
+    dpiScale = dpi / 150;
+#endif
     if (config.customFontPath == "hdfont") {
         fontScale = 1;
         charScale = 1;
@@ -133,8 +138,17 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         SDL_SetWindowDisplayMode(win, &max);
         SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
     }
+#ifdef __ANDROID__
+    SDL_GetWindowSize(win, &realWidth, &realHeight);
+    width = (realWidth - 4*(2/SDLTerminal::fontScale)*charScale*dpiScale) / (charWidth*dpiScale);
+    height = (realHeight - 4*(2/SDLTerminal::fontScale)*charScale*dpiScale) / (charHeight*dpiScale);
+    this->screen.resize(width, height, ' ');
+    this->colors.resize(width, height, 0xF0);
+    this->pixels.resize(width * fontWidth, height * fontHeight, 0x0F);
+#else
     realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+#endif
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
     }
 #endif
@@ -522,7 +536,6 @@ void SDLTerminal::setLabel(std::string label) {
 }
 
 void SDLTerminal::init() {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
     //SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
@@ -532,6 +545,12 @@ void SDLTerminal::init() {
 #if SDL_VERSION_ATLEAST(2, 0, 8)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
+#if SDL_VERSION_ATLEAST(2, 0, 10)
+    //SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0");
+#endif
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
+        throw std::runtime_error("Could not initialize SDL: " + std::string(SDL_GetError()));
+    }
     SDL_StartTextInput();
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
@@ -691,6 +710,7 @@ bool SDLTerminal::pollEvents() {
                     }
                 }
                 if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
+                else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) SDL_StartTextInput();
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);

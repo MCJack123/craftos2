@@ -43,6 +43,10 @@ extern "C" {
 #include <lualib.h>
 }
 
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
 extern library_t * libraries[8];
@@ -72,6 +76,9 @@ static void* releaseNotesThread(void* data) {
     Computer * comp = (Computer*)data;
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     // seed the Lua RNG
     srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);
@@ -665,7 +672,7 @@ int main(int argc, char*argv[]) {
 #ifndef NO_MIXER
     speakerInit();
 #endif
-    globalPluginErrors = initializePlugins();
+    //globalPluginErrors = initializePlugins();
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
     if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
@@ -718,9 +725,10 @@ int main(int argc, char*argv[]) {
     }
 #endif
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
+    computerThreads.clear();
     // C++ doesn't like it if we try to empty the SDL event list once the plugins are gone
     SDLTerminal::eventHandlers.clear();
-    deinitializePlugins();
+    //deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();
 #endif

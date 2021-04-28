@@ -29,6 +29,10 @@ extern "C" {
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
 
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
 extern FileEntry standaloneDebug;
@@ -324,6 +328,10 @@ static int yieldable_load(lua_State *L) {
     return ctx->argcount;
 }
 
+#if defined(__ANDROID__) || defined(__IOS__)
+extern int mobile_luaopen(lua_State *L);
+#endif
+
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
     if (self->config->startFullscreen && dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->toggleFullscreen();
@@ -423,6 +431,9 @@ void runComputer(Computer * self, const path_t& bios_name) {
             }
             loadPlugins(self);
         }
+#if defined(__ANDROID__) || defined(__IOS__)
+        mobile_luaopen(L);
+#endif
 
         // Delete unwanted globals
         lua_pushnil(L);
@@ -648,6 +659,9 @@ void* computerThread(void* data) {
     Computer * comp = (Computer*)data;
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     // seed the Lua RNG
     srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);

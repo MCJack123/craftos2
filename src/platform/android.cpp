@@ -20,7 +20,6 @@ extern "C" {
 #include <vector>
 #include <dirent.h>
 #include <dlfcn.h>
-#include <execinfo.h>
 #include <libgen.h>
 #include <pthread.h>
 #include <SDL2/SDL_syswm.h>
@@ -30,12 +29,11 @@ extern "C" {
 #include <sys/utsname.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <wordexp.h>
 #include "../platform.hpp"
 #include "../util.hpp"
 
 std::string base_path;
-std::stirng rom_path;
+std::string rom_path;
 
 void setBasePath(const char * path) {
     base_path = path;
@@ -46,28 +44,16 @@ void setROMPath(const char * path) {
 }
 
 std::string getBasePath() {
-    if (base_path.empty()) {
-        char * p = SDL_GetPrefPath("cc.craftos-pc", "craftos");
-        base_path = p;
-        SDL_free(p);
-    }
+    if (base_path.empty()) base_path = std::string(SDL_AndroidGetInternalStoragePath()) + "/user-data/";
     return base_path;
 }
 
 std::string getROMPath() {
-    if (rom_path.empty()) {
-        char * p = SDL_GetBasePath();
-        rom_path = p;
-        SDL_free(p);
-    }
+    if (rom_path.empty()) rom_path = std::string(SDL_AndroidGetInternalStoragePath()) + "/assets/";
     return rom_path;
 }
 std::string getPlugInPath() {
-    if (rom_path.empty()) {
-        char * p = SDL_GetBasePath();
-        rom_path = p;
-        SDL_free(p);
-    }
+    if (rom_path.empty()) rom_path = std::string(SDL_AndroidGetInternalStoragePath()) + "/assets/";
     return rom_path + "/plugins/";
 }
 
@@ -77,6 +63,7 @@ std::string getMCSavePath() {
 
 void setThreadName(std::thread &t, const std::string& name) {
     pthread_setname_np(t.native_handle(), name.c_str());
+    printf("Set name of thread %lx to '%s'\n", t.native_handle(), name.c_str());
 }
 
 int createDirectory(const std::string& path) {
@@ -166,8 +153,59 @@ void copyImage(SDL_Surface* surf) {
     fprintf(stderr, "Warning: Android does not support taking screenshots to the clipboard.\n");
 }
 
-void setupCrashHandler() {}
+void setupCrashHandler() {
+
+}
 
 void setFloating(SDL_Window* win, bool state) {}
+
+#ifdef __INTELLISENSE__
+#region Mobile API
+#endif
+
+static int mobile_openKeyboard(lua_State *L) {
+    if (lua_isnone(L, 1) || lua_toboolean(L, 1)) SDL_StartTextInput();
+    else SDL_StopTextInput();
+    return 0;
+}
+
+static int mobile_isKeyboardOpen(lua_State *L) {
+    lua_pushboolean(L, SDL_IsTextInputActive());
+    return 1;
+}
+
+static int mobile_sendNotification(lua_State *L) {
+    const char * message = luaL_checkstring(L, 2);
+    luaL_error(L, "Not implemented yet");
+    return 1;
+}
+
+static luaL_Reg mobile_reg[] = {
+    {"openKeyboard", mobile_openKeyboard},
+    {"isKeyboardOpen", mobile_isKeyboardOpen},
+    {"sendNotification", mobile_sendNotification},
+    {NULL, NULL}
+};
+
+static luaL_Reg android_reg[] = {
+    {NULL, NULL}
+};
+
+int mobile_luaopen(lua_State *L) {
+    luaL_register(L, "mobile", mobile_reg);
+    lua_pushstring(L, "android");
+    lua_newtable(L);
+    for (luaL_Reg* r = android_reg; r->name && r->func; r++) {
+        lua_pushstring(L, r->name);
+        lua_pushcfunction(L, r->func);
+        lua_settable(L, -3);
+    }
+    lua_settable(L, -3);
+    return 1;
+}
+
+#ifdef __INTELLISENSE__
+#endregion
+#endif
 
 #endif // __INTELLISENSE__
