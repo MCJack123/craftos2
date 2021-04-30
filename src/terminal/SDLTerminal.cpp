@@ -413,6 +413,7 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
     SDL_GetWindowSize(win, &realWidth, &realHeight);
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
+    changed = true;
     while (gotResizeEvent) std::this_thread::yield(); // this should probably be a condition variable
     return true;
 }

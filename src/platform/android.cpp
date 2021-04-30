@@ -20,6 +20,7 @@ extern "C" {
 #include <vector>
 #include <dirent.h>
 #include <dlfcn.h>
+#include <jni.h>
 #include <libgen.h>
 #include <pthread.h>
 #include <SDL2/SDL_syswm.h>
@@ -30,7 +31,9 @@ extern "C" {
 #include <ucontext.h>
 #include <unistd.h>
 #include "../platform.hpp"
+#include "../runtime.hpp"
 #include "../util.hpp"
+#include "../terminal/SDLTerminal.hpp"
 
 std::string base_path;
 std::string rom_path;
@@ -44,16 +47,28 @@ void setROMPath(const char * path) {
 }
 
 std::string getBasePath() {
-    if (base_path.empty()) base_path = std::string(SDL_AndroidGetInternalStoragePath()) + "/user-data/";
+    if (base_path.empty()) {
+        if (SDL_AndroidGetExternalStorageState() & (SDL_ANDROID_EXTERNAL_STORAGE_READ | SDL_ANDROID_EXTERNAL_STORAGE_WRITE))
+            base_path = std::string(SDL_AndroidGetExternalStoragePath());
+        else base_path = std::string(SDL_AndroidGetInternalStoragePath());
+    }
     return base_path;
 }
 
 std::string getROMPath() {
-    if (rom_path.empty()) rom_path = std::string(SDL_AndroidGetInternalStoragePath()) + "/assets/";
+    if (rom_path.empty()) {
+        rom_path = std::string(SDL_AndroidGetInternalStoragePath());
+        rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
+        printf("%s\n", rom_path.c_str());
+    }
     return rom_path;
 }
 std::string getPlugInPath() {
-    if (rom_path.empty()) rom_path = std::string(SDL_AndroidGetInternalStoragePath()) + "/assets/";
+    if (rom_path.empty()) {
+        rom_path = std::string(SDL_AndroidGetInternalStoragePath());
+        rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
+        printf("%s\n", rom_path.c_str());
+    }
     return rom_path + "/plugins/";
 }
 
@@ -162,6 +177,21 @@ void setFloating(SDL_Window* win, bool state) {}
 #ifdef __INTELLISENSE__
 #region Mobile API
 #endif
+
+std::string mobile_keyboard_open(lua_State *L, void* ud) {
+    SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
+    int size = ((int)(ptrdiff_t)ud - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
+    if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
+    lua_pushinteger(L, size);
+    return "_CCPC_mobile_keyboard_open";
+}
+
+extern "C" {
+JNIEXPORT void JNICALL Java_cc_craftospc_CraftOSPC_MainActivity_sendKeyboardUpdate(JNIEnv *env, jclass klass, int size) {
+    LockGuard lock(computers);
+    if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)(ptrdiff_t)size);
+}
+}
 
 static int mobile_openKeyboard(lua_State *L) {
     if (lua_isnone(L, 1) || lua_toboolean(L, 1)) SDL_StartTextInput();
