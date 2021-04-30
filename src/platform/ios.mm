@@ -36,12 +36,11 @@ extern "C" {
 #include <Poco/Net/HTTPResponse.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
-#include <png++/png.hpp>
+//#include <png++/png.hpp>
 #import <Foundation/Foundation.h>
 #include "../platform.hpp"
-#include "../mounter.hpp"
-#include "../http.hpp"
-#include "../os.hpp"
+#include "../runtime.hpp"
+#include "../terminal/SDLTerminal.hpp"
 
 extern bool exiting;
 std::string base_path_expanded;
@@ -89,9 +88,9 @@ std::string getMCSavePath() {
     return "";
 }
 
-void setThreadName(std::thread &t, std::string name) {}
+void setThreadName(std::thread &t, const std::string& name) {}
 
-int createDirectory(std::string path) {
+int createDirectory(const path_t& path) {
     if (mkdir(path.c_str(), 0777) != 0) {
         if (errno == ENOENT && path != "/" && !path.empty()) {
             if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
@@ -101,7 +100,7 @@ int createDirectory(std::string path) {
     return 0;
 }
 
-int removeDirectory(std::string path) {
+int removeDirectory(const path_t& path) {
     struct stat statbuf;
     if (!stat(path.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
@@ -123,7 +122,7 @@ int removeDirectory(std::string path) {
     } else return -1;
 }
 
-unsigned long long getFreeSpace(std::string path) {
+unsigned long long getFreeSpace(const path_t& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -132,7 +131,7 @@ unsigned long long getFreeSpace(std::string path) {
     return [(NSNumber*)dict[NSFileSystemFreeSize] unsignedLongLongValue];
 }
 
-unsigned long long getCapacity(std::string path) {
+unsigned long long getCapacity(const path_t& path) {
     NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
     if (dict == nil) {
         if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
@@ -141,7 +140,7 @@ unsigned long long getCapacity(std::string path) {
     return [(NSNumber*)dict[NSFileSystemSize] unsignedLongLongValue];
 }
 
-void updateNow(std::string tag_name) {
+void updateNow(const std::string& tag_name) {
     
 }
 
@@ -191,3 +190,63 @@ float getBackingScaleFactor(SDL_Window *win) {
         return [info.info.cocoa.window.screen backingScaleFactor];*/
     return 1.0f;
 }
+
+void setFloating(SDL_Window* win, bool state) {}
+
+#ifdef __INTELLISENSE__
+#region Mobile API
+#endif
+
+// TODO: make this work
+std::string mobile_keyboard_open(lua_State *L, void* ud) {
+    SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
+    int size = ((int)(ptrdiff_t)ud - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
+    if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
+    lua_pushinteger(L, size);
+    return "_CCPC_mobile_keyboard_open";
+}
+
+static int mobile_openKeyboard(lua_State *L) {
+    if (lua_isnone(L, 1) || lua_toboolean(L, 1)) SDL_StartTextInput();
+    else SDL_StopTextInput();
+    return 0;
+}
+
+static int mobile_isKeyboardOpen(lua_State *L) {
+    lua_pushboolean(L, SDL_IsTextInputActive());
+    return 1;
+}
+
+static int mobile_sendNotification(lua_State *L) {
+    const char * message = luaL_checkstring(L, 2);
+    luaL_error(L, "Not implemented yet");
+    return 1;
+}
+
+static luaL_Reg mobile_reg[] = {
+    {"openKeyboard", mobile_openKeyboard},
+    {"isKeyboardOpen", mobile_isKeyboardOpen},
+    {"sendNotification", mobile_sendNotification},
+    {NULL, NULL}
+};
+
+static luaL_Reg ios_reg[] = {
+    {NULL, NULL}
+};
+
+int mobile_luaopen(lua_State *L) {
+    luaL_register(L, "mobile", mobile_reg);
+    lua_pushstring(L, "ios");
+    lua_newtable(L);
+    for (luaL_Reg* r = ios_reg; r->name && r->func; r++) {
+        lua_pushstring(L, r->name);
+        lua_pushcfunction(L, r->func);
+        lua_settable(L, -3);
+    }
+    lua_settable(L, -3);
+    return 1;
+}
+
+#ifdef __INTELLISENSE__
+#endregion
+#endif

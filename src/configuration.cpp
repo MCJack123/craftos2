@@ -29,6 +29,9 @@ extern "C" {extern void syncfs(); }
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false, 0, 0};
+#ifdef __IPHONEOS__
+    cfg.startFullscreen = true;
+#endif
     std::ifstream in(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
     if (!in.is_open()) return cfg;
     if (in.peek() == std::ifstream::traits_type::eof()) { in.close(); return cfg; } // treat an empty file as if it didn't exist in the first place
