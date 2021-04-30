@@ -712,7 +712,6 @@ bool SDLTerminal::pollEvents() {
                 }
                 if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
                 else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) {
-                    printf("%f\n", e.mgesture.dDist);
                     if (e.mgesture.dDist < -0.001 && !SDL_IsTextInputActive()) SDL_StartTextInput();
                     else if (e.mgesture.dDist > 0.001 && SDL_IsTextInputActive()) SDL_StopTextInput();
                 }
