@@ -328,7 +328,7 @@ static int yieldable_load(lua_State *L) {
     return ctx->argcount;
 }
 
-#if defined(__ANDROID__) || defined(__IOS__)
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
 extern int mobile_luaopen(lua_State *L);
 #endif
 
@@ -431,7 +431,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             }
             loadPlugins(self);
         }
-#if defined(__ANDROID__) || defined(__IOS__)
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
         mobile_luaopen(L);
 #endif
 
