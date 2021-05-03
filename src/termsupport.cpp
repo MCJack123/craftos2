@@ -277,6 +277,8 @@ int termPanic(lua_State *L) {
     while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
     for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
     lua_close(comp->L);   /* Cya, Lua */
+    if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+    comp->eventTimeout = 0;
     comp->L = NULL;
     longjmp(comp->on_panic, 0);
 }
@@ -307,6 +309,7 @@ static bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, con
 #ifdef __EMSCRIPTEN__
     queueTask([computer](void*)->void*{
 #endif
+    if (computer->eventTimeout != 0) SDL_RemoveTimer(computer->eventTimeout);
     computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
 #ifdef __EMSCRIPTEN__
     return NULL;}, NULL);

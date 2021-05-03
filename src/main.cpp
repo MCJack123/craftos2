@@ -97,6 +97,8 @@ static void* releaseNotesThread(void* data) {
         if (comp->L != NULL) {
             comp->event_lock.notify_all();
             for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+            if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+            comp->eventTimeout = 0;
             lua_close(comp->L);   /* Cya, Lua */
             comp->L = NULL;
         }

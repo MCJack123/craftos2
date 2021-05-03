@@ -596,8 +596,9 @@ void runComputer(Computer * self, const path_t& bios_name) {
         int narg = 0;
         self->running = 1;
 #ifdef __EMSCRIPTEN__
-        queueTask([self](void*)->void*{self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self); return NULL;}, NULL);
+        queueTask([self](void*)->void*{if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout); self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self); return NULL;}, NULL);
 #else
+        if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout);
         self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
 #endif
         while (status == LUA_YIELD && self->running == 1) {
@@ -623,6 +624,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
         // Stop all open websockets
         while (!self->openWebsockets.empty()) stopWebsocket(*self->openWebsockets.begin());
         for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(self);
+        if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout);
+        self->eventTimeout = 0;
         lua_close(L);   /* Cya, Lua */
         self->L = NULL;
     }
@@ -713,6 +716,8 @@ void* computerThread(void* data) {
                 // Stop all open websockets
                 while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
                 for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+                if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+                comp->eventTimeout = 0;
                 lua_close(comp->L);   /* Cya, Lua */
                 comp->L = NULL;
             }
@@ -724,6 +729,8 @@ void* computerThread(void* data) {
                 // Stop all open websockets
                 while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
                 for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+                if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+                comp->eventTimeout = 0;
                 lua_close(comp->L);   /* Cya, Lua */
                 comp->L = NULL;
             }
