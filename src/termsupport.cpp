@@ -256,7 +256,7 @@ int convertY(SDLTerminal * term, int x) {
 
 inline const char * checkstr(const char * str) {return str == NULL ? "(null)" : str;}
 
-extern library_t * libraries[8];
+extern library_t * libraries[];
 int termPanic(lua_State *L) {
     Computer * comp = get_comp(L);
     comp->running = 0;
@@ -275,7 +275,7 @@ int termPanic(lua_State *L) {
     comp->event_lock.notify_all();
     // Stop all open websockets
     while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
-    for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+    for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(comp);
     lua_close(comp->L);   /* Cya, Lua */
     if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
     comp->eventTimeout = 0;

@@ -86,6 +86,13 @@ void onWindowCreate(int id, const char * title) {EM_ASM({if (Module.windowEventL
 void onWindowDestroy(int id) {EM_ASM({if (Module.windowEventListener !== undefined) Module.windowEventListener.onWindowDestroy($0);}, id);}
 #endif
 
+#ifdef __IPHONEOS__
+static Uint32 textInputTimer(Uint32 interval, void* param) {
+    queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
+    return 0;
+}
+#endif
+
 SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, config.defaultHeight) {
     this->title = title;
 #ifdef __EMSCRIPTEN__
@@ -138,7 +145,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         SDL_SetWindowDisplayMode(win, &max);
         SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
     }
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
     SDL_GetWindowSize(win, &realWidth, &realHeight);
     width = (realWidth - 4*(2/SDLTerminal::fontScale)*charScale*dpiScale) / (charWidth*dpiScale);
     height = (realHeight - 4*(2/SDLTerminal::fontScale)*charScale*dpiScale) / (charHeight*dpiScale);
@@ -159,7 +166,11 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     onWindowCreate(id, title.c_str());
 #endif
     lastWindow = id;
+#ifdef __IPHONEOS__
+    SDL_AddTimer(100, textInputTimer, NULL);
+#else
     SDL_StartTextInput();
+#endif
 #if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
     SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(favicon.pixel_data, (int)favicon.width, (int)favicon.height, (int)favicon.bytes_per_pixel * 8, (int)favicon.width * (int)favicon.bytes_per_pixel, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
     SDL_SetWindowIcon(win, icon);

@@ -68,12 +68,15 @@ struct load_ctx {
 library_t * libraries[] = {
     &config_lib,
     &fs_lib,
+#ifndef NO_MOUNTER
     &mounter_lib,
+#endif
     &os_lib,
     &peripheral_lib,
     &periphemu_lib,
     &rs_lib,
-    &term_lib
+    &term_lib,
+    NULL
 };
 
 // Constructor
@@ -395,7 +398,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         //else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         //else lua_sethook(self->coro, termHook, LUA_MASKERROR, 0);
         lua_atpanic(L, termPanic);
-        for (library_t * lib : libraries) load_library(self, self->coro, *lib);
+        for (library_t ** lib = libraries; *lib != NULL; lib++) load_library(self, self->coro, **lib);
         if (config.http_enable) load_library(self, self->coro, http_lib);
         if (self->isDebugger && self->debugger != NULL) load_library(self, self->coro, *((library_t*)self->debugger));
         lua_getglobal(self->coro, "redstone");
@@ -623,7 +626,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->event_lock.notify_all();
         // Stop all open websockets
         while (!self->openWebsockets.empty()) stopWebsocket(*self->openWebsockets.begin());
-        for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(self);
+        for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(self);
         if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout);
         self->eventTimeout = 0;
         lua_close(L);   /* Cya, Lua */
@@ -715,7 +718,7 @@ void* computerThread(void* data) {
                 comp->event_lock.notify_all();
                 // Stop all open websockets
                 while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
-                for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+                for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(comp);
                 if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
                 comp->eventTimeout = 0;
                 lua_close(comp->L);   /* Cya, Lua */
@@ -728,7 +731,7 @@ void* computerThread(void* data) {
                 comp->event_lock.notify_all();
                 // Stop all open websockets
                 while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
-                for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+                for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(comp);
                 if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
                 comp->eventTimeout = 0;
                 lua_close(comp->L);   /* Cya, Lua */

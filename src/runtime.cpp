@@ -340,3 +340,33 @@ void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void
     SDLTerminal::eventHandlers.insert(std::make_pair(type, std::make_pair(handler, userdata)));
     switch (type) {case SDL_JOYAXISMOTION: case SDL_JOYBALLMOTION: case SDL_JOYBUTTONDOWN: case SDL_JOYBUTTONUP: case SDL_JOYDEVICEADDED: case SDL_JOYDEVICEREMOVED: case SDL_JOYHATMOTION: SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER); break; default: break;}
 }
+
+extern "C" {
+    FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode) {
+        lastCFunction = __func__;
+        if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0')))
+            luaL_error(L, "Unsupported mode");
+        if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
+        struct_stat st;
+        const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
+        if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename))
+            { errno = EACCES; return NULL; }
+        if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
+        FILE* retval;
+        if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
+        else if (mode[1] == '+') {
+            std::string mstr = mode;
+            mstr.erase(mstr.begin() + 1);
+            retval = platform_fopen(newpath.c_str(), mstr.c_str());
+        } else retval = platform_fopen(newpath.c_str(), mode);
+        if (retval != NULL) get_comp(L)->files_open++;
+        return retval;
+    }
+
+    int mounter_fclose_(lua_State *L, FILE * stream) {
+        lastCFunction = __func__;
+        const int retval = fclose(stream);
+        if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
+        return retval;
+    }
+}

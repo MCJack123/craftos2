@@ -9,7 +9,7 @@
  */
 
 extern "C" {
-#include <lua.h>
+#include "lua.h"
 }
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +38,7 @@ extern "C" {
 #include <SDL2/SDL_syswm.h>
 //#include <png++/png.hpp>
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #include "../platform.hpp"
 #include "../runtime.hpp"
 #include "../terminal/SDLTerminal.hpp"
@@ -55,7 +56,7 @@ void setROMPath(const char * path) {
 }
 
 std::string getBasePath() {
-    if (!base_path_expanded.empty()) return rom_path_expanded;
+    if (!base_path_expanded.empty()) return base_path_expanded;
     NSArray * paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString * path = paths[0];
     char * retval = new char[path.length + 1];
@@ -174,11 +175,29 @@ void handler(int sig) {
     signal(sig, NULL);
 }
 
+static std::string mobile_keyboard_open(lua_State *L, void* ud) {
+    SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
+    int size = ((int)(ptrdiff_t)ud - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
+    if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
+    lua_pushinteger(L, size);
+    return "_CCPC_mobile_keyboard_open";
+}
+
 void setupCrashHandler() {
     signal(SIGSEGV, handler);
     signal(SIGILL, handler);
     signal(SIGBUS, handler);
     signal(SIGTRAP, handler);
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIKeyboardDidShowNotification object:nil queue:nil usingBlock:^(NSNotification* notif) {
+        NSValue* obj = (NSValue*)[notif.userInfo valueForKey:UIKeyboardFrameEndUserInfoKey];
+        CGRect keyboardBound = CGRectNull;
+        [obj getValue:&keyboardBound];
+        CGRect screenSize = [[UIApplication sharedApplication] keyWindow].rootViewController.view.bounds;
+        if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)(ptrdiff_t)(screenSize.size.height - keyboardBound.size.height));
+    }];
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIKeyboardDidHideNotification object:nil queue:nil usingBlock:^(NSNotification* notif) {
+        if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)PTRDIFF_MAX);
+    }];
 }
 
 float getBackingScaleFactor(SDL_Window *win) {
@@ -197,15 +216,6 @@ void setFloating(SDL_Window* win, bool state) {}
 #region Mobile API
 #endif
 
-// TODO: make this work
-std::string mobile_keyboard_open(lua_State *L, void* ud) {
-    SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
-    int size = ((int)(ptrdiff_t)ud - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
-    if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
-    lua_pushinteger(L, size);
-    return "_CCPC_mobile_keyboard_open";
-}
-
 static int mobile_openKeyboard(lua_State *L) {
     if (lua_isnone(L, 1) || lua_toboolean(L, 1)) SDL_StartTextInput();
     else SDL_StopTextInput();
@@ -217,16 +227,9 @@ static int mobile_isKeyboardOpen(lua_State *L) {
     return 1;
 }
 
-static int mobile_sendNotification(lua_State *L) {
-    const char * message = luaL_checkstring(L, 2);
-    luaL_error(L, "Not implemented yet");
-    return 1;
-}
-
 static luaL_Reg mobile_reg[] = {
     {"openKeyboard", mobile_openKeyboard},
     {"isKeyboardOpen", mobile_isKeyboardOpen},
-    {"sendNotification", mobile_sendNotification},
     {NULL, NULL}
 };
 
@@ -236,14 +239,14 @@ static luaL_Reg ios_reg[] = {
 
 int mobile_luaopen(lua_State *L) {
     luaL_register(L, "mobile", mobile_reg);
-    lua_pushstring(L, "ios");
+    /*lua_pushstring(L, "ios");
     lua_newtable(L);
     for (luaL_Reg* r = ios_reg; r->name && r->func; r++) {
         lua_pushstring(L, r->name);
         lua_pushcfunction(L, r->func);
         lua_settable(L, -3);
     }
-    lua_settable(L, -3);
+    lua_settable(L, -3);*/
     return 1;
 }
 

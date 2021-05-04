@@ -23,8 +23,10 @@ std::unordered_map<std::string, std::tuple<int, std::function<int(const std::str
 
 static library_t * getLibrary(const std::string& name) {
     if (name == "config") return &config_lib;
-    else if (name == "fs") return &fs_lib; 
-    else if (name == "mounter") return &mounter_lib; 
+    else if (name == "fs") return &fs_lib;
+#ifndef NO_MOUNTER
+    else if (name == "mounter") return &mounter_lib;
+#endif
     else if (name == "os") return &os_lib; 
     else if (name == "peripheral") return &peripheral_lib; 
     else if (name == "periphemu") return &periphemu_lib; 
