@@ -39,6 +39,7 @@ extern "C" {
 //#include <png++/png.hpp>
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 #include "../platform.hpp"
 #include "../runtime.hpp"
 #include "../terminal/SDLTerminal.hpp"
@@ -211,6 +212,195 @@ float getBackingScaleFactor(SDL_Window *win) {
 }
 
 void setFloating(SDL_Window* win, bool state) {}
+
+/*
+ * The following code is a long-winded workaround to make SDL views work nicely on iPhone X/iPad Pro.
+ * Normally, the view SDL creates is set as the root view, which means it is the size of the screen.
+ * However, we need to constrain it using the safe area insets to make sure we don't draw outside the
+ * screen area (in the corners or notch). To do this, we need to adjust the view controller so that
+ * the view SDL uses is inside another view, and that the view is automatically resized to fit the
+ * safe area. Unfortunately, a bit of the logic in SDL's view controllers assumes that a) the view is
+ * always the size of the screen, and b) that the view is the root view. Since all of the initialization
+ * code and classes are private to SDL, we can't just extend the view controller and use an initializer
+ * that uses that class. Instead, we have to swizzle (override - a new word I learned for this!) the
+ * affected methods to use our overridden ones that can handle the new view hierarchy. Luckily the
+ * Objective-C runtime is very flexible, so we can just set up a template class that has the properties
+ * we need from SDL's view controller, and then swap in the methods from that into the view controller
+ * object/class.
+ */
+
+// From SDL/src/video/SDL_sysvideo.h
+extern "C" {
+    struct SDL_WindowShaper;
+    struct SDL_WindowUserData;
+    /* Define the SDL window structure, corresponding to toplevel windows */
+    struct SDL_Window
+    {
+        const void *magic;
+        Uint32 id;
+        char *title;
+        SDL_Surface *icon;
+        int x, y;
+        int w, h;
+        int min_w, min_h;
+        int max_w, max_h;
+        Uint32 flags;
+        Uint32 last_fullscreen_flags;
+
+        /* Stored position and size for windowed mode */
+        SDL_Rect windowed;
+
+        SDL_DisplayMode fullscreen_mode;
+
+        float opacity;
+
+        float brightness;
+        Uint16 *gamma;
+        Uint16 *saved_gamma;        /* (just offset into gamma) */
+
+        SDL_Surface *surface;
+        SDL_bool surface_valid;
+
+        SDL_bool is_hiding;
+        SDL_bool is_destroying;
+        SDL_bool is_dropping;       /* drag/drop in progress, expecting SDL_SendDropComplete(). */
+
+        SDL_WindowShaper *shaper;
+
+        SDL_HitTest hit_test;
+        void *hit_test_data;
+
+        SDL_WindowUserData *data;
+
+        void *driverdata;
+
+        SDL_Window *prev;
+        SDL_Window *next;
+    };
+}
+
+static int RemovePendingSizeChangedAndResizedEvents(void * userdata, SDL_Event *event) {
+    SDL_Event *new_event = (SDL_Event *)userdata;
+
+    if (event->type == SDL_WINDOWEVENT &&
+        (event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+         event->window.event == SDL_WINDOWEVENT_RESIZED) &&
+        event->window.windowID == new_event->window.windowID) {
+        /* We're about to post a new size event, drop the old one */
+        return 0;
+    }
+    return 1;
+}
+
+static bool forceInitView = true;
+
+// Small view to hold a reference to the inner view held by SDL
+@interface SDLRootView : UIView
+@property UIView * sdlView;
+@end
+@implementation SDLRootView
+- (id) initWithSDLView:(UIView*)view {
+    self = [super init];
+    self.sdlView = view;
+    self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    return self;
+}
+@end
+
+// This class holds the overridden methods we'll be inserting into SDL's view controller
+// This should never be instantiated as it is not complete
+@interface VCOverride : UIViewController
+@property (nonatomic, assign) SDL_Window *window;
+@property (nonatomic, assign, getter=isKeyboardVisible) BOOL keyboardVisible;
+- (void)viewDidLayoutSubviews;
+- (void)setView:(UIView*)view;
+- (void)showKeyboard;
+@end
+@implementation VCOverride
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    const CGSize size = ((SDLRootView*)self.view).sdlView.bounds.size;
+    int data1 = (int) size.width;
+    int data2 = (int) size.height;
+    SDL_Window *window = self.window;
+
+    // SDL_SendWindowEvent
+    if (!(window->flags & SDL_WINDOW_FULLSCREEN)) {
+        window->windowed.w = data1;
+        window->windowed.h = data2;
+    }
+    if (data1 == window->w && data2 == window->h) {
+        return;
+    }
+    window->w = data1;
+    window->h = data2;
+    
+    window->surface_valid = SDL_FALSE;
+    if (SDL_GetEventState(SDL_WINDOWEVENT) == SDL_ENABLE) {
+        SDL_Event event;
+        event.type = SDL_WINDOWEVENT;
+        event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+        event.window.data1 = data1;
+        event.window.data2 = data2;
+        event.window.windowID = window->id;
+
+        /* Fixes queue overflow with resize events that aren't processed */
+        SDL_FilterEvents(RemovePendingSizeChangedAndResizedEvents, &event);
+        SDL_PushEvent(&event);
+        
+        event.window.event = SDL_WINDOWEVENT_RESIZED;
+
+        SDL_PushEvent(&event);
+    }
+}
+- (void)setView:(UIView*)view {
+    if (self.view == nil || forceInitView) {
+        forceInitView = false;
+        // Create the new parent view
+        SDLRootView* rview = [[SDLRootView alloc] initWithSDLView:view];
+        // Since super doesn't work, we directly invoke the setView method to set the view
+        ((void(*)(id, SEL, UIView*))class_getMethodImplementation([self superclass], @selector(setView:)))(self, @selector(setView:), rview);
+        // Add the view to the parent
+        [rview addSubview:view];
+        // Set constraints to size to safe area
+        view.translatesAutoresizingMaskIntoConstraints = NO;
+        [view.topAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.topAnchor].active = YES;
+        [view.bottomAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.bottomAnchor].active = YES;
+        [view.leadingAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.leadingAnchor].active = YES;
+        [view.trailingAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.trailingAnchor].active = YES;
+    } else {
+        // If the parent already exists, remove the old view and add the new view
+        SDLRootView * v = (SDLRootView*)self.view;
+        [v.sdlView removeFromSuperview];
+        [v addSubview:view];
+        v.sdlView = view;
+    }
+
+    // We don't have access to textField from here, so we use the ObjC runtime to grab it for us
+    [view addSubview:object_getIvar(self, class_getInstanceVariable([self class], "textField"))];
+
+    if (self.keyboardVisible) {
+        [self showKeyboard];
+    }
+}
+- (void)showKeyboard {} // to suppress warnings
+@end
+
+void iosSetSafeAreaConstraints(SDLTerminal * term) {
+    // First, grab the view controller + view
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(term->win, &info);
+    UIView * view = info.info.uikit.window.rootViewController.view;
+    // Set the viewDidLayoutSubview and setView methods to our overrides
+    method_setImplementation(class_getInstanceMethod([info.info.uikit.window.rootViewController class], @selector(viewDidLayoutSubviews)), [VCOverride instanceMethodForSelector:@selector(viewDidLayoutSubviews)]);
+    method_setImplementation(class_getInstanceMethod([info.info.uikit.window.rootViewController class], @selector(setView:)), [VCOverride instanceMethodForSelector:@selector(setView:)]);
+    // Add the new superview through the overridden setView method
+    [info.info.uikit.window.rootViewController setView:view];
+    info.info.uikit.window.rootViewController.view.backgroundColor = [[UIColor alloc] initWithRed:term->palette[15].r / 255.0 green:term->palette[15].g / 255.0 blue:term->palette[15].b / 255.0 alpha:1.0];
+    // Force a layout update to reload the renderer and set the proper dimensions
+    [view layoutSubviews];
+}
 
 #ifdef __INTELLISENSE__
 #region Mobile API
