@@ -145,7 +145,7 @@ static std::string modem_message(lua_State *message, void* data) {
     if (d->sender == NULL) {
         fprintf(stderr, "Modem message event is missing sender, skipping event");
         delete d;
-        return NULL;
+        return "";
     }
     lua_pushstring(message, d->m->side.c_str());
     lua_pushinteger(message, d->port);
@@ -156,7 +156,7 @@ static std::string modem_message(lua_State *message, void* data) {
     if (lua_isnil(d->sender->eventQueue, -1)) {
         fprintf(stderr, "Missing event data for id %d\n", d->id);
         delete d;
-        return NULL;
+        return "";
     }
     lua_getfield(d->sender->eventQueue, -1, "data");
     xcopy(d->sender->eventQueue, message, 1);

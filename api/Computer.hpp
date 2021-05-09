@@ -37,6 +37,9 @@ extern "C" {
 /// To construct the event data, push the values for the event parameters in order and return the name of the event.
 typedef std::function<std::string(lua_State *, void*)> event_provider;
 
+/// This is the type for even hook functions. This type is used for addEventHook.
+typedef std::function<std::string(lua_State *, const std::string&, void*)> event_hook;
+
 /// This is the type for functions that are called for SDL event hooks.
 /// The Computer and Terminal objects provided point to the topmost window as a suggestion as to which terminal the event is intended for. They may or may not be NULL.
 /// The SDL_Event structure will not exist after the function returns. Copy any values you need elsewhere before returning.
@@ -117,6 +120,9 @@ struct Computer {
     uint8_t redstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Standard redstone outputs
     uint16_t bundledRedstoneInputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone inputs (for plugins)
     uint16_t bundledRedstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone outputs
+
+    // The following fields are available in API version 10.4 and later.
+    std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > eventHooks; // List of hooks for events
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

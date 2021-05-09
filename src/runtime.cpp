@@ -49,6 +49,7 @@ std::condition_variable taskQueueNotify;
 bool exiting = false;
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
+static std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > globalEventHooks;
 
 monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
@@ -217,6 +218,18 @@ int getNextEvent(lua_State *L, const std::string& filter) {
             while (termHasEvent(computer)/* && computer->eventQueue.size() < 25*/) {
                 if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
                 std::string name = termGetEvent(param);
+                if (!name.empty() && computer->eventHooks.find(name) != computer->eventHooks.end()) {
+                    for (const auto& h : computer->eventHooks[name]) {
+                        name = h.first(L, name, h.second);
+                        if (name.empty()) break;
+                    }
+                }
+                if (!name.empty() && globalEventHooks.find(name) != globalEventHooks.end()) {
+                    for (const auto& h : globalEventHooks[name]) {
+                        name = h.first(L, name, h.second);
+                        if (name.empty()) break;
+                    }
+                }
                 if (!name.empty()) {
                     if (name == "die") { computer->running = 0; name = "terminate"; }
                     computer->eventQueue.push(name);
@@ -339,6 +352,12 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_pa
 void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata) {
     SDLTerminal::eventHandlers.insert(std::make_pair(type, std::make_pair(handler, userdata)));
     switch (type) {case SDL_JOYAXISMOTION: case SDL_JOYBALLMOTION: case SDL_JOYBUTTONDOWN: case SDL_JOYBUTTONUP: case SDL_JOYDEVICEADDED: case SDL_JOYDEVICEREMOVED: case SDL_JOYHATMOTION: SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER); break; default: break;}
+}
+
+void addEventHook(const std::string& event, Computer * computer, const event_hook& hook, void* userdata) {
+    std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > >& eventHooks = computer == NULL ? globalEventHooks : computer->eventHooks;
+    if (eventHooks.find(event) == eventHooks.end()) eventHooks[event] = std::list<std::pair<const event_hook&, void*> >();
+    eventHooks[event].push_back(std::make_pair(hook, userdata));
 }
 
 extern "C" {

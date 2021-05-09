@@ -56,7 +56,7 @@ static void registerConfigSetting(const std::string& name, int type, const std::
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    3,
+    4,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,
@@ -80,6 +80,7 @@ static const PluginFunctions function_map = {
     &registerConfigSetting,
     &attachPeripheral,
     &detachPeripheral,
+    &addEventHook,
 };
 
 std::unordered_map<path_t, std::string> initializePlugins() {
