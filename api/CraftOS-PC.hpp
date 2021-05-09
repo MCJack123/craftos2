@@ -264,6 +264,14 @@ struct PluginFunctions {
      * @param userdata An opaque pointer to pass to the function
      */
     void (*addEventHook)(const std::string& event, Computer * computer, const event_hook& hook, void* userdata);
+
+    /**
+     * Sets a custom disance provider for modems.
+     * @param func The callback function to use to get distance. It takes two
+     * computer arguments (the sender and receiver), and returns a double
+     * specifying the distance.
+     */
+    void (*setDistanceProvider)(const std::function<double(const Computer *, const Computer *)>& func);
 };
 
 /**
