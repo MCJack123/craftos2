@@ -302,8 +302,7 @@ void SDLTerminal::render() {
     std::lock_guard<std::mutex> rlock(renderlock);
     int ww = 0, wh = 0;
     SDL_GetWindowSize(win, &ww, &wh);
-    if (surf != NULL) SDL_FreeSurface(surf);
-    surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 24, SDL_PIXELFORMAT_RGB888);
+    if (surf == NULL) surf = SDL_CreateRGBSurfaceWithFormat(0, ww, wh, 24, SDL_PIXELFORMAT_RGB888);
     if (surf == NULL) {
         fprintf(stderr, "Could not allocate rendering surface: %s\n", SDL_GetError());
         return;
@@ -425,7 +424,12 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
     SDL_GetWindowSize(win, &realWidth, &realHeight);
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
-    changed = true;
+    {
+        std::lock_guard<std::mutex> lock(renderlock);
+        SDL_FreeSurface(surf);
+        surf = NULL;
+        changed = true;
+    }
     while (gotResizeEvent) std::this_thread::yield(); // this should probably be a condition variable
     return true;
 }
@@ -650,8 +654,6 @@ bool SDLTerminal::pollEvents() {
                     if (sdlterm->surf != NULL && !(sdlterm->width == 0 || sdlterm->height == 0)) {
                         SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
                         SDL_UpdateWindowSurface(sdlterm->win);
-                        SDL_FreeSurface(sdlterm->surf);
-                        sdlterm->surf = NULL;
                     }
                 }
             }
