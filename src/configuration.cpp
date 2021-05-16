@@ -53,7 +53,9 @@ struct computer_configuration getComputerConfig(int id) {
         if (root.isMember("base64")) cfg.label = b64decode(root["label"].asString());
         else cfg.label = std::string(root["label"].asString());
     }
+#if !defined(__IPHONEOS__)
     if (root.isMember("startFullscreen")) cfg.startFullscreen = root["startFullscreen"].asBool();
+#endif
     if (root.isMember("computerWidth")) cfg.computerWidth = root["computerWidth"].asInt();
     if (root.isMember("computerHeight")) cfg.computerHeight = root["computerHeight"].asInt();
     return cfg;
@@ -287,7 +289,9 @@ void config_init() {
     readConfigSetting(defaultWidth, Int);
     readConfigSetting(defaultHeight, Int);
     readConfigSetting(standardsMode, Bool);
+#if !(defined(__IPHONEOS__) || defined(__ANDROID__))
     readConfigSetting(useHardwareRenderer, Bool);
+#endif
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
     readConfigSetting(serverMode, Bool);

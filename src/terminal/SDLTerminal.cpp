@@ -89,7 +89,7 @@ void onWindowDestroy(int id) {EM_ASM({if (Module.windowEventListener !== undefin
 #ifdef __IPHONEOS__
 extern void iosSetSafeAreaConstraints(SDLTerminal * term);
 static Uint32 textInputTimer(Uint32 interval, void* param) {
-    queueTask([](void*win)->void*{SDL_StartTextInput(); iosSetSafeAreaConstraints((SDLTerminal*)win); return NULL;}, param, true);
+    queueTask([](void*win)->void*{iosSetSafeAreaConstraints((SDLTerminal*)win); SDL_StartTextInput(); return NULL;}, param, true);
     return 0;
 }
 #endif
