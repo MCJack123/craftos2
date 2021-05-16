@@ -204,16 +204,9 @@ static int mobile_isKeyboardOpen(lua_State *L) {
     return 1;
 }
 
-static int mobile_sendNotification(lua_State *L) {
-    const char * message = luaL_checkstring(L, 2);
-    luaL_error(L, "Not implemented yet");
-    return 1;
-}
-
 static luaL_Reg mobile_reg[] = {
     {"openKeyboard", mobile_openKeyboard},
     {"isKeyboardOpen", mobile_isKeyboardOpen},
-    {"sendNotification", mobile_sendNotification},
     {NULL, NULL}
 };
 
@@ -223,14 +216,14 @@ static luaL_Reg android_reg[] = {
 
 int mobile_luaopen(lua_State *L) {
     luaL_register(L, "mobile", mobile_reg);
-    lua_pushstring(L, "android");
+    /*lua_pushstring(L, "android");
     lua_newtable(L);
     for (luaL_Reg* r = android_reg; r->name && r->func; r++) {
         lua_pushstring(L, r->name);
         lua_pushcfunction(L, r->func);
         lua_settable(L, -3);
     }
-    lua_settable(L, -3);
+    lua_settable(L, -3);*/
     return 1;
 }
 
