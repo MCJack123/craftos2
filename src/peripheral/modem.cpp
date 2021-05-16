@@ -17,6 +17,11 @@ static std::string modem_message(lua_State *message, void* data);
 #include "../apis.hpp"
 
 static std::unordered_map<int, std::list<modem*>> network;
+static std::function<double(const Computer *, const Computer *)> distanceCallback = [](const Computer *, const Computer *)->double {return 0;};
+
+/* extern */ void setDistanceProvider(const std::function<double(const Computer *, const Computer *)>& func) {
+    distanceCallback = func;
+}
 
 // todo: probably check port range
 
@@ -145,7 +150,7 @@ static std::string modem_message(lua_State *message, void* data) {
     if (d->sender == NULL) {
         fprintf(stderr, "Modem message event is missing sender, skipping event");
         delete d;
-        return NULL;
+        return "";
     }
     lua_pushstring(message, d->m->side.c_str());
     lua_pushinteger(message, d->port);
@@ -156,7 +161,7 @@ static std::string modem_message(lua_State *message, void* data) {
     if (lua_isnil(d->sender->eventQueue, -1)) {
         fprintf(stderr, "Missing event data for id %d\n", d->id);
         delete d;
-        return NULL;
+        return "";
     }
     lua_getfield(d->sender->eventQueue, -1, "data");
     xcopy(d->sender->eventQueue, message, 1);
@@ -169,8 +174,8 @@ static std::string modem_message(lua_State *message, void* data) {
         d->sender->idsToDelete.insert(d->id);
     }
     d->m->modemMessages.erase((void*)d);
+    lua_pushnumber(message, distanceCallback(d->sender->comp, d->m->comp));
     delete d;
-    lua_pushinteger(message, 0);
     return "modem_message";
 };
 

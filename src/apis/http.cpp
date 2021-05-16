@@ -226,6 +226,7 @@ static void downloadThread(void* arg) {
     }
     if (status.empty()) {
         if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+        if (uri.getPathAndQuery().empty()) uri.setPath("/");
         bool found = false;
         for (const std::string& wclass : config.http_whitelist) {
             if (matchIPClass(uri.getHost(), wclass)) {
