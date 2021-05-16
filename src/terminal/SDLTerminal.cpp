@@ -87,8 +87,9 @@ void onWindowDestroy(int id) {EM_ASM({if (Module.windowEventListener !== undefin
 #endif
 
 #ifdef __IPHONEOS__
+extern void iosSetSafeAreaConstraints(SDLTerminal * term);
 static Uint32 textInputTimer(Uint32 interval, void* param) {
-    queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
+    queueTask([](void*win)->void*{iosSetSafeAreaConstraints((SDLTerminal*)win); SDL_StartTextInput(); return NULL;}, param, true);
     return 0;
 }
 #endif
@@ -167,7 +168,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #endif
     lastWindow = id;
 #ifdef __IPHONEOS__
-    SDL_AddTimer(100, textInputTimer, NULL);
+    SDL_AddTimer(100, textInputTimer, this);
 #else
     SDL_StartTextInput();
 #endif

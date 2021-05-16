@@ -278,6 +278,12 @@ int getNextEvent(lua_State *L, const std::string& filter) {
 }
 
 bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only) {
+#ifdef __ANDROID__
+    if (!comp->mounter_initializing) {
+        if (!SDL_AndroidRequestPermission("android.permission.READ_EXTERNAL_STORAGE")) return false;
+        if (!read_only && !SDL_AndroidRequestPermission("android.permission.WRITE_EXTERNAL_STORAGE")) return false;
+    }
+#endif
     struct_stat st;
     if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     std::vector<std::string> elems = split(comp_path, "/\\");
