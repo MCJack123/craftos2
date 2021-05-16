@@ -46,10 +46,10 @@ monitor::~monitor() {delete term;}
 int monitor::write(lua_State *L) {
     lastCFunction = __func__;
     if (selectedRenderer == 4) printf("TW:%d;%s\n", term->id, luaL_checkstring(L, 1));
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
     std::lock_guard<std::mutex> lock(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             term->screen[term->blinkY][term->blinkX] = str[i];
@@ -200,8 +200,8 @@ int monitor::blit(lua_State *L) {
     const char * fg = luaL_checklstring(L, 2, &fg_sz);
     const char * bg = luaL_checklstring(L, 3, &bg_sz);
     if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> lock(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         colors = htoi(bg[i]) << 4 | htoi(fg[i]);
         if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = htoi(fg[i]);

@@ -26,13 +26,13 @@ static int term_write(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TW:%d;%s\n", get_comp(L)->term->id, luaL_checkstring(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz = 0;
     const char * str = luaL_checklstring(L, 1, &str_sz);
 #ifdef TESTING
     printf("%s\n", str);
 #endif
     std::lock_guard<std::mutex> locked_g(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (size_t i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             term->screen[term->blinkY][term->blinkX] = str[i];
@@ -240,13 +240,13 @@ static int term_blit(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     if (term == NULL) return 0;
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz, fg_sz, bg_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
     const char * fg = luaL_checklstring(L, 2, &fg_sz);
     const char * bg = luaL_checklstring(L, 3, &bg_sz);
     if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
     std::lock_guard<std::mutex> locked_g(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             computer->colors = (unsigned char)(htoi(bg[i]) << 4) | htoi(fg[i]);
