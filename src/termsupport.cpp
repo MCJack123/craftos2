@@ -597,7 +597,7 @@ static Uint32 mouseDebounce(Uint32 interval, void* param) {
 
 std::string termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
-    std::lock_guard<std::mutex> lock(computer->event_provider_queue_mutex);
+    computer->event_provider_queue_mutex.lock();
     if (!computer->event_provider_queue.empty()) {
         const std::pair<event_provider, void*> p = computer->event_provider_queue.front();
         computer->event_provider_queue.pop();
