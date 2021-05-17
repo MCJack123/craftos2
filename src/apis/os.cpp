@@ -157,18 +157,20 @@ static int os_startTimer(lua_State *L) {
 static int os_cancelTimer(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
-    runningTimerData.lock();
-    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
-    timer_data_t * data = (*runningTimerData)[id];
-    runningTimerData->erase(id);
-    runningTimerData.unlock();
-    data->lock->lock();
-#ifdef __EMSCRIPTEN__
-    queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
-#else
-    SDL_RemoveTimer(id);
-#endif
-    data->lock->unlock();
+    timer_data_t * data;
+    {
+        LockGuard lock(runningTimerData);
+        if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+        data = (*runningTimerData)[id];
+        runningTimerData->erase(id);
+    } {
+        std::lock_guard<std::mutex> lock(*data->lock);
+    #ifdef __EMSCRIPTEN__
+        queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
+    #else
+        SDL_RemoveTimer(id);
+    #endif
+    }
     delete data->lock;
     delete data;
     return 0;
@@ -295,18 +297,20 @@ static int os_setAlarm(lua_State *L) {
 static int os_cancelAlarm(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
-    runningTimerData.lock();
-    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
-    timer_data_t * data = (*runningTimerData)[id];
-    runningTimerData->erase(id);
-    runningTimerData.unlock();
-    data->lock->lock();
-#ifdef __EMSCRIPTEN__
-    queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
-#else
-    SDL_RemoveTimer(id);
-#endif
-    data->lock->unlock();
+    timer_data_t * data;
+    {
+        LockGuard lock(runningTimerData);
+        if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+        data = (*runningTimerData)[id];
+        runningTimerData->erase(id);
+    } {
+        std::lock_guard<std::mutex> lock(*data->lock);
+    #ifdef __EMSCRIPTEN__
+        queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
+    #else
+        SDL_RemoveTimer(id);
+    #endif
+    }
     delete data->lock;
     delete data;
     return 0;

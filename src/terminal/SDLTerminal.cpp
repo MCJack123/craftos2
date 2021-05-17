@@ -188,14 +188,14 @@ SDLTerminal::~SDLTerminal() {
 #ifdef __EMSCRIPTEN__
     onWindowDestroy(id);
 #endif
-    {std::lock_guard<std::mutex> locked_g(renderlock);}
-    renderTargetsLock.lock();
-    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
-        if (*it == this)
-            it = renderTargets.erase(it);
-        if (it == renderTargets.end()) break;
+    {std::lock_guard<std::mutex> locked_g(renderlock);} {
+        std::lock_guard<std::mutex> lock(renderTargetsLock);
+        for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
+            if (*it == this)
+                it = renderTargets.erase(it);
+            if (it == renderTargets.end()) break;
+        }
     }
-    renderTargetsLock.unlock();
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
 #ifndef __EMSCRIPTEN__
@@ -367,7 +367,7 @@ void SDLTerminal::render() {
     if (shouldRecord) {
         if (recordedFrames >= config.maxRecordingTime * config.recordingFPS) stopRecording();
         else if (--frameWait < 1) {
-            recorderMutex.lock();
+            std::lock_guard<std::mutex> recorderlock(recorderMutex);
             uint32_t uw = static_cast<uint32_t>(surf->w), uh = static_cast<uint32_t>(surf->h);
             std::string rle = std::string((char*)&uw, 4) + std::string((char*)&uh, 4);
             SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_ABGR8888, 0);
@@ -387,7 +387,6 @@ void SDLTerminal::render() {
             recording.push_back(rle);
             recordedFrames++;
             frameWait = config.clockSpeed / config.recordingFPS;
-            recorderMutex.unlock();
             if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
@@ -497,8 +496,8 @@ static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
 
 void SDLTerminal::stopRecording() {
     shouldRecord = false;
-    recorderMutex.lock();
-    if (recording.empty()) { recorderMutex.unlock(); return; }
+    std::lock_guard<std::mutex> lock(recorderMutex);
+    if (recording.empty()) return;
     GifWriter g;
     g.f = platform_fopen(recordingPath.c_str(), "wb");
     GifBegin(&g, NULL, reinterpret_cast<uint32_t*>(&recording[0][0])[0], reinterpret_cast<uint32_t*>(&recording[0][0])[1], 100 / config.recordingFPS);
@@ -522,7 +521,6 @@ void SDLTerminal::stopRecording() {
     }
     GifEnd(&g);
     recording.clear();
-    recorderMutex.unlock();
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif

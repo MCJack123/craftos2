@@ -168,14 +168,13 @@ TRoRTerminal::~TRoRTerminal() {
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TQ:%d;\n", id);
     const auto pos = currentIDs.find(id);
     if (pos != currentIDs.end()) currentIDs.erase(pos);
-    renderTargetsLock.lock();
+    std::lock_guard<std::mutex> lock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    renderTargetsLock.unlock();
 }
 
 void TRoRTerminal::showMessage(Uint32 flags, const char * title, const char * message) {

@@ -78,17 +78,16 @@ CLITerminal::CLITerminal(std::string title): Terminal(COLS, LINES-1) {
 CLITerminal::~CLITerminal() {
     auto pos = currentIDs.find(id);
     auto next = currentIDs.erase(pos);
-    if (currentIDs.size() == 0) return;
-    if (next == currentIDs.end()) next--;
+    if (currentIDs.empty()) return;
+    if (next == currentIDs.end()) --next;
     selectedWindow = next;
-    renderTargetsLock.lock();
+    std::lock_guard<std::mutex> lock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
-    for (auto it = renderTargets.begin(); it != renderTargets.end(); it++) {
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);
         if (it == renderTargets.end()) break;
     }
-    renderTargetsLock.unlock();
 }
 
 bool CLITerminal::drawChar(char c, int x, int y, Color fg, Color bg, bool transparent) {

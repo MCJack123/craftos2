@@ -55,13 +55,13 @@ peripheral* attachPeripheral(Computer * computer, const std::string& side, const
         if (errorReturn != NULL) *errorReturn = "No peripheral named speaker";
         return NULL;
     }
-    computer->peripherals_mutex.lock();
-    if (computer->peripherals.find(side) != computer->peripherals.end()) {
-        computer->peripherals_mutex.unlock();
-        if (errorReturn != NULL) *errorReturn = "Peripheral already attached on side " + side;
-        return NULL;
+    {
+        std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+        if (computer->peripherals.find(side) != computer->peripherals.end()) {
+            if (errorReturn != NULL) *errorReturn = "Peripheral already attached on side " + side;
+            return NULL;
+        }
     }
-    computer->peripherals_mutex.unlock();
     lua_State *L;
     int idx = -1;
     va_list arg;

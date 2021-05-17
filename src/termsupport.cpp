@@ -506,42 +506,43 @@ void termRenderLoop() {
     while (!exiting) {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         bool pushEvent = false;
-        renderTargetsLock.lock();
         #ifndef NO_CLI
-        bool willForceRender = CLITerminal::forceRender;
+        const bool willForceRender = CLITerminal::forceRender;
         #endif
         bool errored = false;
-        for (Terminal* term : renderTargets) {
-            if (!term->canBlink) term->blink = false;
-            else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
-                term->blink = !term->blink;
-                term->last_blink = std::chrono::high_resolution_clock::now();
-                term->changed = true;
-            }
-            if (term->frozen) continue;
-            const bool changed = term->changed;
-            try {
-                term->render();
-            } catch (std::exception &ex) {
-                fprintf(stderr, "Warning: Render on term %d threw an error: %s (%d)\n", term->id, ex.what(), term->errorcount);
-                if (term->errorcount++ > 10) {
-                    term->errorcount = 0;
-                    term->showMessage(SDL_MESSAGEBOX_ERROR, "Error rendering terminal", std::string(std::string("An error repeatedly occurred while attempting to render the terminal: ") + ex.what() + ". This is likely a bug in CraftOS-PC. Please go to https://www.craftos-pc.cc/bugreport and report this issue. The window will now close. Please note that CraftOS-PC may be left in an invalid state - you should restart the emulator.").c_str());
-                    SDL_Event e;
-                    e.type = SDL_WINDOWEVENT;
-                    e.window.event = SDL_WINDOWEVENT_CLOSE;
-                    e.window.windowID = term->id;
-                    SDL_PushEvent(&e);
-                    errored = true;
-                    break;
+        {
+            std::lock_guard<std::mutex> lock(renderTargetsLock);
+            for (Terminal* term : renderTargets) {
+                if (!term->canBlink) term->blink = false;
+                else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
+                    term->blink = !term->blink;
+                    term->last_blink = std::chrono::high_resolution_clock::now();
+                    term->changed = true;
                 }
-                continue;
+                if (term->frozen) continue;
+                const bool changed = term->changed;
+                try {
+                    term->render();
+                } catch (std::exception &ex) {
+                    fprintf(stderr, "Warning: Render on term %d threw an error: %s (%d)\n", term->id, ex.what(), term->errorcount);
+                    if (term->errorcount++ > 10) {
+                        term->errorcount = 0;
+                        term->showMessage(SDL_MESSAGEBOX_ERROR, "Error rendering terminal", std::string(std::string("An error repeatedly occurred while attempting to render the terminal: ") + ex.what() + ". This is likely a bug in CraftOS-PC. Please go to https://www.craftos-pc.cc/bugreport and report this issue. The window will now close. Please note that CraftOS-PC may be left in an invalid state - you should restart the emulator.").c_str());
+                        SDL_Event e;
+                        e.type = SDL_WINDOWEVENT;
+                        e.window.event = SDL_WINDOWEVENT_CLOSE;
+                        e.window.windowID = term->id;
+                        SDL_PushEvent(&e);
+                        errored = true;
+                        break;
+                    }
+                    continue;
+                }
+                if (changed) term->errorcount = 0;
+                pushEvent = pushEvent || changed;
+                term->framecount++;
             }
-            if (changed) term->errorcount = 0;
-            pushEvent = pushEvent || changed;
-            term->framecount++;
         }
-        renderTargetsLock.unlock();
         if (errored) continue;
         if (pushEvent) {
             SDL_Event ev;
@@ -596,7 +597,7 @@ static Uint32 mouseDebounce(Uint32 interval, void* param) {
 
 std::string termGetEvent(lua_State *L) {
     Computer * computer = get_comp(L);
-    computer->event_provider_queue_mutex.lock();
+    std::lock_guard<std::mutex> lock(computer->event_provider_queue_mutex);
     if (!computer->event_provider_queue.empty()) {
         const std::pair<event_provider, void*> p = computer->event_provider_queue.front();
         computer->event_provider_queue.pop();
