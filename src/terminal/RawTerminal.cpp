@@ -405,7 +405,7 @@ static void rawInputLoop() {
                     for (Computer * c : *computers) {
                         if (checkWindowID(c, id)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
-                            e.window.windowID = c->term->id;
+                            e.window.windowID = id;
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
                         }
