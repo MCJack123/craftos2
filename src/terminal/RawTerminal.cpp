@@ -91,7 +91,9 @@
     
   Offset     Bytes      Purpose
   0x02       1          Set to 1 when closing window or 2 when quitting program (if so, other fields may be any value)
-  0x03       1          Reserved
+  0x03       1          If opening a window and this is > 0, provides the ID + 1 of the computer this references (v2.5.6+)
+                        If opening a window and this is = 0, either the window is a monitor or this field is not supported
+                        If not opening a window, this field is reserved
   0x04       2          Width
   0x06       2          Height
   0x08       *x*        Title (NUL-terminated) (ignored when sending client -> server)
@@ -478,14 +480,14 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
     });
 }
 
-RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, config.defaultHeight) {
+RawTerminal::RawTerminal(std::string title, uint8_t cid) : Terminal(config.defaultWidth, config.defaultHeight), computerID(cid) {
     this->title.reserve(title.size());
     std::move(title.begin(), title.end(), this->title.begin());
     for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
     currentIDs.insert(id);
     sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
         output.put(0);
-        output.put(0);
+        output.put(computerID);
         output.write((char*)&width, 2);
         output.write((char*)&height, 2);
         output.write(title.c_str(), strlen(title.c_str()));
@@ -609,7 +611,7 @@ void RawTerminal::setLabel(std::string label) {
     title = label;
     sendRawData(CCPC_RAW_TERMINAL_CHANGE, (uint8_t)id, [this](std::ostream& output) {
         output.put(0);
-        output.put(0);
+        output.put(computerID);
         output.write((const char*)&width, 2);
         output.write((const char*)&height, 2);
         output.write(title.c_str(), strlen(title.c_str()));

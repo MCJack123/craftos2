@@ -16,11 +16,12 @@
 
 class RawTerminal: public Terminal {
     static std::set<unsigned> currentIDs;
+    uint8_t computerID;
 public:
     static void init();
     static void quit();
     static void showGlobalMessage(uint32_t flags, const char * title, const char * message);
-    RawTerminal(std::string title);
+    RawTerminal(std::string title, uint8_t computerID = 0);
     ~RawTerminal() override;
     void render() override;
     bool resize(unsigned w, unsigned h) override;
