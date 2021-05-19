@@ -350,7 +350,12 @@ bool CLITerminal::pollEvents() {
         void* retval = std::get<1>(v)(std::get<2>(v));
         if (!std::get<3>(v)) {
             LockGuard lock2(taskQueueReturns);
-            (*taskQueueReturns)[std::get<0>(v)] = retval;
+            try {
+                (*taskQueueReturns)[std::get<0>(v)] = retval;
+            } catch (...) {
+                LockGuard lock3(taskQueueExceptions);
+                (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
+            }
         }
         taskQueue->pop();
     }

@@ -45,6 +45,7 @@
 int nextTaskID = 0;
 ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
 ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
+ProtectedObject<std::unordered_map<int, std::exception_ptr> > taskQueueExceptions;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
 std::thread::id mainThreadID;
@@ -87,6 +88,10 @@ void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) 
     }
     if (async) return NULL;
     while (([]()->bool{taskQueueReturns.lock(); return true;})() && taskQueueReturns->find(myID) == taskQueueReturns->end() && !exiting) {taskQueueReturns.unlock(); std::this_thread::yield();}
+    {
+        LockGuard lock(taskQueueExceptions);
+        if (taskQueueExceptions->find(myID) != taskQueueExceptions->end()) std::rethrow_exception((*taskQueueExceptions)[myID]);
+    }
     void* retval = (*taskQueueReturns)[myID];
     taskQueueReturns->erase(myID);
     taskQueueReturns.unlock();
@@ -124,7 +129,12 @@ void mainLoop() {
                 void* retval = std::get<1>(v)(std::get<2>(v));
                 if (!std::get<3>(v)) {
                     LockGuard lock2(taskQueueReturns);
-                    (*taskQueueReturns)[std::get<0>(v)] = retval;
+                    try {
+                        (*taskQueueReturns)[std::get<0>(v)] = retval;
+                    } catch (...) {
+                        LockGuard lock3(taskQueueExceptions);
+                        (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
+                    }
                 }
                 taskQueue->pop();
             }

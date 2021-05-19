@@ -18,6 +18,9 @@
 
 extern ProtectedObject<std::vector<Computer*> > computers;
 extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
+extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
+extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
+extern ProtectedObject<std::unordered_map<int, std::exception_ptr> > taskQueueExceptions;
 extern bool exiting;
 extern int selectedRenderer;
 extern std::unordered_map<int, path_t> customDataDirs;
