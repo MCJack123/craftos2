@@ -50,8 +50,8 @@ public:
     static unsigned fontScale;
     unsigned charScale = 2;
     unsigned dpiScale = 1;
-    unsigned charWidth = fontWidth * 2/fontScale * charScale;
-    unsigned charHeight = fontHeight * 2/fontScale * charScale;
+    unsigned charWidth = fontWidth * charScale;
+    unsigned charHeight = fontHeight * charScale;
     int lastFPS = 0;
     int currentFPS = 0;
     time_t lastSecond = time(0);

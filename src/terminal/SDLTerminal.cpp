@@ -106,19 +106,17 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #endif
     if (config.customFontPath == "hdfont") {
         fontScale = 1;
-        charScale = 1;
-        charWidth = fontWidth * 2/fontScale * charScale;
-        charHeight = fontHeight * 2/fontScale * charScale;
+        charWidth = fontWidth * charScale;
+        charHeight = fontHeight * charScale;
     } else if (!config.customFontPath.empty()) {
         fontScale = config.customFontScale;
-        charScale = fontScale;
-        charWidth = fontWidth * 2/fontScale * charScale;
-        charHeight = fontHeight * 2/fontScale * charScale;
+        charWidth = fontWidth * charScale;
+        charHeight = fontHeight * charScale;
     }
     if (config.customCharScale > 0) {
         charScale = config.customCharScale;
-        charWidth = fontWidth * 2/fontScale * charScale;
-        charHeight = fontHeight * 2/fontScale * charScale;
+        charWidth = fontWidth * charScale;
+        charHeight = fontHeight * charScale;
     }
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
     if (win == NULL) {
@@ -148,8 +146,8 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     }
 #if defined(__ANDROID__) || defined(__IPHONEOS__)
     SDL_GetWindowSize(win, &realWidth, &realHeight);
-    width = (realWidth - 4*(2/SDLTerminal::fontScale)*charScale*dpiScale) / (charWidth*dpiScale);
-    height = (realHeight - 4*(2/SDLTerminal::fontScale)*charScale*dpiScale) / (charHeight*dpiScale);
+    width = (realWidth - 4*charScale*dpiScale) / (charWidth*dpiScale);
+    height = (realHeight - 4*charScale*dpiScale) / (charHeight*dpiScale);
     this->screen.resize(width, height, ' ');
     this->colors.resize(width, height, 0xF0);
     this->pixels.resize(width * fontWidth, height * fontHeight, 0x0F);
@@ -210,11 +208,16 @@ void SDLTerminal::setPalette(Color * p) {
 
 void SDLTerminal::setCharScale(int scale) {
     if (scale < 1) scale = 1;
+    std::lock_guard<std::mutex> lock(locked);
     useOrigFont = scale % 2 == 1 && !config.customFontPath.empty();
-    charScale = scale / (config.customFontPath.empty() || useOrigFont ? 1 : 2/fontScale);
-    charWidth = fontWidth * (useOrigFont ? 1 : 2/fontScale) * charScale;
-    charHeight = fontHeight * (useOrigFont ? 1 : 2/fontScale) * charScale;
-    SDL_SetWindowSize(win, (int)(width*charWidth+(4 * charScale)), (int)(height*charHeight+(4 * charScale)));
+    newWidth = width * charScale / scale;
+    newHeight = height * charScale / scale;
+    charScale = scale;
+    charWidth = fontWidth * charScale;
+    charHeight = fontHeight * charScale;
+    SDL_SetWindowSize(win, (int)(newWidth*charWidth+(4 * charScale)), (int)(newHeight*charHeight+(4 * charScale)));
+    gotResizeEvent = true;
+    changed = true;
 }
 
 bool operator!=(Color lhs, Color rhs) {
@@ -224,17 +227,17 @@ bool operator!=(Color lhs, Color rhs) {
 bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        (int)(x * charWidth * dpiScale + 2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale), 
-        (int)(y * charHeight * dpiScale + 2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale), 
-        (int)(fontWidth * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale), 
-        (int)(fontHeight * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale)
+        (int)(x * charWidth * dpiScale + 2 * charScale * dpiScale), 
+        (int)(y * charHeight * dpiScale + 2 * charScale * dpiScale), 
+        (int)(fontWidth * charScale * dpiScale), 
+        (int)(fontHeight * charScale * dpiScale)
     };
     SDL_Rect bgdestrect = destrect;
     if (config.standardsMode || config.extendMargins) {
-        if (x == 0) bgdestrect.x -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
-        if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
-        if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
-        if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if (x == 0) bgdestrect.x -= (int)(2 * charScale * dpiScale);
+        if (y == 0) bgdestrect.y -= (int)(2 * charScale * dpiScale);
+        if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * dpiScale);
+        if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * dpiScale);
         if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
         if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     }
@@ -311,14 +314,14 @@ void SDLTerminal::render() {
     SDL_Rect rect;
     if (gotResizeEvent || SDL_FillRect(surf, NULL, newmode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
     if (newmode != 0) {
-        for (unsigned y = 0; y < newheight * newcharHeight; y+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale) {
-            for (unsigned x = 0; x < newwidth * newcharWidth; x+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale) {
-                unsigned char c = (*newpixels)[y / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale][x / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale];
+        for (unsigned y = 0; y < newheight * newcharHeight; y+=newcharScale) {
+            for (unsigned x = 0; x < newwidth * newcharWidth; x+=newcharScale) {
+                unsigned char c = (*newpixels)[y / newcharScale][x / newcharScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, (int)(x + (2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale)),
-                                               (int)(y + (2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale)),
-                                               (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale),
-                                               (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale)),
+                if (SDL_FillRect(surf, setRect(&rect, (int)(x + (2 * newcharScale)),
+                                               (int)(y + 2 * newcharScale),
+                                               (int)newcharScale,
+                                               (int)newcharScale),
                                  rgb(newpalette[(int)c])) != 0) return;
             }
         }
@@ -392,7 +395,7 @@ void SDLTerminal::render() {
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
         if (circle == NULL) { fprintf(stderr, "Error creating circle: %s\n", SDL_GetError()); }
         if (gotResizeEvent) return;
-        if (SDL_BlitSurface(circle, NULL, surf, setRect(&rect, (int)(newwidth * newcharWidth * dpiScale + 2 * newcharScale * (2/ newfontScale) * dpiScale) - 10, (int)(2 * newcharScale * (2/ newfontScale) * dpiScale), 10, 10)) != 0) return;
+        if (SDL_BlitSurface(circle, NULL, surf, setRect(&rect, (int)(newwidth * newcharWidth * dpiScale + 2 * newcharScale * dpiScale) - 10, (int)(2 * newcharScale * dpiScale), 10, 10)) != 0) return;
         SDL_FreeSurface(circle);
     }
 }
@@ -437,7 +440,7 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
 bool SDLTerminal::resizeWholeWindow(int w, int h) {
     const bool r = resize(w, h);
     if (!r) return r;
-    queueTask([this](void*)->void*{SDL_SetWindowSize(win, (int)(width*charWidth*dpiScale+(4 * charScale * (useOrigFont ? 1 : 2/fontScale)*dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * (useOrigFont ? 1 : 2/fontScale)*dpiScale))); return NULL;}, NULL);
+    queueTask([this](void*)->void*{SDL_SetWindowSize(win, (int)(width*charWidth*dpiScale+(4 * charScale*dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale*dpiScale))); return NULL;}, NULL);
     return r;
 }
 

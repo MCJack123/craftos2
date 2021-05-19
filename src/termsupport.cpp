@@ -783,23 +783,28 @@ std::string termGetEvent(lua_State *L) {
             return e.motion.state ? "mouse_drag" : "mouse_move";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             unsigned w, h;
+            Terminal * term = NULL;
+            std::string side;
+            if (computer->term != NULL && computer->term->id == e.window.windowID) term = computer->term;
+            if (term == NULL) {
+                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
+                if (m != NULL) term = m->term;
+            }
+            if (term == NULL) return "";
             if (selectedRenderer == 0 || selectedRenderer == 5) {
-                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
+                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
                 if (sdlterm != NULL) {
-                    if (e.window.data1 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) w = 0;
-                    else w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charWidth*sdlterm->dpiScale);
-                    if (e.window.data2 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) h = 0;
-                    else h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
+                    if (e.window.data1 < 4*sdlterm->charScale*sdlterm->dpiScale) w = 0;
+                    else w = (e.window.data1 - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charWidth*sdlterm->dpiScale);
+                    if (e.window.data2 < 4*sdlterm->charScale*sdlterm->dpiScale) h = 0;
+                    else h = (e.window.data2 - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
                 } else {w = 51; h = 19;}
             } else {w = e.window.data1; h = e.window.data2;}
-            if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) return "term_resize";
+            term->resize(w, h);
+            if (computer->term == term) return "term_resize";
             else {
-                std::string side;
-                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
-                if (m != NULL && m->term->resize(w, h)) {
-                    lua_pushstring(L, side.c_str());
-                    return "monitor_resize";
-                }
+                lua_pushstring(L, side.c_str());
+                return "monitor_resize";
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
             if (e.window.windowID == computer->term->id) return "die";

@@ -136,17 +136,17 @@ void HardwareSDLTerminal::setCharScale(int scale) {
 bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
-        (int)(x * charWidth * dpiScale + 2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale), 
-        (int)(y * charHeight * dpiScale + 2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale), 
-        (int)(fontWidth * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale), 
-        (int)(fontHeight * (useOrigFont ? 1 : 2/fontScale) * charScale * dpiScale)
+        (int)(x * charWidth * dpiScale + 2 * charScale * dpiScale), 
+        (int)(y * charHeight * dpiScale + 2 * charScale * dpiScale), 
+        (int)(fontWidth * charScale * dpiScale), 
+        (int)(fontHeight * charScale * dpiScale)
     };
     SDL_Rect bgdestrect = destrect;
     if (config.standardsMode || config.extendMargins) {
-        if (x == 0) bgdestrect.x -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
-        if (y == 0) bgdestrect.y -= (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
-        if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
-        if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * (useOrigFont ? 1 : 2/fontScale) * dpiScale);
+        if (x == 0) bgdestrect.x -= (int)(2 * charScale * dpiScale);
+        if (y == 0) bgdestrect.y -= (int)(2 * charScale * dpiScale);
+        if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * dpiScale);
+        if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * dpiScale);
         if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
         if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
     }
@@ -239,7 +239,7 @@ void HardwareSDLTerminal::render() {
             }
         }
         SDL_UnlockTexture(pixtex);
-        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)(2 * (newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
+        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * newcharScale * dpiScale), (int)(2 * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
     } else {
         for (unsigned y = 0; y < newheight; y++) {
             for (unsigned x = 0; x < newwidth; x++) {
