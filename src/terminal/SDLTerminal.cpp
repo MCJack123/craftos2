@@ -121,7 +121,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
     if (win == NULL) {
 #endif
-    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), SDL_WINDOW_SHOWN | 
+    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale)), SDL_WINDOW_SHOWN | 
 #if !(defined(__EMSCRIPTEN__) && defined(NO_EMSCRIPTEN_HIDPI))
     SDL_WINDOW_ALLOW_HIGHDPI |
 #endif
@@ -152,8 +152,8 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     this->colors.resize(width, height, 0xF0);
     this->pixels.resize(width * fontWidth, height * fontHeight, 0x0F);
 #else
-    realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
-    realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+    realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
+    realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
 #endif
 #if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
     }
@@ -208,16 +208,16 @@ void SDLTerminal::setPalette(Color * p) {
 
 void SDLTerminal::setCharScale(int scale) {
     if (scale < 1) scale = 1;
-    std::lock_guard<std::mutex> lock(locked);
-    useOrigFont = scale % 2 == 1 && !config.customFontPath.empty();
-    newWidth = width * charScale / scale;
-    newHeight = height * charScale / scale;
-    charScale = scale;
-    charWidth = fontWidth * charScale;
-    charHeight = fontHeight * charScale;
-    SDL_SetWindowSize(win, (int)(newWidth*charWidth+(4 * charScale)), (int)(newHeight*charHeight+(4 * charScale)));
-    gotResizeEvent = true;
-    changed = true;
+    {
+        std::lock_guard<std::mutex> lock(locked);
+        useOrigFont = scale % 2 == 1 && !config.customFontPath.empty();
+        newWidth = width * charScale / scale;
+        newHeight = height * charScale / scale;
+        charScale = scale;
+        charWidth = fontWidth * charScale;
+        charHeight = fontHeight * charScale;
+    }
+    resize(newWidth, newHeight);
 }
 
 bool operator!=(Color lhs, Color rhs) {
@@ -238,8 +238,8 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * dpiScale);
-        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
-        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -318,7 +318,7 @@ void SDLTerminal::render() {
             for (unsigned x = 0; x < newwidth * newcharWidth; x+=newcharScale) {
                 unsigned char c = (*newpixels)[y / newcharScale][x / newcharScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, (int)(x + (2 * newcharScale)),
+                if (SDL_FillRect(surf, setRect(&rect, (int)(x + 2 * newcharScale),
                                                (int)(y + 2 * newcharScale),
                                                (int)newcharScale,
                                                (int)newcharScale),
@@ -423,7 +423,7 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 bool SDLTerminal::resize(unsigned w, unsigned h) {
     newWidth = w;
     newHeight = h;
-    if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale))); return NULL;}, NULL);
+    if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
     SDL_GetWindowSize(win, &realWidth, &realHeight);
     gotResizeEvent = (newWidth != width || newHeight != height);
     if (!gotResizeEvent) return false;
@@ -440,7 +440,7 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
 bool SDLTerminal::resizeWholeWindow(int w, int h) {
     const bool r = resize(w, h);
     if (!r) return r;
-    queueTask([this](void*)->void*{SDL_SetWindowSize(win, (int)(width*charWidth*dpiScale+(4 * charScale*dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale*dpiScale))); return NULL;}, NULL);
+    queueTask([this](void*)->void*{SDL_SetWindowSize(win, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale*dpiScale))); return NULL;}, NULL);
     return r;
 }
 

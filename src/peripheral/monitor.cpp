@@ -305,7 +305,7 @@ int monitor::getPixel(lua_State *L) {
 
 int monitor::setTextScale(lua_State *L) {
     lastCFunction = __func__;
-    unsigned charScale = luaL_checkinteger(L, 1);
+    unsigned charScale = (unsigned)(luaL_checknumber(L, 1) * 2.0);
     SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
     if (sdlterm != NULL) queueTask([charScale](void* term)->void*{((SDLTerminal*)term)->setCharScale(charScale); return NULL;}, sdlterm);
     return 0;

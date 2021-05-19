@@ -119,20 +119,6 @@ HardwareSDLTerminal::~HardwareSDLTerminal() {
 
 extern bool operator!=(Color lhs, Color rhs);
 
-void HardwareSDLTerminal::setCharScale(int scale) {
-    bool olduseOrigFont = useOrigFont;
-    SDLTerminal::setCharScale(scale);
-    if (useOrigFont != olduseOrigFont) {
-        std::lock_guard<std::mutex> lock(renderlock);
-        SDL_DestroyTexture(font);
-        font = SDL_CreateTextureFromSurface(ren, useOrigFont ? origfont : bmp);
-        if (font == (SDL_Texture*)0) {
-            throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
-        }
-    }
-}
-
-
 bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
@@ -147,8 +133,8 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         if (y == 0) bgdestrect.y -= (int)(2 * charScale * dpiScale);
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * dpiScale);
-        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
-        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * (2 / fontScale)*dpiScale));
+        if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -231,11 +217,11 @@ void HardwareSDLTerminal::render() {
         int pitch = 0;
         SDL_LockTexture(pixtex, setRect(&rect, 0, 0, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)), &pixels, &pitch);
         SDL_Surface * surf = SDL_CreateRGBSurfaceWithFormatFrom(pixels, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale), 24, pitch, SDL_PIXELFORMAT_RGB888);
-        for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale*dpiScale) {
-            for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=(newuseOrigFont ? 1 : 2/newfontScale)* newcharScale*dpiScale) {
-                unsigned char c = (*newpixels)[y / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale / dpiScale][x / (newuseOrigFont ? 1 : 2/newfontScale) / newcharScale / dpiScale];
+        for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=newcharScale*dpiScale) {
+            for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=newcharScale*dpiScale) {
+                unsigned char c = (*newpixels)[y / newcharScale / dpiScale][x / newcharScale / dpiScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, (int)x, (int)y, (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale), (int)((newuseOrigFont ? 1 : 2/newfontScale) * newcharScale * dpiScale)), rgb(newpalette[(int)c])) != 0) return;
+                if (SDL_FillRect(surf, setRect(&rect, (int)x, (int)y, (int)(newcharScale * dpiScale), (int)(newcharScale * dpiScale)), rgb(newpalette[(int)c])) != 0) return;
             }
         }
         SDL_UnlockTexture(pixtex);
@@ -342,7 +328,7 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         newWidth = w;
         newHeight = h;
         // not really a fan of having two tasks queued here, but there's not a whole lot we can do
-        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth+(4 * charScale * (2 / fontScale))), (int)(h*charHeight+(4 * charScale * (2 / fontScale)))); return NULL;}, NULL);
+        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth+(4 * charScale * dpiScale)), (int)(h*charHeight+(4 * charScale * dpiScale))); return NULL;}, NULL);
         {
             std::lock_guard<std::mutex> lock2(renderlock);
             SDL_GetWindowSize(win, &realWidth, &realHeight);
