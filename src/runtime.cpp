@@ -90,7 +90,11 @@ void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) 
     while (([]()->bool{taskQueueReturns.lock(); return true;})() && taskQueueReturns->find(myID) == taskQueueReturns->end() && !exiting) {taskQueueReturns.unlock(); std::this_thread::yield();}
     {
         LockGuard lock(taskQueueExceptions);
-        if (taskQueueExceptions->find(myID) != taskQueueExceptions->end()) std::rethrow_exception((*taskQueueExceptions)[myID]);
+        if (taskQueueExceptions->find(myID) != taskQueueExceptions->end()) {
+            std::exception_ptr e = (*taskQueueExceptions)[myID];
+            taskQueueExceptions->erase(myID);
+            std::rethrow_exception(e);
+        }
     }
     void* retval = (*taskQueueReturns)[myID];
     taskQueueReturns->erase(myID);
@@ -102,8 +106,20 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
     while (predicate()) {
         if (!taskQueue->empty()) {
             auto v = taskQueue->front();
-            void* retval = std::get<1>(v)(std::get<2>(v));
-            (*taskQueueReturns)[std::get<0>(v)] = retval;
+            try {
+                void* retval = std::get<1>(v)(std::get<2>(v));
+                if (!std::get<3>(v)) {
+                    LockGuard lock2(taskQueueReturns);
+                    (*taskQueueReturns)[std::get<0>(v)] = retval;
+                }
+            } catch (...) {
+                if (!std::get<3>(v)) {
+                    LockGuard lock2(taskQueueReturns);
+                    LockGuard lock3(taskQueueExceptions);
+                    (*taskQueueReturns)[std::get<0>(v)] = NULL;
+                    (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
+                }
+            }
             taskQueue->pop();
         }
         SDL_PumpEvents();
@@ -126,13 +142,17 @@ void mainLoop() {
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
             while (!taskQueue->empty()) {
                 auto v = taskQueue->front();
-                void* retval = std::get<1>(v)(std::get<2>(v));
-                if (!std::get<3>(v)) {
-                    LockGuard lock2(taskQueueReturns);
-                    try {
+                try {
+                    void* retval = std::get<1>(v)(std::get<2>(v));
+                    if (!std::get<3>(v)) {
+                        LockGuard lock2(taskQueueReturns);
                         (*taskQueueReturns)[std::get<0>(v)] = retval;
-                    } catch (...) {
+                    }
+                } catch (...) {
+                    if (!std::get<3>(v)) {
+                        LockGuard lock2(taskQueueReturns);
                         LockGuard lock3(taskQueueExceptions);
+                        (*taskQueueReturns)[std::get<0>(v)] = NULL;
                         (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
                     }
                 }

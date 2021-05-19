@@ -428,13 +428,17 @@ bool HardwareSDLTerminal::pollEvents() {
         if (e.type == task_event_type) {
             while (!taskQueue->empty()) {
                 auto v = taskQueue->front();
-                void* retval = std::get<1>(v)(std::get<2>(v));
-                if (!std::get<3>(v)) {
-                    LockGuard lock2(taskQueueReturns);
-                    try {
+                try {
+                    void* retval = std::get<1>(v)(std::get<2>(v));
+                    if (!std::get<3>(v)) {
+                        LockGuard lock2(taskQueueReturns);
                         (*taskQueueReturns)[std::get<0>(v)] = retval;
-                    } catch (...) {
+                    }
+                } catch (...) {
+                    if (!std::get<3>(v)) {
+                        LockGuard lock2(taskQueueReturns);
                         LockGuard lock3(taskQueueExceptions);
+                        (*taskQueueReturns)[std::get<0>(v)] = NULL;
                         (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
                     }
                 }
