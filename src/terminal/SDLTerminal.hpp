@@ -30,7 +30,7 @@ inline SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
 class SDLTerminal: public Terminal {
     friend void mainLoop();
     friend int termPanic(lua_State *L);
-    friend int runRenderer();
+    friend int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write);
     friend class HardwareSDLTerminal;
 protected:
     bool shouldScreenshot = false;

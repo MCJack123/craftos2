@@ -114,6 +114,10 @@
 */
 
 std::set<unsigned> RawTerminal::currentIDs;
+std::function<void(const std::string&)> rawWriter = [](const std::string& data){
+    std::cout << data;
+    std::cout.flush();
+};
 static std::thread * inputThread;
 
 enum {
@@ -135,9 +139,9 @@ static void sendRawData(const uint8_t type, const uint8_t id, const std::functio
     Poco::Checksum chk;
     chk.update(str);
     const uint32_t sum = chk.checksum();
-    std::cout << "!CPC" << std::hex << std::setfill('0') << std::setw(4) << str.length() << std::dec;
-    std::cout << str << std::hex << std::setfill('0') << std::setw(8) << sum << "\n";
-    std::cout.flush();
+    char tmpdata[13];
+    snprintf(tmpdata, 13, "%04X%08X", str.length(), sum);
+    rawWriter("!CPC" + std::string(tmpdata, 4) + str + std::string(tmpdata + 4, 8) + "\n");
 }
 
 static void parseIBTTag(std::istream& in, lua_State *L) {

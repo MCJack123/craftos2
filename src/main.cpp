@@ -10,7 +10,7 @@
  */
 
 #include "main.hpp"
-static int runRenderer();
+static int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write);
 static void showReleaseNotes();
 static void* releaseNotesThread(void* data);
 #include <functional>
@@ -30,12 +30,16 @@ static void* releaseNotesThread(void* data);
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
+#include <Poco/Version.h>
+#include <Poco/URI.h>
 #include <Poco/Checksum.h>
 #include <Poco/JSON/Parser.h>
 #ifndef __EMSCRIPTEN__
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
+#include <Poco/Net/NetException.h>
+#include <Poco/Net/WebSocket.h>
 #else
 #include <emscripten/emscripten.h>
 #endif
@@ -51,6 +55,7 @@ extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{retur
 extern void http_server_stop();
 extern library_t * libraries[];
 extern int onboardingMode;
+extern std::function<void(const std::string&)> rawWriter;
 #ifdef WIN32
 extern void* kernel32handle;
 #endif
@@ -70,6 +75,7 @@ std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
 std::unordered_map<path_t, std::string> globalPluginErrors;
+static std::string rawWebSocketURL;
 
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
 static void* releaseNotesThread(void* data) {
@@ -257,152 +263,147 @@ inline Terminal * createTerminal(const std::string& title) {
     else return new SDLTerminal(title);
 }
 
-
-static int runRenderer() {
+static int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write) {
     if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 5) HardwareSDLTerminal::init();
     else {
         std::cerr << "Error: Raw client mode requires using a GUI terminal.\n";
         return 3;
     }
-    std::thread inputThread([](){
+    rawWriter = write;
+    std::thread inputThread([read](){
         while (!exiting) {
-            unsigned char c1 = (unsigned char)std::cin.get();
-            if (c1 == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
-                char size[5];
-                std::cin.read(size, 4);
-                long sizen = strtol(size, NULL, 16);
-                char * tmp = new char[(size_t)sizen+1];
-                tmp[sizen] = 0;
-                std::cin.read(tmp, sizen);
-                Poco::Checksum chk;
-                chk.update(tmp, sizen);
-                char hexstr[9];
-                std::cin.read(hexstr, 8);
-                hexstr[8] = 0;
-                if (chk.checksum() != strtoul(hexstr, NULL, 16)) {
-                    fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), strtoul(hexstr, NULL, 16));
-                    continue;
-                }
-                std::stringstream in(b64decode(tmp));
-                delete[] tmp;
-                uint8_t type = (uint8_t)in.get();
-                uint8_t id = (uint8_t)in.get();
-                switch (type) {
-                case 0: {
-                    if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
-                        Terminal * term = rawClientTerminals[id];
-                        term->mode = in.get();
-                        term->blink = in.get();
-                        uint16_t width, height;
-                        in.read((char*)&width, 2);
-                        in.read((char*)&height, 2);
-                        in.read((char*)&term->blinkX, 2);
-                        in.read((char*)&term->blinkY, 2);
-                        in.seekg(in.tellg()+(std::streamoff)4); // reserved
-                        if (term->mode == 0) {
-                            unsigned char c = (unsigned char)in.get();
-                            unsigned char n = (unsigned char)in.get();
-                            for (int y = 0; y < height; y++) {
-                                for (int x = 0; x < width; x++) {
-                                    term->screen[y][x] = c;
-                                    n--;
-                                    if (n == 0) {
-                                        c = (unsigned char)in.get();
-                                        n = (unsigned char)in.get();
-                                    }
-                                }
-                            }
-                            for (int y = 0; y < height; y++) {
-                                for (int x = 0; x < width; x++) {
-                                    term->colors[y][x] = c;
-                                    n--;
-                                    if (n == 0) {
-                                        c = (unsigned char)in.get();
-                                        n = (unsigned char)in.get();
-                                    }
-                                }
-                            }
-                            in.putback(n);
-                            in.putback(c);
-                        } else {
-                            unsigned char c = (unsigned char)in.get();
-                            unsigned char n = (unsigned char)in.get();
-                            for (int y = 0; y < height * 9; y++) {
-                                for (int x = 0; x < width * 6; x++) {
-                                    term->pixels[y][x] = c;
-                                    n--;
-                                    if (n == 0) {
-                                        c = (unsigned char)in.get();
-                                        n = (unsigned char)in.get();
-                                    }
-                                }
-                            }
-                            in.putback(n);
-                            in.putback(c);
-                        }
-                        if (term->mode != 2) {
-                            for (int i = 0; i < 16; i++) {
-                                term->palette[i].r = (uint8_t)in.get();
-                                term->palette[i].g = (uint8_t)in.get();
-                                term->palette[i].b = (uint8_t)in.get();
-                            }
-                        } else {
-                            for (int i = 0; i < 256; i++) {
-                                term->palette[i].r = (uint8_t)in.get();
-                                term->palette[i].g = (uint8_t)in.get();
-                                term->palette[i].b = (uint8_t)in.get();
-                            }
-                        }
-                        term->changed = true;
-                    }
-                    break;
-                } case 4: {
-                    uint8_t quit = (uint8_t)in.get();
-                    if (quit == 1) {
-                        queueTask([id](void*)->void*{
-                            rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
-                            delete rawClientTerminals[id];
-                            rawClientTerminals.erase(id);
-                            return NULL;
-                        }, NULL);
-                        break;
-                    } else if (quit == 2) {
-                        exiting = true;
-                        if (selectedRenderer == 0) {
-                            SDL_Event e;
-                            memset(&e, 0, sizeof(SDL_Event));
-                            e.type = SDL_QUIT;
-                            SDL_PushEvent(&e);
-                        }
-                        return;
-                    }
-                    in.get(); // reserved
-                    uint16_t width = 0, height = 0;
+            std::string data = read();
+            if (data.empty()) {
+                exiting = true;
+                break;
+            }
+            int sizen = std::stoi(data.substr(4, 4), nullptr, 16);
+            Poco::Checksum chk;
+            chk.update(data.substr(8, sizen));
+            if (chk.checksum() != std::stoul(data.substr(sizen + 8, 8), NULL, 16)) {
+                fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), std::stoul(data.substr(sizen + 8, 8), NULL, 16));
+                continue;
+            }
+            std::stringstream in(b64decode(data.substr(8, sizen)));
+            uint8_t type = (uint8_t)in.get();
+            uint8_t id = (uint8_t)in.get();
+            switch (type) {
+            case 0: {
+                if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
+                    Terminal * term = rawClientTerminals[id];
+                    term->mode = in.get();
+                    term->blink = in.get();
+                    uint16_t width, height;
                     in.read((char*)&width, 2);
                     in.read((char*)&height, 2);
-                    std::string title;
-                    char c;
-                    while ((c = (char)in.get())) title += c;
-                    if (rawClientTerminals.find(id) == rawClientTerminals.end()) {
-                        rawClientTerminals[id] = (Terminal*)queueTask([](void*t)->void*{return createTerminal(*(std::string*)t);}, &title);
-                        rawClientTerminalIDs[rawClientTerminals[id]->id] = id;
-                    } else rawClientTerminals[id]->setLabel(title);
-                    rawClientTerminals[id]->resize(width, height);
+                    in.read((char*)&term->blinkX, 2);
+                    in.read((char*)&term->blinkY, 2);
+                    in.seekg(in.tellg()+(std::streamoff)4); // reserved
+                    if (term->mode == 0) {
+                        unsigned char c = (unsigned char)in.get();
+                        unsigned char n = (unsigned char)in.get();
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                term->screen[y][x] = c;
+                                n--;
+                                if (n == 0) {
+                                    c = (unsigned char)in.get();
+                                    n = (unsigned char)in.get();
+                                }
+                            }
+                        }
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                term->colors[y][x] = c;
+                                n--;
+                                if (n == 0) {
+                                    c = (unsigned char)in.get();
+                                    n = (unsigned char)in.get();
+                                }
+                            }
+                        }
+                        in.putback(n);
+                        in.putback(c);
+                    } else {
+                        unsigned char c = (unsigned char)in.get();
+                        unsigned char n = (unsigned char)in.get();
+                        for (int y = 0; y < height * 9; y++) {
+                            for (int x = 0; x < width * 6; x++) {
+                                term->pixels[y][x] = c;
+                                n--;
+                                if (n == 0) {
+                                    c = (unsigned char)in.get();
+                                    n = (unsigned char)in.get();
+                                }
+                            }
+                        }
+                        in.putback(n);
+                        in.putback(c);
+                    }
+                    if (term->mode != 2) {
+                        for (int i = 0; i < 16; i++) {
+                            term->palette[i].r = (uint8_t)in.get();
+                            term->palette[i].g = (uint8_t)in.get();
+                            term->palette[i].b = (uint8_t)in.get();
+                        }
+                    } else {
+                        for (int i = 0; i < 256; i++) {
+                            term->palette[i].r = (uint8_t)in.get();
+                            term->palette[i].g = (uint8_t)in.get();
+                            term->palette[i].b = (uint8_t)in.get();
+                        }
+                    }
+                    term->changed = true;
+                }
+                break;
+            } case 4: {
+                uint8_t quit = (uint8_t)in.get();
+                if (quit == 1) {
+                    queueTask([id](void*)->void*{
+                        rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
+                        delete rawClientTerminals[id];
+                        rawClientTerminals.erase(id);
+                        return NULL;
+                    }, NULL);
                     break;
-                } case 5: {
-                    uint32_t flags = 0;
-                    std::string title, message;
-                    char c;
-                    in.read((char*)&flags, 4);
-                    while ((c = (char)in.get())) title += c;
-                    while ((c = (char)in.get())) message += c;
-                    if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
-                    else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
-                } default: {}}
-            }
+                } else if (quit == 2) {
+                    exiting = true;
+                    if (selectedRenderer == 0) {
+                        SDL_Event e;
+                        memset(&e, 0, sizeof(SDL_Event));
+                        e.type = SDL_QUIT;
+                        SDL_PushEvent(&e);
+                    }
+                    return;
+                }
+                in.get(); // reserved
+                uint16_t width = 0, height = 0;
+                in.read((char*)&width, 2);
+                in.read((char*)&height, 2);
+                std::string title;
+                char c;
+                while ((c = (char)in.get())) title += c;
+                if (rawClientTerminals.find(id) == rawClientTerminals.end()) {
+                    rawClientTerminals[id] = (Terminal*)queueTask([](void*t)->void*{return createTerminal(*(std::string*)t);}, &title);
+                    rawClientTerminalIDs[rawClientTerminals[id]->id] = id;
+                } else rawClientTerminals[id]->setLabel(title);
+                rawClientTerminals[id]->resize(width, height);
+                break;
+            } case 5: {
+                uint32_t flags = 0;
+                std::string title, message;
+                char c;
+                in.read((char*)&flags, 4);
+                while ((c = (char)in.get())) title += c;
+                while ((c = (char)in.get())) message += c;
+                if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
+                else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
+            } default: {}}
+            std::this_thread::yield();
         }
     });
+    setThreadName(inputThread, "Input Thread");
     mainLoop();
     inputThread.join();
     for (auto t : rawClientTerminals) delete t.second;
@@ -505,8 +506,15 @@ int main(int argc, char*argv[]) {
     path_t customDataDir;
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
-        if (arg == "--headless") { selectedRenderer = 1; checkTTY(); } else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
-        else if (arg == "--cli" || arg == "-c") { selectedRenderer = 2; checkTTY(); } else if (arg == "--raw") { selectedRenderer = 3; checkTTY(); } else if (arg == "--raw-client") { rawClient = true; checkTTY(); } else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); } else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
+        if (arg == "--headless") { selectedRenderer = 1; checkTTY(); }
+        else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
+        else if (arg == "--cli" || arg == "-c") { selectedRenderer = 2; checkTTY(); }
+        else if (arg == "--raw") { selectedRenderer = 3; checkTTY(); }
+        else if (arg == "--raw-client") { rawClient = true; checkTTY(); }
+        else if (arg == "--raw-websocket") { rawClient = true; rawWebSocketURL = argv[++i]; }
+        else if (arg.substr(0, 16) == "--raw-websocket=") { rawClient = true; rawWebSocketURL = arg.substr(16); }
+        else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); }
+        else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
@@ -653,7 +661,97 @@ int main(int argc, char*argv[]) {
     migrateData(forceMigrate);
     config_init();
     if (selectedRenderer == -1) selectedRenderer = config.useHardwareRenderer ? 5 : 0;
-    if (rawClient) return runRenderer();
+    if (rawClient) {
+        if (!rawWebSocketURL.empty()) {
+            Poco::URI uri;
+            try {
+                uri = Poco::URI(rawWebSocketURL);
+            } catch (Poco::SyntaxException &e) {
+                std::cerr << "Could not connect to WebSocket: URL malformed\n";
+                return 6;
+            }
+            if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+            Poco::Net::HTTPClientSession * cs;
+            if (uri.getScheme() == "ws") cs = new Poco::Net::HTTPClientSession(uri.getHost(), uri.getPort());
+            else if (uri.getScheme() == "wss") cs = new Poco::Net::HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+            else {
+                std::cerr << "Could not connect to WebSocket: Invalid scheme '" + uri.getScheme() + "'\n";
+                return 6;
+            }
+            if (uri.getPathAndQuery().empty()) uri.setPath("/");
+            if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
+            Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
+            request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
+            request.add("Accept-Charset", "UTF-8");
+            Poco::Net::HTTPResponse response;
+            Poco::Net::WebSocket* ws;
+            try {
+                ws = new Poco::Net::WebSocket(*cs, request, response);
+            } catch (Poco::Exception &e) {
+                std::cerr << "Could not connect to WebSocket: " << e.displayText() << "\n";
+                return 6;
+            } catch (std::exception &e) {
+                std::cerr << "Could not connect to WebSocket: " << e.what() << "\n";
+                return 6;
+            }
+            ws->setReceiveTimeout(Poco::Timespan(1, 0));
+#if POCO_VERSION >= 0x01090100
+            ws->setMaxPayloadSize(65536);
+#endif
+            bool open = true;
+            int retval = runRenderer([ws, &open]()->std::string {
+                char buf[65536];
+                while (open) {
+                    int flags = 0;
+                    int res;
+                    try {
+                        res = ws->receiveFrame(buf, 65536, flags);
+                        if (res == 0) {
+                            open = false;
+                            break;
+                        }
+                    } catch (Poco::TimeoutException &e) {
+                        continue;
+                    } catch (Poco::Net::NetException &e) {
+                        open = false;
+                        break;
+                    }
+                    if (flags & Poco::Net::WebSocket::FRAME_OP_CLOSE) {
+                        open = false;
+                        break;
+                    } else {
+                        return std::string(buf, res);
+                    }
+                }
+                return "";
+            }, [ws](const std::string& data) {
+                ws->sendFrame(data.c_str(), data.size());
+            });
+            open = false;
+            try {ws->shutdown();} catch (...) {}
+            delete ws;
+            delete cs;
+            return retval;
+        } else return runRenderer([]()->std::string {
+            while (true) {
+                unsigned char c1 = (unsigned char)std::cin.get();
+                if (c1 == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
+                    char size[5];
+                    std::cin.read(size, 4);
+                    const long sizen = strtol(size, NULL, 16);
+                    char * tmp = new char[(size_t)sizen+10];
+                    std::cin.read(tmp, sizen + 9);
+                    std::string retval = "!CPC" + std::string(size, 4) + std::string(tmp, sizen + 9);
+                    if (tmp[sizen + 8] == '\r') retval += '\n';
+                    delete[] tmp;
+                    return retval;
+                }
+            }
+        }, [](const std::string& str) {
+            std::cout << str;
+            std::cout.flush();
+        });
+    }
     try {
 #ifndef NO_CLI
         if (selectedRenderer == 2) CLITerminal::init();
