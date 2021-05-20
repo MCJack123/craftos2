@@ -129,11 +129,11 @@ inline int log2i(int num) {
     return retval;
 }
 
-inline unsigned char htoi(char c) {
+inline unsigned char htoi(char c, unsigned char def) {
     if (c >= '0' && c <= '9') return c - '0';
     else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return 0;
+    return def;
 }
 
 inline std::string asciify(std::string str) {

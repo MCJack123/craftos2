@@ -249,8 +249,8 @@ static int term_blit(lua_State *L) {
     if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
-            computer->colors = (unsigned char)(htoi(bg[i]) << 4) | htoi(fg[i]);
-            if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i]);
+            computer->colors = (unsigned char)(htoi(bg[i], 15) << 4) | htoi(fg[i], 0);
+            if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i], 0);
             if (selectedRenderer == 4)
                 printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[computer->colors & 0xf], term->id, ("0123456789abcdef")[computer->colors >> 4], term->id, str[i]);
             term->screen[term->blinkY][term->blinkX] = str[i];
