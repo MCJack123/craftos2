@@ -34,7 +34,7 @@
 
   Offset     Bytes      Purpose
   0x02       1          Graphics mode
-  0x03       1          Cursor showing?
+  0x03       1          Cursor blinking? (previously showing)
   0x04       2          Width
   0x06       2          Height
   0x08       2          Cursor X
@@ -140,7 +140,7 @@ static void sendRawData(const uint8_t type, const uint8_t id, const std::functio
     chk.update(str);
     const uint32_t sum = chk.checksum();
     char tmpdata[13];
-    snprintf(tmpdata, 13, "%04X%08X", str.length(), sum);
+    snprintf(tmpdata, 13, "%04X%08x", (unsigned)str.length(), sum);
     rawWriter("!CPC" + std::string(tmpdata, 4) + str + std::string(tmpdata + 4, 8) + "\n");
 }
 
@@ -185,70 +185,103 @@ void sendRawEvent(SDL_Event e) {
             output.put(e.text.text[0]);
             output.put(0x08);
         });
-    else if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end())
-        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.button.windowID], [e](std::ostream &output) {
-            output.put(e.type == SDL_MOUSEBUTTONUP);
-            switch (e.button.button) {
-            case SDL_BUTTON_LEFT: output.put(1); break;
-            case SDL_BUTTON_RIGHT: output.put(2); break;
-            case SDL_BUTTON_MIDDLE: output.put(3); break;
-            default: output.put(e.button.button); break;
-            }
-            SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
-            uint16_t x, y;
-            if (sdlterm != NULL) {
-                x = convertX(sdlterm, e.button.x);
-                y = convertY(sdlterm, e.button.y);
-            } else {
-                x = e.button.x;
-                y = e.button.y;
-            }
-            output.write((char*)&x, 2);
-            output.write((char*)&y, 2);
+    else if (e.type == SDL_MOUSEBUTTONDOWN) {
+        Terminal * term = rawClientTerminals[rawClientTerminalIDs[e.key.windowID]];
+        int x = 1, y = 1;
+        if (selectedRenderer >= 2 && selectedRenderer <= 4) {
+            x = e.button.x; y = e.button.y;
+        } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
+            x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
+        }
+        if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 0) return;
+        int button;
+        switch (e.button.button) {
+            case SDL_BUTTON_LEFT: button = 1; break;
+            case SDL_BUTTON_RIGHT: button = 2; break;
+            case SDL_BUTTON_MIDDLE: button = 3; break;
+            default:
+                if (config.standardsMode) return;
+                else button = e.button.button;
+                break;
+        }
+        term->lastMouse = {x, y, e.button.button, 0, ""};
+        term->mouseButtonOrder.push_back(e.button.button);
+        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [button, x, y](std::ostream &output) {
+            output.put(0);
+            output.put(button);
+            output.write((const char*)&x, 4);
+            output.write((const char*)&y, 4);
         });
-    else if (e.type == SDL_MOUSEWHEEL && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end() && selectedRenderer == 0)
-        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.wheel.windowID], [e](std::ostream &output) {
-            output.put(2);
-            output.put(max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
-            SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
-            uint16_t x, y;
-            if (sdlterm != NULL) {
-                int tx = 0, ty = 0;
-                sdlterm->getMouse(&tx, &ty);
-                x = convertX(sdlterm, tx);
-                y = convertY(sdlterm, ty);
-            } else {
-                // ???
-            }
-            output.write((char*)&x, 2);
-            output.write((char*)&y, 2);
+    } else if (e.type == SDL_MOUSEBUTTONUP) {
+        Terminal * term = rawClientTerminals[rawClientTerminalIDs[e.key.windowID]];
+        int x = 1, y = 1;
+        if (selectedRenderer >= 2 && selectedRenderer <= 4) {
+            x = e.button.x; y = e.button.y;
+        } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
+            x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
+        }
+        if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 1) return;
+        int button;
+        switch (e.button.button) {
+            case SDL_BUTTON_LEFT: button = 1; break;
+            case SDL_BUTTON_RIGHT: button = 2; break;
+            case SDL_BUTTON_MIDDLE: button = 3; break;
+            default:
+                if (config.standardsMode) return;
+                else button = e.button.button;
+                break;
+        }
+        term->lastMouse = {x, y, e.button.button, 1, ""};
+        term->mouseButtonOrder.remove(e.button.button);
+        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [button, x, y](std::ostream &output) {
+            output.put(1);
+            output.put(button);
+            output.write((const char*)&x, 4);
+            output.write((const char*)&y, 4);
         });
-    else if (e.type == SDL_MOUSEMOTION && e.motion.state && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end()) {
+    } else if (e.type == SDL_MOUSEWHEEL) {
+        SDLTerminal * term = dynamic_cast<SDLTerminal*>(rawClientTerminals[rawClientTerminalIDs[e.key.windowID]]);
+        if (term == NULL) {
+            return;
+        } else {
+            int x = 0, y = 0;
+            term->getMouse(&x, &y);
+            x = convertX(term, x);
+            y = convertY(term, y);
+            sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [e, x, y](std::ostream &output) {
+                output.put(2);
+                output.put(max(min(-e.wheel.y, 1), -1));
+                output.write((const char*)&x, 4);
+                output.write((const char*)&y, 4);
+            });
+        }
+    } else if (e.type == SDL_MOUSEMOTION && e.motion.state) {
+        SDLTerminal * term = dynamic_cast<SDLTerminal*>(rawClientTerminals[rawClientTerminalIDs[e.key.windowID]]);
+        if (term == NULL) return;
+        int x = 1, y = 1;
+        if (selectedRenderer >= 2 && selectedRenderer <= 4) {
+            x = e.motion.x; y = e.motion.y;
+        } else if (term != NULL) {
+            x = convertX(term, e.motion.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
+        }
         std::list<Uint8> used_buttons;
         for (Uint8 i = 0; i < 32; i++) if (e.motion.state & (1 << i)) used_buttons.push_back(i + 1);
-        for (auto it = rawClientTerminals[e.button.windowID]->mouseButtonOrder.begin(); it != rawClientTerminals[e.button.windowID]->mouseButtonOrder.end();) {
+        for (auto it = term->mouseButtonOrder.begin(); it != term->mouseButtonOrder.end();) {
             auto pos = std::find(used_buttons.begin(), used_buttons.end(), *it);
-            if (pos == used_buttons.end()) it = rawClientTerminals[e.button.windowID]->mouseButtonOrder.erase(it);
+            if (pos == used_buttons.end()) it = term->mouseButtonOrder.erase(it);
             else ++it;
         }
         Uint8 button = used_buttons.back();
-        if (!rawClientTerminals[e.button.windowID]->mouseButtonOrder.empty()) button = rawClientTerminals[e.button.windowID]->mouseButtonOrder.back();
+        if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
         if (button == SDL_BUTTON_MIDDLE) button = 3;
         else if (button == SDL_BUTTON_RIGHT) button = 2;
-        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.motion.windowID], [e, button](std::ostream &output) {
+        if ((term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == button && term->lastMouse.event == 2) || (config.standardsMode && button > 3)) return;
+        term->lastMouse = {x, y, button, 2, ""};
+        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [button, x, y](std::ostream &output) {
             output.put(3);
             output.put(button);
-            SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
-            uint16_t x, y;
-            if (sdlterm != NULL) {
-                x = convertX(sdlterm, e.button.x);
-                y = convertY(sdlterm, e.button.y);
-            } else {
-                x = e.button.x;
-                y = e.button.y;
-            }
-            output.write((char*)&x, 2);
-            output.write((char*)&y, 2);
+            output.write((const char*)&x, 4);
+            output.write((const char*)&y, 4);
         });
     } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE)
         sendRawData(CCPC_RAW_TERMINAL_CHANGE, rawClientTerminalIDs[e.window.windowID], [](std::ostream &output) {
@@ -532,7 +565,7 @@ void RawTerminal::render() {
     changed = false;
     sendRawData(CCPC_RAW_TERMINAL_DATA, (uint8_t)id, [this](std::ostream& output) {
         output.put((char)mode);
-        output.put((char)blink);
+        output.put((char)canBlink);
         output.write((char*)&width, 2);
         output.write((char*)&height, 2);
         output.write((char*)&blinkX, 2);

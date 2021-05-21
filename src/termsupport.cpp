@@ -231,26 +231,26 @@ Uint32 render_event_type;
 int convertX(SDLTerminal * term, int x) {
     if (term->mode != 0) {
         if (x < 2 * term->dpiScale * (int)term->charScale) return 0;
-        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale))
+        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale)
             return (int)(Terminal::fontWidth * term->width - 1);
-        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)));
+        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale));
     } else {
-        if (x < 2 * term->dpiScale * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) return 1;
-        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) return (int)term->width;
-        return (int)((x - 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) / (term->dpiScale * term->charWidth) + 1);
+        if (x < 2 * term->dpiScale * (int)term->charScale) return 1;
+        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale) return (int)term->width;
+        return (int)((x - 2 * term->charScale * term->dpiScale) / (term->dpiScale * term->charWidth) + 1);
     }
 }
 
 int convertY(SDLTerminal * term, int x) {
     if (term->mode != 0) {
         if (x < 2 * term->dpiScale * (int)term->charScale) return 0;
-        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale))
+        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale)
             return (int)(Terminal::fontHeight * term->height - 1);
-        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)));
+        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale));
     } else {
-        if (x < 2 * (int)term->charScale * term->dpiScale * (int)(2 / SDLTerminal::fontScale)) return 1;
-        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) return (int)term->height;
-        return (int)((x - 2 * term->charScale * term->dpiScale * (2 / SDLTerminal::fontScale)) / (term->dpiScale * term->charHeight) + 1);
+        if (x < 2 * (int)term->charScale * term->dpiScale) return 1;
+        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale) return (int)term->height;
+        return (int)((x - 2 * term->charScale * term->dpiScale) / (term->dpiScale * term->charHeight) + 1);
     }
 }
 
@@ -514,7 +514,7 @@ void termRenderLoop() {
             std::lock_guard<std::mutex> lock(renderTargetsLock);
             for (Terminal* term : renderTargets) {
                 if (!term->canBlink) term->blink = false;
-                else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
+                else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 400) {
                     term->blink = !term->blink;
                     term->last_blink = std::chrono::high_resolution_clock::now();
                     term->changed = true;
@@ -575,23 +575,25 @@ static std::string utf8_to_string(const char *utf8str, const std::locale& loc)
 }
 
 static Uint32 mouseDebounce(Uint32 interval, void* param);
+struct comp_term_pair {Computer * comp; Terminal * term;};
 
 static std::string mouse_move(lua_State *L, void* param) {
-    Computer * computer = get_comp(L);
+    Terminal * term = (Terminal*)param;
     lua_pushinteger(L, 1);
-    lua_pushinteger(L, computer->nextMouseMove.x);
-    lua_pushinteger(L, computer->nextMouseMove.y);
-    if (!computer->nextMouseMove.side.empty()) lua_pushstring(L, computer->nextMouseMove.side.c_str());
-    computer->nextMouseMove = {0, 0, 0, 0, std::string()};
-    computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
+    lua_pushinteger(L, term->nextMouseMove.x);
+    lua_pushinteger(L, term->nextMouseMove.y);
+    if (!term->nextMouseMove.side.empty()) lua_pushstring(L, term->nextMouseMove.side.c_str());
+    term->nextMouseMove = {0, 0, 0, 0, std::string()};
+    term->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, new comp_term_pair {get_comp(L), term});
     return "mouse_move";
 }
 
 static Uint32 mouseDebounce(Uint32 interval, void* param) {
-    Computer * computer = (Computer*)param;
-    if (freedComputers.find(computer) != freedComputers.end()) return 0;
-    if (computer->nextMouseMove.event) queueEvent(computer, mouse_move, NULL);
-    else computer->mouseMoveDebounceTimer = 0;
+    comp_term_pair * data = (comp_term_pair*)param;
+    if (freedComputers.find(data->comp) != freedComputers.end()) return 0;
+    if (data->term->nextMouseMove.event) queueEvent(data->comp, mouse_move, data->term);
+    else data->term->mouseMoveDebounceTimer = 0;
+    delete data;
     return 0;
 }
 
@@ -690,7 +692,7 @@ std::string termGetEvent(lua_State *L) {
             } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
-            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 0) return "";
+            if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 0) return "";
             if (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) {
                 switch (e.button.button) {
                 case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
@@ -702,7 +704,7 @@ std::string termGetEvent(lua_State *L) {
                     break;
                 }
             } else lua_pushstring(L, tmpstrval.c_str());
-            computer->lastMouse = {x, y, e.button.button, 0, ""};
+            term->lastMouse = {x, y, e.button.button, 0, ""};
             term->mouseButtonOrder.push_back(e.button.button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
@@ -716,7 +718,7 @@ std::string termGetEvent(lua_State *L) {
             } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
-            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 1) return "";
+            if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 1) return "";
             switch (e.button.button) {
             case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
             case SDL_BUTTON_RIGHT: lua_pushinteger(L, 2); break;
@@ -726,7 +728,7 @@ std::string termGetEvent(lua_State *L) {
                 else lua_pushinteger(L, e.button.button);
                 break;
             }
-            computer->lastMouse = {x, y, e.button.button, 1, ""};
+            term->lastMouse = {x, y, e.button.button, 1, ""};
             term->mouseButtonOrder.remove(e.button.button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
@@ -765,14 +767,14 @@ std::string termGetEvent(lua_State *L) {
             if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
             if (button == SDL_BUTTON_MIDDLE) button = 3;
             else if (button == SDL_BUTTON_RIGHT) button = 2;
-            if ((computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == button && computer->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
-            computer->lastMouse = {x, y, button, 2, ""};
+            if ((term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == button && term->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
+            term->lastMouse = {x, y, button, 2, ""};
             if (!e.motion.state) {
-                if (computer->mouseMoveDebounceTimer == 0) {
-                    computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
-                    computer->nextMouseMove = {0, 0, 0, 0, std::string()};
+                if (term->mouseMoveDebounceTimer == 0) {
+                    term->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, new comp_term_pair {computer, term});
+                    term->nextMouseMove = {0, 0, 0, 0, std::string()};
                 } else {
-                    computer->nextMouseMove = {x, y, 0, 1, (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) ? tmpstrval : ""};
+                    term->nextMouseMove = {x, y, 0, 1, (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) ? tmpstrval : ""};
                     return "";
                 }
             }
@@ -814,14 +816,23 @@ std::string termGetEvent(lua_State *L) {
                 if (m != NULL) detachPeripheral(computer, side);
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_LEAVE && config.mouse_move_throttle >= 0 && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
-            if (computer->mouseMoveDebounceTimer != 0) {
-                SDL_RemoveTimer(computer->mouseMoveDebounceTimer);
-                computer->mouseMoveDebounceTimer = 0;
-                computer->nextMouseMove = {0, 0, 0, 0, std::string() };
+            Terminal * term = NULL;
+            std::string side;
+            if (computer->term != NULL && computer->term->id == e.window.windowID) term = computer->term;
+            if (term == NULL) {
+                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
+                if (m != NULL) term = m->term;
+            }
+            if (term == NULL) return "";
+            if (term->mouseMoveDebounceTimer != 0) {
+                SDL_RemoveTimer(term->mouseMoveDebounceTimer);
+                term->mouseMoveDebounceTimer = 0;
+                term->nextMouseMove = {0, 0, 0, 0, std::string() };
             }
             lua_pushinteger(L, 1);
             lua_pushnil(L);
             lua_pushnil(L);
+            if (e.window.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return "mouse_move";
         }
     }

@@ -293,7 +293,7 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                 if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
                     Terminal * term = rawClientTerminals[id];
                     term->mode = in.get();
-                    term->blink = in.get();
+                    term->canBlink = in.get();
                     uint16_t width, height;
                     in.read((char*)&width, 2);
                     in.read((char*)&height, 2);
