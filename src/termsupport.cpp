@@ -514,7 +514,7 @@ void termRenderLoop() {
             std::lock_guard<std::mutex> lock(renderTargetsLock);
             for (Terminal* term : renderTargets) {
                 if (!term->canBlink) term->blink = false;
-                else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 400) {
+                else if (selectedRenderer != 1 && selectedRenderer != 2 && selectedRenderer != 3 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 400) {
                     term->blink = !term->blink;
                     term->last_blink = std::chrono::high_resolution_clock::now();
                     term->changed = true;

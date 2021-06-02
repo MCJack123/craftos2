@@ -14,13 +14,56 @@
 #include <SDL2/SDL.h>
 #include <Terminal.hpp>
 
+enum {
+    CCPC_RAW_TERMINAL_DATA = 0,
+    CCPC_RAW_KEY_DATA,
+    CCPC_RAW_MOUSE_DATA,
+    CCPC_RAW_EVENT_DATA,
+    CCPC_RAW_TERMINAL_CHANGE,
+    CCPC_RAW_MESSAGE_DATA,
+    CCPC_RAW_FEATURE_FLAGS,
+    CCPC_RAW_FILE_REQUEST,
+    CCPC_RAW_FILE_RESPONSE,
+    CCPC_RAW_FILE_DATA
+};
+
+enum {
+    CCPC_RAW_FILE_REQUEST_EXISTS = 0,
+    CCPC_RAW_FILE_REQUEST_ISDIR,
+    CCPC_RAW_FILE_REQUEST_ISREADONLY,
+    CCPC_RAW_FILE_REQUEST_GETSIZE,
+    CCPC_RAW_FILE_REQUEST_GETDRIVE,
+    CCPC_RAW_FILE_REQUEST_GETCAPACITY,
+    CCPC_RAW_FILE_REQUEST_GETFREESPACE,
+    CCPC_RAW_FILE_REQUEST_LIST,
+    CCPC_RAW_FILE_REQUEST_ATTRIBUTES,
+    CCPC_RAW_FILE_REQUEST_FIND,
+    CCPC_RAW_FILE_REQUEST_MAKEDIR,
+    CCPC_RAW_FILE_REQUEST_DELETE,
+    CCPC_RAW_FILE_REQUEST_COPY,
+    CCPC_RAW_FILE_REQUEST_MOVE
+};
+
+#define CCPC_RAW_FILE_REQUEST_OPEN         0x10
+#define CCPC_RAW_FILE_REQUEST_OPEN_WRITE   0x01
+#define CCPC_RAW_FILE_REQUEST_OPEN_APPEND  0x02
+#define CCPC_RAW_FILE_REQUEST_OPEN_BINARY  0x04
+
+#define CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM        0x0001
+#define CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT     0x0002
+#define CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS       0x0004
+#define CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES  0x8000
+
 class RawTerminal: public Terminal {
     static std::set<unsigned> currentIDs;
-    uint8_t computerID;
 public:
+    static uint16_t supportedFeatures;
+    static uint32_t supportedExtendedFeatures;
+    uint8_t computerID;
     static void init();
     static void quit();
     static void showGlobalMessage(uint32_t flags, const char * title, const char * message);
+    static void initClient(uint16_t flags, uint32_t extflags = 0);
     RawTerminal(std::string title, uint8_t computerID = 0);
     ~RawTerminal() override;
     void render() override;

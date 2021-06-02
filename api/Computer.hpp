@@ -114,6 +114,8 @@ struct Computer {
 
     // The following fields are available in API version 10.4 and later.
     std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > eventHooks; // List of hooks for events
+    lua_State *rawFileStack = NULL; // Temporary stack for raw mode file access function calls
+    std::mutex rawFileStackMutex; // A mutex locking rawFileStack
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

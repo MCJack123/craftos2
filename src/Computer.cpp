@@ -368,6 +368,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
 
         self->coro = lua_newthread(L);
         self->paramQueue = lua_newthread(L);
+        if (selectedRenderer == 3) self->rawFileStack = lua_newthread(L);
         while (!self->eventQueue.empty()) self->eventQueue.pop();
         lua_setlockstate(L, false);
 
@@ -631,6 +632,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->eventTimeout = 0;
         lua_close(L);   /* Cya, Lua */
         self->L = NULL;
+        self->rawFileStack = NULL;
     }
     if (self->term != NULL) {
         // Reset terminal contents

@@ -278,18 +278,24 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                 exiting = true;
                 break;
             }
-            int sizen = std::stoi(data.substr(4, 4), nullptr, 16);
+            long sizen;
+            size_t off = 8;
+            if (data[3] == 'C') sizen = std::stol(data.substr(4, 4), nullptr, 16);
+            else if (data[3] == 'D') {sizen = std::stol(data.substr(4, 12), nullptr, 16); off = 16;}
+            else continue;
+            std::string ddata = b64decode(data.substr(off, sizen));
             Poco::Checksum chk;
-            chk.update(data.substr(8, sizen));
-            if (chk.checksum() != std::stoul(data.substr(sizen + 8, 8), NULL, 16)) {
-                fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), std::stoul(data.substr(sizen + 8, 8), NULL, 16));
+            if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM) chk.update(ddata);
+            else chk.update(data.substr(off, sizen));
+            if (chk.checksum() != std::stoul(data.substr(sizen + off, 8), NULL, 16)) {
+                fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), std::stoul(data.substr(sizen + off, 8), NULL, 16));
                 continue;
             }
-            std::stringstream in(b64decode(data.substr(8, sizen)));
+            std::stringstream in(ddata);
             uint8_t type = (uint8_t)in.get();
             uint8_t id = (uint8_t)in.get();
             switch (type) {
-            case 0: {
+            case CCPC_RAW_TERMINAL_DATA: {
                 if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
                     Terminal * term = rawClientTerminals[id];
                     term->mode = in.get();
@@ -357,7 +363,7 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                     term->changed = true;
                 }
                 break;
-            } case 4: {
+            } case CCPC_RAW_TERMINAL_CHANGE: {
                 uint8_t quit = (uint8_t)in.get();
                 if (quit == 1) {
                     queueTask([id](void*)->void*{
@@ -390,7 +396,7 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                 } else rawClientTerminals[id]->setLabel(title);
                 rawClientTerminals[id]->resize(width, height);
                 break;
-            } case 5: {
+            } case CCPC_RAW_MESSAGE_DATA: {
                 uint32_t flags = 0;
                 std::string title, message;
                 char c;
@@ -399,11 +405,19 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                 while ((c = (char)in.get())) message += c;
                 if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
                 else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
-            } default: {}}
+            } case CCPC_RAW_FEATURE_FLAGS: {
+                uint16_t f = 0;
+                uint32_t ef = 0;
+                in.read((char*)&f, 2);
+                if (f & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) in.read((char*)&ef, 4);
+                RawTerminal::supportedFeatures &= f;
+                RawTerminal::supportedExtendedFeatures &= ef;
+            }}
             std::this_thread::yield();
         }
     });
     setThreadName(inputThread, "Input Thread");
+    RawTerminal::initClient(CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM | CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS);
     mainLoop();
     inputThread.join();
     for (auto t : rawClientTerminals) delete t.second;
