@@ -86,37 +86,6 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_sp
                  expect(counts.count):ne(0)
                  expect(counts.line):ne(0)
              end)
-@@ -139,30 +137,6 @@
-                     expect(x[4]):eq(32)
-                 end)
-             end)
--
--            it("within a yielding metatable comparator", function()
--                local meta = {
--                    __lt = function(a, b)
--                        local x, y = coroutine.yield(a, b)
--                        expect(x):eq(a)
--                        expect(y):eq(b)
--
--                        return a.x < b.x
--                    end,
--                }
--
--                local function create(val) return setmetatable({ x = val }, meta) end
--
--                coroutine_echo(function()
--                    local x = { create(32), create(2), create(4), create(13) }
--                    table.sort(x)
--
--                    expect(x[1].x):eq(2)
--                    expect(x[2].x):eq(4)
--                    expect(x[3].x):eq(13)
--                    expect(x[4].x):eq(32)
--                end)
--            end)
-         end)
- 
-         describe("within xpcall", function()
 @@ -195,59 +169,6 @@
                      expect("Error message!"):eq(msg)
                  end)
