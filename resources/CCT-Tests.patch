@@ -82,7 +82,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_sp
                  expect(counts.count):ne(0)
                  expect(counts.line):ne(0)
              end)
-@@ -195,58 +193,6 @@
+@@ -195,59 +193,6 @@
                      expect("Error message!"):eq(msg)
                  end)
              end)
