@@ -86,11 +86,11 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_sp
                  expect(counts.count):ne(0)
                  expect(counts.line):ne(0)
              end)
-@@ -140,30 +138,6 @@
+@@ -139,30 +137,6 @@
                      expect(x[4]):eq(32)
                  end)
              end)
-- 
+-
 -            it("within a yielding metatable comparator", function()
 -                local meta = {
 -                    __lt = function(a, b)
