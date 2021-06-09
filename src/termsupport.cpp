@@ -280,6 +280,11 @@ int termPanic(lua_State *L) {
     if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
     comp->eventTimeout = 0;
     comp->L = NULL;
+    if (comp->rawFileStack) {
+        std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+        lua_close(comp->rawFileStack);
+        comp->rawFileStack = NULL;
+    }
     longjmp(comp->on_panic, 0);
 }
 

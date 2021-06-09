@@ -448,8 +448,7 @@ static void rawInputLoop() {
                 std::cin.read(size, 12);
                 sizen = strtoul(size, NULL, 16);
             } else continue;
-            printf("%lu\n", sizen);
-            char * tmp = new char[sizen];
+            char * tmp = new char[sizen+1];
             tmp[sizen] = 0;
             std::cin.read(tmp, sizen);
             std::string ddata;
@@ -651,7 +650,7 @@ static void rawInputLoop() {
                     if ((reqtype & 0xF0) == CCPC_RAW_FILE_REQUEST_OPEN && !(reqtype & CCPC_RAW_FILE_REQUEST_OPEN_WRITE)) sendRawData(CCPC_RAW_FILE_DATA, id, [reqid](std::ostream& out) {
                         out.put(1);
                         out.put(reqid);
-                        out.put(0); out.put(0); out.put(0); out.put(39);
+                        out.put(39); out.put(0); out.put(0); out.put(0);
                         out.write("Could not find computer for this window", 39);
                     }); else sendRawData(CCPC_RAW_FILE_RESPONSE, id, [reqtype, reqid](std::ostream& out) {
                         out.put(reqtype);
@@ -692,7 +691,6 @@ static void rawInputLoop() {
                     break;
                 }
                 std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
-                //lua_setlockstate(comp->rawFileStack, true); // ?
                 if ((reqtype & 0xF0) == CCPC_RAW_FILE_REQUEST_OPEN) {
                     if (!(reqtype & CCPC_RAW_FILE_REQUEST_OPEN_WRITE)) sendRawData(CCPC_RAW_FILE_DATA, id, [reqtype, reqid, comp, &path](std::ostream &out) {
                         lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "open"));
@@ -893,7 +891,6 @@ static void rawInputLoop() {
                         break;
                     }}
                 });
-                //lua_setlockstate(comp->rawFileStack, false);
                 break;
             } case CCPC_RAW_FILE_DATA: {
                 if (!(RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT)) break;
@@ -918,7 +915,7 @@ static void rawInputLoop() {
                         break;
                     }
                 }
-                if (comp == NULL) {
+                if (comp == NULL || comp->rawFileStack == NULL) {
                     sendRawData(CCPC_RAW_FILE_RESPONSE, id, [reqtype, reqid](std::ostream &out) {
                         out.put(reqtype);
                         out.put(reqid);

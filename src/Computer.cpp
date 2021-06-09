@@ -368,7 +368,13 @@ void runComputer(Computer * self, const path_t& bios_name) {
 
         self->coro = lua_newthread(L);
         self->paramQueue = lua_newthread(L);
-        if (selectedRenderer == 3) self->rawFileStack = lua_newthread(L);
+        if (selectedRenderer == 3) {
+            std::lock_guard<std::mutex> lock(self->rawFileStackMutex);
+            self->rawFileStack = luaL_newstate();
+            lua_pushinteger(self->rawFileStack, 1);
+            lua_pushlightuserdata(self->rawFileStack, self);
+            lua_settable(self->rawFileStack, LUA_REGISTRYINDEX);
+        }
         while (!self->eventQueue.empty()) self->eventQueue.pop();
         lua_setlockstate(L, false);
 
@@ -632,7 +638,11 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->eventTimeout = 0;
         lua_close(L);   /* Cya, Lua */
         self->L = NULL;
-        self->rawFileStack = NULL;
+        if (self->rawFileStack) {
+            std::lock_guard<std::mutex> lock(self->rawFileStackMutex);
+            lua_close(self->rawFileStack);
+            self->rawFileStack = NULL;
+        }
     }
     if (self->term != NULL) {
         // Reset terminal contents
@@ -725,6 +735,11 @@ void* computerThread(void* data) {
                 comp->eventTimeout = 0;
                 lua_close(comp->L);   /* Cya, Lua */
                 comp->L = NULL;
+                if (comp->rawFileStack) {
+                    std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                    lua_close(comp->rawFileStack);
+                    comp->rawFileStack = NULL;
+                }
             }
         } catch (std::exception &e) {
             fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
@@ -738,6 +753,11 @@ void* computerThread(void* data) {
                 comp->eventTimeout = 0;
                 lua_close(comp->L);   /* Cya, Lua */
                 comp->L = NULL;
+                if (comp->rawFileStack) {
+                    std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                    lua_close(comp->rawFileStack);
+                    comp->rawFileStack = NULL;
+                }
             }
         }
         first = false;

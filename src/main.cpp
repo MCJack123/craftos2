@@ -107,6 +107,11 @@ static void* releaseNotesThread(void* data) {
             comp->eventTimeout = 0;
             lua_close(comp->L);   /* Cya, Lua */
             comp->L = NULL;
+            if (comp->rawFileStack) {
+                std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                lua_close(comp->rawFileStack);
+                comp->rawFileStack = NULL;
+            }
         }
     }
     freedComputers.insert(comp);
