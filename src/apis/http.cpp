@@ -201,8 +201,24 @@ static std::string http_check(lua_State *L, void* data) {
     return "http_check";
 }
 
-static inline void replaceAll(std::string& str, const std::string& from, const std::string& to) {
-    
+
+static std::string urlEncode(const std::string& tmppath) {
+    static const char * hexstr = "0123456789ABCDEF";
+    std::string path;
+    for (int i = 0; i < tmppath.size(); i++) {
+        char c = tmppath[i];
+        if (isalnum(c) || (c == '%' && i + 2 < tmppath.size() && isxdigit(tmppath[i+i]) && isxdigit(tmppath[i+2]))) path += c;
+        else {
+            switch (c) {
+                case '!': case '#': case '$': case '&': case '\'': case '(':
+                case ')': case '*': case '+': case ',': case '/': case ':':
+                case ';': case '=': case '?': case '@': case '[': case ']':
+                case '-': case '_': case '.': case '~': path += c; break;
+                default: path += '%'; path += hexstr[c >> 4]; path += hexstr[c & 0x0F];
+            }
+        }
+    }
+    return path;
 }
 
 static void downloadThread(void* arg) {
@@ -216,6 +232,7 @@ static void downloadThread(void* arg) {
     Poco::URI uri;
     HTTPClientSession * session;
     std::string status;
+    std::string path;
     if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
     else if (param->url.find("://") == std::string::npos) status = "URL malformed";
     else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
@@ -225,8 +242,9 @@ static void downloadThread(void* arg) {
         status = "URL malformed";
     }
     if (status.empty()) {
+        size_t pos = param->url.find('/', param->url.find(uri.getHost()));
+        path = urlEncode(pos != std::string::npos ? param->url.substr(pos) : "/");
         if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
-        if (uri.getPathAndQuery().empty()) uri.setPath("/");
         bool found = false;
         for (const std::string& wclass : config.http_whitelist) {
             if (matchIPClass(uri.getHost(), wclass)) {
@@ -258,7 +276,7 @@ static void downloadThread(void* arg) {
     }
 
     if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
-    HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+    HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), path, HTTPMessage::HTTP_1_1);
     HTTPResponse * response = new HTTPResponse();
     if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
     size_t requestSize = param->postData.size();
@@ -353,7 +371,7 @@ static void downloadThread(void* arg) {
         std::string location = handle->handle->get("Location");
         if (location.find("://") == std::string::npos) {
             if (location[0] == '/') location = uri.getScheme() + "://" + uri.getHost() + location;
-            else location = uri.getScheme() + "://" + uri.getHost() + uri.getPath() + "/" + location;
+            else location = uri.getScheme() + "://" + uri.getHost() + path.substr(0, path.find('?')) + "/" + location;
         }
         delete handle->handle;
         delete handle->session;
@@ -382,7 +400,9 @@ void HTTPDownload(const std::string& url, const std::function<void(std::istream*
     }
     HTTPSClientSession session(uri.getHost(), uri.getPort(), new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
-    HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+    size_t pos = url.find('/', url.find(uri.getHost()));
+    std::string path = urlEncode(pos != std::string::npos ? url.substr(pos) : "/");
+    HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
     HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
     request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
@@ -962,9 +982,10 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         queueEvent(comp, websocket_failure, data);
         return;
     }
-    if (uri.getPathAndQuery().empty()) uri.setPath("/");
+    size_t pos = str.find('/', str.find(uri.getHost()));
+    std::string path = urlEncode(pos != std::string::npos ? str.substr(pos) : "/");
     if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
-    HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+    HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
     for (std::pair<std::string, std::string> h : headers) request.set(h.first, h.second);
     if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
     if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
