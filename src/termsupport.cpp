@@ -715,7 +715,7 @@ std::string termGetEvent(lua_State *L) {
             lua_pushinteger(L, y);
             if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
             return (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) ? "mouse_click" : "monitor_touch";
-        } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config->isColor || computer->isDebugger) && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
+        } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config->isColor || computer->isDebugger)) {
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
             int x = 1, y = 1;
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {
@@ -735,6 +735,10 @@ std::string termGetEvent(lua_State *L) {
             }
             term->lastMouse = {x, y, e.button.button, 1, ""};
             term->mouseButtonOrder.remove(e.button.button);
+            if (!(e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
+                lua_pop(L, 1);
+                return "";
+            }
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
