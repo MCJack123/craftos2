@@ -224,9 +224,9 @@ static void sendRawData(const uint8_t type, const uint8_t id, const std::functio
     char tmpdata[21];
     if (str.length() > 65535) {
         if (isVersion1_1) {
-            snprintf(tmpdata, 21, "%012lX%08x", str.length(), sum);
+            snprintf(tmpdata, 21, "%012zX%08x", str.length(), sum);
             rawWriter("!CPD" + std::string(tmpdata, 12) + str + std::string(tmpdata + 12, 8) + "\n");
-        } else fprintf(stderr, "Attempted to send raw packet that's too large to a client that doesn't support large packets (%lu bytes); dropping packet.", str.length());
+        } else fprintf(stderr, "Attempted to send raw packet that's too large to a client that doesn't support large packets (%zu bytes); dropping packet.", str.length());
     } else {
         snprintf(tmpdata, 13, "%04X%08x", (unsigned)str.length(), sum);
         rawWriter("!CPC" + std::string(tmpdata, 4) + str + std::string(tmpdata + 4, 8) + "\n");

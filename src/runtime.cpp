@@ -41,6 +41,7 @@
 #endif
 
 #define termHasEvent(computer) ((computer)->running == 1 && (!(computer)->event_provider_queue.empty() || (computer)->lastResizeEvent || !(computer)->termEventQueue.empty()))
+#define QUEUE_LIMIT 256
 
 int nextTaskID = 0;
 ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
@@ -245,7 +246,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
             while (computer->running == 1 && !termHasEvent(computer)) 
                 computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return termHasEvent(computer) || computer->running != 1;});
             if (computer->running != 1) return 0;
-            while (termHasEvent(computer)/* && computer->eventQueue.size() < 25*/) {
+            while (termHasEvent(computer) && computer->eventQueue.size() < QUEUE_LIMIT) {
                 if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
                 std::string name = termGetEvent(param);
                 if (!name.empty() && computer->eventHooks.find(name) != computer->eventHooks.end()) {

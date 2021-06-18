@@ -299,7 +299,9 @@ std::string makeASCIISafe(const char * retval, size_t len) {
     try {wstr = converter.from_bytes(retval, retval + len);} 
     catch (std::exception &e) {
         fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-        return std::string(retval, len);
+        std::string out;
+        for (size_t i = 0; i < len; i++) {if ((unsigned char)retval[i] < 128) out += retval[i]; else out += '?';}
+        return out;
     }
     std::string out;
     for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}

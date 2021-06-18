@@ -480,7 +480,8 @@ static int fs_open(lua_State *L) {
         }
         FILE ** fp = (FILE**)lua_newuserdata(L, sizeof(FILE*));
         int fpid = lua_gettop(L);
-        *fp = platform_fopen(path.c_str(), mode);
+        if (mode[1] != 'b') *fp = platform_fopen(path.c_str(), (std::string(mode) + 'b').c_str());
+        else *fp = platform_fopen(path.c_str(), mode);
         if (*fp == NULL) { 
             lua_remove(L, fpid);
             lua_pushnil(L);
