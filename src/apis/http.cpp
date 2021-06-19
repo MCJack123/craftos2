@@ -59,7 +59,6 @@ struct http_param_t {
 };
 
 struct http_handle_t {
-    bool closed;
     std::string url;
     HTTPClientSession * session;
     HTTPResponse * handle;
@@ -78,55 +77,57 @@ static std::string http_success(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
     lua_pushlstring(L, handle->url.c_str(), handle->url.size());
-    lua_createtable(L, 0, 5);
 
-    lua_pushstring(L, "close");
-    lua_pushlightuserdata(L, handle);
+    *(http_handle_t**)lua_newuserdata(L, sizeof(http_handle_t*)) = handle;
     lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
-    lua_pushlightuserdata(L, handle);
-    lua_pushcclosure(L, http_handle_free, 1);
+    lua_pushcfunction(L, http_handle_free);
     lua_settable(L, -3);
     lua_setmetatable(L, -2);
+    lua_createtable(L, 0, 6);
+
+    lua_pushstring(L, "close");
+    lua_pushvalue(L, -3);
     lua_pushcclosure(L, http_handle_close, 1);
     lua_settable(L, -3);
 
     lua_pushstring(L, "readLine");
-    lua_pushlightuserdata(L, handle);
+    lua_pushvalue(L, -3);
     lua_pushcclosure(L, http_handle_readLine, 1);
     lua_settable(L, -3);
 
     if (!handle->isBinary) {
         lua_pushstring(L, "readAll");
-        lua_pushlightuserdata(L, handle);
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_readAll, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "read");
-        lua_pushlightuserdata(L, handle);
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_readChar, 1);
         lua_settable(L, -3);
     } else {
         lua_pushstring(L, "readAll");
-        lua_pushlightuserdata(L, handle);
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_readAllByte, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "read");
-        lua_pushlightuserdata(L, handle);
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_readByte, 1);
         lua_settable(L, -3);
     }
 
     lua_pushstring(L, "getResponseCode");
-    lua_pushlightuserdata(L, handle);
+    lua_pushvalue(L, -3);
     lua_pushcclosure(L, http_handle_getResponseCode, 1);
     lua_settable(L, -3);
 
     lua_pushstring(L, "getResponseHeaders");
-    lua_pushlightuserdata(L, handle);
+    lua_pushvalue(L, -3);
     lua_pushcclosure(L, http_handle_getResponseHeaders, 1);
     lua_settable(L, -3);
+    lua_remove(L, -2);
     return "http_success";
 }
 
@@ -136,55 +137,56 @@ static std::string http_failure(lua_State *L, void* data) {
     lua_pushlstring(L, handle->url.c_str(), handle->url.size());
     if (!handle->failureReason.empty()) lua_pushstring(L, handle->failureReason.c_str());
     if (handle->stream != NULL) {
-        lua_createtable(L, 0, 5);
-
-        lua_pushstring(L, "close");
-        lua_pushlightuserdata(L, handle);
+        *(http_handle_t**)lua_newuserdata(L, sizeof(http_handle_t*)) = handle;
         lua_createtable(L, 0, 1);
         lua_pushstring(L, "__gc");
-        lua_pushlightuserdata(L, handle);
-        lua_pushcclosure(L, http_handle_free, 1);
+        lua_pushcfunction(L, http_handle_free);
         lua_settable(L, -3);
         lua_setmetatable(L, -2);
+
+        lua_createtable(L, 0, 6);
+        lua_pushstring(L, "close");
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_close, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "readLine");
-        lua_pushlightuserdata(L, handle);
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_readLine, 1);
         lua_settable(L, -3);
 
         if (!handle->isBinary) {
             lua_pushstring(L, "readAll");
-            lua_pushlightuserdata(L, handle);
+            lua_pushvalue(L, -3);
             lua_pushcclosure(L, http_handle_readAll, 1);
             lua_settable(L, -3);
 
             lua_pushstring(L, "read");
-            lua_pushlightuserdata(L, handle);
+            lua_pushvalue(L, -3);
             lua_pushcclosure(L, http_handle_readChar, 1);
             lua_settable(L, -3);
         } else {
             lua_pushstring(L, "readAll");
-            lua_pushlightuserdata(L, handle);
+            lua_pushvalue(L, -3);
             lua_pushcclosure(L, http_handle_readAllByte, 1);
             lua_settable(L, -3);
 
             lua_pushstring(L, "read");
-            lua_pushlightuserdata(L, handle);
+            lua_pushvalue(L, -3);
             lua_pushcclosure(L, http_handle_readByte, 1);
             lua_settable(L, -3);
         }
 
         lua_pushstring(L, "getResponseCode");
-        lua_pushlightuserdata(L, handle);
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_getResponseCode, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "getResponseHeaders");
-        lua_pushlightuserdata(L, handle);
+        lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_getResponseHeaders, 1);
         lua_settable(L, -3);
+        lua_remove(L, -2);
     } else {
         delete handle;
     }
@@ -379,7 +381,6 @@ static void downloadThread(void* arg) {
         param->url = location;
         return downloadThread(param);
     }
-    handle->closed = false;
     if (response->getStatus() >= 400) {
         handle->failureReason = HTTPResponse::getReasonForStatus(response->getStatus());
         queueEvent(param->comp, http_failure, handle);
