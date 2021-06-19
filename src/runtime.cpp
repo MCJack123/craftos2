@@ -71,13 +71,15 @@ void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) 
     task->data = arg;
     task->async = async;
     {
-        LockGuard lock(taskQueue);
+        std::unique_lock<std::mutex> lock(taskQueue.getMutex());
         taskQueue->push(task);
-    }
-    if (selectedRenderer == 0 || selectedRenderer == 5) {
-        SDL_Event e;
-        e.type = task_event_type;
-        SDL_PushEvent(&e);
+        if (selectedRenderer == 0 || selectedRenderer == 5) {
+            SDL_Event e;
+            e.type = task_event_type;
+            SDL_PushEvent(&e);
+        }
+        taskQueueReady = true;
+        taskQueueNotify.notify_all();
     }
     if (async) return NULL;
     {
