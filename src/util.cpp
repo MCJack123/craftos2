@@ -259,29 +259,35 @@ std::set<std::string> getMounts(Computer * computer, const char * comp_path) {
 
 static void xcopy_internal(lua_State *from, lua_State *to, int n, int copies_slot) {
     for (int i = n - 1; i >= 0; i--) {
-        if (lua_type(from, -1-i) == LUA_TNUMBER) lua_pushnumber(to, lua_tonumber(from, -1-i));
-        else if (lua_type(from, -1-i) == LUA_TSTRING) lua_pushlstring(to, lua_tostring(from, -1-i), lua_strlen(from, -1-i));
-        else if (lua_type(from, -1-i) == LUA_TBOOLEAN) lua_pushboolean(to, lua_toboolean(from, -1-i));
-        else if (lua_type(from, -1-i) == LUA_TTABLE) {
-            const void* ptr = lua_topointer(from, -1-i);
-            lua_rawgeti(to, copies_slot, (ptrdiff_t)ptr);
-            if (!lua_isnil(to, -1)) continue;
-            lua_pop(to, 1);
-            lua_newtable(to);
-            lua_pushvalue(to, -1);
-            lua_rawseti(to, copies_slot, (ptrdiff_t)ptr);
-            lua_pushnil(from);
-            while (lua_next(from, -2-i) != 0) {
-                xcopy_internal(from, to, 2, copies_slot);
-                lua_settable(to, -3);
-                lua_pop(from, 1);
+        size_t sz;
+        switch (lua_type(from, -1-i)) {
+            case LUA_TNIL: case LUA_TNONE: lua_pushnil(to); break;
+            case LUA_TBOOLEAN: lua_pushboolean(to, lua_toboolean(from, -1-i)); break;
+            case LUA_TNUMBER: lua_pushnumber(to, lua_tonumber(from, -1-i)); break;
+            case LUA_TSTRING: lua_pushlstring(to, lua_tolstring(from, -1-i, &sz), sz); break;
+            case LUA_TTABLE: {
+                const void* ptr = lua_topointer(from, -1-i);
+                lua_rawgeti(to, copies_slot, (ptrdiff_t)ptr);
+                if (!lua_isnil(to, -1)) continue;
+                lua_pop(to, 1);
+                lua_newtable(to);
+                lua_pushvalue(to, -1);
+                lua_rawseti(to, copies_slot, (ptrdiff_t)ptr);
+                lua_pushnil(from);
+                while (lua_next(from, -2-i) != 0) {
+                    xcopy_internal(from, to, 2, copies_slot);
+                    lua_settable(to, -3);
+                    lua_pop(from, 1);
+                }
+                break;
             }
-        } else if (lua_isnil(from, -1-i)) lua_pushnil(to);
-        else {
-            if (luaL_callmeta(from, -1-i, "__tostring")) {
-                lua_pushlstring(to, lua_tostring(from, -1), lua_strlen(from, -1));
-                lua_pop(from, 1);
-            } else lua_pushfstring(to, "<%s: %p>", lua_typename(from, lua_type(from, -1-i)), lua_topointer(from, -1-i));
+            default: {
+                if (luaL_callmeta(from, -1-i, "__tostring")) {
+                    lua_pushlstring(to, lua_tostring(from, -1), lua_strlen(from, -1));
+                    lua_pop(from, 1);
+                } else lua_pushfstring(to, "<%s: %p>", lua_typename(from, lua_type(from, -1-i)), lua_topointer(from, -1-i));
+                break;
+            }
         }
     }
 }

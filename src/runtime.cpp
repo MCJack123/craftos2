@@ -43,10 +43,7 @@
 #define termHasEvent(computer) ((computer)->running == 1 && (!(computer)->event_provider_queue.empty() || (computer)->lastResizeEvent || !(computer)->termEventQueue.empty()))
 #define QUEUE_LIMIT 256
 
-int nextTaskID = 0;
-ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
-ProtectedObject<std::unordered_map<int, std::exception_ptr> > taskQueueExceptions;
+ProtectedObject<std::queue<TaskQueueItem*> > taskQueue;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
 std::thread::id mainThreadID;
@@ -69,58 +66,49 @@ monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& side
 
 void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
-    int myID;
+    TaskQueueItem * task = new TaskQueueItem;
+    task->func = &func;
+    task->data = arg;
+    task->async = async;
     {
         LockGuard lock(taskQueue);
-        myID = nextTaskID++;
-        taskQueue->push(std::make_tuple(myID, func, arg, async));
+        taskQueue->push(task);
     }
-    if ((selectedRenderer == 0 || selectedRenderer == 5) && !exiting) {
-        SDL_Event ev;
-        ev.type = task_event_type;
-        SDL_PushEvent(&ev);
-    }
-    if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5) {
-        {LockGuard lock(taskQueue);}
-        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        taskQueueReady = true;
-        taskQueueNotify.notify_all();
-        while (taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
+    if (selectedRenderer == 0 || selectedRenderer == 5) {
+        SDL_Event e;
+        e.type = task_event_type;
+        SDL_PushEvent(&e);
     }
     if (async) return NULL;
-    while (([]()->bool{taskQueueReturns.lock(); return true;})() && taskQueueReturns->find(myID) == taskQueueReturns->end() && !exiting) {taskQueueReturns.unlock(); std::this_thread::yield();}
     {
-        LockGuard lock(taskQueueExceptions);
-        if (taskQueueExceptions->find(myID) != taskQueueExceptions->end()) {
-            std::exception_ptr e = (*taskQueueExceptions)[myID];
-            taskQueueExceptions->erase(myID);
+        std::unique_lock<std::mutex> lock(task->lock);
+        while (!task->ready) task->notify.wait(lock);
+        if (task->exception != nullptr) {
+            std::exception_ptr e = task->exception;
+            delete task;
             std::rethrow_exception(e);
         }
+        arg = task->data;
     }
-    void* retval = (*taskQueueReturns)[myID];
-    taskQueueReturns->erase(myID);
-    taskQueueReturns.unlock();
-    return retval;
+    delete task;
+    return arg;
 }
 
 void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;}) {
     while (predicate()) {
         if (!taskQueue->empty()) {
-            auto v = taskQueue->front();
-            try {
-                void* retval = std::get<1>(v)(std::get<2>(v));
-                if (!std::get<3>(v)) {
-                    LockGuard lock2(taskQueueReturns);
-                    (*taskQueueReturns)[std::get<0>(v)] = retval;
+            TaskQueueItem * task = taskQueue->front();
+            {
+                std::unique_lock<std::mutex> lock(task->lock);
+                try {
+                    task->data = (*task->func)(task->data);
+                } catch (...) {
+                    task->exception = std::current_exception();
                 }
-            } catch (...) {
-                if (!std::get<3>(v)) {
-                    LockGuard lock2(taskQueueReturns);
-                    LockGuard lock3(taskQueueExceptions);
-                    (*taskQueueReturns)[std::get<0>(v)] = NULL;
-                    (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
-                }
+                task->ready = true;
+                task->notify.notify_all();
             }
+            if (task->async) delete task;
             taskQueue->pop();
         }
         SDL_PumpEvents();
@@ -142,21 +130,18 @@ void mainLoop() {
             std::unique_lock<std::mutex> lock(taskQueue.getMutex());
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
             while (!taskQueue->empty()) {
-                auto v = taskQueue->front();
-                try {
-                    void* retval = std::get<1>(v)(std::get<2>(v));
-                    if (!std::get<3>(v)) {
-                        LockGuard lock2(taskQueueReturns);
-                        (*taskQueueReturns)[std::get<0>(v)] = retval;
+                TaskQueueItem * task = taskQueue->front();
+                {
+                    std::unique_lock<std::mutex> lock(task->lock);
+                    try {
+                        task->data = (*task->func)(task->data);
+                    } catch (...) {
+                        task->exception = std::current_exception();
                     }
-                } catch (...) {
-                    if (!std::get<3>(v)) {
-                        LockGuard lock2(taskQueueReturns);
-                        LockGuard lock3(taskQueueExceptions);
-                        (*taskQueueReturns)[std::get<0>(v)] = NULL;
-                        (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
-                    }
+                    task->ready = true;
+                    task->notify.notify_all();
                 }
+                if (task->async) delete task;
                 taskQueue->pop();
             }
             taskQueueReady = false;
@@ -275,6 +260,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
         lua_pop(computer->paramQueue, 1);
         std::this_thread::yield();
     } while (!filter.empty() && ev != filter && ev != "terminate");
+    //printf("%zd\n", computer->eventQueue.size());
     if ((size_t)lua_gettop(computer->paramQueue) != computer->eventQueue.size() + 1) {
         fprintf(stderr, "Warning: Queue sizes are incorrect! Expect misaligned event parameters.\n");
     }

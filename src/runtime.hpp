@@ -16,11 +16,19 @@
 #include <SDL2/SDL.h>
 #include "util.hpp"
 
+struct TaskQueueItem {
+    const std::function<void*(void*)>* func;
+    void* data = NULL;
+    bool async = false;
+    bool ready = false;
+    std::mutex lock;
+    std::condition_variable notify;
+    std::exception_ptr exception = nullptr;
+};
+
 extern ProtectedObject<std::vector<Computer*> > computers;
 extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
-extern ProtectedObject<std::unordered_map<int, std::exception_ptr> > taskQueueExceptions;
+extern ProtectedObject<std::queue<TaskQueueItem*> > taskQueue;
 extern bool exiting;
 extern int selectedRenderer;
 extern std::unordered_map<int, path_t> customDataDirs;

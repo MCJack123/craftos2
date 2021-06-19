@@ -427,21 +427,18 @@ bool HardwareSDLTerminal::pollEvents() {
 #endif
         if (e.type == task_event_type) {
             while (!taskQueue->empty()) {
-                auto v = taskQueue->front();
-                try {
-                    void* retval = std::get<1>(v)(std::get<2>(v));
-                    if (!std::get<3>(v)) {
-                        LockGuard lock2(taskQueueReturns);
-                        (*taskQueueReturns)[std::get<0>(v)] = retval;
+                TaskQueueItem * task = taskQueue->front();
+                {
+                    std::unique_lock<std::mutex> lock(task->lock);
+                    try {
+                        task->data = (*task->func)(task->data);
+                    } catch (...) {
+                        task->exception = std::current_exception();
                     }
-                } catch (...) {
-                    if (!std::get<3>(v)) {
-                        LockGuard lock2(taskQueueReturns);
-                        LockGuard lock3(taskQueueExceptions);
-                        (*taskQueueReturns)[std::get<0>(v)] = NULL;
-                        (*taskQueueExceptions)[std::get<0>(v)] = std::current_exception();
-                    }
+                    task->ready = true;
+                    task->notify.notify_all();
                 }
+                if (task->async) delete task;
                 taskQueue->pop();
             }
         } else if (e.type == render_event_type) {
