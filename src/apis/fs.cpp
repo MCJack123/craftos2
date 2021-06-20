@@ -377,7 +377,8 @@ static int fs_combine(lua_State *L) {
     size_t sz;
     std::string basePath(luaL_checklstring(L, 1, &sz), sz);
     for (int i = 2; i <= lua_gettop(L); i++) basePath += "/" + std::string(luaL_checklstring(L, i, &sz), sz);
-    lua_pushstring(L, astr(fixpath(get_comp(L), (basePath).c_str(), false, false)).c_str());
+    basePath = astr(fixpath(get_comp(L), basePath, false, false));
+    lua_pushlstring(L, basePath.c_str(), basePath.size());
     return 1;
 }
 
@@ -682,7 +683,7 @@ static int fs_getDir(lua_State *L) {
     lastCFunction = __func__;
     size_t sz;
     std::string str(luaL_checklstring(L, 1, &sz), sz);
-    std::string path = fixpath(get_comp(L), str, false, false);
+    std::string path = astr(fixpath(get_comp(L), str + "/..", false, false));
     lua_pushlstring(L, path.c_str(), path.size());
     return 1;
 }
