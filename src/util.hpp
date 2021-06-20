@@ -189,5 +189,15 @@ extern void xcopy(lua_State *from, lua_State *to, int n);
 extern std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures = NULL);
 extern std::string makeASCIISafe(const char * retval, size_t len);
 extern bool matchIPClass(const std::string& address, const std::string& pattern);
+inline std::string checkstring(lua_State *L, int idx) {
+    size_t sz = 0;
+    const char * str = luaL_checklstring(L, idx, &sz);
+    return std::string(str, sz);
+}
+inline std::string tostring(lua_State *L, int idx) {
+    size_t sz = 0;
+    const char * str = lua_tolstring(L, idx, &sz);
+    return std::string(str, sz);
+}
 
 #endif
