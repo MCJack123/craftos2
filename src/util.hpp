@@ -176,10 +176,10 @@ extern std::vector<std::string> split(const std::string& strToSplit, const char 
 extern std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
 extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback);
-extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
-extern bool fixpath_ro(Computer *comp, const char * path);
+extern path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
+extern bool fixpath_ro(Computer *comp, const std::string& path);
 extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);
-extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
+extern std::set<std::string> getMounts(Computer * computer, const std::string& comp_path);
 extern void peripheral_update(Computer *comp);
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, const computer_configuration& cfg);

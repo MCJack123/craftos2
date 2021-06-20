@@ -64,7 +64,7 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
             dbg->computer->peripherals.erase(side);
         }
         dbg->computer->shouldDeinitDebugger = true;
-        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL, true);
+        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL);
     }
 }
 

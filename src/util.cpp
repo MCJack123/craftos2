@@ -139,7 +139,7 @@ inline bool isVFSPath(path_t path) {
     return false;
 }
 
-path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
+path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
@@ -229,7 +229,7 @@ path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt, std:
     return ss.str();
 }
 
-bool fixpath_ro(Computer *comp, const char * path) {
+bool fixpath_ro(Computer *comp, const std::string& path) {
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
@@ -243,7 +243,7 @@ bool fixpath_ro(Computer *comp, const char * path) {
     return max_path.second;
 }
 
-std::set<std::string> getMounts(Computer * computer, const char * comp_path) {
+std::set<std::string> getMounts(Computer * computer, const std::string& comp_path) {
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     std::set<std::string> retval;
