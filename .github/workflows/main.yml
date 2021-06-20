@@ -18,11 +18,11 @@ jobs:
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
@@ -45,11 +45,11 @@ jobs:
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure --without-ncurses --without-png --without-sdl_mixer --with-html
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
@@ -76,11 +76,11 @@ jobs:
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure --with-standalone_rom=craftos2-rom/fs_standalone.cpp
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
@@ -106,11 +106,11 @@ jobs:
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CC:T McFly Tests
       run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
       continue-on-error: true

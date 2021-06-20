@@ -1,9 +1,9 @@
 language: c++
-script: CFLAGS=-Wall ./configure && make && make test
+script: CFLAGS=-Wall ./configure && make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}') && make test
 dist: bionic
 before_install:
   - git submodule update --init --recursive 
-  - make -C craftos2-lua linux
+  - make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
   - sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
   - sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses-dev
 addons:
