@@ -102,7 +102,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #ifdef __ANDROID__
     float dpi = 0;
     SDL_GetDisplayDPI(0, &dpi, NULL, NULL);
-    dpiScale = dpi / 150;
+    if (dpi >= 150) dpiScale = dpi / 150;
 #endif
     if (config.customFontPath == "hdfont") {
         fontScale = 1;

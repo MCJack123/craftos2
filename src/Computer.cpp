@@ -337,7 +337,6 @@ extern int mobile_luaopen(lua_State *L);
 
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
-    if (self->config->startFullscreen && dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->toggleFullscreen();
     self->running = 1;
     if (self->L != NULL) lua_close(self->L);
     setjmp(self->on_panic);
@@ -686,20 +685,35 @@ void* computerThread(void* data) {
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);
+    if (comp->config->startFullscreen && dynamic_cast<SDLTerminal*>(comp->term) != NULL) ((SDLTerminal*)comp->term)->toggleFullscreen();
     bool first = true;
     do {
         if (!first) {
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+            {
+                std::lock_guard<std::mutex> lock(comp->term->locked);
+                memcpy(comp->term->screen.data(), "Tap to restart", sizeof("Tap to restart")-1);
+                memcpy(comp->term->colors.data(), "\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4", sizeof("\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4")-1);
+                comp->term->changed = true;
+            }
+            queueTask([](void*)->void*{SDL_StopTextInput(); return NULL;}, NULL, true);
+#endif
             bool ok = true;
             while (true) {
                 SDL_Event e;
                 std::string tmpstrval;
                 if (Computer_getEvent(comp, &e)) {
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+                    if (e.type == SDL_MOUSEBUTTONUP) {
+                        break;
+#else
                     if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                         if (comp->waitingForTerminate & 16) {
                             comp->waitingForTerminate |= 32;
                             comp->waitingForTerminate &= ~16;
                             break;
                         } else if ((comp->waitingForTerminate & 48) == 0) comp->waitingForTerminate |= 16;
+#endif
                     } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
                         if (e.window.windowID == comp->term->id) {
                             ok = false;
@@ -716,6 +730,9 @@ void* computerThread(void* data) {
                 }
             }
             if (!ok) break;
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+            queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
+#endif
         }
         try {
     #ifdef STANDALONE_ROM
@@ -788,7 +805,12 @@ void* computerThread(void* data) {
 // Spin up a new computer
 Computer * startComputer(int id) {
     Computer * comp;
-    try {comp = new Computer(id);} catch (std::exception &e) {
+    try {comp = new Computer(id);}
+    catch (Poco::Exception &e) {
+        if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + e.displayText() + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
+        else fprintf(stderr, "An error occurred while opening the computer session: %s", e.displayText().c_str());
+        return NULL;
+    } catch (std::exception &e) {
         if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
         else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
         return NULL;

@@ -407,8 +407,8 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
 #endif
 
 static int mobile_openKeyboard(lua_State *L) {
-    if (lua_isnone(L, 1) || lua_toboolean(L, 1)) SDL_StartTextInput();
-    else SDL_StopTextInput();
+    if (lua_isnone(L, 1) || lua_toboolean(L, 1)) queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
+    else queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
     return 0;
 }
 

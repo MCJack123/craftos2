@@ -205,7 +205,11 @@ void config_init() {
         false,
         true,
         false,
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+        true
+#else
         false
+#endif
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -307,7 +311,9 @@ void config_init() {
     readConfigSetting(extendMargins, Bool);
     readConfigSetting(snapToSize, Bool);
     readConfigSetting(snooperEnabled, Bool);
+#if !(defined(__IPHONEOS__) || defined(__ANDROID__))
     readConfigSetting(keepOpenOnShutdown, Bool);
+#endif
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
 #ifndef __EMSCRIPTEN__

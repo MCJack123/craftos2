@@ -791,7 +791,9 @@ int main(int argc, char*argv[]) {
 #ifndef NO_MIXER
     speakerInit();
 #endif
-    //globalPluginErrors = initializePlugins();
+#ifndef __IPHONEOS__
+    globalPluginErrors = initializePlugins();
+#endif
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
     if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
@@ -848,7 +850,7 @@ int main(int argc, char*argv[]) {
     computerThreads.clear();
     // C++ doesn't like it if we try to empty the SDL event list once the plugins are gone
     SDLTerminal::eventHandlers.clear();
-    //deinitializePlugins();
+    deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();
 #endif
@@ -870,6 +872,10 @@ int main(int argc, char*argv[]) {
     else SDL_Quit();
 #ifdef WIN32
     if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
+#endif
+#ifdef __IPHONEOS__
+    *(int*)0; // send a crash report if main exits (this shouldn't happen on iOS!)
+              // TODO: remove this for public (non-beta) release!
 #endif
     return returnValue;
 }

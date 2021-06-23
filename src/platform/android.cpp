@@ -180,6 +180,7 @@ void setFloating(SDL_Window* win, bool state) {}
 
 std::string mobile_keyboard_open(lua_State *L, void* ud) {
     SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
+    if (sdlterm == NULL || (sdlterm->charHeight*sdlterm->dpiScale) == 0) return "";
     int size = ((int)(ptrdiff_t)ud - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
     if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
     lua_pushinteger(L, size);

@@ -320,7 +320,7 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         std::lock_guard<std::mutex> lock(locked);
         float dpi, defaultDpi;
 #ifdef __APPLE__
-        dpi = getBackingScaleFactor(win), defaultDpi = 1.0;
+        dpi = getBackingScaleFactor(win); defaultDpi = 1.0;
 #else
         MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
 #endif
