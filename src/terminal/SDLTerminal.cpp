@@ -632,7 +632,7 @@ bool SDLTerminal::pollEvents() {
                 {
                     std::unique_lock<std::mutex> lock(task->lock);
                     try {
-                        task->data = (*task->func)(task->data);
+                        task->data = task->func(task->data);
                     } catch (...) {
                         task->exception = std::current_exception();
                     }

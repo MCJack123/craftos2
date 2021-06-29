@@ -17,7 +17,7 @@
 #include "util.hpp"
 
 struct TaskQueueItem {
-    const std::function<void*(void*)>* func;
+    std::function<void*(void*)> func;
     void* data = NULL;
     bool async = false;
     bool ready = false;

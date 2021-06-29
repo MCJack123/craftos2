@@ -67,7 +67,7 @@ monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& side
 void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
     TaskQueueItem * task = new TaskQueueItem;
-    task->func = &func;
+    task->func = func;
     task->data = arg;
     task->async = async;
     {
@@ -103,7 +103,7 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
             {
                 std::unique_lock<std::mutex> lock(task->lock);
                 try {
-                    task->data = (*task->func)(task->data);
+                    task->data = task->func(task->data);
                 } catch (...) {
                     task->exception = std::current_exception();
                 }
@@ -136,7 +136,7 @@ void mainLoop() {
                 {
                     std::unique_lock<std::mutex> lock(task->lock);
                     try {
-                        task->data = (*task->func)(task->data);
+                        task->data = task->func(task->data);
                     } catch (...) {
                         task->exception = std::current_exception();
                     }
