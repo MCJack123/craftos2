@@ -605,10 +605,14 @@ void runComputer(Computer * self, const path_t& bios_name) {
         int narg = 0;
         self->running = 1;
 #ifdef __EMSCRIPTEN__
-        queueTask([self](void*)->void*{if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout); self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self); return NULL;}, NULL);
+        queueTask([self](void*)->void*{
+            if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout);
+            if (config.abortTimeout > 0 || config.standardsMode) self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
+            return NULL;
+        }, NULL);
 #else
         if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout);
-        self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
+        if (config.abortTimeout > 0 || config.standardsMode) self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
 #endif
         while (status == LUA_YIELD && self->running == 1) {
             status = lua_resume(self->coro, narg);

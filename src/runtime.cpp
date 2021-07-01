@@ -286,7 +286,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
         queueTask([computer](void*)->void*{
 #endif
         if (computer->eventTimeout != 0) SDL_RemoveTimer(computer->eventTimeout);
-        computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
+        if (config.abortTimeout > 0 || config.standardsMode) computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
 #ifdef __EMSCRIPTEN__
         return NULL;}, NULL);
 #endif
