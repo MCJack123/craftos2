@@ -133,7 +133,7 @@ std::string http_success(lua_State *L, void* data) {
     emscripten_fetch_t ** handle = new emscripten_fetch_t*;
     *handle = (emscripten_fetch_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
-    lua_pushstring(L, &(*handle)->url[strlen("https://cors-anywhere.herokuapp.com/")]);
+    lua_pushstring(L, &(*handle)->url[strlen("https://cloud-catcher.squiddev.workers.dev/")]);
     lua_newtable(L);
 
     lua_pushstring(L, "close");
@@ -199,8 +199,8 @@ void downloadSucceeded(emscripten_fetch_t *fetch) {
 
 void downloadFailed(emscripten_fetch_t *fetch) {
     if (fetch->userData == NULL) return;
-    char * url = new char[strlen(fetch->url)-strlen("https://cors-anywhere.herokuapp.com/")+1];
-    strcpy(url, &fetch->url[strlen("https://cors-anywhere.herokuapp.com/")]);
+    char * url = new char[strlen(fetch->url)-strlen("https://cloud-catcher.squiddev.workers.dev/")+1];
+    strcpy(url, &fetch->url[strlen("https://cloud-catcher.squiddev.workers.dev/")]);
     queueEvent(((http_data_t*)fetch->userData)->comp, http_failure, url);
     delete (http_data_t*)fetch->userData;
     fetch->userData = NULL;
@@ -245,7 +245,7 @@ int http_request(lua_State *L) {
     }
     header_str[i] = NULL;
     attr.requestHeaders = header_str;
-    lua_pushstring(L, "https://cors-anywhere.herokuapp.com/");
+    lua_pushstring(L, "https://cloud-catcher.squiddev.workers.dev/");
     lua_pushvalue(L, 1);
     lua_concat(L, 2);
     queueTask([L](void* attr)->void*{return emscripten_fetch((emscripten_fetch_attr_t*)attr, lua_tostring(L, -1));}, &attr);
