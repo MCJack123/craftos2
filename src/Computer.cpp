@@ -539,13 +539,15 @@ void runComputer(Computer * self, const path_t& bios_name) {
             if (script_file[0] == '\x1b') script = script_file.substr(1);
             else {
                 FILE* in = fopen(script_file.c_str(), "r");
-                char tmp[4096];
-                while (!feof(in)) {
-                    const size_t read = fread(tmp, 1, 4096, in);
-                    if (read == 0) break;
-                    script += std::string(tmp, read);
-                }
-                fclose(in);
+                if (in != NULL) {
+                    char tmp[4096];
+                    while (!feof(in)) {
+                        const size_t read = fread(tmp, 1, 4096, in);
+                        if (read == 0) break;
+                        script += std::string(tmp, read);
+                    }
+                    fclose(in);
+                } else script = "printError('Could not load startup script: " + std::string(strerror(errno)) + "')";
             }
             lua_pushlstring(L, script.c_str(), script.size());
             lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
@@ -568,8 +570,13 @@ void runComputer(Computer * self, const path_t& bios_name) {
         path_t bios_path_expanded = getROMPath() + WS("/") + bios_name;
 #endif
         FILE * bios_file = platform_fopen(bios_path_expanded.c_str(), "r");
-        status = lua_load(self->coro, file_reader, bios_file, "@bios.lua");
-        fclose(bios_file);
+        if (bios_file != NULL) {
+            status = lua_load(self->coro, file_reader, bios_file, "@bios.lua");
+            fclose(bios_file);
+        } else {
+            status = LUA_ERRFILE;
+            lua_pushstring(L, strerror(errno));
+        }
 #endif
         if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
