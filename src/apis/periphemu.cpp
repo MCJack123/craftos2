@@ -27,6 +27,7 @@ static std::unordered_map<std::string, peripheral_init> initializers = {
     {"computer", &computer::init},
     {"modem", &modem::init},
     {"drive", &drive::init},
+    {"debugger", &debugger::init},
 #ifndef NO_MIXER
     {"speaker", &speaker::init}
 #endif
@@ -85,14 +86,10 @@ peripheral* attachPeripheral(Computer * computer, const std::string& side, const
         }
     }
     peripheral * p;
-    if (type == "debugger" && config.debug_enable) p = new debugger(L, side.c_str());
-    else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
+    if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
     else {
         //fprintf(stderr, "not found: %s\n", type.c_str());
-        if (errorReturn != NULL) {
-            if (type == "debugger") *errorReturn = "Set debug_enable to true in the config to enable the debugger";
-            else *errorReturn = "No peripheral named " + type;
-        }
+        if (errorReturn != NULL) *errorReturn = "No peripheral named " + type;
         return NULL;
     }
     computer->peripherals_mutex.lock();
@@ -161,11 +158,6 @@ static int periphemu_names(lua_State *L) {
     lastCFunction = __func__;
     lua_createtable(L, initializers.size() + 1, 0);
     int i = 1;
-    if (config.debug_enable) {
-        lua_pushinteger(L, i++);
-        lua_pushstring(L, "debugger");
-        lua_settable(L, -3);
-    }
     for (const auto& entry : initializers) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, entry.first.c_str());

@@ -24,8 +24,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.6b1"
-#define CRAFTOSPC_CC_VERSION "1.96.0"
+#define CRAFTOSPC_VERSION    "v2.6"
+#define CRAFTOSPC_CC_VERSION "1.97.0"
 #define CRAFTOSPC_INDEV      true
 
 // for some reason Clang complains if this isn't present

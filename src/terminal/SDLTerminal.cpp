@@ -570,6 +570,7 @@ void SDLTerminal::init() {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
         throw std::runtime_error("Could not initialize SDL: " + std::string(SDL_GetError()));
     }
+    SDL_EventState(SDL_DROPTEXT, SDL_FALSE); // prevent memory leaks from dropping text (not supported)
     task_event_type = SDL_RegisterEvents(2);
     render_event_type = task_event_type + 1;
     renderThread = new std::thread(termRenderLoop);

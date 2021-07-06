@@ -384,14 +384,12 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, self);
         lua_settable(L, LUA_REGISTRYINDEX);
-        if (::config.debug_enable) {
-            lua_newtable(L);
-            lua_createtable(L, 0, 1);
-            lua_pushstring(L, "v");
-            lua_setfield(L, -2, "__mode");
-            lua_setmetatable(L, -2);
-            lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
-        }
+        lua_newtable(L);
+        lua_createtable(L, 0, 1);
+        lua_pushstring(L, "v");
+        lua_setfield(L, -2, "__mode");
+        lua_setmetatable(L, -2);
+        lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
 
         // Load libraries
         luaL_openlibs(self->coro);
@@ -401,7 +399,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_pop(L, 1);
         // TODO: Fix logErrors since error hooks are no longer enabled
         if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
-        //else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        //else if (!self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         //else lua_sethook(self->coro, termHook, LUA_MASKERROR, 0);
         lua_atpanic(L, termPanic);
         for (library_t ** lib = libraries; *lib != NULL; lib++) load_library(self, self->coro, **lib);
@@ -457,14 +455,6 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_setglobal(L, "package");
         lua_pushnil(L);
         lua_setglobal(L, "print");
-        if (!config.debug_enable) {
-            lua_pushnil(L);
-            lua_setglobal(L, "collectgarbage");
-            lua_pushnil(L);
-            lua_setglobal(L, "debug");
-            lua_pushnil(L);
-            lua_setglobal(L, "newproxy");
-        }
         if (config.vanilla) {
             lua_pushnil(L);
             lua_setglobal(L, "config");
@@ -502,14 +492,12 @@ void runComputer(Computer * self, const path_t& bios_name) {
                 lua_setfield(L, -2, "removeListener");
                 lua_pop(L, 1);
             }
-            if (config.debug_enable) {
-                lua_getglobal(L, "debug");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "setbreakpoint");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "unsetbreakpoint");
-                lua_pop(L, 1);
-            }
+            lua_getglobal(L, "debug");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setbreakpoint");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "unsetbreakpoint");
+            lua_pop(L, 1);
         }
         if (config.serverMode) {
             lua_getglobal(L, "http");

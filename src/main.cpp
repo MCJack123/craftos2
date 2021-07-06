@@ -471,7 +471,6 @@ static void migrateData(bool forced) {
                 migrateSetting("httpEnable", http_enable, Bool);
                 migrateSetting("disableLua51Features", disable_lua51_features, Bool);
                 migrateSetting("defaultComputerSettings", default_computer_settings, String);
-                migrateSetting("debugEnable", debug_enable, Bool);
                 migrateSetting("termWidth", defaultWidth, Int);
                 migrateSetting("termHeight", defaultHeight, Int);
                 if (oldroot.isMember("httpWhitelist")) {

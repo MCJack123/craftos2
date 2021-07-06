@@ -102,9 +102,13 @@ int createDirectory(const std::wstring& path) {
 
 char* basename(char* path) {
     char* filename = strrchr(path, '/');
-    if (filename == NULL)
-        filename = path;
-    else
+    if (filename == NULL) {
+        filename = strrchr(path, '\\');
+        if (filename == NULL)
+            filename = path;
+        else
+            filename++;
+    } else
         filename++;
     return filename;
 }

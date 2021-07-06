@@ -119,7 +119,7 @@ static int config_set(lua_State *L) {
     bool isUserConfig = false;
     if (strcmp(name, "http_enable") == 0)
         config.http_enable = lua_toboolean(L, 2);
-    setConfigSetting(debug_enable, boolean);
+    else if (strcmp(name, "debug_enable") == 0) ; // do nothing
     else if (strcmp(name, "mount_mode") == 0) {
         if (!lua_isnumber(L, 2) && !lua_isstring(L, 2)) return 0;
         int selected = 0;
@@ -168,10 +168,6 @@ static int config_set(lua_State *L) {
     setConfigSettingI(maximumFilesOpen);
     setConfigSettingI(maxNotesPerTick);
     setConfigSettingI(clockSpeed);
-    /*else if (strcmp(name, "http_whitelist") == 0)
-        config.http_whitelist = lua_to(L, 2);
-    else if (strcmp(name, "http_blacklist") == 0)
-        config.http_blacklist = lua_to(L, 2);*/
     setConfigSetting(showFPS, boolean);
     setConfigSettingI(abortTimeout);
     setConfigSetting(ignoreHotkeys, boolean);

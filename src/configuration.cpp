@@ -86,7 +86,6 @@ bool configLoadError = false;
 // second: 0 = boolean, 1 = number, 2 = string, 3 = string array
 std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"http_enable", {1, 0}},
-    {"debug_enable", {1, 0}},
     {"mount_mode", {0, 1}},
     {"http_whitelist", {0, 3}},
     {"http_blacklist", {0, 3}},
@@ -247,7 +246,6 @@ void config_init() {
     }
     in.close();
     readConfigSetting(http_enable, Bool);
-    readConfigSetting(debug_enable, Bool);
     readConfigSetting(mount_mode, Int);
     if (root.isMember("http_whitelist"))
         for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
@@ -328,7 +326,6 @@ void config_save() {
     if (configLoadError) return;
     Value root;
     root["http_enable"] = config.http_enable;
-    root["debug_enable"] = config.debug_enable;
     root["mount_mode"] = config.mount_mode;
     root["http_whitelist"] = config.http_whitelist;
     root["http_blacklist"] = config.http_blacklist;

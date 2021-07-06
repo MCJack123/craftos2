@@ -116,6 +116,7 @@ struct Computer {
     std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > eventHooks; // List of hooks for events
     lua_State *rawFileStack = NULL; // Temporary stack for raw mode file access function calls
     std::mutex rawFileStackMutex; // A mutex locking rawFileStack
+    int fileUploadCount = 0; // Stores the number of files that have been uploaded in the current set (if 0, no set is active)
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

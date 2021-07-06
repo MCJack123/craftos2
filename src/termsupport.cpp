@@ -21,6 +21,7 @@
 #ifndef NO_CLI
 #include <curses.h>
 #endif
+#include <dirent.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
 #include "runtime.hpp"
@@ -30,6 +31,10 @@
 #include "termsupport.hpp"
 #ifndef NO_CLI
 #include "terminal/CLITerminal.hpp"
+#endif
+#if defined(__INTELLISENSE__) && !defined(S_ISDIR)
+#define S_ISDIR(m) 1 // silence errors in IntelliSense (which isn't very intelligent for its name)
+#define W_OK 2
 #endif
 
 #ifdef __ANDROID__
@@ -411,7 +416,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
         computer->debugger = NULL;
     }
-    if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
+    if (ar->event == LUA_HOOKLINE) {
         if (computer->debugger == NULL && computer->hasBreakpoints) {
             lua_getinfo(L, "Sl", ar);
             for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
@@ -439,7 +444,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         }
     } else if (ar->event == LUA_HOOKERROR) {
         if (config.logErrors) {
-            if (config.debug_enable && !computer->isDebugger && (computer->debugger == NULL || ((debugger*)computer->debugger)->thread == NULL)) {
+            if (!computer->isDebugger && (computer->debugger == NULL || ((debugger*)computer->debugger)->thread == NULL)) {
                 lua_getglobal(L, "debug");
                 lua_getfield(L, -1, "traceback");
                 lua_pushfstring(L, "Got error: %s", lua_tostring(L, -4));
@@ -792,6 +797,70 @@ std::string termGetEvent(lua_State *L) {
             lua_pushinteger(L, y);
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
             return e.motion.state ? "mouse_drag" : "mouse_move";
+        } else if (e.type == SDL_DROPFILE) {
+            // Copy the file into the computer
+            path_t path = fixpath(computer, basename(e.drop.file), false);
+            struct_stat st;
+            if (platform_stat(path.c_str(), &st) == 0) {
+                if (S_ISREG(st.st_mode)) {
+                    SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
+                    if (term != NULL) {
+                        SDL_MessageBoxButtonData buttons[] = {
+                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No"},
+                            {0, 1, "Yes"}
+                        };
+                        std::string text = std::string("A file named ") + basename(e.drop.file) + " already exists on this computer. Would you like to overwrite it?";
+                        SDL_MessageBoxData msg = {
+                            SDL_MESSAGEBOX_WARNING,
+                            term->win,
+                            "File already exists",
+                            text.c_str(),
+                            2,
+                            buttons,
+                            NULL
+                        };
+                        if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)b;}, &msg)) {
+                            SDL_free(e.drop.file);
+                            return "";
+                        }
+                    }
+                }
+            }
+            FILE * infile = fopen(e.drop.file, "rb");
+            if (infile == NULL) {
+                char * err = strerror(errno);
+                char * msg = new char[strlen(err)+1];
+                strcpy(msg, err);
+                queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The input file could not be read: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
+                SDL_free(e.drop.file);
+                return "";
+            }
+            FILE * outfile = platform_fopen(path.c_str(), "wb");
+            if (outfile == NULL) {
+                char * err = strerror(errno);
+                char * msg = new char[strlen(err)+1];
+                strcpy(msg, err);
+                queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The output file could not be written: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
+                fclose(infile);
+                SDL_free(e.drop.file);
+                return "";
+            }
+            char buf[4096];
+            while (!feof(infile)) {
+                size_t sz = fread(buf, 1, 4096, infile);
+                fwrite(buf, 1, sz, outfile);
+                if (sz < 4096) break;
+            }
+            fclose(infile);
+            fclose(outfile);
+            computer->fileUploadCount++;
+            SDL_free(e.drop.file);
+            return "";
+        } else if (e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) {
+            if (e.type == SDL_DROPCOMPLETE && computer->fileUploadCount)
+                queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_INFORMATION, "Upload Succeeded", (std::to_string((int)msg) + " files uploaded.").c_str()); return NULL;}, (void*)computer->fileUploadCount, true);
+            computer->fileUploadCount = 0;
+            return "";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             unsigned w, h;
             Terminal * term = NULL;
