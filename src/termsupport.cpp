@@ -22,6 +22,7 @@
 #include <curses.h>
 #endif
 #include <dirent.h>
+#include <sys/stat.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
 #include "runtime.hpp"
@@ -857,8 +858,9 @@ std::string termGetEvent(lua_State *L) {
             SDL_free(e.drop.file);
             return "";
         } else if (e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) {
+            int c = computer->fileUploadCount;
             if (e.type == SDL_DROPCOMPLETE && computer->fileUploadCount)
-                queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_INFORMATION, "Upload Succeeded", (std::to_string((int)msg) + " files uploaded.").c_str()); return NULL;}, (void*)computer->fileUploadCount, true);
+                queueTask([computer, c](void*)->void*{computer->term->showMessage(SDL_MESSAGEBOX_INFORMATION, "Upload Succeeded", (std::to_string(c) + " files uploaded.").c_str()); return NULL;}, NULL, true);
             computer->fileUploadCount = 0;
             return "";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
