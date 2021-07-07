@@ -559,15 +559,11 @@ void termRenderLoop() {
             SDL_Event ev;
             ev.type = render_event_type;
             SDL_PushEvent(&ev);
-            const long long count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
-            //printf("Render thread took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
-            long long t = (1000/config.clockSpeed) - count / 1000;
-            if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
-        } else {
-            int time = 1000/config.clockSpeed;
-            std::chrono::milliseconds ms(time);
-            std::this_thread::sleep_for(ms);
         }
+        const long long count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+        //printf("Render thread took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
+        long long t = (1000000/config.clockSpeed) - count;
+        if (t > 0) std::this_thread::sleep_for(std::chrono::microseconds(t));
         #ifndef NO_CLI
         if (willForceRender) CLITerminal::forceRender = false;
         #endif
