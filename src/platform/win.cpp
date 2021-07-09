@@ -285,7 +285,7 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 #ifdef CRASHREPORT_API_KEY
 #include "../apikey.cpp" // if you get an error here, please go into Project Properties => C/C++ => Preprocessor => Preprocessor Defines and remove "CRASHREPORT_API_KEY" from the list
 
-static void pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
+static bool pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
     Poco::URI uri(url);
     Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
@@ -309,13 +309,17 @@ static void pushCrashDump(const char * data, const size_t size, const path_t& pa
                 return pushCrashDump(data, size, path, root["uploadURL"].asString(), "PUT");
             } else if (root.isMember("error")) {
                 fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), root["error"].asString().c_str());
+                return false;
             } else if (root.isMember("message")) {
                 fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), root["message"].asString().c_str());
+                return false;
             }
         }
     } catch (Poco::Exception &e) {
         fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), e.displayText().c_str());
+        return false;
     }
+    return true;
 }
 #endif
 
@@ -385,8 +389,7 @@ void uploadCrashDumps() {
                 (void)deflateEnd(&strm);
                 fclose(source);
                 std::string data = ss.str();
-                pushCrashDump(data.c_str(), data.size(), newpath);
-                DeleteFileW(newpath.c_str());
+                if (pushCrashDump(data.c_str(), data.size(), newpath)) DeleteFileW(newpath.c_str());
             } while (FindNextFileW(h, &find));
             FindClose(h);
         }
