@@ -249,7 +249,6 @@ int getNextEvent(lua_State *L, const std::string& filter) {
                     }
                 }
                 if (!name.empty()) {
-                    if (name == "die") { computer->running = 0; name = "terminate"; }
                     computer->eventQueue.push(name);
                     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
                     param = lua_newthread(computer->paramQueue);

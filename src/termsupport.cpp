@@ -22,6 +22,9 @@
 #include <curses.h>
 #endif
 #include <dirent.h>
+#ifndef WIN32
+#include <libgen.h>
+#endif
 #include <sys/stat.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
@@ -618,9 +621,11 @@ std::string termGetEvent(lua_State *L) {
     SDL_Event e;
     std::string tmpstrval;
     if (Computer_getEvent(computer, &e)) {
-        if (e.type == SDL_QUIT) 
-            return "die";
-        else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.sym) != keymap.end())) {
+        if (e.type == SDL_QUIT) {
+            computer->requestedExit = true;
+            computer->running = 0;
+            return "terminate";
+        } else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.sym) != keymap.end())) {
             Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.sym == SDLK_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
