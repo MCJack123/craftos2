@@ -22,12 +22,14 @@
 #include "../util.hpp"
 
 static std::unordered_map<std::string, peripheral_init> initializers = {
+#if !defined(__IPHONEOS__) && !defined(__ANDROID__)
     {"monitor", &monitor::init},
-    {"printer", &printer::init},
     {"computer", &computer::init},
+    {"debugger", &debugger::init},
+#endif
+    {"printer", &printer::init},
     {"modem", &modem::init},
     {"drive", &drive::init},
-    {"debugger", &debugger::init},
 #ifndef NO_MIXER
     {"speaker", &speaker::init}
 #endif

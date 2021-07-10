@@ -872,9 +872,5 @@ int main(int argc, char*argv[]) {
 #ifdef WIN32
     if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
 #endif
-#ifdef __IPHONEOS__
-    *(int*)0; // send a crash report if main exits (this shouldn't happen on iOS!)
-              // TODO: remove this for public (non-beta) release!
-#endif
     return returnValue;
 }
