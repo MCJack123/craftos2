@@ -785,7 +785,7 @@ std::string termGetEvent(lua_State *L) {
             else if (button == SDL_BUTTON_RIGHT) button = 2;
             if ((term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == button && term->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
             term->lastMouse = {x, y, button, 2, ""};
-            if (!e.motion.state) {
+            if (config.mouse_move_throttle > 0 && !e.motion.state) {
                 if (term->mouseMoveDebounceTimer == 0) {
                     term->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, new comp_term_pair {computer, term});
                     term->nextMouseMove = {0, 0, 0, 0, std::string()};
