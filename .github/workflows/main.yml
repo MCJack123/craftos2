@@ -128,7 +128,8 @@ jobs:
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Install dependencies
       run: |
-        vcpkg --feature-flags=manifests install --triplet x64-windows
+        curl -O https://github.com/MCJack123/PrebuiltvcpkgBinaries/archive/refs/heads/master.zip
+        tar -C vcpkg_installed -xf master.zip
     - name: Build CraftOS-PC
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
