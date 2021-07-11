@@ -119,3 +119,33 @@ jobs:
         cat ~/.local/share/craftos-pc/computer/0/test-log.txt
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
       
+  build-windows:
+
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
+    - name: Install dependencies
+      run: |
+        vcpkg --feature-flags=manifests install --triplet x64-windows
+    - name: Build CraftOS-PC
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        for /f %%i in ('git rev-parse --short HEAD') do set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"%%i\"
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
+    - name: Run CraftOSTest
+      run: |
+        x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua
+        echo %ERRORLEVEL% > retval.txt
+      continue-on-error: true
+    - name: Show logs
+      run: |
+        type "%appdata\CraftOS-PC\computer\0\CraftOSTest.log"
+        set /p EXITCODE=<retval.txt
+        if not %EXITCODE% == 0 exit %EXITCODE%
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: CraftOS-PC_${{ github.sha }}
+        path: x64\ReleaseC\CraftOS-PC.exe
