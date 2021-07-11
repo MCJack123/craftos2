@@ -101,7 +101,7 @@ std::unordered_map<path_t, std::string> initializePlugins() {
             void* handle = SDL_LoadObject(astr(path).c_str());
             if (handle == NULL) {
                 failures[path] = "File could not be loaded";
-                printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(plugin_path + dir->d_name).c_str());
+                printf("Failed to load plugin at %s: %s\n", astr(plugin_path + dir->d_name).c_str(), SDL_GetError());
                 continue;
             }
             const auto plugin_init = (PluginInfo*(*)(const PluginFunctions*, const path_t&))SDL_LoadFunction(handle, "plugin_init");
@@ -147,7 +147,7 @@ std::unordered_map<path_t, std::string> initializePlugins() {
         void* handle = SDL_LoadObject(astr(path).c_str());
         if (handle == NULL) {
             failures[path] = "File could not be loaded";
-            printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(path).c_str());
+            printf("Failed to load plugin at %s: %s\n", astr(path).c_str(), SDL_GetError());
             continue;
         }
         const auto plugin_init = (PluginInfo*(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_init");
