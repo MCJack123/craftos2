@@ -129,7 +129,8 @@ jobs:
     - name: Install dependencies
       run: |
         curl -O https://github.com/MCJack123/PrebuiltvcpkgBinaries/archive/refs/heads/master.zip
-        powershell -command "Expand-Archive -Force 'master.zip' '.'"
+        Expand-Archive -Force 'master.zip' '.'
+        dir
         ren PrebuiltvcpkgBinaries-master vcpkg_installed
     - name: Build CraftOS-PC
       run: |
