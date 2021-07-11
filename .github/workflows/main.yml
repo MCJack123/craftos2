@@ -128,7 +128,8 @@ jobs:
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Install dependencies
       run: |
-        curl -O https://github.com/MCJack123/PrebuiltvcpkgBinaries/archive/refs/heads/master.zip
+        curl -OL https://github.com/MCJack123/PrebuiltvcpkgBinaries/archive/refs/heads/master.zip
+        dir
         Expand-Archive -Force 'master.zip' '.'
         dir
         ren PrebuiltvcpkgBinaries-master vcpkg_installed
