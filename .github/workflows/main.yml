@@ -129,14 +129,13 @@ jobs:
     - name: Install dependencies
       run: |
         curl -OL https://github.com/MCJack123/PrebuiltvcpkgBinaries/archive/refs/heads/master.zip
-        dir
         Expand-Archive -Force 'master.zip' '.'
-        dir
         ren PrebuiltvcpkgBinaries-master vcpkg_installed
     - name: Build CraftOS-PC
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        for /f %%i in ('git rev-parse --short HEAD') do set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"%%i\"
+        $tag = git rev-parse --short HEAD
+        set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
     - name: Run CraftOSTest
       run: |
