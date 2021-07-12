@@ -130,7 +130,7 @@ jobs:
       run: |
         git submodule update --init --recursive
         vcpkg integrate install
-        Get-Content -path "C:\vcpkg\ports\poco\portfile.cmake") -replace "ENABLE_NETSSL_WIN", "FORCE_OPENSSL" | Set-Content -Path "C:\vcpkg\ports\poco\portfile.cmake"
+        (Get-Content -path "C:\vcpkg\ports\poco\portfile.cmake") -replace "ENABLE_NETSSL_WIN", "FORCE_OPENSSL" | Set-Content -Path "C:\vcpkg\ports\poco\portfile.cmake"
     - name: Restore artifacts, or setup vcpkg (do not install any package)
       uses: lukka/run-vcpkg@v7
       with:
