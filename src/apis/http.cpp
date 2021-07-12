@@ -471,6 +471,10 @@ static int http_request(lua_State *L) {
     if (!lua_isstring(L, 1) && !lua_istable(L, 1)) luaL_typerror(L, 1, "string or table");
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
+    if (param->comp->requests_open >= config.http_max_requests) {
+        delete param;
+        return luaL_error(L, "Too many ongoing HTTP requests");
+    }
     if (lua_istable(L, 1)) {
         lua_getfield(L, 1, "url");
         if (!lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'url' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
@@ -1085,6 +1089,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
 static int http_websocket(lua_State *L) {
     lastCFunction = __func__;
     if (!config.http_websocket_enabled) luaL_error(L, "Websocket connections are disabled");
+    Computer * comp = get_comp(L);
+    if (comp->openWebsockets.size() >= config.http_max_websockets) return luaL_error(L, "Too many websockets already open");
     if (lua_isstring(L, 1)) {
         Computer * comp = get_comp(L);
         if (config.http_max_websockets > 0 && comp->openWebsockets.size() >= (unsigned)config.http_max_websockets) luaL_error(L, "Too many websockets already open");

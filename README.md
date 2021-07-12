@@ -9,10 +9,12 @@ Visit the website at https://www.craftos-pc.cc/ for more information, including 
 * Supported operating systems:
   * Windows Vista x64 or later
   * macOS 10.9.5+
-  * Ubuntu 18.04, 19.10, 20.04
+  * Ubuntu 18.04, 20.04, 21.04
   * Arch Linux with AUR helper
+  * iOS 11.0+
+  * Android 7.0+
 * Administrator privileges
-* 20 MB free space
+* 20-50 MB free space
 
 ## Installing
 ### Windows
@@ -40,6 +42,14 @@ $ sudo apt install craftos-pc
 $ craftos
 ```
 
+### iOS
+[Visit the App Store](https://apps.apple.com/us/app/craftos-pc/id1565893014) to download CraftOS-PC. Or you can [join the TestFlight beta](https://testflight.apple.com/join/SiuXlijR) to get access to the latest versions before they're released.
+
+### Android
+1. Download CraftOS-PC.apk from the latest release
+2. Open the file and tap "Install"
+3. Open CraftOS-PC from the app drawer or home screen
+
 ### Arch Linux
 Install the `craftos-pc` package using your chosen AUR helper (e.g. `yay -S craftos-pc`).
 
@@ -66,6 +76,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * JSON
   * Net
   * NetSSL
+    * On Windows, you'll need to modify the `poco` port to use OpenSSL. Simply open `vcpkg\ports\poco\portfile.cmake`, find `ENABLE_NETSSL_WIN`, and replace it with `FORCE_OPENSSL`. Then install as normal.
 * Windows: dirent.h (install with NuGet OR vcpkg)
 * Windows: [vcpkg](https://github.com/microsoft/vcpkg)
 
@@ -80,7 +91,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Can be disabled with `--without-sdl_mixer`, will disable audio disc and speaker support
   * For MP3 support, libmpg123 is required
   * For FLAC support, libFLAC is required
-  * For SF2 support, SDL_mixer must be built manually with fluidsynth support
+  * For SF2 support, SDL_mixer must be built manually with fluidsynth support (or with the `fluidsynth` feature in vcpkg since July 9, 2021)
 * The path to the ROM package can be changed with `--prefix=<path>`, which will store the ROM at `<path>/share/craftos`
 * Standalone builds can be enabled with `--with-standalone-rom=<fs_standalone.cpp>`, with `<fs_standalone.cpp>` referring to the path to the packed standalone ROM file.
   * The latest packed ROM can be downloaded as an artifact from the latest CI build, found by following the top link [here](https://github.com/MCJack123/craftos2-rom/actions).
