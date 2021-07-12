@@ -133,7 +133,7 @@ jobs:
         ren PrebuiltvcpkgBinaries-master vcpkg_installed
     - name: Build CraftOS-PC
       run: |
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $tag = git rev-parse --short HEAD
         set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
@@ -145,8 +145,8 @@ jobs:
     - name: Show logs
       run: |
         type "%appdata\CraftOS-PC\computer\0\CraftOSTest.log"
-        set /p EXITCODE=<retval.txt
-        if not %EXITCODE% == 0 exit %EXITCODE%
+        $code = Get-Content .\retval.txt
+        if ( $code -ne 0 ) { exit %EXITCODE% }
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
