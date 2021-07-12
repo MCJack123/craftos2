@@ -3,9 +3,9 @@ craftos
 /.vs
 /Debug
 /packages
-/x86
-/x64
-/ARM64
+x86
+x64
+ARM64
 CraftOS-PC*.app
 /autoscan.log
 /Makefile - Copy
