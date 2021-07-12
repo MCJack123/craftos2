@@ -22,7 +22,6 @@
 using namespace Poco::Net;
 
 struct http_handle_t {
-    bool closed;
     std::string url;
     HTTPClientSession * session;
     HTTPResponse * handle;
@@ -39,32 +38,33 @@ struct http_res {
 
 int http_handle_free(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t* handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (!handle->closed) {
-        handle->closed = true;
-        if (handle->failureReason.empty()) get_comp(L)->requests_open--;
-        delete handle->handle;
-        delete handle->session;
+    http_handle_t** handle = (http_handle_t**)lua_touserdata(L, 1);
+    if (*handle != NULL) {
+        if ((*handle)->failureReason.empty()) get_comp(L)->requests_open--;
+        delete (*handle)->handle;
+        delete (*handle)->session;
+        delete *handle;
+        *handle = NULL;
     }
-    delete handle;
     return 0;
 }
 
 int http_handle_close(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t* handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
-    handle->closed = true;
-    if (handle->failureReason.empty()) get_comp(L)->requests_open--;
-    delete handle->handle;
-    delete handle->session;
+    http_handle_t** handle = (http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (*handle == NULL) return luaL_error(L, "attempt to use a closed file");
+    if ((*handle)->failureReason.empty()) get_comp(L)->requests_open--;
+    delete (*handle)->handle;
+    delete (*handle)->session;
+    delete *handle;
+    *handle = NULL;
     return 0;
 }
 
 int http_handle_readAll(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     if (!handle->stream->good()) return 0;
     std::string ret;
     char buffer[4096];
@@ -88,8 +88,8 @@ int http_handle_readAll(lua_State *L) {
 
 int http_handle_readLine(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     if (!handle->stream->good()) return 0;
     std::string retval;
     std::getline(*handle->stream, retval);
@@ -103,8 +103,8 @@ int http_handle_readLine(lua_State *L) {
 
 int http_handle_readChar(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     if (!handle->stream->good()) return 0;
     std::string retval;
     for (int i = 0; i < luaL_optinteger(L, 1, 1) && !handle->stream->eof(); i++) {
@@ -148,8 +148,8 @@ int http_handle_readChar(lua_State *L) {
 
 int http_handle_readByte(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     if (!handle->stream->good()) return 0;
     if (!lua_isnumber(L, 1)) {
         lua_pushinteger(L, handle->stream->get());
@@ -164,8 +164,8 @@ int http_handle_readByte(lua_State *L) {
 
 int http_handle_readAllByte(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     if (!handle->stream->good()) return 0;
     if (!handle->stream->good()) return 0;
     std::string ret;
@@ -179,16 +179,16 @@ int http_handle_readAllByte(lua_State *L) {
 
 int http_handle_getResponseCode(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     lua_pushinteger(L, handle->handle->getStatus());
     return 1;
 }
 
 int http_handle_getResponseHeaders(lua_State *L) {
     lastCFunction = __func__;
-    http_handle_t * handle = (http_handle_t*)lua_touserdata(L, lua_upvalueindex(1));
-    if (handle->closed) return luaL_error(L, "attempt to use a closed file");
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     lua_createtable(L, 0, handle->handle->size());
     for (const auto& h : *handle->handle) {
         lua_pushstring(L, h.first.c_str());

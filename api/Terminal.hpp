@@ -47,6 +47,15 @@ static Color defaultPalette[16] = {
     {0x11, 0x11, 0x11}
 };
 
+/// Used to store information about the last mouse event.
+extern "C" struct mouse_event_data {
+    int x;
+    int y;
+    uint8_t button;
+    uint8_t event;
+    std::string side;
+};
+
 // An exception type that is thrown if a terminal fails to initialize.
 class window_exception: public std::exception {
     std::string err;
@@ -131,7 +140,7 @@ public:
     int blinkX = 0; // The X position of the cursor
     int blinkY = 0; // The Y position of the cursor
     bool blink = false; // Whether the cursor is currently drawn on-screen
-    bool canBlink = true; // Whether the cursor should blink
+    bool canBlink = false; // Whether the cursor should blink
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now(); // The time that the cursor last blinked
     int framecount = 0; // The number of frames that have been rendered
     int errorcount = 0; // The number of consecutive errors that have happened while rendering (used to detect crashes)
@@ -143,6 +152,11 @@ public:
 
     // The following fields are available in API version 10.2 and later.
     std::list<uint8_t> mouseButtonOrder; // An ordered list of mouse buttons that have been pressed
+
+    // The following fields are available in API version 10.4 and later.
+    mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()}; // Storage for the next mouse_move event if it was debounced
+    mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()}; // Data about the last mouse event
+    uint32_t mouseMoveDebounceTimer = 0; // A timer that fires when the next mouse movement event is ready
 
 protected:
     // Initial constructor to fill the contents with their defaults for the specified width and height

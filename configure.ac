@@ -1,5 +1,5 @@
 # Initialize
-AC_INIT([CraftOS-PC Accelerated], [2.5])
+AC_INIT([CraftOS-PC Accelerated], [2.6])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AC_CONFIG_MACRO_DIRS([m4])
 

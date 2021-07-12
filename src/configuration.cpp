@@ -29,6 +29,9 @@ extern "C" {extern void syncfs(); }
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false, 0, 0};
+#ifdef __IPHONEOS__
+    cfg.startFullscreen = true;
+#endif
     std::ifstream in(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
     if (!in.is_open()) return cfg;
     if (in.peek() == std::ifstream::traits_type::eof()) { in.close(); return cfg; } // treat an empty file as if it didn't exist in the first place
@@ -50,7 +53,9 @@ struct computer_configuration getComputerConfig(int id) {
         if (root.isMember("base64")) cfg.label = b64decode(root["label"].asString());
         else cfg.label = std::string(root["label"].asString());
     }
+#if !defined(__IPHONEOS__)
     if (root.isMember("startFullscreen")) cfg.startFullscreen = root["startFullscreen"].asBool();
+#endif
     if (root.isMember("computerWidth")) cfg.computerWidth = root["computerWidth"].asInt();
     if (root.isMember("computerHeight")) cfg.computerHeight = root["computerHeight"].asInt();
     return cfg;
@@ -78,11 +83,12 @@ void setComputerConfig(int id, const computer_configuration& cfg) {
 bool configLoadError = false;
 
 // first: 0 = immediate, 1 = reboot, 2 = relaunch
-// second: 0 = boolean, 1 = number, 2 = string
+// second: 0 = boolean, 1 = number, 2 = string, 3 = string array
 std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"http_enable", {1, 0}},
-    {"debug_enable", {1, 0}},
     {"mount_mode", {0, 1}},
+    {"http_whitelist", {0, 3}},
+    {"http_blacklist", {0, 3}},
     {"disable_lua51_features", {1, 0}},
     {"default_computer_settings", {1, 2}},
     {"logErrors", {0, 0}},
@@ -138,16 +144,10 @@ void config_init() {
         true,
         MOUNT_MODE_RO_STRICT,
         {"*"},
+        {},
         {
-            "127.0.0.0/8",
-            "10.0.0.0/8",
-            "172.16.0.0/12",
-            "192.168.0.0/16",
-            "fd00::/8"
-        },
-        {
-            "/Users",
-            "/home"
+            "/Users/*",
+            "/home/*"
         },
         {
             "/"
@@ -204,7 +204,11 @@ void config_init() {
         false,
         true,
         false,
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+        true
+#else
         false
+#endif
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -242,8 +246,22 @@ void config_init() {
     }
     in.close();
     readConfigSetting(http_enable, Bool);
-    readConfigSetting(debug_enable, Bool);
     readConfigSetting(mount_mode, Int);
+    if (root.isMember("http_whitelist"))
+        for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
+            config.http_whitelist.push_back(it->toString());
+    if (root.isMember("http_blacklist"))
+        for (auto it = root["http_blacklist"].arrayBegin(); it != root["http_blacklist"].arrayEnd(); ++it)
+            config.http_blacklist.push_back(it->toString());
+    if (root.isMember("mounter_whitelist"))
+        for (auto it = root["mounter_whitelist"].arrayBegin(); it != root["mounter_whitelist"].arrayEnd(); ++it)
+            config.mounter_whitelist.push_back(it->toString());
+    if (root.isMember("mounter_blacklist"))
+        for (auto it = root["mounter_blacklist"].arrayBegin(); it != root["mounter_blacklist"].arrayEnd(); ++it)
+            config.mounter_blacklist.push_back(it->toString());
+    if (root.isMember("mounter_no_ask"))
+        for (auto it = root["mounter_no_ask"].arrayBegin(); it != root["mounter_no_ask"].arrayEnd(); ++it)
+            config.mounter_no_ask.push_back(it->toString());
     readConfigSetting(disable_lua51_features, Bool);
     readConfigSetting(default_computer_settings, String);
     readConfigSetting(logErrors, Bool);
@@ -273,7 +291,9 @@ void config_init() {
     readConfigSetting(defaultWidth, Int);
     readConfigSetting(defaultHeight, Int);
     readConfigSetting(standardsMode, Bool);
+#if !(defined(__IPHONEOS__) || defined(__ANDROID__))
     readConfigSetting(useHardwareRenderer, Bool);
+#endif
     readConfigSetting(preferredHardwareDriver, String);
     readConfigSetting(useVsync, Bool);
     readConfigSetting(serverMode, Bool);
@@ -289,7 +309,9 @@ void config_init() {
     readConfigSetting(extendMargins, Bool);
     readConfigSetting(snapToSize, Bool);
     readConfigSetting(snooperEnabled, Bool);
+#if !(defined(__IPHONEOS__) || defined(__ANDROID__))
     readConfigSetting(keepOpenOnShutdown, Bool);
+#endif
     readConfigSetting(jit_ffi_enable, Bool);
     if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
@@ -305,8 +327,12 @@ void config_save() {
     if (configLoadError) return;
     Value root;
     root["http_enable"] = config.http_enable;
-    root["debug_enable"] = config.debug_enable;
     root["mount_mode"] = config.mount_mode;
+    root["http_whitelist"] = config.http_whitelist;
+    root["http_blacklist"] = config.http_blacklist;
+    root["mounter_whitelist"] = config.mounter_whitelist;
+    root["mounter_blacklist"] = config.mounter_blacklist;
+    root["mounter_no_ask"] = config.mounter_no_ask;
     root["disable_lua51_features"] = config.disable_lua51_features;
     root["default_computer_settings"] = config.default_computer_settings;
     root["logErrors"] = config.logErrors;

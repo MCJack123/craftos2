@@ -1,5 +1,5 @@
 language: c++
-script: CFLAGS=-Wall ./configure && make && make test
+script: CFLAGS=-Wall ./configure && make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}') && make test
 dist: bionic
 before_install:
   - git submodule update --init --recursive 

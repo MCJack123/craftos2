@@ -37,19 +37,13 @@ extern "C" {
 /// To construct the event data, push the values for the event parameters in order and return the name of the event.
 typedef std::function<std::string(lua_State *, void*)> event_provider;
 
+/// This is the type for even hook functions. This type is used for addEventHook.
+typedef std::function<std::string(lua_State *, const std::string&, void*)> event_hook;
+
 /// This is the type for functions that are called for SDL event hooks.
 /// The Computer and Terminal objects provided point to the topmost window as a suggestion as to which terminal the event is intended for. They may or may not be NULL.
 /// The SDL_Event structure will not exist after the function returns. Copy any values you need elsewhere before returning.
 typedef std::function<bool(SDL_Event *, Computer *, Terminal *, void*)> sdl_event_handler;
-
-/// Used to store information about the last mouse event.
-extern "C" struct mouse_event_data {
-    int x;
-    int y;
-    uint8_t button;
-    uint8_t event;
-    std::string side;
-};
 
 /// The main Computer structure. Functions that require access to the computer will take a pointer to this structure.
 struct Computer {
@@ -85,9 +79,9 @@ struct Computer {
     int timeoutCheckCount = 0; // The number of seconds the computer has attempted to terminate a long-running task
     bool getting_event = false; // Whether the computer is currently waiting for an event
     bool lastResizeEvent = false; // Whether the last event sent was a resize event (no longer used)
-    mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()}; // Storage for the next mouse_move event if it was debounced
-    mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()}; // Data about the last mouse event
-    SDL_TimerID mouseMoveDebounceTimer = 0; // A timer that fires when the next mouse movement event is ready
+    mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()}; // Storage for the next mouse_move event if it was debounced (deprecated - no longer used as of v2.5.6)
+    mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()}; // Data about the last mouse event (deprecated - no longer used as of v2.5.6)
+    SDL_TimerID mouseMoveDebounceTimer = 0; // A timer that fires when the next mouse movement event is ready (deprecated - no longer used as of v2.5.6)
     int waitingForTerminate = 0; // A bitmask of termination shortcuts that have been held
     void * cli_panel; // A PANEL object for CLI mode
     void * cli_term; // A WINDOW object for CLI mode
@@ -117,6 +111,12 @@ struct Computer {
     uint8_t redstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Standard redstone outputs
     uint16_t bundledRedstoneInputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone inputs (for plugins)
     uint16_t bundledRedstoneOutputs[6] = {0, 0, 0, 0, 0, 0}; // Bundled redstone outputs
+
+    // The following fields are available in API version 10.4 and later.
+    std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > eventHooks; // List of hooks for events
+    lua_State *rawFileStack = NULL; // Temporary stack for raw mode file access function calls
+    std::mutex rawFileStackMutex; // A mutex locking rawFileStack
+    int fileUploadCount = 0; // Stores the number of files that have been uploaded in the current set (if 0, no set is active)
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

@@ -14,7 +14,9 @@
 extern library_t config_lib;
 extern library_t fs_lib;
 extern library_t http_lib;
+#ifndef NO_MOUNTER
 extern library_t mounter_lib;
+#endif
 extern library_t os_lib;
 extern library_t periphemu_lib;
 extern library_t peripheral_lib;

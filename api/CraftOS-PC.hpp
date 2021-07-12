@@ -246,6 +246,32 @@ struct PluginFunctions {
      * @return Whether the operation succeeded
      */
     bool (*detachPeripheral)(Computer * computer, const std::string& side);
+
+    // The following fields are available in API version 10.4 and later.
+
+    /**
+     * Adds a hook function to be called when an event of a specific type is
+     * queued from C++. The hook is called directly after the callback function
+     * for the event, with the same parameters as an event provider + an
+     * additional field for the event name. It returns the new name of the event,
+     * which for most applications should be the same as the input. If the event
+     * name returned is empty, the event is removed from the queue. Hooks are
+     * executed in the order they were added. Computer hooks are executed
+     * before global hooks.
+     * @param event The name of the event to hook
+     * @param computer The computer to hook for, or NULL for all computers
+     * @param hook The hook function to execute
+     * @param userdata An opaque pointer to pass to the function
+     */
+    void (*addEventHook)(const std::string& event, Computer * computer, const event_hook& hook, void* userdata);
+
+    /**
+     * Sets a custom disance provider for modems.
+     * @param func The callback function to use to get distance. It takes two
+     * computer arguments (the sender and receiver), and returns a double
+     * specifying the distance.
+     */
+    void (*setDistanceProvider)(const std::function<double(const Computer *, const Computer *)>& func);
 };
 
 /**

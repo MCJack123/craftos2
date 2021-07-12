@@ -16,8 +16,19 @@
 #include <SDL2/SDL.h>
 #include "util.hpp"
 
+struct TaskQueueItem {
+    std::function<void*(void*)> func;
+    void* data = NULL;
+    bool async = false;
+    bool ready = false;
+    std::mutex lock;
+    std::condition_variable notify;
+    std::exception_ptr exception = nullptr;
+};
+
 extern ProtectedObject<std::vector<Computer*> > computers;
 extern ProtectedObject<std::unordered_set<SDL_TimerID> > freedTimers;
+extern ProtectedObject<std::queue<TaskQueueItem*> > taskQueue;
 extern bool exiting;
 extern int selectedRenderer;
 extern std::unordered_map<int, path_t> customDataDirs;
@@ -46,5 +57,6 @@ extern void deinitializePlugins();
 extern void stopWebsocket(void*);
 extern peripheral* attachPeripheral(Computer * computer, const std::string& side, const std::string& type, std::string * errorReturn, const char * format, ...);
 extern bool detachPeripheral(Computer * computer, const std::string& side);
+extern void addEventHook(const std::string& event, Computer * computer, const event_hook& hook, void* userdata);
 
 #endif

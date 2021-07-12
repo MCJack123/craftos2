@@ -41,14 +41,14 @@
 #endif
 
 #define termHasEvent(computer) ((computer)->running == 1 && (!(computer)->event_provider_queue.empty() || (computer)->lastResizeEvent || !(computer)->termEventQueue.empty()))
+#define QUEUE_LIMIT 256
 
-int nextTaskID = 0;
-ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
+ProtectedObject<std::queue<TaskQueueItem*> > taskQueue;
 std::condition_variable taskQueueNotify;
 bool exiting = false;
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
+static std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > globalEventHooks;
 
 monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
@@ -66,38 +66,51 @@ monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& side
 
 void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) {
     if (std::this_thread::get_id() == mainThreadID) return func(arg);
-    int myID;
+    TaskQueueItem * task = new TaskQueueItem;
+    task->func = func;
+    task->data = arg;
+    task->async = async;
     {
-        LockGuard lock(taskQueue);
-        myID = nextTaskID++;
-        taskQueue->push(std::make_tuple(myID, func, arg, async));
-    }
-    if ((selectedRenderer == 0 || selectedRenderer == 5) && !exiting) {
-        SDL_Event ev;
-        ev.type = task_event_type;
-        SDL_PushEvent(&ev);
-    }
-    if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5) {
-        {LockGuard lock(taskQueue);}
-        while (taskQueueReady) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::unique_lock<std::mutex> lock(taskQueue.getMutex());
+        taskQueue->push(task);
+        if (selectedRenderer == 0 || selectedRenderer == 5) {
+            SDL_Event e;
+            e.type = task_event_type;
+            SDL_PushEvent(&e);
+        }
         taskQueueReady = true;
         taskQueueNotify.notify_all();
-        while (taskQueueReady) {std::this_thread::yield(); taskQueueNotify.notify_all();}
     }
     if (async) return NULL;
-    while (([]()->bool{taskQueueReturns.lock(); return true;})() && taskQueueReturns->find(myID) == taskQueueReturns->end() && !exiting) {taskQueueReturns.unlock(); std::this_thread::yield();}
-    void* retval = (*taskQueueReturns)[myID];
-    taskQueueReturns->erase(myID);
-    taskQueueReturns.unlock();
-    return retval;
+    {
+        std::unique_lock<std::mutex> lock(task->lock);
+        while (!task->ready) task->notify.wait(lock);
+        if (task->exception != nullptr) {
+            std::exception_ptr e = task->exception;
+            delete task;
+            std::rethrow_exception(e);
+        }
+        arg = task->data;
+    }
+    delete task;
+    return arg;
 }
 
 void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;}) {
     while (predicate()) {
         if (!taskQueue->empty()) {
-            auto v = taskQueue->front();
-            void* retval = std::get<1>(v)(std::get<2>(v));
-            (*taskQueueReturns)[std::get<0>(v)] = retval;
+            TaskQueueItem * task = taskQueue->front();
+            {
+                std::unique_lock<std::mutex> lock(task->lock);
+                try {
+                    task->data = task->func(task->data);
+                } catch (...) {
+                    task->exception = std::current_exception();
+                }
+                task->ready = true;
+                task->notify.notify_all();
+            }
+            if (task->async) delete task;
             taskQueue->pop();
         }
         SDL_PumpEvents();
@@ -119,12 +132,18 @@ void mainLoop() {
             std::unique_lock<std::mutex> lock(taskQueue.getMutex());
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
             while (!taskQueue->empty()) {
-                auto v = taskQueue->front();
-                void* retval = std::get<1>(v)(std::get<2>(v));
-                if (!std::get<3>(v)) {
-                    LockGuard lock2(taskQueueReturns);
-                    (*taskQueueReturns)[std::get<0>(v)] = retval;
+                TaskQueueItem * task = taskQueue->front();
+                {
+                    std::unique_lock<std::mutex> lock(task->lock);
+                    try {
+                        task->data = task->func(task->data);
+                    } catch (...) {
+                        task->exception = std::current_exception();
+                    }
+                    task->ready = true;
+                    task->notify.notify_all();
                 }
+                if (task->async) delete task;
                 taskQueue->pop();
             }
             taskQueueReady = false;
@@ -176,11 +195,22 @@ int getNextEvent(lua_State *L, const std::string& filter) {
             while (computer->running == 1 && !termHasEvent(computer)) 
                 computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return termHasEvent(computer) || computer->running != 1;});
             if (computer->running != 1) return 0;
-            while (termHasEvent(computer)/* && computer->eventQueue.size() < 25*/) {
+            while (termHasEvent(computer) && computer->eventQueue.size() < QUEUE_LIMIT) {
                 if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
                 std::string name = termGetEvent(param);
+                if (!name.empty() && computer->eventHooks.find(name) != computer->eventHooks.end()) {
+                    for (const auto& h : computer->eventHooks[name]) {
+                        name = h.first(L, name, h.second);
+                        if (name.empty()) break;
+                    }
+                }
+                if (!name.empty() && globalEventHooks.find(name) != globalEventHooks.end()) {
+                    for (const auto& h : globalEventHooks[name]) {
+                        name = h.first(L, name, h.second);
+                        if (name.empty()) break;
+                    }
+                }
                 if (!name.empty()) {
-                    if (name == "die") { computer->running = 0; name = "terminate"; }
                     computer->eventQueue.push(name);
                     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
                     param = lua_newthread(computer->paramQueue);
@@ -193,6 +223,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
         lua_pop(computer->paramQueue, 1);
         std::this_thread::yield();
     } while (!filter.empty() && ev != filter && ev != "terminate");
+    //printf("%zd\n", computer->eventQueue.size());
     if ((size_t)lua_gettop(computer->paramQueue) != computer->eventQueue.size() + 1) {
         fprintf(stderr, "Warning: Queue sizes are incorrect! Expect misaligned event parameters.\n");
     }
@@ -217,6 +248,12 @@ int getNextEvent(lua_State *L, const std::string& filter) {
 }
 
 bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only) {
+#ifdef __ANDROID__
+    if (!comp->mounter_initializing) {
+        if (!SDL_AndroidRequestPermission("android.permission.READ_EXTERNAL_STORAGE")) return false;
+        if (!read_only && !SDL_AndroidRequestPermission("android.permission.WRITE_EXTERNAL_STORAGE")) return false;
+    }
+#endif
     struct_stat st;
     if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     std::vector<std::string> elems = split(comp_path, "/\\");
@@ -291,4 +328,40 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_pa
 void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata) {
     SDLTerminal::eventHandlers.insert(std::make_pair(type, std::make_pair(handler, userdata)));
     switch (type) {case SDL_JOYAXISMOTION: case SDL_JOYBALLMOTION: case SDL_JOYBUTTONDOWN: case SDL_JOYBUTTONUP: case SDL_JOYDEVICEADDED: case SDL_JOYDEVICEREMOVED: case SDL_JOYHATMOTION: SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER); break; default: break;}
+}
+
+void addEventHook(const std::string& event, Computer * computer, const event_hook& hook, void* userdata) {
+    std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > >& eventHooks = computer == NULL ? globalEventHooks : computer->eventHooks;
+    if (eventHooks.find(event) == eventHooks.end()) eventHooks[event] = std::list<std::pair<const event_hook&, void*> >();
+    eventHooks[event].push_back(std::make_pair(hook, userdata));
+}
+
+extern "C" {
+    FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode) {
+        lastCFunction = __func__;
+        if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0')))
+            luaL_error(L, "Unsupported mode");
+        if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
+        struct_stat st;
+        const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
+        if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename))
+            { errno = EACCES; return NULL; }
+        if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
+        FILE* retval;
+        if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
+        else if (mode[1] == '+') {
+            std::string mstr = mode;
+            mstr.erase(mstr.begin() + 1);
+            retval = platform_fopen(newpath.c_str(), mstr.c_str());
+        } else retval = platform_fopen(newpath.c_str(), mode);
+        if (retval != NULL) get_comp(L)->files_open++;
+        return retval;
+    }
+
+    int mounter_fclose_(lua_State *L, FILE * stream) {
+        lastCFunction = __func__;
+        const int retval = fclose(stream);
+        if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
+        return retval;
+    }
 }

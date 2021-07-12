@@ -157,18 +157,20 @@ static int os_startTimer(lua_State *L) {
 static int os_cancelTimer(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
-    runningTimerData.lock();
-    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
-    timer_data_t * data = (*runningTimerData)[id];
-    runningTimerData->erase(id);
-    runningTimerData.unlock();
-    data->lock->lock();
-#ifdef __EMSCRIPTEN__
-    queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
-#else
-    SDL_RemoveTimer(id);
-#endif
-    data->lock->unlock();
+    timer_data_t * data;
+    {
+        LockGuard lock(runningTimerData);
+        if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+        data = (*runningTimerData)[id];
+        runningTimerData->erase(id);
+    } {
+        std::lock_guard<std::mutex> lock(*data->lock);
+    #ifdef __EMSCRIPTEN__
+        queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
+    #else
+        SDL_RemoveTimer(id);
+    #endif
+    }
     delete data->lock;
     delete data;
     return 0;
@@ -236,8 +238,10 @@ static int os_epoch(lua_State *L) {
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     } else if (tmp == "local") {
         time_t t = time(NULL);
-        const long long off = (long long)mktime(localtime(&t)) - (long long)mktime(gmtime(&t));
-        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000));
+        const time_t utime = mktime(gmtime(&t));
+        tm * ltime = localtime(&t);
+        const long long off = (long long)mktime(ltime) - utime + (ltime->tm_isdst ? 3600LL : 0LL);
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000LL));
     } else if (tmp == "ingame") {
         const double m_time = (double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
         const double m_day = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1;
@@ -295,18 +299,20 @@ static int os_setAlarm(lua_State *L) {
 static int os_cancelAlarm(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
-    runningTimerData.lock();
-    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
-    timer_data_t * data = (*runningTimerData)[id];
-    runningTimerData->erase(id);
-    runningTimerData.unlock();
-    data->lock->lock();
-#ifdef __EMSCRIPTEN__
-    queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
-#else
-    SDL_RemoveTimer(id);
-#endif
-    data->lock->unlock();
+    timer_data_t * data;
+    {
+        LockGuard lock(runningTimerData);
+        if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+        data = (*runningTimerData)[id];
+        runningTimerData->erase(id);
+    } {
+        std::lock_guard<std::mutex> lock(*data->lock);
+    #ifdef __EMSCRIPTEN__
+        queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
+    #else
+        SDL_RemoveTimer(id);
+    #endif
+    }
     delete data->lock;
     delete data;
     return 0;

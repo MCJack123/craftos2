@@ -24,8 +24,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.5.5-luajit"
-#define CRAFTOSPC_CC_VERSION "1.95.3"
+#define CRAFTOSPC_VERSION    "v2.6-luajit"
+#define CRAFTOSPC_CC_VERSION "1.97.0"
 #define CRAFTOSPC_INDEV      false
 
 // for some reason Clang complains if this isn't present
@@ -81,11 +81,24 @@ class Value {
 public:
     Value() { obj = Poco::Dynamic::Var(Poco::JSON::Object()); }
     Value(Poco::Dynamic::Var o) : obj(o) {}
-    Value operator[](std::string key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
+    template<typename T>
+    Value(const std::vector<T>& arr) {
+        Poco::JSON::Array jarr;
+        for (const T& val : arr) jarr.add(val);
+        obj = Poco::Dynamic::Var(jarr);
+    }
+    Value operator[](const std::string& key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
     void operator=(int v) { obj = v; updateParent(); }
     void operator=(bool v) { obj = v; updateParent(); }
     void operator=(const char * v) { obj = std::string(v); updateParent(); }
-    void operator=(std::string v) { obj = v; updateParent(); }
+    void operator=(const std::string& v) { obj = v; updateParent(); }
+    template<typename T>
+    void operator=(const std::vector<T>& v) {
+        Poco::JSON::Array jarr;
+        for (const T& val : v) jarr.add(val);
+        obj = Poco::Dynamic::Var(jarr);
+        updateParent();
+    }
     void operator=(Poco::Dynamic::Var v) { obj = v; updateParent(); }
     void operator=(const Value& v) { obj = v.obj; updateParent(); }
     bool asBool() { return obj.convert<bool>(); }
@@ -116,11 +129,11 @@ inline int log2i(int num) {
     return retval;
 }
 
-inline unsigned char htoi(char c) {
+inline unsigned char htoi(char c, unsigned char def) {
     if (c >= '0' && c <= '9') return c - '0';
     else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return 0;
+    return def;
 }
 
 inline std::string asciify(std::string str) {
@@ -163,10 +176,10 @@ extern std::vector<std::string> split(const std::string& strToSplit, const char 
 extern std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
 extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback);
-extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
-extern bool fixpath_ro(Computer *comp, const char * path);
+extern path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
+extern bool fixpath_ro(Computer *comp, const std::string& path);
 extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);
-extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
+extern std::set<std::string> getMounts(Computer * computer, const std::string& comp_path);
 extern void peripheral_update(Computer *comp);
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, const computer_configuration& cfg);
@@ -175,5 +188,16 @@ extern void config_save();
 extern void xcopy(lua_State *from, lua_State *to, int n);
 extern std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures = NULL);
 extern std::string makeASCIISafe(const char * retval, size_t len);
+extern bool matchIPClass(const std::string& address, const std::string& pattern);
+inline std::string checkstring(lua_State *L, int idx) {
+    size_t sz = 0;
+    const char * str = luaL_checklstring(L, idx, &sz);
+    return std::string(str, sz);
+}
+inline std::string tostring(lua_State *L, int idx) {
+    size_t sz = 0;
+    const char * str = lua_tolstring(L, idx, &sz);
+    return std::string(str, sz);
+}
 
 #endif

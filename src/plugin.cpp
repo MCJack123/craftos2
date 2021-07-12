@@ -23,8 +23,10 @@ std::unordered_map<std::string, std::tuple<int, std::function<int(const std::str
 
 static library_t * getLibrary(const std::string& name) {
     if (name == "config") return &config_lib;
-    else if (name == "fs") return &fs_lib; 
-    else if (name == "mounter") return &mounter_lib; 
+    else if (name == "fs") return &fs_lib;
+#ifndef NO_MOUNTER
+    else if (name == "mounter") return &mounter_lib;
+#endif
     else if (name == "os") return &os_lib; 
     else if (name == "peripheral") return &peripheral_lib; 
     else if (name == "periphemu") return &periphemu_lib; 
@@ -51,10 +53,11 @@ static void setConfigSetting(const std::string& name, const std::string& value) 
 static void setConfigSettingInt(const std::string& name, int value) {config.pluginData[name] = std::to_string(value);}
 static void setConfigSettingBool(const std::string& name, bool value) {config.pluginData[name] = value ? "true" : "false";}
 static void registerConfigSetting(const std::string& name, int type, const std::function<int(const std::string&, void*)>& callback, void* userdata) {userConfig[name] = std::make_tuple(type, callback, userdata);}
+extern void setDistanceProvider(const std::function<double(const Computer *, const Computer *)>& func);
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    3,
+    4,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,
@@ -78,6 +81,8 @@ static const PluginFunctions function_map = {
     &registerConfigSetting,
     &attachPeripheral,
     &detachPeripheral,
+    &addEventHook,
+    &setDistanceProvider,
 };
 
 std::unordered_map<path_t, std::string> initializePlugins() {
@@ -96,7 +101,7 @@ std::unordered_map<path_t, std::string> initializePlugins() {
             void* handle = SDL_LoadObject(astr(path).c_str());
             if (handle == NULL) {
                 failures[path] = "File could not be loaded";
-                printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(plugin_path + dir->d_name).c_str());
+                printf("Failed to load plugin at %s: %s\n", astr(plugin_path + dir->d_name).c_str(), SDL_GetError());
                 continue;
             }
             const auto plugin_init = (PluginInfo*(*)(const PluginFunctions*, const path_t&))SDL_LoadFunction(handle, "plugin_init");
@@ -142,7 +147,7 @@ std::unordered_map<path_t, std::string> initializePlugins() {
         void* handle = SDL_LoadObject(astr(path).c_str());
         if (handle == NULL) {
             failures[path] = "File could not be loaded";
-            printf("Failed to load plugin at %s: File is not a dynamic library\n", astr(path).c_str());
+            printf("Failed to load plugin at %s: %s\n", astr(path).c_str(), SDL_GetError());
             continue;
         }
         const auto plugin_init = (PluginInfo*(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_init");

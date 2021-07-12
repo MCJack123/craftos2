@@ -30,7 +30,7 @@ inline SDL_Rect * setRect(SDL_Rect * rect, int x, int y, int w, int h) {
 class SDLTerminal: public Terminal {
     friend void mainLoop();
     friend int termPanic(lua_State *L);
-    friend int runRenderer();
+    friend int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write);
     friend class HardwareSDLTerminal;
 protected:
     bool shouldScreenshot = false;
@@ -50,8 +50,8 @@ public:
     static unsigned fontScale;
     unsigned charScale = 2;
     unsigned dpiScale = 1;
-    unsigned charWidth = fontWidth * 2/fontScale * charScale;
-    unsigned charHeight = fontHeight * 2/fontScale * charScale;
+    unsigned charWidth = fontWidth * charScale;
+    unsigned charHeight = fontHeight * charScale;
     int lastFPS = 0;
     int currentFPS = 0;
     time_t lastSecond = time(0);

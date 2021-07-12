@@ -1,5 +1,10 @@
 -- Tests compliance of CraftOS APIs
 if not _HEADLESS then term.clear() end
+local old_blacklist
+if config and config.add then
+	old_blacklist = config.get("http_blacklist")
+	config.add("http_blacklist", "$private")
+end
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lightBlue)
 print("CraftOSTest 1.8")
@@ -100,7 +105,7 @@ local function test(name, expected, ...)
 		good = res == expected 
 	end
 	if not good then
-		local line = ({pcall(function() error("", 3) end)})[2]
+		local line = ({pcall(function() error("", 4) end)})[2]
 		term.setTextColor(colors.red)
 		print("[x] " .. line .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
 		logfile.writeLine("[x] " .. line .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
@@ -251,7 +256,7 @@ testStart "fs"
 	test("getDir", "rom/programs", "/rom/programs/shell.lua")
 	test("getDrive", "rom", "/rom/programs/shell.lua")
 	local s = call("getSize", "/rom/apis/keys.lua")
-	if s ~= 2429 and s ~= 2492 then testLocal("fs.getSize", {2491, 2120}, s) end -- CRLF or LF
+	if s ~= 2525 and s ~= 2590 then testLocal("fs.getSize", {2525, 2590}, s) end -- CRLF or LF
 	call("makeDir", "test_dir")
 	test("isDir", true, "test_dir")
 	call("delete", "test_dir")
@@ -744,4 +749,5 @@ else
 	term.setTextColor(colors.white)
 end
 logfile.close()
+if old_blacklist then config.set("http_blacklist", old_blacklist) end
 if _HEADLESS then os.shutdown(#failed) end

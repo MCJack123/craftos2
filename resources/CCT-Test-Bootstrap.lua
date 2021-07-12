@@ -1,7 +1,5 @@
-if not debug then
-    config.set("debug_enable", true)
-    os.reboot()
-end
+config.set("abortTimeout", 3000) -- to speed things up a bit
+config.add("http_blacklist", "$private")
 if ... == "debugger" then
     periphemu.create("left", "debugger")
     peripheral.call("left", "break")

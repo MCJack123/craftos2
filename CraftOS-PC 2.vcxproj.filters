@@ -48,7 +48,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
     <None Include=".travis.yml">
       <Filter>Other Files</Filter>
     </None>

@@ -17,8 +17,6 @@
 
 extern std::thread * renderThread;
 extern std::unordered_set<Terminal*> orphanedTerminals;
-extern ProtectedObject<std::queue< std::tuple<int, std::function<void*(void*)>, void*, bool> > > taskQueue;
-extern ProtectedObject<std::unordered_map<int, void*> > taskQueueReturns;
 extern std::atomic_bool taskQueueReady;
 extern std::condition_variable taskQueueNotify;
 extern std::unordered_map<int, unsigned char> keymap;

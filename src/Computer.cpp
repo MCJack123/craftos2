@@ -29,6 +29,10 @@ extern "C" {
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
 
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
 extern FileEntry standaloneDebug;
@@ -63,12 +67,15 @@ struct load_ctx {
 library_t * libraries[] = {
     &config_lib,
     &fs_lib,
+#ifndef NO_MOUNTER
     &mounter_lib,
+#endif
     &os_lib,
     &peripheral_lib,
     &periphemu_lib,
     &rs_lib,
-    &term_lib
+    &term_lib,
+    NULL
 };
 
 // Constructor
@@ -82,7 +89,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #ifndef NO_CLI
     else if (selectedRenderer == 2) term = new CLITerminal(term_title);
 #endif
-    else if (selectedRenderer == 3) term = new RawTerminal(term_title);
+    else if (selectedRenderer == 3) term = new RawTerminal(term_title, id + 1);
     else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
     else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
     else term = new SDLTerminal(term_title);
@@ -212,7 +219,6 @@ static const char * file_reader(lua_State *L, void * ud, size_t *size) {
 
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
-    if (self->config->startFullscreen && dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->toggleFullscreen();
     self->running = 1;
     if (self->L != NULL) lua_close(self->L);
     setjmp(self->on_panic);
@@ -247,6 +253,13 @@ void runComputer(Computer * self, const path_t& bios_name) {
 
         self->coro = lua_newthread(L);
         self->paramQueue = lua_newthread(L);
+        if (selectedRenderer == 3) {
+            std::lock_guard<std::mutex> lock(self->rawFileStackMutex);
+            self->rawFileStack = luaL_newstate();
+            lua_pushinteger(self->rawFileStack, 1);
+            lua_pushlightuserdata(self->rawFileStack, self);
+            lua_settable(self->rawFileStack, LUA_REGISTRYINDEX);
+        }
         while (!self->eventQueue.empty()) self->eventQueue.pop();
 
         // Reinitialize any peripherals that were connected before rebooting
@@ -256,14 +269,12 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, self);
         lua_settable(L, LUA_REGISTRYINDEX);
-        if (::config.debug_enable) {
-            lua_newtable(L);
-            lua_createtable(L, 0, 1);
-            lua_pushstring(L, "v");
-            lua_setfield(L, -2, "__mode");
-            lua_setmetatable(L, -2);
-            lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
-        }
+        lua_newtable(L);
+        lua_createtable(L, 0, 1);
+        lua_pushstring(L, "v");
+        lua_setfield(L, -2, "__mode");
+        lua_setmetatable(L, -2);
+        lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
 
         // Load libraries
         luaL_openlibs(self->coro);
@@ -273,10 +284,10 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_pop(L, 1);
         // TODO: Fix logErrors since error hooks are no longer enabled
         if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
-        //else if (config.debug_enable && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        //else if (!self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         //else lua_sethook(self->coro, termHook, LUA_MASKERROR, 0);
         lua_atpanic(L, termPanic);
-        for (library_t * lib : libraries) load_library(self, self->coro, *lib);
+        for (library_t ** lib = libraries; *lib != NULL; lib++) load_library(self, self->coro, **lib);
         if (config.http_enable) load_library(self, self->coro, http_lib);
         if (self->isDebugger && self->debugger != NULL) load_library(self, self->coro, *((library_t*)self->debugger));
         lua_getglobal(self->coro, "redstone");
@@ -314,6 +325,9 @@ void runComputer(Computer * self, const path_t& bios_name) {
             }
             loadPlugins(self);
         }
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+        mobile_luaopen(L);
+#endif
 
         // Delete unwanted globals
         lua_pushnil(L);
@@ -328,14 +342,6 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_setglobal(L, "package");
         lua_pushnil(L);
         lua_setglobal(L, "print");
-        if (!config.debug_enable) {
-            lua_pushnil(L);
-            lua_setglobal(L, "collectgarbage");
-            lua_pushnil(L);
-            lua_setglobal(L, "debug");
-            lua_pushnil(L);
-            lua_setglobal(L, "newproxy");
-        }
         if (config.vanilla) {
             lua_pushnil(L);
             lua_setglobal(L, "config");
@@ -373,14 +379,12 @@ void runComputer(Computer * self, const path_t& bios_name) {
                 lua_setfield(L, -2, "removeListener");
                 lua_pop(L, 1);
             }
-            if (config.debug_enable) {
-                lua_getglobal(L, "debug");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "setbreakpoint");
-                lua_pushnil(L);
-                lua_setfield(L, -2, "unsetbreakpoint");
-                lua_pop(L, 1);
-            }
+            lua_getglobal(L, "debug");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "setbreakpoint");
+            lua_pushnil(L);
+            lua_setfield(L, -2, "unsetbreakpoint");
+            lua_pop(L, 1);
         }
         if (config.serverMode) {
             lua_getglobal(L, "http");
@@ -422,13 +426,15 @@ void runComputer(Computer * self, const path_t& bios_name) {
             if (script_file[0] == '\x1b') script = script_file.substr(1);
             else {
                 FILE* in = fopen(script_file.c_str(), "r");
-                char tmp[4096];
-                while (!feof(in)) {
-                    const size_t read = fread(tmp, 1, 4096, in);
-                    if (read == 0) break;
-                    script += std::string(tmp, read);
-                }
-                fclose(in);
+                if (in != NULL) {
+                    char tmp[4096];
+                    while (!feof(in)) {
+                        const size_t read = fread(tmp, 1, 4096, in);
+                        if (read == 0) break;
+                        script += std::string(tmp, read);
+                    }
+                    fclose(in);
+                } else script = "printError('Could not load startup script: " + std::string(strerror(errno)) + "')";
             }
             lua_pushlstring(L, script.c_str(), script.size());
             lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
@@ -451,8 +457,13 @@ void runComputer(Computer * self, const path_t& bios_name) {
         path_t bios_path_expanded = getROMPath() + WS("/") + bios_name;
 #endif
         FILE * bios_file = platform_fopen(bios_path_expanded.c_str(), "r");
-        status = lua_load(self->coro, file_reader, bios_file, "@bios.lua");
-        fclose(bios_file);
+        if (bios_file != NULL) {
+            status = lua_load(self->coro, file_reader, bios_file, "@bios.lua");
+            fclose(bios_file);
+        } else {
+            status = LUA_ERRFILE;
+            lua_pushstring(L, strerror(errno));
+        }
 #endif
         if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
@@ -478,7 +489,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         while (status == LUA_YIELD && self->running == 1) {
             status = lua_resume(self->coro, narg);
             if (status == LUA_YIELD) {
-                if (lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_strlen(self->coro, -1)));
+                if (lua_gettop(self->coro) && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_strlen(self->coro, -1)));
                 else narg = getNextEvent(self->coro, "");
             } else if (status != 0 && self->running == 1) {
                 // Catch runtime error
@@ -497,9 +508,16 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->event_lock.notify_all();
         // Stop all open websockets
         while (!self->openWebsockets.empty()) stopWebsocket(*self->openWebsockets.begin());
-        for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(self);
+        for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(self);
+        if (self->eventTimeout != 0) SDL_RemoveTimer(self->eventTimeout);
+        self->eventTimeout = 0;
         lua_close(L);   /* Cya, Lua */
         self->L = NULL;
+        if (self->rawFileStack) {
+            std::lock_guard<std::mutex> lock(self->rawFileStackMutex);
+            lua_close(self->rawFileStack);
+            self->rawFileStack = NULL;
+        }
     }
     if (self->term != NULL) {
         // Reset terminal contents
@@ -535,25 +553,43 @@ void* computerThread(void* data) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
 #endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
+#endif
     // seed the Lua RNG
     srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end())
         freedComputers.erase(comp);
+    if (comp->config->startFullscreen && dynamic_cast<SDLTerminal*>(comp->term) != NULL) ((SDLTerminal*)comp->term)->toggleFullscreen();
     bool first = true;
     do {
         if (!first) {
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+            {
+                std::lock_guard<std::mutex> lock(comp->term->locked);
+                memcpy(comp->term->screen.data(), "Tap to restart", sizeof("Tap to restart")-1);
+                memcpy(comp->term->colors.data(), "\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4", sizeof("\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4")-1);
+                comp->term->changed = true;
+            }
+            queueTask([](void*)->void*{SDL_StopTextInput(); return NULL;}, NULL, true);
+#endif
             bool ok = true;
             while (true) {
                 SDL_Event e;
                 std::string tmpstrval;
                 if (Computer_getEvent(comp, &e)) {
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+                    if (e.type == SDL_MOUSEBUTTONUP) {
+                        break;
+#else
                     if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                         if (comp->waitingForTerminate & 16) {
                             comp->waitingForTerminate |= 32;
                             comp->waitingForTerminate &= ~16;
                             break;
                         } else if ((comp->waitingForTerminate & 48) == 0) comp->waitingForTerminate |= 16;
+#endif
                     } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
                         if (e.window.windowID == comp->term->id) {
                             ok = false;
@@ -570,6 +606,9 @@ void* computerThread(void* data) {
                 }
             }
             if (!ok) break;
+#if defined(__IPHONEOS__) || defined(__ANDROID__)
+            queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
+#endif
         }
         try {
     #ifdef STANDALONE_ROM
@@ -577,6 +616,24 @@ void* computerThread(void* data) {
     #else
             runComputer(comp, WS("bios.lua"));
     #endif
+        } catch (Poco::Exception &e) {
+            fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.displayText().c_str());
+            queueTask([e](void*t)->void* {const std::string m = "Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Poco exception on computer thread: " + e.displayText() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
+            if (comp->L != NULL) {
+                comp->event_lock.notify_all();
+                // Stop all open websockets
+                while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
+                for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(comp);
+                if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+                comp->eventTimeout = 0;
+                lua_close(comp->L);   /* Cya, Lua */
+                comp->L = NULL;
+                if (comp->rawFileStack) {
+                    std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                    lua_close(comp->rawFileStack);
+                    comp->rawFileStack = NULL;
+                }
+            }
         } catch (std::exception &e) {
             fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
             queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
@@ -584,9 +641,16 @@ void* computerThread(void* data) {
                 comp->event_lock.notify_all();
                 // Stop all open websockets
                 while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
-                for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+                for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(comp);
+                if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+                comp->eventTimeout = 0;
                 lua_close(comp->L);   /* Cya, Lua */
                 comp->L = NULL;
+                if (comp->rawFileStack) {
+                    std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                    lua_close(comp->rawFileStack);
+                    comp->rawFileStack = NULL;
+                }
             }
         }
         first = false;
@@ -617,7 +681,12 @@ void* computerThread(void* data) {
 // Spin up a new computer
 Computer * startComputer(int id) {
     Computer * comp;
-    try {comp = new Computer(id);} catch (std::exception &e) {
+    try {comp = new Computer(id);}
+    catch (Poco::Exception &e) {
+        if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + e.displayText() + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
+        else fprintf(stderr, "An error occurred while opening the computer session: %s", e.displayText().c_str());
+        return NULL;
+    } catch (std::exception &e) {
         if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
         else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
         return NULL;

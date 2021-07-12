@@ -20,7 +20,7 @@ extern "C" {
 #include <vector>
 #include <dirent.h>
 #include <dlfcn.h>
-#include <execinfo.h>
+#include <jni.h>
 #include <libgen.h>
 #include <pthread.h>
 #include <SDL2/SDL_syswm.h>
@@ -30,12 +30,13 @@ extern "C" {
 #include <sys/utsname.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <wordexp.h>
 #include "../platform.hpp"
+#include "../runtime.hpp"
 #include "../util.hpp"
+#include "../terminal/SDLTerminal.hpp"
 
 std::string base_path;
-std::stirng rom_path;
+std::string rom_path;
 
 void setBasePath(const char * path) {
     base_path = path;
@@ -47,26 +48,26 @@ void setROMPath(const char * path) {
 
 std::string getBasePath() {
     if (base_path.empty()) {
-        char * p = SDL_GetPrefPath("cc.craftos-pc", "craftos");
-        base_path = p;
-        SDL_free(p);
+        if (SDL_AndroidGetExternalStorageState() & (SDL_ANDROID_EXTERNAL_STORAGE_READ | SDL_ANDROID_EXTERNAL_STORAGE_WRITE))
+            base_path = std::string(SDL_AndroidGetExternalStoragePath());
+        else base_path = std::string(SDL_AndroidGetInternalStoragePath());
     }
     return base_path;
 }
 
 std::string getROMPath() {
     if (rom_path.empty()) {
-        char * p = SDL_GetBasePath();
-        rom_path = p;
-        SDL_free(p);
+        rom_path = std::string(SDL_AndroidGetInternalStoragePath());
+        rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
+        printf("%s\n", rom_path.c_str());
     }
     return rom_path;
 }
 std::string getPlugInPath() {
     if (rom_path.empty()) {
-        char * p = SDL_GetBasePath();
-        rom_path = p;
-        SDL_free(p);
+        rom_path = std::string(SDL_AndroidGetInternalStoragePath());
+        rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
+        printf("%s\n", rom_path.c_str());
     }
     return rom_path + "/plugins/";
 }
@@ -77,6 +78,7 @@ std::string getMCSavePath() {
 
 void setThreadName(std::thread &t, const std::string& name) {
     pthread_setname_np(t.native_handle(), name.c_str());
+    printf("Set name of thread %lx to '%s'\n", t.native_handle(), name.c_str());
 }
 
 int createDirectory(const std::string& path) {
@@ -166,8 +168,68 @@ void copyImage(SDL_Surface* surf) {
     fprintf(stderr, "Warning: Android does not support taking screenshots to the clipboard.\n");
 }
 
-void setupCrashHandler() {}
+void setupCrashHandler() {
+
+}
 
 void setFloating(SDL_Window* win, bool state) {}
+
+#ifdef __INTELLISENSE__
+#region Mobile API
+#endif
+
+std::string mobile_keyboard_open(lua_State *L, void* ud) {
+    SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
+    if (sdlterm == NULL || (sdlterm->charHeight*sdlterm->dpiScale) == 0) return "";
+    int size = ((int)(ptrdiff_t)ud - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
+    if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
+    lua_pushinteger(L, size);
+    return "_CCPC_mobile_keyboard_open";
+}
+
+extern "C" {
+JNIEXPORT void JNICALL Java_cc_craftospc_CraftOSPC_MainActivity_sendKeyboardUpdate(JNIEnv *env, jclass klass, int size) {
+    LockGuard lock(computers);
+    if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)(ptrdiff_t)size);
+}
+}
+
+static int mobile_openKeyboard(lua_State *L) {
+    if (lua_isnone(L, 1) || lua_toboolean(L, 1)) SDL_StartTextInput();
+    else SDL_StopTextInput();
+    return 0;
+}
+
+static int mobile_isKeyboardOpen(lua_State *L) {
+    lua_pushboolean(L, SDL_IsTextInputActive());
+    return 1;
+}
+
+static luaL_Reg mobile_reg[] = {
+    {"openKeyboard", mobile_openKeyboard},
+    {"isKeyboardOpen", mobile_isKeyboardOpen},
+    {NULL, NULL}
+};
+
+static luaL_Reg android_reg[] = {
+    {NULL, NULL}
+};
+
+int mobile_luaopen(lua_State *L) {
+    luaL_register(L, "mobile", mobile_reg);
+    /*lua_pushstring(L, "android");
+    lua_newtable(L);
+    for (luaL_Reg* r = android_reg; r->name && r->func; r++) {
+        lua_pushstring(L, r->name);
+        lua_pushcfunction(L, r->func);
+        lua_settable(L, -3);
+    }
+    lua_settable(L, -3);*/
+    return 1;
+}
+
+#ifdef __INTELLISENSE__
+#endregion
+#endif
 
 #endif // __INTELLISENSE__

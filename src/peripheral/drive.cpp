@@ -171,6 +171,12 @@ int drive::insertDisk(lua_State *L, bool init) {
             path = getBasePath() + WS("/computer/") + path.substr(9);
 #endif
         }
+#ifdef NO_MOUNTER
+        else {
+            if (init) throw std::invalid_argument("Could not mount: Access denied");
+            else luaL_error(L, "Could not mount: Permission denied");
+        }
+#endif
         if (platform_stat(path.c_str(), &st) != 0) {
             if (init) throw std::system_error(errno, std::system_category(), "Could not mount: ");
             else luaL_error(L, "Could not mount: %s", strerror(errno));

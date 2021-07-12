@@ -88,7 +88,7 @@ struct CustomSdlMixerPlaybackSpeedEffectHandler
     }
 
     ~CustomSdlMixerPlaybackSpeedEffectHandler() {
-        Mix_FreeChunk(chunk);
+        //Mix_FreeChunk(chunk);
     }
 
     // processing function to be able to change chunk speed/pitch.
@@ -239,6 +239,7 @@ struct sound_file_t {
 
 extern std::unordered_map<std::string, std::pair<unsigned char *, unsigned int> > speaker_sounds;
 static std::unordered_map<std::string, std::vector<sound_file_t> > soundEvents;
+static std::unordered_map<std::string, Mix_Chunk *> loadedChunks;
 static std::mt19937 RNG;
 
 /* Adding custom sounds:
@@ -301,21 +302,26 @@ static bool playSoundEvent(std::string name, float volume, float speed, unsigned
                 Mix_HookMusicFinished(musicFinished);
                 return true;
             } else {
-                Mix_Chunk * chunk = Mix_LoadWAV((path + ".ogg").c_str());
-                if (chunk == NULL) {
-                    chunk = Mix_LoadWAV((path + ".mp3").c_str());
+                Mix_Chunk * chunk;
+                if (loadedChunks.find(path) != loadedChunks.end()) chunk = loadedChunks[path];
+                else {
+                    chunk = Mix_LoadWAV((path + ".ogg").c_str());
                     if (chunk == NULL) {
-                        chunk = Mix_LoadWAV((path + ".flac").c_str());
+                        chunk = Mix_LoadWAV((path + ".mp3").c_str());
                         if (chunk == NULL) {
-                            chunk = Mix_LoadWAV((path + ".wav").c_str());
+                            chunk = Mix_LoadWAV((path + ".flac").c_str());
                             if (chunk == NULL) {
-                                chunk = Mix_LoadWAV((path + ".mid").c_str());
-                                if (chunk == NULL) return false;
+                                chunk = Mix_LoadWAV((path + ".wav").c_str());
+                                if (chunk == NULL) {
+                                    chunk = Mix_LoadWAV((path + ".mid").c_str());
+                                    if (chunk == NULL) return false;
+                                }
                             }
                         }
                     }
+                    loadedChunks[path] = chunk;
                 }
-                CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false); // automatically frees chunk on scope exit
+                CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false);
                 void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil((double)chunk->alen / (double)speed)));
                 memcpy(data, chunk->abuf, chunk->alen);
                 handler.modifyStreamPlaybackSpeed(0, data, max(chunk->alen, (Uint32)ceil((double)chunk->alen / (double)speed)));
@@ -361,8 +367,13 @@ int speaker::playNote(lua_State *L) {
     } else if (soundEvents.find("minecraft:block.note." + inst) != soundEvents.end()) {
         lua_pushboolean(L, playSoundEvent("minecraft:block.note." + inst, volume, (float)pow(2.0, (pitch - 12.0) / 12.0), channel));
     } else {
-        Mix_Chunk * chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(speaker_sounds[inst].first, speaker_sounds[inst].second), true);
-        if (chunk == NULL) luaL_error(L, "Fatal error while reading instrument sample");
+        Mix_Chunk * chunk;
+        if (loadedChunks.find(inst) != loadedChunks.end()) chunk = loadedChunks[inst];
+        else {
+            chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(speaker_sounds[inst].first, speaker_sounds[inst].second), true);
+            if (chunk == NULL) luaL_error(L, "Fatal error while reading instrument sample: %s", Mix_GetError());
+            loadedChunks[inst] = chunk;
+        }
         float speed = (float)pow(2.0, (pitch - 12.0) / 12.0);
         CustomSdlMixerPlaybackSpeedEffectHandler<Sint16> handler(speed, chunk, false);
         void * data = SDL_malloc(max(chunk->alen, (Uint32)ceil((float)chunk->alen / speed)));
@@ -570,7 +581,8 @@ void speakerInit() {
 }
 
 void speakerQuit() {
-    Mix_HaltChannel(-1); // automatically frees chunks
+    Mix_HaltChannel(-1);
+    for (auto& c : loadedChunks) Mix_FreeChunk(c.second);
 }
 
 static luaL_Reg speaker_reg[] = {

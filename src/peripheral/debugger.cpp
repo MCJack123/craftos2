@@ -19,6 +19,10 @@ static int debugger_lib_getInfo(lua_State *L);
 #include "../terminal/CLITerminal.hpp"
 #include "../termsupport.hpp"
 
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
 extern FileEntry standaloneDebug;
@@ -29,6 +33,9 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
     debugger * dbg = (debugger*)dbgv;
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread (Debugger)").c_str());
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end()) freedComputers.erase(comp);
@@ -57,7 +64,7 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
             dbg->computer->peripherals.erase(side);
         }
         dbg->computer->shouldDeinitDebugger = true;
-        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL, true);
+        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL);
     }
 }
 
@@ -540,7 +547,7 @@ struct debugger_param {
 };
 
 debugger::debugger(lua_State *L, const char * side) {
-    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")
+    if (SDL_GetCurrentVideoDriver() != NULL && (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY"))
         throw std::runtime_error("Debuggers are not available when using the Linux framebuffer");
     didBreak = false;
     running = true;

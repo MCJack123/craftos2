@@ -17,6 +17,11 @@ static std::string modem_message(lua_State *message, void* data);
 #include "../apis.hpp"
 
 static std::unordered_map<int, std::list<modem*>> network;
+static std::function<double(const Computer *, const Computer *)> distanceCallback = [](const Computer *, const Computer *)->double {return 0;};
+
+/* extern */ void setDistanceProvider(const std::function<double(const Computer *, const Computer *)>& func) {
+    distanceCallback = func;
+}
 
 // todo: probably check port range
 
@@ -50,35 +55,10 @@ int modem::transmit(lua_State *L) {
     lastCFunction = __func__;
     luaL_checkinteger(L, 2);
     luaL_checkany(L, 3);
-    lua_settop(L, 3);
     const uint16_t port = (uint16_t)luaL_checkinteger(L, 1);
-    std::lock_guard<std::mutex> lock(eventQueueMutex);
-    if (!idsToDelete.empty()) {
-        for (int i : idsToDelete) {
-            lua_pushinteger(eventQueue, i);
-            lua_pushnil(eventQueue);
-            lua_settable(eventQueue, 1);
-        }
-        idsToDelete.clear();
-    }
-    const int id = (int)lua_objlen(eventQueue, 1) + 1;
-    int * refc = new int(0);
-    lua_pushinteger(eventQueue, id);
-    lua_newtable(eventQueue);
-    lua_pushlightuserdata(eventQueue, refc);
-    lua_setfield(eventQueue, -2, "refcount");
-    lua_xmove(L, eventQueue, 1);
-    lua_setfield(eventQueue, -2, "data");
-    lua_settable(eventQueue, 1);
     for (modem* m : network[netID]) if (m != this && m->openPorts.find(port) != m->openPorts.end()) {
-        m->receive(port, (uint16_t)lua_tointeger(L, 2), id, this);
-        (*refc)++;
-    }
-    if (*refc == 0) {
-        lua_pushinteger(eventQueue, id);
-        lua_pushnil(eventQueue);
-        lua_settable(eventQueue, 1);
-        delete refc;
+        lua_pushvalue(L, 3);
+        m->receive(L, port, (uint16_t)luaL_checkinteger(L, 2), this);
     }
     return 0;
 }
@@ -134,54 +114,42 @@ int modem::callRemote(lua_State *L) {
 
 struct modem_message_data {
     modem * m;
-    modem * sender;
-    int id;
-    uint16_t port;
-    uint16_t replyPort;
+    int pos;
 };
 
-static std::string modem_message(lua_State *message, void* data) {
-    struct modem_message_data * d = (modem_message_data*)data;
-    if (d->sender == NULL) {
-        fprintf(stderr, "Modem message event is missing sender, skipping event");
-        delete d;
-        return NULL;
+static std::string modem_message(lua_State *L, void* data) {
+    modem_message_data * d = (modem_message_data*)data;
+    std::lock_guard<std::mutex> lock(d->m->eventQueueMutex);
+    lua_State *message = lua_tothread(d->m->eventQueue, d->pos);
+    lua_checkstack(L, 5);
+    lua_xmove(message, L, 5);
+    if (lua_gettop(d->m->eventQueue) == d->pos) lua_pop(d->m->eventQueue, 1);
+    else {
+        lua_checkstack(d->m->eventQueue, 1);
+        lua_pushnil(d->m->eventQueue);
+        lua_replace(d->m->eventQueue, d->pos);
     }
-    lua_pushstring(message, d->m->side.c_str());
-    lua_pushinteger(message, d->port);
-    lua_pushinteger(message, d->replyPort);
-    std::lock_guard<std::mutex> lock(d->sender->eventQueueMutex);
-    lua_pushinteger(d->sender->eventQueue, d->id);
-    lua_gettable(d->sender->eventQueue, 1);
-    if (lua_isnil(d->sender->eventQueue, -1)) {
-        fprintf(stderr, "Missing event data for id %d\n", d->id);
-        delete d;
-        return NULL;
-    }
-    lua_getfield(d->sender->eventQueue, -1, "data");
-    xcopy(d->sender->eventQueue, message, 1);
-    lua_pop(d->sender->eventQueue, 1);
-    lua_getfield(d->sender->eventQueue, -1, "refcount");
-    int * refc = (int*)lua_touserdata(d->sender->eventQueue, -1);
-    lua_pop(d->sender->eventQueue, 2);
-    if (!--(*refc)) {
-        delete refc;
-        d->sender->idsToDelete.insert(d->id);
-    }
-    d->m->modemMessages.erase((void*)d);
     delete d;
-    lua_pushinteger(message, 0);
     return "modem_message";
 };
 
-void modem::receive(uint16_t port, uint16_t replyPort, int id, modem * sender) {
-    struct modem_message_data * d = new struct modem_message_data;
-    d->id = id;
-    d->port = port;
-    d->replyPort = replyPort;
+void modem::receive(lua_State *data, uint16_t port, uint16_t replyPort, modem * sender) {
+    std::lock_guard<std::mutex> lock(eventQueueMutex);
+    for (int i = lua_gettop(eventQueue); i > 0 && lua_isnil(eventQueue, i); i--) lua_pop(eventQueue, 1);
+    lua_checkstack(eventQueue, 1);
+    lua_State *message = lua_newthread(eventQueue);
+    int id = 1, top = lua_gettop(eventQueue);
+    while (id < top && !lua_isnil(eventQueue, id)) id++;
+    if (id < top) lua_replace(eventQueue, id);
+    lua_checkstack(message, 5);
+    lua_pushstring(message, side.c_str());
+    lua_pushinteger(message, port);
+    lua_pushinteger(message, replyPort);
+    xcopy(data, message, 1);
+    lua_pushnumber(message, distanceCallback(sender->comp, comp));
+    modem_message_data * d = new modem_message_data;
     d->m = this;
-    d->sender = sender;
-    modemMessages.insert((void*)d);
+    d->pos = id;
     queueEvent(comp, modem_message, d);
 }
 
@@ -189,7 +157,7 @@ modem::modem(lua_State *L, const char * side) {
     if (lua_isnumber(L, 3)) netID = (int)lua_tointeger(L, 3);
     comp = get_comp(L);
     eventQueue = lua_newthread(comp->L);
-    lua_newtable(eventQueue);
+    eventQueuePosition = lua_gettop(comp->L);
     this->side = side;
     if (network.find(netID) == network.end()) network[netID] = std::list<modem*>();
     network[netID].push_back(this);
@@ -198,22 +166,17 @@ modem::modem(lua_State *L, const char * side) {
 void modem::reinitialize(lua_State *L) {
     // eventQueue should be freed and inaccessible since the Lua state was closed
     eventQueue = lua_newthread(L);
-    lua_newtable(eventQueue);
+    eventQueuePosition = lua_gettop(comp->L);
 }
 
 modem::~modem() {
     for (std::list<modem*>::iterator it = network[netID].begin(); it != network[netID].end(); ++it) {if (*it == this) {network[netID].erase(it); return;}}
     std::lock_guard<std::mutex> lock(eventQueueMutex);
-    for (void* d : modemMessages) {
-        ((modem_message_data*)d)->sender = NULL;
-        lua_pushinteger(eventQueue, ((modem_message_data*)d)->id);
-        lua_gettable(eventQueue, 1);
-        lua_getfield(eventQueue, -1, "refcount");
-        delete (int*)lua_touserdata(eventQueue, -1);
-        lua_pop(eventQueue, 2);
+    if (lua_gettop(comp->L) == eventQueuePosition) lua_pop(comp->L, 1);
+    else {
+        lua_pushnil(comp->L);
+        lua_replace(comp->L, eventQueuePosition);
     }
-    lua_pop(eventQueue, 1);
-    for (int i = 1; i < lua_gettop(comp->L); i++) if (lua_type(comp->L, i) == LUA_TTHREAD && lua_tothread(comp->L, i) == eventQueue) lua_remove(comp->L, i--);
     for (const auto& p : comp->peripherals)
         if (std::string(p.second->getMethods().name) == "modem" && p.second != this)
             return;

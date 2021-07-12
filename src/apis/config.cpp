@@ -85,12 +85,25 @@ static int config_get(lua_State *L) {
         if (config.customFontPath.empty()) lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
         else lua_pushnil(L);
+    } else if (strcmp(name, "http_whitelist") == 0) {
+        lua_createtable(L, config.http_whitelist.size(), 0);
+        for (int i = 0; i < config.http_whitelist.size(); i++) {
+            lua_pushstring(L, config.http_whitelist[i].c_str());
+            lua_rawseti(L, -2, i+1);
+        }
+    } else if (strcmp(name, "http_blacklist") == 0) {
+        lua_createtable(L, config.http_blacklist.size(), 0);
+        for (int i = 0; i < config.http_blacklist.size(); i++) {
+            lua_pushstring(L, config.http_blacklist[i].c_str());
+            lua_rawseti(L, -2, i+1);
+        }
     } else if (userConfig.find(name) != userConfig.end()) {
         try {
             switch (std::get<0>(userConfig[name])) {
                 case 0: lua_pushboolean(L, config.pluginData[name] == "true"); break;
                 case 1: lua_pushinteger(L, std::stoi(config.pluginData[name])); break;
                 case 2: lua_pushlstring(L, config.pluginData[name].c_str(), config.pluginData[name].size()); break;
+                case 3: return luaL_error(L, "Invalid type"); // maybe fix this later?
                 default: lua_pushnil(L); break;
             }
         } catch (...) {lua_pushnil(L);}
@@ -106,7 +119,7 @@ static int config_set(lua_State *L) {
     bool isUserConfig = false;
     if (strcmp(name, "http_enable") == 0)
         config.http_enable = lua_toboolean(L, 2);
-    setConfigSetting(debug_enable, boolean);
+    else if (strcmp(name, "debug_enable") == 0) ; // do nothing
     else if (strcmp(name, "mount_mode") == 0) {
         if (!lua_isnumber(L, 2) && !lua_isstring(L, 2)) return 0;
         int selected = 0;
@@ -155,10 +168,6 @@ static int config_set(lua_State *L) {
     setConfigSettingI(maximumFilesOpen);
     setConfigSettingI(maxNotesPerTick);
     setConfigSettingI(clockSpeed);
-    /*else if (strcmp(name, "http_whitelist") == 0)
-        config.http_whitelist = lua_to(L, 2);
-    else if (strcmp(name, "http_blacklist") == 0)
-        config.http_blacklist = lua_to(L, 2);*/
     setConfigSetting(showFPS, boolean);
     setConfigSettingI(abortTimeout);
     setConfigSetting(ignoreHotkeys, boolean);
@@ -204,12 +213,31 @@ static int config_set(lua_State *L) {
     setConfigSetting(keepOpenOnShutdown, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
-    else if (userConfig.find(name) != userConfig.end()) {
+    else if (strcmp(name, "http_whitelist") == 0) {
+        luaL_checktype(L, 2, LUA_TTABLE);
+        config.http_whitelist.clear();
+        lua_rawgeti(L, 2, 1);
+        for (int i = 1; lua_isstring(L, -1); i++) {
+            config.http_whitelist.push_back(lua_tostring(L, -1));
+            lua_pop(L, 1);
+            lua_rawgeti(L, 2, i+1);
+        }
+    } else if (strcmp(name, "http_blacklist") == 0) {
+        luaL_checktype(L, 2, LUA_TTABLE);
+        config.http_blacklist.clear();
+        lua_rawgeti(L, 2, 1);
+        for (int i = 1; lua_isstring(L, -1); i++) {
+            config.http_blacklist.push_back(lua_tostring(L, i));
+            lua_pop(L, 1);
+            lua_rawgeti(L, 2, i+1);
+        }
+    } else if (userConfig.find(name) != userConfig.end()) {
         isUserConfig = true;
         switch (std::get<0>(userConfig[name])) {
             case 0: config.pluginData[name] = lua_toboolean(L, 2) ? "true" : "false"; break;
             case 1: config.pluginData[name] = std::to_string(luaL_checkinteger(L, 2)); break;
             case 2: config.pluginData[name] = std::string(luaL_checkstring(L, 2), lua_strlen(L, 2)); break;
+            case 3: return luaL_error(L, "Invalid type"); // maybe fix this later?
         }
         if (std::get<1>(userConfig[name]) != nullptr) {
             const int retval = std::get<1>(userConfig[name])(name, std::get<2>(userConfig[name]));
@@ -252,6 +280,7 @@ static int config_getType(lua_State *L) {
                 case 0: lua_pushstring(L, "boolean"); break;
                 case 1: lua_pushstring(L, "number"); break;
                 case 2: lua_pushstring(L, "string"); break;
+                case 3: lua_pushstring(L, "table"); break;
                 default: lua_pushnil(L);
             }
         }
@@ -260,10 +289,33 @@ static int config_getType(lua_State *L) {
             case 0: lua_pushstring(L, "boolean"); break;
             case 1: lua_pushstring(L, "number"); break;
             case 2: lua_pushstring(L, "string"); break;
+            case 3: lua_pushstring(L, "table"); break;
             default: lua_pushnil(L);
         }
     }
     return 1;
+}
+
+static int config_add(lua_State *L) {
+    lastCFunction = __func__;
+    const std::string name = luaL_checkstring(L, 1);
+    const std::string value = luaL_checkstring(L, 2);
+    if (configSettings.find(name) == configSettings.end()) return luaL_error(L, "Unknown configuration option %s", name.c_str());
+    else if (configSettings[name].second != 3) return luaL_error(L, "Configuration option %s is not an array", name.c_str());
+    if (name == "http_whitelist") config.http_whitelist.push_back(value);
+    else if (name == "http_blacklist") config.http_blacklist.push_back(value);
+    return 0;
+}
+
+static int config_remove(lua_State *L) {
+    lastCFunction = __func__;
+    const std::string name = luaL_checkstring(L, 1);
+    const std::string value = luaL_checkstring(L, 2);
+    if (configSettings.find(name) == configSettings.end()) return luaL_error(L, "Unknown configuration option %s", name.c_str());
+    else if (configSettings[name].second != 3) return luaL_error(L, "Configuration option %s is not an array", name.c_str());
+    if (name == "http_whitelist") config.http_whitelist.erase(std::remove(config.http_whitelist.begin(), config.http_whitelist.end(), value), config.http_whitelist.end());
+    else if (name == "http_blacklist") config.http_blacklist.erase(std::remove(config.http_blacklist.begin(), config.http_blacklist.end(), value), config.http_blacklist.end());
+    return 0;
 }
 
 static void config_deinit(Computer *comp) { config_save(); }
@@ -273,6 +325,8 @@ static luaL_Reg config_reg[] = {
     {"set", config_set},
     {"list", config_list},
     {"getType", config_getType},
+    {"add", config_add},
+    {"remove", config_remove},
     {NULL, NULL}
 };
 
