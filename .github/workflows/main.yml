@@ -128,6 +128,7 @@ jobs:
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Install dependencies
       run: |
+        git submodule update --init --recursive
         curl -OL https://github.com/MCJack123/PrebuiltvcpkgBinaries/archive/refs/heads/master.zip
         Expand-Archive -Force 'master.zip' '.'
         ren PrebuiltvcpkgBinaries-master vcpkg_installed
@@ -168,4 +169,6 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         name: CraftOS-PC_${{ github.sha }}
-        path: x64\ReleaseC\CraftOS-PC.exe
+        path: |
+          x64\ReleaseC\CraftOS-PC.exe
+          x64\ReleaseC\lua51.dll
