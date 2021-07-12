@@ -397,7 +397,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_sp
 diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/fs_spec.lua b/src/test/resources/test-rom/spec/apis/fs_spec.lua
 --- a/src/test/resources/test-rom/spec/lua/vm_spec.lua	2021-06-08 23:55:10.000000000 -0400
 +++ b/src/test/resources/test-rom/spec/lua/vm_spec.lua	1969-12-31 19:00:00.000000000 -0500
-@@ +1,9 -0,0 @@
+@@ -1,9 +0,0 @@
 -describe("The VM", function()
 -    it("allows unpacking a large number of values", function()
 -        -- We don't allow arbitrarily many values, half a meg is probably fine.
