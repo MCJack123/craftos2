@@ -164,7 +164,7 @@ jobs:
         Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         mkdir x64\ReleaseC
         mkdir x64\Release
-        $VCPKG_ROOT\vcpkg integrate install
+        %VCPKG_ROOT%\vcpkg integrate install
         $tag = git rev-parse --short HEAD
         set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
