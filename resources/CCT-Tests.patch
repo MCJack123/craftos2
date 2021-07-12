@@ -86,8 +86,10 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_sp
 -        Tests for some non-standard yield locations. I'm not saying that users
 -        /should/ use this, but it's useful for us to allow it in order to suspend the
 -        VM in arbitrary locations.
+-
 -        Cobalt does support this within load too, but that's unlikely to be supported
 -        in the future.
+-
 -        These tests were split over about 7 files in Cobalt and are in one massive one
 -        in this test suite. Sorry.
 -        ]]
@@ -392,6 +394,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_sp
 -        end)
 -    end)
 -end)
+diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/fs_spec.lua b/src/test/resources/test-rom/spec/apis/fs_spec.lua
 --- a/src/test/resources/test-rom/spec/lua/vm_spec.lua	2021-06-08 23:55:10.000000000 -0400
 +++ b/src/test/resources/test-rom/spec/lua/vm_spec.lua	1969-12-31 19:00:00.000000000 -0500
 @@ +1,9 -0,0 @@
