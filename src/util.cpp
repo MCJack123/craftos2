@@ -109,22 +109,22 @@ static std::list<std::string> split_list(const std::string& strToSplit, const ch
 }
 
 path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md, std::string * mountPath) {
-    if (md && fixpath_ro(comp, path.c_str())) return path_t();
+    if (md && fixpath_ro(comp, path)) return path_t();
     std::list<std::string> components = split_list(path, "/\\");
     while (!components.empty() && components.front().empty()) components.pop_front();
     if (components.empty()) return fixpath(comp, "", true);
     components.pop_back();
     std::list<std::string> append;
-    path_t maxPath = fixpath(comp, concat(components, '/').c_str(), false, true, mountPath);
+    path_t maxPath = fixpath(comp, concat(components, '/'), false, true, mountPath);
     while (maxPath.empty()) {
         append.push_front(components.back());
         components.pop_back();
         if (components.empty()) return path_t();
-        maxPath = fixpath(comp, concat(components, '/').c_str(), false, true, mountPath);
+        maxPath = fixpath(comp, concat(components, '/'), false, true, mountPath);
     }
     if (!md) return maxPath;
     if (createDirectory(maxPath + PATH_SEP + wstr(concat(append, PATH_SEPC))) != 0) return path_t();
-    return fixpath(comp, path.c_str(), false, true, mountPath);
+    return fixpath(comp, path, false, true, mountPath);
 }
 
 static bool _nothrow(std::function<void()> f) { try { f(); return true; } catch (...) { return false; } }
@@ -235,9 +235,12 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
 bool fixpath_ro(Computer *comp, const std::string& path) {
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
-    for (const std::string& s : elems) {
+    for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
-        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
+            pathc.push_back(s);
+        }
     }
     std::pair<size_t, bool> max_path = std::make_pair(0, false);
     for (const auto& m : comp->mounts)
@@ -250,9 +253,12 @@ std::set<std::string> getMounts(Computer * computer, const std::string& comp_pat
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     std::set<std::string> retval;
-    for (const std::string& s : elems) {
+    for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return retval; else pathc.pop_back(); }
-        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
+            pathc.push_back(s);
+        }
     }
     for (const auto& m : computer->mounts)
         if (pathc.size() + 1 == std::get<0>(m).size() && std::equal(pathc.begin(), pathc.end(), std::get<0>(m).begin()))
