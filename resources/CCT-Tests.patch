@@ -40,16 +40,15 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/base_spec.lua b/
  
          it("loads a file with the global environment", function()
 diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/timeout_spec.lua b/src/test/resources/test-rom/spec/lua/timeout_spec.lua
---- a/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-04-28 03:19:00.000000000 -0400
-@@ -1,17 +1,7 @@
- describe("The VM terminates long running code :slow", function()
-     it("in loops", function()
-         expect.error(function() while true do end end)
+--- a/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:55:10.000000000 -0400
++++ b/src/test/resources/test-rom/spec/lua/timeout_spec.lua	1969-12-31 19:00:00.000000000 -0500
+@@ -1,17 +0,0 @@
+-describe("The VM terminates long running code :slow", function()
+-    it("in loops", function()
+-        expect.error(function() while true do end end)
 -            :str_match("^.+:%d+: Too long without yielding$")
-+            :str_match("Too long without yielding$")
-     end)
- 
+-    end)
+-
 -    describe("in string pattern matching", function()
 -        local str, pat = ("a"):rep(1e4), ".-.-.-.-b$"
 -
@@ -60,7 +59,7 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/timeout_spec
 -            expect.error(string.match, str, pat):eq("Too long without yielding")
 -        end)
 -    end)
- end)
+-end)
 diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_spec.lua b/src/test/resources/test-rom/spec/lua/coroutine_spec.lua
 --- a/src/test/resources/test-rom/spec/lua/coroutine_spec.lua	2021-06-08 23:55:10.000000000 -0400
 +++ b/src/test/resources/test-rom/spec/lua/coroutine_spec.lua	2021-04-28 03:19:00.000000000 -0400
@@ -146,23 +145,3 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_sp
          end)
  
          it("within metamethods", function()
---- a/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:55:10.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/lua/timeout_spec.lua	1969-12-31 19:00:00.000000000 -0500
-@@ -1,17 +0,0 @@
--describe("The VM terminates long running code :slow", function()
--    it("in loops", function()
--        expect.error(function() while true do end end)
--            :str_match("^.+:%d+: Too long without yielding$")
--    end)
--
--    describe("in string pattern matching", function()
--        local str, pat = ("a"):rep(1e4), ".-.-.-.-b$"
--
--        it("string.find", function()
--            expect.error(string.find, str, pat):eq("Too long without yielding")
--        end)
--        it("string.match", function()
--            expect.error(string.match, str, pat):eq("Too long without yielding")
--        end)
--    end)
--end)
