@@ -132,6 +132,7 @@ jobs:
         curl -OL https://github.com/MCJack123/PrebuiltvcpkgBinaries/archive/refs/heads/master.zip
         Expand-Archive -Force 'master.zip' '.'
         ren PrebuiltvcpkgBinaries-master vcpkg_installed
+        vcpkg integrate install
     - name: Build CraftOS-PC
       run: |
         function Invoke-Environment {
