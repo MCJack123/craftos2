@@ -373,7 +373,6 @@ static int fs_combine(lua_State *L) {
 static int fs_open(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    if (computer->files_open >= config.maximumFilesOpen) err(L, 1, "Too many files open");
     const char * mode = luaL_checkstring(L, 2);
     if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (mode[1] != 'b' && mode[1] != '\0')) luaL_error(L, "%s: Unsupported mode", mode);
     std::string str = checkstring(L, 1);
@@ -390,6 +389,7 @@ static int fs_open(lua_State *L) {
         }
     }
     if (std::regex_search(path, pathregex(WS("^\\d+:"))) || path == WS(":bios.lua")) {
+        if (computer->files_open >= config.maximumFilesOpen) err(L, 1, "Too many files already open");
         std::stringstream ** fp = (std::stringstream**)lua_newuserdata(L, sizeof(std::stringstream**));
         int fpid = lua_gettop(L);
 #ifdef STANDALONE_ROM
@@ -500,6 +500,10 @@ static int fs_open(lua_State *L) {
             lua_pushnil(L);
             lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, str, false, false)).c_str());
             return 2; 
+        }
+        if (computer->files_open >= config.maximumFilesOpen) {
+            fclose(*fp);
+            err(L, 1, "Too many files already open");
         }
         lua_createtable(L, 0, 4);
         lua_pushstring(L, "close");

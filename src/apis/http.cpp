@@ -235,159 +235,166 @@ static void downloadThread(void* arg) {
     HTTPClientSession * session;
     std::string status;
     std::string path;
-    if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
-    else if (param->url.find("://") == std::string::npos) status = "URL malformed";
-    else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
-    try {
-        uri = Poco::URI(param->url);
-    } catch (Poco::SyntaxException &e) {
-        status = "URL malformed";
-    }
-    if (status.empty()) {
-        size_t pos = param->url.find('/', param->url.find(uri.getHost()));
-        path = urlEncode(pos != std::string::npos ? param->url.substr(pos) : "/");
-        if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
-        bool found = false;
-        for (const std::string& wclass : config.http_whitelist) {
-            if (matchIPClass(uri.getHost(), wclass)) {
-                found = true;
-                for (const std::string& bclass : config.http_blacklist) {
-                    if (matchIPClass(uri.getHost(), bclass)) {
-                        found = false;
-                        break;
-                    }
-                }
-                if (!found) break;
-            }
+    param->comp->requests_open++;
+downloadThread_entry:
+    {
+        if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
+        else if (param->url.find("://") == std::string::npos) status = "URL malformed";
+        else if (param->url.substr(0, 7) != "http://" && param->url.substr(0, 8) != "https://") status = "Invalid protocol '" + param->url.substr(0, param->url.find("://")) + "'";
+        try {
+            uri = Poco::URI(param->url);
+        } catch (Poco::SyntaxException &e) {
+            status = "URL malformed";
         }
-        if (!found) status = "Domain not permitted";
-        else if (uri.getScheme() == "http") {
-            session = new HTTPClientSession(uri.getHost(), uri.getPort());
-        } else if (uri.getScheme() == "https") {
-            const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
-            session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
-        } else status = "Invalid protocol '" + uri.getScheme() + "'";
-    }
-    if (!status.empty()) {
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = status;
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        return;
-    }
-
-    if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
-    HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), path, HTTPMessage::HTTP_1_1);
-    HTTPResponse * response = new HTTPResponse();
-    if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
-    size_t requestSize = param->postData.size();
-    for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
-    if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
-    if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
-    if (!param->postData.empty()) {
-        if (request.getContentLength() == HTTPRequest::UNKNOWN_CONTENT_LENGTH) request.setContentLength(param->postData.size());
-        if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
-    }
-    if (config.http_max_upload > 0 && requestSize > (unsigned)config.http_max_upload) {
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = "Request body is too large";
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        delete response;
-        delete session;
-        return;
-    }
-    try {
-        std::ostream& reqs = session->sendRequest(request);
-        if (!param->postData.empty()) reqs.write(param->postData.c_str(), param->postData.size());
-        if (reqs.bad() || reqs.fail()) {
+        if (status.empty()) {
+            size_t pos = param->url.find('/', param->url.find(uri.getHost()));
+            path = urlEncode(pos != std::string::npos ? param->url.substr(pos) : "/");
+            if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+            bool found = false;
+            for (const std::string& wclass : config.http_whitelist) {
+                if (matchIPClass(uri.getHost(), wclass)) {
+                    found = true;
+                    for (const std::string& bclass : config.http_blacklist) {
+                        if (matchIPClass(uri.getHost(), bclass)) {
+                            found = false;
+                            break;
+                        }
+                    }
+                    if (!found) break;
+                }
+            }
+            if (!found) status = "Domain not permitted";
+            else if (uri.getScheme() == "http") {
+                session = new HTTPClientSession(uri.getHost(), uri.getPort());
+            } else if (uri.getScheme() == "https") {
+                const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+            } else status = "Invalid protocol '" + uri.getScheme() + "'";
+        }
+        if (!status.empty()) {
             http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
-            err->failureReason = "Failed to send request";
+            err->failureReason = status;
             queueEvent(param->comp, http_failure, err);
-            delete param;
+            goto downloadThread_finish;
+        }
+
+        if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
+        HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), path, HTTPMessage::HTTP_1_1);
+        HTTPResponse * response = new HTTPResponse();
+        if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
+        size_t requestSize = param->postData.size();
+        for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
+        if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
+        if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
+        if (!param->postData.empty()) {
+            if (request.getContentLength() == HTTPRequest::UNKNOWN_CONTENT_LENGTH) request.setContentLength(param->postData.size());
+            if (request.getContentType() == HTTPRequest::UNKNOWN_CONTENT_TYPE) request.setContentType("application/x-www-form-urlencoded; charset=utf-8");
+        }
+        if (config.http_max_upload > 0 && requestSize > (unsigned)config.http_max_upload) {
+            http_handle_t * err = new http_handle_t(NULL);
+            err->url = param->url;
+            err->failureReason = "Request body is too large";
+            queueEvent(param->comp, http_failure, err);
             delete response;
             delete session;
-            return;
+            goto downloadThread_finish;
         }
-    } catch (Poco::TimeoutException &e) {
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = "Timed out";
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        delete response;
-        delete session;
-        return;
-    } catch (Poco::Exception &e) {
-        fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = e.message();
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        delete response;
-        delete session;
-        return;
-    }
-    http_handle_t * handle;
-    try {
-        handle = new http_handle_t(&session->receiveResponse(*response));
-    } catch (Poco::TimeoutException &e) {
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = "Timed out";
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        delete response;
-        delete session;
-        return;
-    } catch (Poco::Exception &e) {
-        fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = e.message();
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        delete response;
-        delete session;
-        return;
-    }
-    if (config.http_max_download > 0 && response->hasContentLength() && response->getContentLength() > config.http_max_download) {
-        http_handle_t * err = new http_handle_t(NULL);
-        err->url = param->url;
-        err->failureReason = "Response is too large";
-        queueEvent(param->comp, http_failure, err);
-        delete param;
-        delete response;
-        delete session;
-        return;
-    }
-    handle->session = session;
-    handle->handle = response;
-    handle->url = param->old_url;
-    handle->isBinary = param->isBinary;
-    if (param->redirect && handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
-        std::string location = handle->handle->get("Location");
-        if (location.find("://") == std::string::npos) {
-            if (location[0] == '/') location = uri.getScheme() + "://" + uri.getHost() + location;
-            else location = uri.getScheme() + "://" + uri.getHost() + path.substr(0, path.find('?')) + "/" + location;
+        try {
+            std::ostream& reqs = session->sendRequest(request);
+            if (!param->postData.empty()) reqs.write(param->postData.c_str(), param->postData.size());
+            if (reqs.bad() || reqs.fail()) {
+                http_handle_t * err = new http_handle_t(NULL);
+                err->url = param->url;
+                err->failureReason = "Failed to send request";
+                queueEvent(param->comp, http_failure, err);
+                delete response;
+                delete session;
+                goto downloadThread_finish;
+            }
+        } catch (Poco::TimeoutException &e) {
+            http_handle_t * err = new http_handle_t(NULL);
+            err->url = param->url;
+            err->failureReason = "Timed out";
+            queueEvent(param->comp, http_failure, err);
+            delete response;
+            delete session;
+            goto downloadThread_finish;
+        } catch (Poco::Exception &e) {
+            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
+            http_handle_t * err = new http_handle_t(NULL);
+            err->url = param->url;
+            err->failureReason = e.message();
+            queueEvent(param->comp, http_failure, err);
+            delete response;
+            delete session;
+            goto downloadThread_finish;
         }
-        delete handle->handle;
-        delete handle->session;
-        delete handle;
-        param->url = location;
-        return downloadThread(param);
+        http_handle_t * handle;
+        try {
+            handle = new http_handle_t(&session->receiveResponse(*response));
+        } catch (Poco::TimeoutException &e) {
+            http_handle_t * err = new http_handle_t(NULL);
+            err->url = param->url;
+            err->failureReason = "Timed out";
+            queueEvent(param->comp, http_failure, err);
+            delete response;
+            delete session;
+            goto downloadThread_finish;
+        } catch (Poco::Exception &e) {
+            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
+            http_handle_t * err = new http_handle_t(NULL);
+            err->url = param->url;
+            err->failureReason = e.message();
+            queueEvent(param->comp, http_failure, err);
+            delete response;
+            delete session;
+            goto downloadThread_finish;
+        }
+        if (config.http_max_download > 0 && response->hasContentLength() && response->getContentLength() > config.http_max_download) {
+            http_handle_t * err = new http_handle_t(NULL);
+            err->url = param->url;
+            err->failureReason = "Response is too large";
+            queueEvent(param->comp, http_failure, err);
+            delete response;
+            delete session;
+            goto downloadThread_finish;
+        }
+        handle->session = session;
+        handle->handle = response;
+        handle->url = param->old_url;
+        handle->isBinary = param->isBinary;
+        if (param->redirect && handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
+            std::string location = handle->handle->get("Location");
+            if (location.find("://") == std::string::npos) {
+                if (location[0] == '/') location = uri.getScheme() + "://" + uri.getHost() + location;
+                else location = uri.getScheme() + "://" + uri.getHost() + path.substr(0, path.find('?')) + "/" + location;
+            }
+            delete handle->handle;
+            delete handle->session;
+            delete handle;
+            param->url = location;
+            goto downloadThread_entry;
+        }
+        if (response->getStatus() >= 400) {
+            handle->failureReason = HTTPResponse::getReasonForStatus(response->getStatus());
+            queueEvent(param->comp, http_failure, handle);
+        } else {
+            queueEvent(param->comp, http_success, handle);
+        }
     }
-    if (response->getStatus() >= 400) {
-        handle->failureReason = HTTPResponse::getReasonForStatus(response->getStatus());
-        queueEvent(param->comp, http_failure, handle);
-    } else {
-        param->comp->requests_open++;
-        queueEvent(param->comp, http_success, handle);
+downloadThread_finish:
+    param->comp->httpRequestQueueMutex.lock();
+    if (!param->comp->httpRequestQueue.empty()) {
+        http_param_t * p = (http_param_t*)param->comp->httpRequestQueue.front();
+        param->comp->httpRequestQueue.pop();
+        param->comp->httpRequestQueueMutex.unlock();
+        delete param;
+        param = p;
+        goto downloadThread_entry;
     }
+    param->comp->httpRequestQueueMutex.unlock();
+    param->comp->requests_open--;
     delete param;
 }
 
@@ -471,10 +478,6 @@ static int http_request(lua_State *L) {
     if (!lua_isstring(L, 1) && !lua_istable(L, 1)) luaL_typerror(L, 1, "string or table");
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    if (param->comp->requests_open >= config.http_max_requests) {
-        delete param;
-        return luaL_error(L, "Too many ongoing HTTP requests");
-    }
     if (lua_istable(L, 1)) {
         lua_getfield(L, 1, "url");
         if (!lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'url' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
@@ -529,9 +532,14 @@ static int http_request(lua_State *L) {
         if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
         param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
     }
-    std::thread th(downloadThread, param);
-    setThreadName(th, "HTTP Request Thread");
-    th.detach();
+    std::lock_guard<std::mutex> lock(param->comp->httpRequestQueueMutex);
+    if (param->comp->requests_open >= config.http_max_requests) {
+        param->comp->httpRequestQueue.push(param);
+    } else {
+        std::thread th(downloadThread, param);
+        setThreadName(th, "HTTP Request Thread");
+        th.detach();
+    }
     lua_pushboolean(L, 1);
     return 1;
 }

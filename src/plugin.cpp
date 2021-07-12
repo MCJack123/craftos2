@@ -57,7 +57,7 @@ extern void setDistanceProvider(const std::function<double(const Computer *, con
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    4,
+    5,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,

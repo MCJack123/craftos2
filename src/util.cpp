@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2021 JackMacWindows.
  */
 
+#include <atomic>
 #include <sstream>
 #include <Computer.hpp>
 #include <dirent.h>
@@ -346,15 +347,20 @@ static std::vector<std::pair<IPv6, uint8_t> > reservedIPv6s = {
     {{0xfe80, 0, 0, 0, 0, 0, 0, 0}, 10}
 };
 
+static std::atomic_bool didAddIPv4IPs(false);
+
 bool matchIPClass(const std::string& address, const std::string& pattern) {
     static const std::regex ipv4_regex("(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)");
     static const std::regex ipv6_regex("");
     static const std::regex ipv4_class_regex("(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)/(\\d+)");
     static const std::regex regex_escape("[\\^\\$\\\\\\.\\+\\?\\(\\)\\[\\]\\{\\}\\|]");
     static const std::regex regex_wildcard("\\*");
-    if (reservedIPv6s.size() < reservedIPv4s.size())
+    if (!didAddIPv4IPs.load()) {
+        didAddIPv4IPs.store(true);
+        reservedIPv6s.reserve(reservedIPv6s.size() + reservedIPv4s.size());
         for (const auto& cl : reservedIPv4s)
             reservedIPv6s.push_back(std::make_pair<IPv6, uint8_t>({0, 0, 0, 0, 0, 0xffff, (uint16_t)(cl.first >> 16), (uint16_t)(cl.first & 0xFFFF)}, cl.second + 96));
+    }
     std::smatch pmatch, amatch;
     const std::regex patreg(std::regex_replace(std::regex_replace(pattern, regex_escape, "\\$&"), regex_wildcard, ".*"));
     if ((pattern == "$private" && address == "localhost") || std::regex_match(address, patreg)) return true;

@@ -118,6 +118,10 @@ struct Computer {
     std::mutex rawFileStackMutex; // A mutex locking rawFileStack
     int fileUploadCount = 0; // Stores the number of files that have been uploaded in the current set (if 0, no set is active)
 
+    // The following fields are available in API version 10.5 and later.
+    std::queue<void*> httpRequestQueue; // Queue for HTTP requests that are past the limit
+    std::mutex httpRequestQueueMutex; // A mutex locking httpRequestQueueMutex
+
 private:
     // The constructor is marked private to avoid having to implement it in this file.
     // It isn't necessary to construct a Computer directly; just use the startComputer function instead.
