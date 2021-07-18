@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2021 JackMacWindows.
  */
 
+#include <fstream>
 #include <configuration.hpp>
 #include "HardwareSDLTerminal.hpp"
 #include "RawTerminal.hpp"
@@ -15,7 +16,10 @@
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
-#ifndef NO_PNG
+#if defined(USE_WEBP)
+#include <webp/mux.h>
+#include <webp/encode.h>
+#elif !defined(NO_PNG)
 #include <png++/png.hpp>
 #endif
 #define rgb(color) (((color).r << 16) | ((color).g << 8) | (color).b)
@@ -250,13 +254,26 @@ void HardwareSDLTerminal::render() {
         int w, h;
         if (gotResizeEvent) return;
         if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) return;
-#ifdef PNGPP_PNG_HPP_INCLUDED
         if (screenshotPath == WS("clipboard")) {
             SDL_Surface * temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 24, SDL_PIXELFORMAT_RGB24);
             if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, temp->pixels, temp->pitch) != 0) return;
             copyImage(temp);
             SDL_FreeSurface(temp);
         } else {
+#if defined(USE_WEBP)
+            SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 24, 0x00ff0000, 0x0000ff00, 0x000000ff, 0);
+            if (gotResizeEvent) return;
+            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, sshot->pixels, sshot->pitch) != 0) return;
+            uint8_t * data = NULL;
+            size_t size = WebPEncodeLosslessRGB((uint8_t*)sshot->pixels, sshot->w, sshot->h, sshot->pitch, &data);
+            if (size) {
+                std::ofstream out(screenshotPath, std::ios::binary);
+                out.write((char*)data, size);
+                out.close();
+                WebPFree(data);
+            }
+            SDL_FreeSurface(sshot);
+#elif defined(PNGPP_PNG_HPP_INCLUDED)
             png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
             if (gotResizeEvent) return;
             if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) return;
@@ -265,16 +282,16 @@ void HardwareSDLTerminal::render() {
             std::ofstream out(screenshotPath, std::ios::binary);
             img.write_stream(out);
             out.close();
-        }
 #else
-        SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-        if (gotResizeEvent) return;
-        if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) return;
-        SDL_Surface *conv = SDL_ConvertSurfaceFormat(sshot, SDL_PIXELFORMAT_RGB888, 0);
-        SDL_FreeSurface(sshot);
-        SDL_SaveBMP(conv, screenshotPath.c_str());
-        SDL_FreeSurface(conv);
+            SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+            if (gotResizeEvent) return;
+            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) return;
+            SDL_Surface *conv = SDL_ConvertSurfaceFormat(sshot, SDL_PIXELFORMAT_RGB888, 0);
+            SDL_FreeSurface(sshot);
+            SDL_SaveBMP(conv, screenshotPath.c_str());
+            SDL_FreeSurface(conv);
 #endif
+        }
 #ifdef __EMSCRIPTEN__
         queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
 #endif

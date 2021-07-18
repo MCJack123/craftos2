@@ -621,6 +621,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+GIF_TARGET
 OBJS
 HTTP_TARGET
 OUT_TARGET
@@ -679,6 +680,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_png
+with_webp
 with_ncurses
 with_sdl_mixer
 with_hpdf
@@ -1317,6 +1319,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-png              support PNG screenshots
   --without-png           do not support PNG screenshots
+  --with-webp             support WebP screenshots/recordings
   --with-ncurses          support CLI mode
   --without-ncurses       do not support CLI mode
   --with-sdl_mixer        support audio disks
@@ -2146,6 +2149,12 @@ fi
 # Check whether --with-png was given.
 if test "${with_png+set}" = set; then :
   withval=$with_png;
+fi
+
+
+# Check whether --with-webp was given.
+if test "${with_webp+set}" = set; then :
+  withval=$with_webp;
 fi
 
 
@@ -5230,7 +5239,7 @@ fi
 
 if test "x$enable_wasm" != "xyes"; then
 
-    if test "x$with_png" != "xno"; then :
+    if test "x$with_png" != "xno" -a ! "x$with_webp" = "xyes"; then :
 
         for ac_header in png++/png.hpp
 do :
@@ -5315,6 +5324,93 @@ fi
 
 else
   NO_PNG=1
+fi
+
+    if test "x$with_webp" = "xyes"; then :
+
+        for ac_header in webp/mux.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "webp/mux.h" "ac_cv_header_webp_mux_h" "$ac_includes_default"
+if test "x$ac_cv_header_webp_mux_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_WEBP_MUX_H 1
+_ACEOF
+
+else
+  if test "x$with_webp" = "xyes"; then :
+  as_fn_error $? "Could not find webp header." "$LINENO" 5
+else
+  USE_WEBP=0
+fi
+fi
+
+done
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing WebPEncodeRGB" >&5
+$as_echo_n "checking for library containing WebPEncodeRGB... " >&6; }
+if ${ac_cv_search_WebPEncodeRGB+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char WebPEncodeRGB ();
+int
+main ()
+{
+return WebPEncodeRGB ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' webp; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_search_WebPEncodeRGB=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_WebPEncodeRGB+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_WebPEncodeRGB+:} false; then :
+
+else
+  ac_cv_search_WebPEncodeRGB=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_WebPEncodeRGB" >&5
+$as_echo "$ac_cv_search_WebPEncodeRGB" >&6; }
+ac_res=$ac_cv_search_WebPEncodeRGB
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else
+  if test "x$with_webp" = "xyes"; then :
+  as_fn_error $? "Could not find libwebp library." "$LINENO" 5
+else
+  USE_WEBP=0
+fi
+fi
+
+
+else
+  USE_WEBP=0
 fi
 
     if test "x$with_ncurses" != "xno"; then :
@@ -5750,9 +5846,19 @@ fi
 fi
 
     if test "x$NO_PNG" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_PNG"; fi
+    if test ! "x$USE_WEBP" = "x0"; then
+        CPPFLAGS="$CPPFLAGS -DUSE_WEBP";
+
+    else
+        GIF_TARGET=gif.o
+
+    fi
     if test "x$NO_CLI" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_CLI"; fi
     if test "x$NO_MIXER" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_MIXER"; fi
     if test "x$PRINT_TYPE" != "x"; then CPPFLAGS="$CPPFLAGS -DPRINT_TYPE=$PRINT_TYPE"; fi
+
+else
+    GIF_TARGET=gif.o
 
 fi
 

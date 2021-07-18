@@ -8,15 +8,21 @@
  * Copyright (c) 2019-2021 JackMacWindows.
  */
 
+#include <fstream>
 #include <sstream>
 #include <configuration.hpp>
 #include "RawTerminal.hpp"
 #include "SDLTerminal.hpp"
+#ifndef USE_WEBP
 #include "../gif.hpp"
+#endif
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
-#ifndef NO_PNG
+#if defined(USE_WEBP)
+#include <webp/mux.h>
+#include <webp/encode.h>
+#elif !defined(NO_PNG)
 #include <png++/png.hpp>
 #endif
 #ifdef __EMSCRIPTEN__
@@ -343,11 +349,20 @@ void SDLTerminal::render() {
     if (shouldScreenshot && !screenshotPath.empty()) {
         shouldScreenshot = false;
         if (gotResizeEvent) return;
-#ifdef PNGPP_PNG_HPP_INCLUDED
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
         if (screenshotPath == WS("clipboard")) {
             copyImage(temp);
         } else {
+#if defined(USE_WEBP)
+            uint8_t * data = NULL;
+            size_t size = WebPEncodeLosslessRGB((uint8_t*)temp->pixels, temp->w, temp->h, temp->pitch, &data);
+            if (size) {
+                std::ofstream out(screenshotPath, std::ios::binary);
+                out.write((char*)data, size);
+                out.close();
+                WebPFree(data);
+            }
+#elif defined(PNGPP_PNG_HPP_INCLUDED)
             png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
             for (int i = 0; i < temp->h; i++)
                 memcpy((void*)&pixbuf.get_bytes()[i * temp->w * 3], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
@@ -356,13 +371,11 @@ void SDLTerminal::render() {
             std::ofstream out(screenshotPath, std::ios::binary);
             img.write_stream(out);
             out.close();
+#else
+            SDL_SaveBMP(temp, screenshotPath.c_str());
+#endif
         }
         SDL_FreeSurface(temp);
-#else
-        SDL_Surface *conv = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB888, 0);
-        SDL_SaveBMP(conv, screenshotPath.c_str());
-        SDL_FreeSurface(conv);
-#endif
 #ifdef __EMSCRIPTEN__
         queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif
@@ -421,6 +434,7 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 }
 
 bool SDLTerminal::resize(unsigned w, unsigned h) {
+    if (this->shouldRecord) return false;
     newWidth = w;
     newHeight = h;
     if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
@@ -459,7 +473,9 @@ void SDLTerminal::screenshot(std::string path) {
         char tstr[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
         tstr[23] = '\0';
-#ifdef NO_PNG
+#if defined(USE_WEBP)
+        screenshotPath += wstr(std::string(tstr)) + WS(".webp");
+#elif defined(NO_PNG)
         screenshotPath += wstr(std::string(tstr)) + WS(".bmp");
 #else
         screenshotPath += wstr(std::string(tstr)) + WS(".png");
@@ -485,7 +501,11 @@ void SDLTerminal::record(std::string path) {
         createDirectory(recordingPath);
         char tstr[20];
         strftime(tstr, 20, "%F_%H.%M.%S", nowt);
+#ifdef USE_WEBP
+        recordingPath += wstr(std::string(tstr)) + WS(".webp");
+#else
         recordingPath += wstr(std::string(tstr)) + WS(".gif");
+#endif
     }
     changed = true;
 }
@@ -501,9 +521,16 @@ void SDLTerminal::stopRecording() {
     shouldRecord = false;
     std::lock_guard<std::mutex> lock(recorderMutex);
     if (recording.empty()) return;
+#ifdef USE_WEBP
+    WebPAnimEncoderOptions enc_options;
+    WebPAnimEncoderOptionsInit(&enc_options);
+    WebPAnimEncoder * enc = WebPAnimEncoderNew(reinterpret_cast<uint32_t*>(&recording[0][0])[0], reinterpret_cast<uint32_t*>(&recording[0][0])[1], &enc_options);
+    int framen = 0;
+#else
     GifWriter g;
     g.f = platform_fopen(recordingPath.c_str(), "wb");
     GifBegin(&g, NULL, reinterpret_cast<uint32_t*>(&recording[0][0])[0], reinterpret_cast<uint32_t*>(&recording[0][0])[1], 100 / config.recordingFPS);
+#endif
     for (std::string s : recording) {
         const uint32_t w = reinterpret_cast<uint32_t*>(&s[0])[0], h = reinterpret_cast<uint32_t*>(&s[0])[1];
         uint32_t* ipixels = new uint32_t[w * h];
@@ -512,17 +539,48 @@ void SDLTerminal::stopRecording() {
 #ifdef __APPLE__
             // macOS has memset_pattern4, which is much more efficient than my C implementation, so use that if available
             uint32_t c = ((uint32_t*)&s[0])[i] & 0xFFFFFF;
+#ifdef USE_WEBP
+            c = 0xFF000000 | (c & 0xFF) << 16 | (c & 0xFF00) | (c & 0xFF0000) >> 16;
+#endif
             memset_pattern4(lp, &c, min(((((uint32_t*)&s[0])[i] & 0xFF000000) >> 24) + 1, (unsigned int)((w * h) - (lp - ipixels))) * 4);
             lp += min(((((uint32_t*)&s[0])[i] & 0xFF000000) >> 24) + 1, (unsigned int)((w * h) - (lp - ipixels)));
 #else
             const uint32_t c = reinterpret_cast<uint32_t*>(&s[0])[i];
+#ifdef USE_WEBP
+            c = 0xFF000000 | (c & 0xFF) << 16 | (c & 0xFF00) | (c & 0xFF0000) >> 16;
+#endif
             lp = memset_int(lp, c & 0xFFFFFF, min(((c & 0xFF000000) >> 24) + 1, (unsigned int)((w*h) - (lp - ipixels))));
 #endif
         }
+#ifdef USE_WEBP
+        WebPConfig config;
+        WebPConfigInit(&config);
+        config.lossless = true;
+        WebPPicture frame;
+        WebPPictureInit(&frame);
+        frame.width = w;
+        frame.height = h;
+        frame.use_argb = true;
+        frame.argb = ipixels;
+        frame.argb_stride = w;
+        WebPAnimEncoderAdd(enc, &frame, (1000 / ::config.recordingFPS) * framen++, &config);
+#else
         GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 100 / config.recordingFPS);
+#endif
         delete[] ipixels;
     }
+#ifdef USE_WEBP
+    WebPAnimEncoderAdd(enc, NULL, (1000 / ::config.recordingFPS) * framen, NULL);
+    WebPData webp_data;
+    WebPDataInit(&webp_data);
+    WebPAnimEncoderAssemble(enc, &webp_data);
+    std::ofstream out(recordingPath.c_str(), std::ios::binary);
+    out.write((char*)webp_data.bytes, webp_data.size);
+    out.close();
+    WebPAnimEncoderDelete(enc);
+#else
     GifEnd(&g);
+#endif
     recording.clear();
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);

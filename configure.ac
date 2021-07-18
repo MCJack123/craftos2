@@ -7,6 +7,7 @@ m4_include([m4/find_cxx11.m4])
 # Options
 AC_ARG_WITH(png, [AS_HELP_STRING([--with-png], [support PNG screenshots])])
 AC_ARG_WITH(png, [AS_HELP_STRING([--without-png], [do not support PNG screenshots])])
+AC_ARG_WITH(webp, [AS_HELP_STRING([--with-webp], [support WebP screenshots/recordings])])
 AC_ARG_WITH(ncurses, [AS_HELP_STRING([--with-ncurses], [support CLI mode])])
 AC_ARG_WITH(ncurses, [AS_HELP_STRING([--without-ncurses], [do not support CLI mode])])
 AC_ARG_WITH(sdl_mixer, [AS_HELP_STRING([--with-sdl_mixer], [support audio disks])])
@@ -107,10 +108,15 @@ fi
 
 if test "x$enable_wasm" != "xyes"; then
 
-    AS_IF([test "x$with_png" != "xno"], [
+    AS_IF([test "x$with_png" != "xno" -a ! "x$with_webp" = "xyes"], [
         AC_CHECK_HEADERS([png++/png.hpp], [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find png++ header.])], [NO_PNG=1])])
         AC_SEARCH_LIBS(png_init_io, png, [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find libpng library.])], [NO_PNG=1])])
     ], [NO_PNG=1])
+
+    AS_IF([test "x$with_webp" = "xyes"], [
+        AC_CHECK_HEADERS([webp/mux.h], [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find webp header.])], [USE_WEBP=0])])
+        AC_SEARCH_LIBS(WebPEncodeRGB, webp, [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find libwebp library.])], [USE_WEBP=0])])
+    ], [USE_WEBP=0])
 
     AS_IF([test "x$with_ncurses" != "xno"], [
         AC_CHECK_HEADERS(ncurses.h, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses header.])], [NO_CLI=1])])
@@ -131,10 +137,18 @@ if test "x$enable_wasm" != "xyes"; then
     ], [])
 
     if test "x$NO_PNG" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_PNG"; fi
+    if test ! "x$USE_WEBP" = "x0"; then
+        CPPFLAGS="$CPPFLAGS -DUSE_WEBP";
+        AC_SUBST(GIF_TARGET, )
+    else
+        AC_SUBST(GIF_TARGET, gif.o)
+    fi
     if test "x$NO_CLI" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_CLI"; fi
     if test "x$NO_MIXER" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_MIXER"; fi
     if test "x$PRINT_TYPE" != "x"; then CPPFLAGS="$CPPFLAGS -DPRINT_TYPE=$PRINT_TYPE"; fi
 
+else
+    AC_SUBST(GIF_TARGET, gif.o)
 fi
 
 AC_CONFIG_FILES([Makefile])
