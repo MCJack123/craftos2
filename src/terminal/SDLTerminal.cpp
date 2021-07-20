@@ -645,6 +645,8 @@ void SDLTerminal::quit() {
 #define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
 
+static SDL_TouchID touchDevice = -1;
+
 bool SDLTerminal::pollEvents() {
     SDL_Event e;
     std::string tmps;
@@ -724,8 +726,8 @@ bool SDLTerminal::pollEvents() {
                     for (Computer * c : *computers) {
                         if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
                             ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
-                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
-                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID) && (touchDevice == -1 || SDL_GetNumTouchFingers(touchDevice) < 2)) ||
+                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID) && (touchDevice == -1 || SDL_GetNumTouchFingers(touchDevice) < 2)) ||
                             (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
                             (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
                             (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
@@ -759,10 +761,14 @@ bool SDLTerminal::pollEvents() {
                     }
                 }
                 if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
+#ifdef __IPHONEOS__
+                else if (e.type == SDL_FINGERUP || e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION) touchDevice = e.tfinger.touchId;
+#else
                 else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) {
                     if (e.mgesture.dDist < -0.001 && !SDL_IsTextInputActive()) SDL_StartTextInput();
                     else if (e.mgesture.dDist > 0.001 && SDL_IsTextInputActive()) SDL_StopTextInput();
                 }
+#endif
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);

@@ -294,16 +294,183 @@ static int RemovePendingSizeChangedAndResizedEvents(void * userdata, SDL_Event *
 
 static bool forceInitView = true;
 
+#define addSwipeGesture(dir) UISwipeGestureRecognizer * dir##Rec = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];\
+    dir##Rec.numberOfTouchesRequired = 2;\
+    dir##Rec.direction = UISwipeGestureRecognizerDirection##dir;\
+    [view addGestureRecognizer:dir##Rec];
+
+struct hold_data {
+    int x;
+    int y;
+    int winid;
+};
+
+static Uint32 holdTimerCallback(Uint32 interval, void* param) {
+    hold_data * hold = (hold_data*)param;
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = hold->winid;
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 1;
+    e.key.keysym.mod = 0;
+    if (hold->x != 0) {
+        e.key.keysym.scancode = hold->x > 0 ? SDL_SCANCODE_RIGHT : SDL_SCANCODE_LEFT;
+        e.key.keysym.sym = hold->x > 0 ? SDLK_RIGHT : SDLK_LEFT;
+        SDL_PushEvent(&e);
+    }
+    if (hold->y != 0) {
+        e.key.keysym.scancode = hold->y > 0 ? SDL_SCANCODE_UP : SDL_SCANCODE_DOWN;
+        e.key.keysym.sym = hold->y > 0 ? SDLK_UP : SDLK_DOWN;
+        SDL_PushEvent(&e);
+    }
+    return interval;
+}
+
 // Small view to hold a reference to the inner view held by SDL
-@interface SDLRootView : UIView
+// This also sets up gesture recognizers on the view
+@interface SDLRootView : UIView {
+    CGFloat lastPinchScale;
+    hold_data hold;
+    SDL_TimerID holdTimer;
+}
 @property UIView * sdlView;
+@property SDL_Window * sdlWindow;
 @end
 @implementation SDLRootView
-- (id) initWithSDLView:(UIView*)view {
+- (id) initWithSDLView:(UIView*)view window:(SDL_Window*)w {
     self = [super init];
     self.sdlView = view;
+    self.sdlWindow = w;
     self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    holdTimer = 0;
+    hold.winid = SDL_GetWindowID(w);
+    
+    // Add gesture recognizers
+    UITapGestureRecognizer * tabRec = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDoubleTap)];
+    tabRec.numberOfTouchesRequired = 2;
+    tabRec.numberOfTapsRequired = 2;
+    [view addGestureRecognizer:tabRec];
+    UIPinchGestureRecognizer * pinchRec = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handlePinch:)];
+    [view addGestureRecognizer:pinchRec];
+    UILongPressGestureRecognizer * holdRec = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleHold:)];
+    holdRec.numberOfTouchesRequired = 2;
+    [view addGestureRecognizer:holdRec];
+    addSwipeGesture(Up)
+    addSwipeGesture(Down)
+    addSwipeGesture(Left)
+    addSwipeGesture(Right)
+    
     return self;
+}
+
+- (void) handleDoubleTap {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_TAB;
+    e.key.keysym.sym = SDLK_TAB;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (void) handleSwipe:(UISwipeGestureRecognizer*)rec {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    switch (rec.direction) {
+    case UISwipeGestureRecognizerDirectionUp:
+        e.key.keysym.scancode = SDL_SCANCODE_UP;
+        e.key.keysym.sym = SDLK_UP;
+        break;
+    case UISwipeGestureRecognizerDirectionDown:
+        e.key.keysym.scancode = SDL_SCANCODE_DOWN;
+        e.key.keysym.sym = SDLK_DOWN;
+        break;
+    case UISwipeGestureRecognizerDirectionLeft:
+        e.key.keysym.scancode = SDL_SCANCODE_LEFT;
+        e.key.keysym.sym = SDLK_LEFT;
+        break;
+    case UISwipeGestureRecognizerDirectionRight:
+        e.key.keysym.scancode = SDL_SCANCODE_RIGHT;
+        e.key.keysym.sym = SDLK_RIGHT;
+        break;
+    }
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (void) handlePinch:(UIPinchGestureRecognizer*)rec {
+    if (rec.state == UIGestureRecognizerStateBegan) lastPinchScale = rec.scale;
+    else if (rec.state == UIGestureRecognizerStateChanged && lastPinchScale != 0.0) {
+        if (rec.scale < lastPinchScale) SDL_StartTextInput();
+        else if (rec.scale > lastPinchScale) SDL_StopTextInput();
+        else return;
+        lastPinchScale = 0.0;
+    }
+}
+
+- (void) handleHold:(UILongPressGestureRecognizer*)rec {
+    if (rec.state == UIGestureRecognizerStateBegan) {
+        CGPoint touchPoint = [rec locationInView:self.sdlView];
+        hold.x = 0; hold.y = 0;
+        if (touchPoint.x < self.sdlView.bounds.size.width / 4.0) hold.x = -1;
+        else if (touchPoint.x > self.sdlView.bounds.size.width / 4.0 * 3.0) hold.x = 1;
+        if (touchPoint.y < self.sdlView.bounds.size.height / 4.0) hold.y = 1;
+        else if (touchPoint.y > self.sdlView.bounds.size.height / 4.0 * 3.0) hold.y = -1;
+        if (hold.x == 0 && hold.y == 0) return;
+        if (holdTimer != 0) SDL_RemoveTimer(holdTimer);
+        
+        SDL_Event e;
+        e.type = SDL_KEYDOWN;
+        e.key.timestamp = time(0);
+        e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+        e.key.state = SDL_PRESSED;
+        e.key.repeat = 0;
+        e.key.keysym.mod = 0;
+        if (hold.x != 0) {
+            e.key.keysym.scancode = hold.x > 0 ? SDL_SCANCODE_RIGHT : SDL_SCANCODE_LEFT;
+            e.key.keysym.sym = hold.x > 0 ? SDLK_RIGHT : SDLK_LEFT;
+            SDL_PushEvent(&e);
+        }
+        if (hold.y != 0) {
+            e.key.keysym.scancode = hold.y > 0 ? SDL_SCANCODE_UP : SDL_SCANCODE_DOWN;
+            e.key.keysym.sym = hold.y > 0 ? SDLK_UP : SDLK_DOWN;
+            SDL_PushEvent(&e);
+        }
+        holdTimer = SDL_AddTimer(100, holdTimerCallback, &hold);
+    } else if (rec.state == UIGestureRecognizerStateEnded) {
+        if (holdTimer != 0) SDL_RemoveTimer(holdTimer);
+        SDL_Event e;
+        e.type = SDL_KEYUP;
+        e.key.timestamp = time(0);
+        e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+        e.key.state = SDL_RELEASED;
+        e.key.repeat = 0;
+        e.key.keysym.mod = 0;
+        if (hold.x != 0) {
+            e.key.keysym.scancode = hold.x > 0 ? SDL_SCANCODE_RIGHT : SDL_SCANCODE_LEFT;
+            e.key.keysym.sym = hold.x > 0 ? SDLK_RIGHT : SDLK_LEFT;
+            SDL_PushEvent(&e);
+        }
+        if (hold.y != 0) {
+            e.key.keysym.scancode = hold.y > 0 ? SDL_SCANCODE_UP : SDL_SCANCODE_DOWN;
+            e.key.keysym.sym = hold.y > 0 ? SDLK_UP : SDLK_DOWN;
+            SDL_PushEvent(&e);
+        }
+    }
 }
 @end
 
@@ -357,7 +524,7 @@ static bool forceInitView = true;
     if (self.view == nil || forceInitView) {
         forceInitView = false;
         // Create the new parent view
-        SDLRootView* rview = [[SDLRootView alloc] initWithSDLView:view];
+        SDLRootView* rview = [[SDLRootView alloc] initWithSDLView:view window:self.window];
         // Since super doesn't work, we directly invoke the setView method to set the view
         ((void(*)(id, SEL, UIView*))class_getMethodImplementation([self superclass], @selector(setView:)))(self, @selector(setView:), rview);
         // Add the view to the parent
@@ -400,6 +567,9 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
     info.info.uikit.window.rootViewController.view.backgroundColor = [[UIColor alloc] initWithRed:term->palette[15].r / 255.0 green:term->palette[15].g / 255.0 blue:term->palette[15].b / 255.0 alpha:1.0];
     // Force a layout update to reload the renderer and set the proper dimensions
     [view layoutSubviews];
+    
+    // Add gesture recognizers for key overrides
+    
 }
 
 #ifdef __INTELLISENSE__

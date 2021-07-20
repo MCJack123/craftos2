@@ -795,7 +795,7 @@ int main(int argc, char*argv[]) {
 #ifndef __IPHONEOS__
     globalPluginErrors = initializePlugins();
 #endif
-#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+#if !defined(__EMSCRIPTEN__) && !defined(__IPHONEOS__) && !CRAFTOSPC_INDEV
     if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
