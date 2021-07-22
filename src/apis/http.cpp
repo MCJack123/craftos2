@@ -743,6 +743,8 @@ static int http_removeListener(lua_State *L) {
 #pragma region WebSockets
 #endif
 
+extern int os_startTimer(lua_State *L);
+
 struct ws_handle {
     bool closed;
     std::string url;
@@ -804,22 +806,43 @@ static int websocket_isOpen(lua_State *L) {
 
 static int websocket_free(lua_State *L) {
     lastCFunction = __func__;
-   ((ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->closed = true;
+    ((ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->closed = true;
     return 0;
 }
 
-static const char websocket_receive[] = "local _url, _isOpen = ...\n"
-"return function(timeout)\n"
-"   local tm\n"
-"   if timeout then tm = os.startTimer(timeout) end\n"
-"   while true do\n"
-"       if not _isOpen() then error('attempt to use a closed file', 2) end\n"
-"       local ev, url, param = os.pullEvent()\n"
-"       if ev == 'websocket_message' and url == _url then return param\n"
-"       elseif ev == 'websocket_closed' and url == _url and not _isOpen() then return nil\n"
-"       elseif ev == 'timer' and url == tm then return nil end\n"
-"   end\n"
-"end";
+static int websocket_receive(lua_State *L) {
+    lastCFunction = __func__;
+    ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
+    int tm = lua_icontext(L);
+    if (tm) {
+        if (lua_isstring(L, 1)) {
+            std::string ev = lua_tostring(L, 1);
+            std::string url;
+            if (lua_isstring(L, 2)) url = lua_tostring(L, 2);
+            if (ev == "websocket_message" && url == ws->url) {
+                lua_pushvalue(L, 3);
+                return 1;
+            } else if ((ev == "websocket_closed" && url == ws->url && ws->closed) ||
+                       (ev == "timer" && lua_isnumber(L, 2) && lua_tointeger(L, 2) == tm)) {
+                lua_pushnil(L);
+                return 1;
+            }
+        }
+    } else {
+        if (ws->closed) return luaL_error(L, "attempt to use a closed file");
+        // instead of using native timer routines, we're using os.startTimer so we can be resumed
+        if (!lua_isnoneornil(L, 1)) {
+            luaL_checknumber(L, 1);
+            lua_pushcfunction(L, os_startTimer);
+            lua_pushvalue(L, 1);
+            lua_call(L, 1, 1);
+            tm = lua_tointeger(L, -1);
+            lua_pop(L, 1);
+        } else tm = -1;
+    }
+    lua_settop(L, 0);
+    return lua_iyield(L, 0, tm);
+}
 
 static std::string websocket_success(lua_State *L, void* userp) {
     ws_handle * ws = (ws_handle*)userp;
@@ -840,11 +863,8 @@ static std::string websocket_success(lua_State *L, void* userp) {
     lua_settable(L, -3);
 
     lua_pushstring(L, "receive");
-    luaL_loadstring(L, websocket_receive);
-    lua_pushstring(L, ws->url.c_str());
     lua_pushlightuserdata(L, ws);
-    lua_pushcclosure(L, websocket_isOpen, 1);
-    lua_call(L, 2, 1);
+    lua_pushcclosure(L, websocket_receive, 1);
     lua_settable(L, -3);
 
     lua_pushstring(L, "isOpen");
@@ -1064,7 +1084,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             queueEvent(comp, websocket_closed, sptr);
             break;
         }
-        if (flags & WebSocket::FRAME_OP_CLOSE) {
+        if ((flags & 0x0f) & WebSocket::FRAME_OP_CLOSE) {
             wsh->closed = true;
             wsh->url = "";
             char * sptr = new char[str.length()+1];
@@ -1072,6 +1092,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             sptr[str.length()] = 0;
             queueEvent(comp, websocket_closed, sptr);
             break;
+        } else if ((flags & 0x0f) == WebSocket::FRAME_OP_PING) {
+            ws->sendFrame(buf, res, WebSocket::FRAME_FLAG_FIN | WebSocket::FRAME_OP_PONG);
         } else {
             ws_message * message = new ws_message;
             message->url = str;

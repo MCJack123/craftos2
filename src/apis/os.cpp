@@ -123,7 +123,8 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
     return 0;
 }
 
-static int os_startTimer(lua_State *L) {
+// imported by http.cpp:websocket_receive
+int os_startTimer(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     if (luaL_checknumber(L, 1) < 0.001 && !config.standardsMode) {
