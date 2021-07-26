@@ -746,10 +746,11 @@ static int http_removeListener(lua_State *L) {
 extern int os_startTimer(lua_State *L);
 
 struct ws_handle {
-    bool closed;
     std::string url;
-    int externalClosed;
     WebSocket * ws;
+    std::mutex lock;
+    std::condition_variable cv;
+    bool inUse;
 };
 
 struct websocket_failure_data {
@@ -780,33 +781,34 @@ static std::string websocket_closed(lua_State *L, void* userp) {
 }
 
 // WebSocket handle functions
-static int websocket_send(lua_State *L) {
+static int websocket_free(lua_State *L) {
     lastCFunction = __func__;
-    luaL_checkstring(L, 1);
-    if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
-    ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
-    if (ws->closed) return 0;
-    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
-        ws->closed = true;
+    ws_handle * ws = (ws_handle*)lua_touserdata(L, 1);
+    ws->ws = NULL;
+    // We can't finish freeing this object until the WebSocket thread is closed.
+    // We check twice to avoid using possibly freed C++ objects while ensuring no race conditions
+    // Dirty code? yes.
+    if (!ws->inUse) return 0;
+    std::unique_lock<std::mutex> lock(ws->lock);
+    while (ws->inUse) ws->cv.wait(lock);
     return 0;
 }
 
 static int websocket_close(lua_State *L) {
     lastCFunction = __func__;
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
-    ws->closed = true;
+    ws->ws = NULL;
     return 0;
 }
 
-static int websocket_isOpen(lua_State *L) {
+static int websocket_send(lua_State *L) {
     lastCFunction = __func__;
-    lua_pushboolean(L, !((ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->closed);
-    return 1;
-}
-
-static int websocket_free(lua_State *L) {
-    lastCFunction = __func__;
-    ((ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->closed = true;
+    luaL_checkstring(L, 1);
+    if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
+    ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
+    if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
+    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
+        websocket_close(L);
     return 0;
 }
 
@@ -822,14 +824,14 @@ static int websocket_receive(lua_State *L) {
             if (ev == "websocket_message" && url == ws->url) {
                 lua_pushvalue(L, 3);
                 return 1;
-            } else if ((ev == "websocket_closed" && url == ws->url && ws->closed) ||
+            } else if ((ev == "websocket_closed" && url == ws->url && ws->ws == NULL) ||
                        (ev == "timer" && lua_isnumber(L, 2) && lua_tointeger(L, 2) == tm)) {
                 lua_pushnil(L);
                 return 1;
-            }
+            } else if (ev == "terminate") return luaL_error(L, "Terminated");
         }
     } else {
-        if (ws->closed) return luaL_error(L, "attempt to use a closed file");
+        if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
         // instead of using native timer routines, we're using os.startTimer so we can be resumed
         if (!lua_isnoneornil(L, 1)) {
             luaL_checknumber(L, 1);
@@ -845,38 +847,42 @@ static int websocket_receive(lua_State *L) {
 }
 
 static std::string websocket_success(lua_State *L, void* userp) {
-    ws_handle * ws = (ws_handle*)userp;
+    ws_handle ** wsh = (ws_handle**)userp;
     luaL_checkstack(L, 10, "Could not grow stack for websocket_success");
-    if (ws->url.empty()) lua_pushnil(L);
-    else lua_pushstring(L, ws->url.c_str());
+    if ((*wsh)->url.empty()) lua_pushnil(L);
+    else lua_pushstring(L, (*wsh)->url.c_str());
+
+    ws_handle * ws = (ws_handle*)lua_newuserdata(L, sizeof(ws_handle));
+    {
+        //std::lock_guard<std::mutex> lock((*wsh)->lock);
+        memcpy(ws, *wsh, sizeof(ws_handle));
+        *wsh = ws;
+    }
+    int pos = lua_gettop(L);
+    lua_createtable(L, 0, 1);
+    lua_pushstring(L, "__gc");
+    lua_pushcfunction(L, websocket_free);
+    lua_settable(L, -3);
+    lua_setmetatable(L, -2);
+
     lua_createtable(L, 0, 4);
 
     lua_pushstring(L, "close");
-    lua_pushlightuserdata(L, ws);
-    lua_createtable(L, 0, 1);
-    lua_pushstring(L, "__gc");
-    lua_pushlightuserdata(L, ws);
-    lua_pushcclosure(L, websocket_free, 1);
-    lua_settable(L, -3);
-    lua_setmetatable(L, -2);
+    lua_pushvalue(L, pos);
     lua_pushcclosure(L, websocket_close, 1);
     lua_settable(L, -3);
 
     lua_pushstring(L, "receive");
-    lua_pushlightuserdata(L, ws);
+    lua_pushvalue(L, pos);
     lua_pushcclosure(L, websocket_receive, 1);
     lua_settable(L, -3);
 
-    lua_pushstring(L, "isOpen");
-    lua_pushlightuserdata(L, ws);
-    lua_pushcclosure(L, websocket_isOpen, 1);
-    lua_settable(L, -3);
-
     lua_pushstring(L, "send");
-    lua_pushlightuserdata(L, ws);
+    lua_pushvalue(L, pos);
     lua_pushcclosure(L, websocket_send, 1);
     lua_settable(L, -3);
 
+    lua_remove(L, pos);
     return "websocket_success";
 }
 
@@ -911,27 +917,28 @@ public:
 #if POCO_VERSION >= 0x01090100
         if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
 #endif
-        ws_handle * wsh = new ws_handle;
-        wsh->closed = false;
+        ws_handle ws_orig;
+        ws_handle * wsh = &ws_orig;
         wsh->ws = ws;
         wsh->url = "";
-        queueEvent(comp, websocket_success, wsh);
-        while (!wsh->closed) {
+        wsh->inUse = true;
+        queueEvent(comp, websocket_success, &wsh);
+        while (wsh->ws) {
             Poco::Buffer<char> buf(config.http_max_websocket_message);
             int flags = 0;
             try {
                 if (ws->receiveFrame(buf, flags) == 0) {
-                    wsh->closed = true;
+                    wsh->ws = NULL;
                     queueEvent(comp, websocket_closed, NULL);
                     break;
                 }
             } catch (...) {
-                wsh->closed = true;
+                wsh->ws = NULL;
                 queueEvent(comp, websocket_closed, NULL);
                 break;
             }
             if (flags & WebSocket::FRAME_OP_CLOSE) {
-                wsh->closed = true;
+                wsh->ws = NULL;
                 queueEvent(comp, websocket_closed, NULL);
             } else {
                 ws_message * message = new ws_message;
@@ -942,6 +949,11 @@ public:
         }
         try {ws->shutdown();} catch (...) {}
         if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
+        std::unique_lock<std::mutex> lock(wsh->lock);
+        wsh->ws = NULL;
+        wsh->inUse = false;
+        wsh->cv.notify_all();
+        delete ws;
     }
     class Factory: public HTTPRequestHandlerFactory {
     public:
@@ -957,14 +969,13 @@ public:
 
 /* export */ void stopWebsocket(void* wsh) {
     ws_handle * handle = (ws_handle*)wsh;
-    handle->closed = true; 
-    handle->externalClosed = 1;
-    try {handle->ws->shutdown();} catch (...) {}
-    for (int i = 0; handle->externalClosed != 2; i++) {
-        if (i % 4 == 0) fprintf(stderr, "Waiting for WebSocket...\n");
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    if (handle->ws != NULL) {
+        handle->ws->close();
+        handle->ws = NULL;
+        if (!handle->inUse) return;
+        std::unique_lock<std::mutex> lock(handle->lock);
+        while (handle->inUse) handle->cv.wait(lock);
     }
-    handle->externalClosed = 3;
 }
 
 static void websocket_client_thread(Computer *comp, const std::string& str, const std::unordered_map<std::string, std::string>& headers) {
@@ -1044,21 +1055,21 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
 #if POCO_VERSION >= 0x01090100
     if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
 #endif
-    ws_handle * wsh = new ws_handle;
-    wsh->closed = false;
-    wsh->externalClosed = false;
+    ws_handle wsh_orig;
+    ws_handle * wsh = &wsh_orig;
     wsh->url = str;
     wsh->ws = ws;
+    wsh->inUse = true;
     comp->openWebsockets.push_back(wsh);
-    queueEvent(comp, websocket_success, wsh);
+    queueEvent(comp, websocket_success, &wsh);
     char * buf = new char[config.http_max_websocket_message];
-    while (!wsh->closed) {
+    while (wsh->ws) {
         int flags = 0;
         int res;
         try {
             res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
             if (res == 0) {
-                wsh->closed = true;
+                wsh->ws = NULL;
                 wsh->url = "";
                 char * sptr = new char[str.length()+1];
                 memcpy(sptr, str.c_str(), str.length());
@@ -1067,7 +1078,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
                 break;
             }
         } catch (Poco::TimeoutException &e) {
-            if (wsh->closed) {
+            if (!wsh->ws) {
                 char * sptr = new char[str.length()+1];
                 memcpy(sptr, str.c_str(), str.length());
                 sptr[str.length()] = 0;
@@ -1076,7 +1087,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             }
             continue;
         } catch (NetException &e) {
-            wsh->closed = true;
+            wsh->ws = NULL;
             wsh->url = "";
             char * sptr = new char[str.length()+1];
             memcpy(sptr, str.c_str(), str.length());
@@ -1085,7 +1096,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             break;
         }
         if ((flags & 0x0f) & WebSocket::FRAME_OP_CLOSE) {
-            wsh->closed = true;
+            wsh->ws = NULL;
             wsh->url = "";
             char * sptr = new char[str.length()+1];
             memcpy(sptr, str.c_str(), str.length());
@@ -1104,15 +1115,12 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     }
     delete[] buf;
     wsh->url = "";
-    try {if (!wsh->externalClosed) ws->shutdown();} catch (...) {}
-    for (auto it = comp->openWebsockets.begin(); it != comp->openWebsockets.end(); ++it) {
-        if (*it == wsh) {
-            comp->openWebsockets.erase(it);
-            break;
-        }
-    }
-    if (wsh->externalClosed) {wsh->externalClosed = 2; while (wsh->externalClosed == 2) std::this_thread::sleep_for(std::chrono::milliseconds(500));}
-    delete wsh;
+    try {ws->shutdown();} catch (...) {}
+    std::unique_lock<std::mutex> lock(wsh->lock);
+    wsh->ws = NULL;
+    wsh->inUse = false;
+    wsh->cv.notify_all();
+    delete ws;
     delete cs;
 }
 
