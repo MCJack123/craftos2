@@ -567,9 +567,8 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
     info.info.uikit.window.rootViewController.view.backgroundColor = [[UIColor alloc] initWithRed:term->palette[15].r / 255.0 green:term->palette[15].g / 255.0 blue:term->palette[15].b / 255.0 alpha:1.0];
     // Force a layout update to reload the renderer and set the proper dimensions
     [view layoutSubviews];
-    
-    // Add gesture recognizers for key overrides
-    
+    // Set fullscreen mode, but only on devices without a notch
+    if (info.info.uikit.window.safeAreaInsets.top <= 30) SDL_SetWindowFullscreen(term->win, SDL_WINDOW_FULLSCREEN_DESKTOP);
 }
 
 #ifdef __INTELLISENSE__

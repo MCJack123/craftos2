@@ -462,6 +462,7 @@ bool HardwareSDLTerminal::pollEvents() {
         if (e.type == task_event_type) {
             while (!taskQueue->empty()) {
                 TaskQueueItem * task = taskQueue->front();
+                bool async = task->async;
                 {
                     std::unique_lock<std::mutex> lock(task->lock);
                     try {
@@ -472,7 +473,7 @@ bool HardwareSDLTerminal::pollEvents() {
                     task->ready = true;
                     task->notify.notify_all();
                 }
-                if (task->async) delete task;
+                if (async) delete task;
                 taskQueue->pop();
             }
         } else if (e.type == render_event_type) {

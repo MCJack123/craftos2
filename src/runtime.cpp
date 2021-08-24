@@ -100,6 +100,7 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
     while (predicate()) {
         if (!taskQueue->empty()) {
             TaskQueueItem * task = taskQueue->front();
+            bool async = task->async;
             {
                 std::unique_lock<std::mutex> lock(task->lock);
                 try {
@@ -110,7 +111,7 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
                 task->ready = true;
                 task->notify.notify_all();
             }
-            if (task->async) delete task;
+            if (async) delete task;
             taskQueue->pop();
         }
         SDL_PumpEvents();
@@ -133,6 +134,7 @@ void mainLoop() {
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
             while (!taskQueue->empty()) {
                 TaskQueueItem * task = taskQueue->front();
+                bool async = task->async;
                 {
                     std::unique_lock<std::mutex> lock(task->lock);
                     try {
@@ -143,7 +145,7 @@ void mainLoop() {
                     task->ready = true;
                     task->notify.notify_all();
                 }
-                if (task->async) delete task;
+                if (async) delete task;
                 taskQueue->pop();
             }
             taskQueueReady = false;
