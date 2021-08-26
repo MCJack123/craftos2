@@ -818,17 +818,32 @@ static int websocket_receive(lua_State *L) {
     int tm = lua_icontext(L);
     if (tm) {
         if (lua_isstring(L, 1)) {
-            std::string ev = lua_tostring(L, 1);
-            std::string url;
-            if (lua_isstring(L, 2)) url = lua_tostring(L, 2);
-            if (ev == "websocket_message" && url == ws->url) {
+            // haha, another string scoping issue :DDD
+            // can M$ PLEASE fix this? (maybe I need to repro & report? :thinking:)
+            std::string * ev = new std::string(lua_tostring(L, 1));
+            std::string * url = new std::string();
+            if (lua_isstring(L, 2)) {
+                delete url;
+                url = new std::string(lua_tostring(L, 2));
+            }
+            if (*ev == "websocket_message" && *url == ws->url) {
                 lua_pushvalue(L, 3);
+                delete ev;
+                delete url;
                 return 1;
-            } else if ((ev == "websocket_closed" && url == ws->url && ws->ws == NULL) ||
-                       (ev == "timer" && lua_isnumber(L, 2) && lua_tointeger(L, 2) == tm)) {
+            } else if ((*ev == "websocket_closed" && *url == ws->url && ws->ws == NULL) ||
+                       (*ev == "timer" && lua_isnumber(L, 2) && lua_tointeger(L, 2) == tm)) {
                 lua_pushnil(L);
+                delete ev;
+                delete url;
                 return 1;
-            } else if (ev == "terminate") return luaL_error(L, "Terminated");
+            } else if (*ev == "terminate") {
+                delete ev;
+                delete url;
+                return luaL_error(L, "Terminated");
+            }
+            delete ev;
+            delete url;
         }
     } else {
         if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
@@ -922,6 +937,7 @@ public:
         wsh->ws = ws;
         wsh->url = "";
         wsh->inUse = true;
+        comp->openWebsockets.push_back(&wsh);
         queueEvent(comp, websocket_success, &wsh);
         while (wsh->ws) {
             Poco::Buffer<char> buf(config.http_max_websocket_message);
@@ -947,6 +963,8 @@ public:
                 queueEvent(comp, websocket_message, message);
             }
         }
+        auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
+        if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
         try {ws->shutdown();} catch (...) {}
         if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
         std::unique_lock<std::mutex> lock(wsh->lock);
@@ -968,9 +986,9 @@ public:
 };
 
 /* export */ void stopWebsocket(void* wsh) {
-    ws_handle * handle = (ws_handle*)wsh;
+    ws_handle * handle = *(ws_handle**)wsh;
     if (handle->ws != NULL) {
-        handle->ws->close();
+        //handle->ws->close();
         handle->ws = NULL;
         if (!handle->inUse) return;
         std::unique_lock<std::mutex> lock(handle->lock);
@@ -1060,7 +1078,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     wsh->url = str;
     wsh->ws = ws;
     wsh->inUse = true;
-    comp->openWebsockets.push_back(wsh);
+    comp->openWebsockets.push_back(&wsh);
     queueEvent(comp, websocket_success, &wsh);
     char * buf = new char[config.http_max_websocket_message];
     while (wsh->ws) {
@@ -1114,6 +1132,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         std::this_thread::yield();
     }
     delete[] buf;
+    auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
+    if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
     wsh->url = "";
     try {ws->shutdown();} catch (...) {}
     std::unique_lock<std::mutex> lock(wsh->lock);
