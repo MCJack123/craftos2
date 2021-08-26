@@ -73,6 +73,7 @@ std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
+Poco::JSON::Object updateAtQuitRoot;
 int returnValue = 0;
 std::unordered_map<path_t, std::string> globalPluginErrors;
 static std::string rawWebSocketURL;
@@ -204,6 +205,7 @@ static void update_thread() {
                     switch (choice) {
                     case 0:
                         updateAtQuit = root->getValue<std::string>("tag_name");
+                        updateAtQuitRoot = *root;
                         return;
                     case 1:
                         config.skipUpdate = CRAFTOSPC_VERSION;
@@ -859,7 +861,7 @@ int main(int argc, char*argv[]) {
     http_server_stop();
     config_save();
     if (!updateAtQuit.empty()) {
-        updateNow(updateAtQuit);
+        updateNow(updateAtQuit, &updateAtQuitRoot);
         awaitTasks();
     }
 #ifndef NO_CLI

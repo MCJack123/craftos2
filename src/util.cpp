@@ -269,7 +269,7 @@ std::set<std::string> getMounts(Computer * computer, const std::string& comp_pat
 
 static void xcopy_internal(lua_State *from, lua_State *to, int n, int copies_slot) {
     for (int i = n - 1; i >= 0; i--) {
-        size_t sz;
+        size_t sz = 0;
         switch (lua_type(from, -1-i)) {
             case LUA_TNIL: case LUA_TNONE: lua_pushnil(to); break;
             case LUA_TBOOLEAN: lua_pushboolean(to, lua_toboolean(from, -1-i)); break;

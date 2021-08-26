@@ -195,7 +195,7 @@ void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) 
     win.maxSize = {480, 103};
     win.releasedWhenClosed = YES;
     [win makeKeyAndOrderFront:NSApp];
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/sha256-hashes.txt", [win, tag_name](std::istream * shain, Poco::Exception * e) {
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/sha256-hashes.txt", [win, tag_name](std::istream * shain, Poco::Exception * e, Poco::Net::HTTPResponse * res) {
         if (e != NULL) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
             [win close];
@@ -213,7 +213,7 @@ void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) 
             return;
         }
         std::string hash = line.substr(0, 64);
-        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC.dmg", [hash, win](std::istream * in, Poco::Exception * e) {
+        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tag_name + "/CraftOS-PC.dmg", [hash, win](std::istream * in, Poco::Exception * e, Poco::Net::HTTPResponse * res) {
             if (e != NULL) {
                 SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
                 [win close];

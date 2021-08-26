@@ -209,7 +209,7 @@ static std::string urlEncode(const std::string& tmppath) {
     std::string path;
     for (int i = 0; i < tmppath.size(); i++) {
         char c = tmppath[i];
-        if (isalnum(c) || (c == '%' && i + 2 < tmppath.size() && isxdigit(tmppath[i+i]) && isxdigit(tmppath[i+2]))) path += c;
+        if (isalnum(c) || (c == '%' && i + 2 < tmppath.size() && isxdigit(tmppath[i+1]) && isxdigit(tmppath[i+2]))) path += c;
         else {
             switch (c) {
                 case '!': case '#': case '$': case '&': case '\'': case '(':
@@ -398,12 +398,12 @@ downloadThread_finish:
     delete param;
 }
 
-void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback) {
+void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*, HTTPResponse*)>& callback) {
     Poco::URI uri;
     try {
         uri = Poco::URI(url);
     } catch (Poco::SyntaxException &e) {
-        callback(NULL, &e);
+        callback(NULL, &e, NULL);
         return;
     }
     HTTPSClientSession session(uri.getHost(), uri.getPort(), new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
@@ -419,9 +419,9 @@ void HTTPDownload(const std::string& url, const std::function<void(std::istream*
         std::istream& stream = session.receiveResponse(response);
         if (response.getStatus() / 100 == 3 && response.has("Location")) 
             return HTTPDownload(response.get("Location"), callback);
-        callback(&stream, NULL);
+        callback(&stream, NULL, &response);
     } catch (Poco::Exception &e) {
-        callback(NULL, &e);
+        callback(NULL, &e, NULL);
     }
 }
 

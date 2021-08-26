@@ -15,6 +15,7 @@
 #include <thread>
 #include <lib.hpp>
 #include <SDL2/SDL.h>
+#include <Poco/JSON/Object.h>
 
 // Filesystem definitions (UTF-16 vs. not Windows)
 #ifdef WIN32

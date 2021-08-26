@@ -22,6 +22,7 @@
 #include <Poco/Net/HTTPSClientSession.h>
 #include <processenv.h>
 #include <Shlwapi.h>
+#include <commctrl.h>
 #include <dirent.h>
 #include <SDL2/SDL_syswm.h>
 #include <sys/stat.h>
@@ -169,11 +170,16 @@ int removeDirectory(const std::wstring& path) {
     } else return DeleteFileW(path.c_str()) ? 0 : (int)GetLastError();
 }
 
+static std::string makeSize(double n) {
+    if (n >= 100) return std::to_string((long)floor(n));
+    else return std::to_string(n).substr(0, 4);
+}
+
 void updateNow(const std::string& tagname, const Poco::JSON::Object::Ptr root) {
     // If a delta update in the form "CraftOS-PC-Setup_Delta-v2.x.y.exe" is available, use that instead of the full installer
     // "v2.x.y" indicates the oldest version that can update from this installer
     std::string assetName = "CraftOS-PC-Setup.exe";
-    Poco::JSON::Array::Ptr assets = root->getValue<Poco::JSON::Array::Ptr>("assets");
+    Poco::JSON::Array::Ptr assets = root->getArray("assets");
     for (auto it = assets->begin(); it != assets->end(); it++) {
         Poco::JSON::Object::Ptr obj = it->extract<Poco::JSON::Object::Ptr>();
         std::string name = obj->getValue<std::string>("name");
@@ -183,7 +189,7 @@ void updateNow(const std::string& tagname, const Poco::JSON::Object::Ptr root) {
             break;
         }
     }
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname, &assetName](std::istream * shain, Poco::Exception * e){
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname, &assetName](std::istream * shain, Poco::Exception * e, Poco::Net::HTTPResponse * res){
         if (e != NULL) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
             return;
@@ -199,14 +205,69 @@ void updateNow(const std::string& tagname, const Poco::JSON::Object::Ptr root) {
             return;
         }
         std::string hash = line.substr(0, 64);
-        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/" + assetName, [&hash](std::istream * in, Poco::Exception * e) {
+        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/" + assetName, [&hash](std::istream * in, Poco::Exception * e, Poco::Net::HTTPResponse * res) {
             if (e != NULL) {
                 SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
                 return;
             }
-            std::stringstream ss;
-            ss << in->rdbuf();
-            std::string data = ss.str();
+
+            size_t totalSize = res->getContentLength64();
+            SDL_Window * win = SDL_CreateWindow("Downloading...", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 300, 50, SDL_WINDOW_UTILITY);
+            SDL_FillRect(SDL_GetWindowSurface(win), NULL, 0xeeeeee);
+            SDL_UpdateWindowSurface(win);
+            SDL_SysWMinfo info;
+            SDL_VERSION(&info.version);
+            SDL_GetWindowWMInfo(win, &info);
+            InitCommonControls();
+            HWND hwndPB = CreateWindowEx(0, PROGRESS_CLASS, (LPTSTR) NULL, 
+                                    WS_CHILD | WS_VISIBLE,
+                                    5, 25, 290, 20,
+                                    info.info.win.window, (HMENU) 0, info.info.win.hinstance, NULL);
+            SendMessage(hwndPB, PBM_SETRANGE, 0, MAKELPARAM(0, 10000));
+            SendMessage(hwndPB, PBM_SETSTEP, (WPARAM) 1, 0); 
+            HWND hwndLabel = CreateWindow("static", "ST_U",
+                              WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                              5, 3, 290, 20,
+                              info.info.win.window, (HMENU)(501),
+                              info.info.win.hinstance, NULL);
+            std::string label = "0.0 / " + makeSize(totalSize / 1048576.0) + " MB, 0 B/s";
+            SetWindowText(hwndLabel, label.c_str());
+            HFONT hFont = CreateFont(
+		            18, 0, 0, 0, FW_MEDIUM, FALSE, FALSE, FALSE, ANSI_CHARSET, 
+		            OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 
+		            DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+            SendMessage(hwndLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+            std::string data;
+            data.reserve(totalSize);
+            char buf[2048];
+            size_t total = 0;
+            size_t bps = 0;
+            size_t lastSecondSize = 0;
+            std::chrono::system_clock::time_point lastSecond = std::chrono::system_clock::now();
+            while (in->good() && !in->eof()) {
+                in->read(buf, 2048);
+                size_t sz = in->gcount();
+                data += std::string(buf, sz);
+                total += sz;
+                if (std::chrono::system_clock::now() - lastSecond >= std::chrono::milliseconds(50) || in->eof()) {
+                    bps = (total - lastSecondSize) * 20;
+                    lastSecondSize = total;
+                    lastSecond = std::chrono::system_clock::now();
+                    label = makeSize(total / 1048576.0) + " / " + makeSize(totalSize / 1048576.0) + " MB, ";
+                    if (bps >= 1048576) label += makeSize(bps / 1048576.0) + " MB/s";
+                    else if (bps >= 1024) label += makeSize(bps / 1024.0) + " kB/s";
+                    else label += std::to_string(bps) + " B/s";
+                    SetWindowText(hwndLabel, label.c_str());
+                    SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000) + 1, 0);
+                    SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000), 0);
+                    SDL_PumpEvents();
+                }
+            }
+            SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000) - 1, 0);
+            SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000), 0);
+            SDL_PumpEvents();
+
             Poco::SHA2Engine engine;
             engine.update(data);
             std::string myhash = Poco::SHA2Engine::digestToHex(engine.digest());
@@ -220,11 +281,15 @@ void updateNow(const std::string& tagname, const Poco::JSON::Object::Ptr root) {
             std::ofstream out(path, std::ios::binary);
             out << data;
             out.close();
-            STARTUPINFOA info;
-            memset(&info, 0, sizeof(info));
-            info.cb = sizeof(info);
+            DestroyWindow(hwndPB);
+            DestroyWindow(hwndLabel);
+            SDL_DestroyWindow(win);
+
+            STARTUPINFOA sinfo;
+            memset(&sinfo, 0, sizeof(sinfo));
+            sinfo.cb = sizeof(sinfo);
             PROCESS_INFORMATION process;
-            CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
+            CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &sinfo, &process);
             CloseHandle(process.hProcess);
             CloseHandle(process.hThread);
             exit(0);
