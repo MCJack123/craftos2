@@ -40,7 +40,8 @@ static int os_queueEvent(lua_State *L) {
     lua_remove(L, 1);
     const int count = lua_gettop(L);
     lua_checkstack(param, count);
-    lua_xmove(L, param, count);
+    if (config.standardsMode) xcopy(L, param, count);
+    else lua_xmove(L, param, count);
     computer->eventQueue.push(name);
     computer->event_lock.notify_all();
     return 0;
