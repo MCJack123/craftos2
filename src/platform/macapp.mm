@@ -185,7 +185,7 @@ CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {
 }
 @end
 
-void updateNow(const std::string& tag_name) {
+void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) {
     UpdateViewController * vc = [[UpdateViewController alloc] initWithNibName:nil bundle:[NSBundle mainBundle]];
     NSWindow* win = [NSWindow windowWithContentViewController:vc];
     [win setFrame:CGRectCreate(win.frame.origin.x, win.frame.origin.y, 480, 103) display:YES];

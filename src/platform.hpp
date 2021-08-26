@@ -73,7 +73,7 @@ extern path_t getBasePath();
 extern path_t getROMPath();
 extern path_t getPlugInPath();
 extern path_t getMCSavePath();
-extern void updateNow(const std::string& tag_name);
+extern void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root);
 extern void migrateOldData();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();

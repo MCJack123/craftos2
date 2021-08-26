@@ -169,8 +169,21 @@ int removeDirectory(const std::wstring& path) {
     } else return DeleteFileW(path.c_str()) ? 0 : (int)GetLastError();
 }
 
-void updateNow(const std::string& tagname) {
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname](std::istream * shain, Poco::Exception * e){
+void updateNow(const std::string& tagname, const Poco::JSON::Object::Ptr root) {
+    // If a delta update in the form "CraftOS-PC-Setup_Delta-v2.x.y.exe" is available, use that instead of the full installer
+    // "v2.x.y" indicates the oldest version that can update from this installer
+    std::string assetName = "CraftOS-PC-Setup.exe";
+    Poco::JSON::Array::Ptr assets = root->getValue<Poco::JSON::Array::Ptr>("assets");
+    for (auto it = assets->begin(); it != assets->end(); it++) {
+        Poco::JSON::Object::Ptr obj = it->extract<Poco::JSON::Object::Ptr>();
+        std::string name = obj->getValue<std::string>("name");
+        if (name.substr(0, 24) == "CraftOS-PC-Setup_Delta-v") {
+            std::string tag = name.substr(23, name.size() - 27);
+            if (strcmp(tag.c_str(), CRAFTOSPC_VERSION) <= 0) assetName = name;
+            break;
+        }
+    }
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname, &assetName](std::istream * shain, Poco::Exception * e){
         if (e != NULL) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
             return;
@@ -179,14 +192,14 @@ void updateNow(const std::string& tagname) {
         bool found = false;
         while (!shain->eof()) {
             std::getline(*shain, line);
-            if (line.find("CraftOS-PC-Setup.exe") != std::string::npos) {found = true; break;}
+            if (line.find(assetName) != std::string::npos) {found = true; break;}
         }
         if (!found) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "A file required for verification could not be downloaded sucessfully. Please download the installer manually.", NULL);
             return;
         }
         std::string hash = line.substr(0, 64);
-        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [hash](std::istream * in, Poco::Exception * e) {
+        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/" + assetName, [&hash](std::istream * in, Poco::Exception * e) {
             if (e != NULL) {
                 SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
                 return;

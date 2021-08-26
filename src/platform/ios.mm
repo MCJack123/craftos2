@@ -142,7 +142,7 @@ unsigned long long getCapacity(const path_t& path) {
     return [(NSNumber*)dict[NSFileSystemSize] unsignedLongLongValue];
 }
 
-void updateNow(const std::string& tag_name) {
+void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) {
     
 }
 

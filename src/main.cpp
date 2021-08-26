@@ -220,7 +220,7 @@ static void update_thread() {
                 } case 1:
                     return;
                 case 3:
-                    queueTask([root](void*)->void*{updateNow(root->getValue<std::string>("tag_name")); return NULL;}, NULL);
+                    queueTask([root](void*)->void*{updateNow(root->getValue<std::string>("tag_name"), root); return NULL;}, NULL);
                     return;
                 default:
                     // this should never happen
