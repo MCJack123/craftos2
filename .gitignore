@@ -44,3 +44,4 @@ vcpkg_installed
 /src/apikey.cpp
 *.dylib
 *.so
+*.bundle
