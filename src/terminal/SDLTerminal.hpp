@@ -59,6 +59,7 @@ public:
     unsigned char cursorColor = 0;
     bool useOrigFont = false;
     bool isOnTop = false;
+    bool isRecordingWebP = false;
 
     static void init();
     static void quit();

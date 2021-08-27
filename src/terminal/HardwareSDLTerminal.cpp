@@ -16,10 +16,11 @@
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
-#if defined(USE_WEBP)
+#ifndef NO_WEBP
 #include <webp/mux.h>
 #include <webp/encode.h>
-#elif !defined(NO_PNG)
+#endif
+#ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
 #define rgb(color) (((color).r << 16) | ((color).g << 8) | (color).b)
@@ -260,36 +261,42 @@ void HardwareSDLTerminal::render() {
             copyImage(temp);
             SDL_FreeSurface(temp);
         } else {
-#if defined(USE_WEBP)
-            SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 24, 0x00ff0000, 0x0000ff00, 0x000000ff, 0);
-            if (gotResizeEvent) return;
-            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, sshot->pixels, sshot->pitch) != 0) return;
-            uint8_t * data = NULL;
-            size_t size = WebPEncodeLosslessRGB((uint8_t*)sshot->pixels, sshot->w, sshot->h, sshot->pitch, &data);
-            if (size) {
+#ifndef NO_WEBP
+            if (config.useWebP) {
+                SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 24, 0x00ff0000, 0x0000ff00, 0x000000ff, 0);
+                if (gotResizeEvent) return;
+                if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, sshot->pixels, sshot->pitch) != 0) return;
+                uint8_t * data = NULL;
+                size_t size = WebPEncodeLosslessRGB((uint8_t*)sshot->pixels, sshot->w, sshot->h, sshot->pitch, &data);
+                if (size) {
+                    std::ofstream out(screenshotPath, std::ios::binary);
+                    out.write((char*)data, size);
+                    out.close();
+                    WebPFree(data);
+                }
+                SDL_FreeSurface(sshot);
+            } else {
+#endif
+#ifndef NO_PNG
+                png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
+                if (gotResizeEvent) return;
+                if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) return;
+                png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
+                img.set_pixbuf(pixbuf);
                 std::ofstream out(screenshotPath, std::ios::binary);
-                out.write((char*)data, size);
+                img.write_stream(out);
                 out.close();
-                WebPFree(data);
-            }
-            SDL_FreeSurface(sshot);
-#elif defined(PNGPP_PNG_HPP_INCLUDED)
-            png::solid_pixel_buffer<png::rgb_pixel> pixbuf(w, h);
-            if (gotResizeEvent) return;
-            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, (void*)&pixbuf.get_bytes()[0], w * 3) != 0) return;
-            png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(w, h);
-            img.set_pixbuf(pixbuf);
-            std::ofstream out(screenshotPath, std::ios::binary);
-            img.write_stream(out);
-            out.close();
 #else
-            SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-            if (gotResizeEvent) return;
-            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) return;
-            SDL_Surface *conv = SDL_ConvertSurfaceFormat(sshot, SDL_PIXELFORMAT_RGB888, 0);
-            SDL_FreeSurface(sshot);
-            SDL_SaveBMP(conv, screenshotPath.c_str());
-            SDL_FreeSurface(conv);
+                SDL_Surface *sshot = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+                if (gotResizeEvent) return;
+                if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch) != 0) return;
+                SDL_Surface *conv = SDL_ConvertSurfaceFormat(sshot, SDL_PIXELFORMAT_RGB888, 0);
+                SDL_FreeSurface(sshot);
+                SDL_SaveBMP(conv, screenshotPath.c_str());
+                SDL_FreeSurface(conv);
+#endif
+#ifndef NO_WEBP
+            }
 #endif
         }
 #ifdef __EMSCRIPTEN__
@@ -302,39 +309,43 @@ void HardwareSDLTerminal::render() {
             std::lock_guard<std::mutex> lock(recorderMutex);
             int w, h;
             if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) return;
-#ifdef USE_WEBP
-            if (recorderHandle == NULL) {
-                WebPAnimEncoderOptions enc_options;
-                WebPAnimEncoderOptionsInit(&enc_options);
-                recorderHandle = WebPAnimEncoderNew(surf->w, surf->h, &enc_options);
+#ifndef NO_WEBP
+            if (isRecordingWebP) {
+                if (recorderHandle == NULL) {
+                    WebPAnimEncoderOptions enc_options;
+                    WebPAnimEncoderOptionsInit(&enc_options);
+                    recorderHandle = WebPAnimEncoderNew(surf->w, surf->h, &enc_options);
+                }
+                SDL_Surface *temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_BGRA32);
+                if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_BGRA32, temp->pixels, temp->pitch) != 0) return;
+                WebPConfig config;
+                WebPConfigInit(&config);
+                config.lossless = true;
+                WebPPicture frame;
+                WebPPictureInit(&frame);
+                frame.width = temp->w;
+                frame.height = temp->h;
+                frame.use_argb = true;
+                frame.argb = (uint32_t*)temp->pixels;
+                frame.argb_stride = temp->pitch / 4;
+                WebPAnimEncoderAdd((WebPAnimEncoder*)recorderHandle, &frame, (1000 / ::config.recordingFPS) * recordedFrames, &config);
+                SDL_FreeSurface(temp);
+            } else {
+#endif
+                if (recorderHandle == NULL) {
+                    GifWriter * g = new GifWriter;
+                    g->f = platform_fopen(recordingPath.c_str(), "wb");
+                    GifBegin(g, NULL, surf->w, surf->h, 100 / config.recordingFPS);
+                    recorderHandle = g;
+                }
+                SDL_Surface *temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
+                if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGBA32, temp->pixels, temp->pitch) != 0) return;
+                uint32_t pal[256];
+                for (int i = 0; i < 256; i++) pal[i] = newpalette[i].r | (newpalette[i].g << 8) | (newpalette[i].b << 16);
+                GifWriteFrame((GifWriter*)recorderHandle, (uint8_t*)temp->pixels, temp->w, temp->h, 100 / config.recordingFPS, newmode == 2 ? 8 : 5, false, pal);
+                SDL_FreeSurface(temp);
+#ifndef NO_WEBP
             }
-            SDL_Surface *temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_BGRA32);
-            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_BGRA32, temp->pixels, temp->pitch) != 0) return;
-            WebPConfig config;
-            WebPConfigInit(&config);
-            config.lossless = true;
-            WebPPicture frame;
-            WebPPictureInit(&frame);
-            frame.width = temp->w;
-            frame.height = temp->h;
-            frame.use_argb = true;
-            frame.argb = (uint32_t*)temp->pixels;
-            frame.argb_stride = temp->pitch / 4;
-            WebPAnimEncoderAdd((WebPAnimEncoder*)recorderHandle, &frame, (1000 / ::config.recordingFPS) * recordedFrames, &config);
-            SDL_FreeSurface(temp);
-#else
-            if (recorderHandle == NULL) {
-                GifWriter * g = new GifWriter;
-                g->f = platform_fopen(recordingPath.c_str(), "wb");
-                GifBegin(g, NULL, surf->w, surf->h, 100 / config.recordingFPS);
-                recorderHandle = g;
-            }
-            SDL_Surface *temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
-            if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGBA32, temp->pixels, temp->pitch) != 0) return;
-            uint32_t pal[256];
-            for (int i = 0; i < 256; i++) pal[i] = newpalette[i].r | (newpalette[i].g << 8) | (newpalette[i].b << 16);
-            GifWriteFrame((GifWriter*)recorderHandle, (uint8_t*)temp->pixels, temp->w, temp->h, 100 / config.recordingFPS, newmode == 2 ? 8 : 5, false, pal);
-            SDL_FreeSurface(temp);
 #endif
             recordedFrames++;
             frameWait = ::config.clockSpeed / ::config.recordingFPS;

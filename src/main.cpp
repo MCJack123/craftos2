@@ -608,9 +608,10 @@ int main(int argc, char*argv[]) {
 #ifndef NO_CLI
             std::cout << " cli";
 #endif
-#if defined(USE_WEBP)
+#ifndef NO_WEBP
             std::cout << " webp";
-#elif !defined(NO_PNG)
+#endif
+#ifndef NO_PNG
             std::cout << " png";
 #endif
 #ifndef NO_MIXER

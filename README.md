@@ -67,7 +67,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Mac: Xcode CLI tools (xcode-select --install)
   * Windows: Visual Studio 2019
 * SDL 2.0.8+ (may work on older versions on non-Linux)
-* OpenSSL 1.1 (for POCO)
+* OpenSSL 1.1.1 (for POCO)
 * POCO 1.5.0+: NetSSL & JSON libraries + dependencies
   * Foundation
   * Util
@@ -83,6 +83,8 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 #### Optional
 * libpng 1.6 & png++ 0.2.7+
   * Can be disabled with `--without-png`, will save as BMP instead
+* libwebp
+  * Can be disabled with `--without-webp`, will disable WebP support (`useWebP` option will always be off)
 * [libharu/libhpdf](https://github.com/libharu/libharu)
   * Can be disabled with `--without-hpdf`, `--with-html` or `--with-txt`
 * ncurses or PDCurses
@@ -99,10 +101,10 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 You can get all of these dependencies with:
   * Windows: `vcpkg --feature-flags=manifests install --triplet x64-windows` inside the repository directory
     * Visual Studio will do this for you automatically (as long as vcpkg integration is installed)
-  * Windows (manual): `vcpkg install sdl2:x64-windows sdl2-mixer[dynamic-load,libflac,mpg123,libmodplug,libvorbis,opusfile,fluidsynth]:x64-windows pngpp:x64-windows libharu:x64-windows poco[netssl]:x64-windows dirent:x64-windows pdcurses:x64-windows`
-  * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
-  * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
-  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer png++ libharu poco ncurses`
+  * Windows (manual): `vcpkg install sdl2:x64-windows sdl2-mixer[dynamic-load,libflac,mpg123,libmodplug,libvorbis,opusfile,fluidsynth]:x64-windows pngpp:x64-windows libwebp:x64-windows libharu:x64-windows poco[netssl]:x64-windows dirent:x64-windows pdcurses:x64-windows`
+  * Mac (Homebrew): `brew install sdl2 sdl2_mixer png++ webp libharu poco ncurses; git clone https://github.com/MCJack123/craftos2-rom`
+  * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
+  * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer png++ libwebp libharu poco ncurses`
 
 ### Windows Nightly Builds
 Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-pc.cc/nightly/). These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. New builds are posted at midnight EST, unless there were no changes since the last build. Note that these files are just the raw executable. You must drop the file into a pre-existing CraftOS-PC install directory for it to work properly. Depending on changes made in the latest version, you may also have to download the latest [ROM](https://github.com/MCJack123/craftos2-rom).
