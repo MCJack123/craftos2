@@ -117,6 +117,7 @@ if test "x$enable_wasm" != "xyes"; then
     AS_IF([test "x$with_webp" != "xno"], [
         AC_CHECK_HEADERS([webp/mux.h], [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find webp header.])], [NO_WEBP=1])])
         AC_SEARCH_LIBS(WebPEncodeRGB, webp, [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find libwebp library.])], [NO_WEBP=1])])
+        AC_SEARCH_LIBS(WebPAnimEncoderNewInternal, webpmux, [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find libwebp library.])], [NO_WEBP=1])])
     ], [NO_WEBP=1])
 
     AS_IF([test "x$with_ncurses" != "xno"], [

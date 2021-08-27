@@ -2271,7 +2271,7 @@ fi
     SQBRCL=]
     CC=emcc
     CXX=em++
-    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -Iapi -DNO_CLI -DNO_PNG -DPRINT_TYPE=1"
+    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -Iapi -DNO_CLI -DNO_PNG -DNO_WEBP -DPRINT_TYPE=1"
     CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1 -s USE_SDL_MIXER=2 -Wno-implicit-const-int-float-conversion -Wno-pthreads-mem-growth"
     LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -lidbfs.js -s USE_SDL=2 -s USE_SDL_MIXER=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 --no-heap-copy -Wno-pthreads-mem-growth"
 fi
@@ -5415,6 +5415,68 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_WebPEncodeRGB" >&5
 $as_echo "$ac_cv_search_WebPEncodeRGB" >&6; }
 ac_res=$ac_cv_search_WebPEncodeRGB
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else
+  if test "x$with_webp" = "xyes"; then :
+  as_fn_error $? "Could not find libwebp library." "$LINENO" 5
+else
+  NO_WEBP=1
+fi
+fi
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing WebPAnimEncoderNewInternal" >&5
+$as_echo_n "checking for library containing WebPAnimEncoderNewInternal... " >&6; }
+if ${ac_cv_search_WebPAnimEncoderNewInternal+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char WebPAnimEncoderNewInternal ();
+int
+main ()
+{
+return WebPAnimEncoderNewInternal ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' webpmux; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_search_WebPAnimEncoderNewInternal=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_WebPAnimEncoderNewInternal+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_WebPAnimEncoderNewInternal+:} false; then :
+
+else
+  ac_cv_search_WebPAnimEncoderNewInternal=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_WebPAnimEncoderNewInternal" >&5
+$as_echo "$ac_cv_search_WebPAnimEncoderNewInternal" >&6; }
+ac_res=$ac_cv_search_WebPAnimEncoderNewInternal
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
