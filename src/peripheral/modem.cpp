@@ -27,13 +27,14 @@ static std::function<double(const Computer *, const Computer *)> distanceCallbac
 
 int modem::isOpen(lua_State *L) {
     lastCFunction = __func__;
-    lua_pushboolean(L, openPorts.find((uint16_t)luaL_checkinteger(L, 1)) != openPorts.end());
+    if (luaL_checkinteger(L, 1) < 0 || lua_tointeger(L, 1) > 65535) luaL_error(L, "bad argument #1 (channel out of range)");
+    lua_pushboolean(L, openPorts.find((uint16_t)lua_tointeger(L, 1)) != openPorts.end());
     return 1;
 }
 
 int modem::open(lua_State *L) {
     lastCFunction = __func__;
-    luaL_checknumber(L, 1); // argument error > too many open channels
+    if (luaL_checkinteger(L, 1) < 0 || lua_tointeger(L, 1) > 65535) luaL_error(L, "bad argument #1 (channel out of range)"); // argument error > too many open channels
     if (openPorts.size() >= (size_t)config.maxOpenPorts) luaL_error(L, "Too many open channels");
     openPorts.insert((uint16_t)lua_tointeger(L, 1));
     return 0;
@@ -41,7 +42,8 @@ int modem::open(lua_State *L) {
 
 int modem::close(lua_State *L) {
     lastCFunction = __func__;
-    openPorts.erase((uint16_t)luaL_checkinteger(L, 1));
+    if (luaL_checkinteger(L, 1) < 0 || lua_tointeger(L, 1) > 65535) luaL_error(L, "bad argument #1 (channel out of range)");
+    openPorts.erase((uint16_t)lua_tointeger(L, 1));
     return 0;
 }
 
@@ -55,7 +57,8 @@ int modem::transmit(lua_State *L) {
     lastCFunction = __func__;
     luaL_checkinteger(L, 2);
     luaL_checkany(L, 3);
-    const uint16_t port = (uint16_t)luaL_checkinteger(L, 1);
+    if (luaL_checkinteger(L, 1) < 0 || lua_tointeger(L, 1) > 65535) luaL_error(L, "bad argument #1 (channel out of range)");
+    const uint16_t port = (uint16_t)lua_tointeger(L, 1);
     for (modem* m : network[netID]) if (m != this && m->openPorts.find(port) != m->openPorts.end()) {
         lua_pushvalue(L, 3);
         m->receive(L, port, (uint16_t)luaL_checkinteger(L, 2), this);
