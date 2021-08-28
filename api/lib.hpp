@@ -50,6 +50,7 @@ struct library_t {
     std::function<void(Computer*)> deinit; // A function to call when closing the API
 };
 
+#ifdef CRAFTOS_PC_HPP
 /**
  * Returns the associated Computer object pointer for a Lua state.
  * This is a bit slow, so try not to call it too much, or cache results.
@@ -64,5 +65,6 @@ inline Computer * get_comp(lua_State *L) {
     lua_pop(L, 1);
     return (Computer*)retval;
 }
+#endif
 
 #endif

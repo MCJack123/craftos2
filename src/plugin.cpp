@@ -9,7 +9,9 @@
  */
 
 #include <unordered_map>
+#define get_comp __get_comp_unused
 #include <CraftOS-PC.hpp>
+#undef get_comp
 #include <dirent.h>
 #include <sys/stat.h>
 #include "apis.hpp"

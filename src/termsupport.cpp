@@ -890,8 +890,11 @@ std::string termGetEvent(lua_State *L) {
                 return "monitor_resize";
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
-            if (e.window.windowID == computer->term->id) return "die";
-            else {
+            if (e.window.windowID == computer->term->id) {
+                computer->requestedExit = true;
+                computer->running = 0;
+                return "terminate";
+            } else {
                 std::string side;
                 monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
                 if (m != NULL) detachPeripheral(computer, side);

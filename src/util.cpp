@@ -32,16 +32,19 @@ extern std::string standaloneBIOS;
 
 const char * lastCFunction = "(none!)";
 char computer_key = 'C';
-void* getCompCache_glob = NULL;
-Computer * getCompCache_comp = NULL;
+static ProtectedObject<std::unordered_map<void*, Computer*> > getCompCache;
 
-Computer * _get_comp(lua_State *L) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, 1);
-    void * retval = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    getCompCache_glob = *(void**)(((ptrdiff_t)L) + sizeof(void*)*3 + 3 + alignof(void*) - ((sizeof(void*)*3 + 3) % alignof(void*)));
-    getCompCache_comp = (Computer*)retval;
-    return (Computer*)retval;
+Computer * get_comp(lua_State *L) {
+    try {
+        return getCompCache->at(L->l_G);
+    } catch (std::out_of_range &e) {
+        LockGuard lock(getCompCache);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, 1);
+        Computer * retval = (Computer*)lua_touserdata(L, -1);
+        lua_pop(L, 1);
+        getCompCache->insert(std::make_pair(L->l_G, retval));
+        return retval;
+    }
 }
 
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {

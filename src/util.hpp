@@ -123,6 +123,49 @@ public:
     Poco::JSON::Object::ConstIterator end() { try { return obj.extract<Poco::JSON::Object>().end(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->end(); } }
 };
 
+// For get_comp
+typedef union {
+  void *gc;
+  void *p;
+  lua_Number n;
+  int b;
+} lua_Value;
+
+typedef struct lua_TValue {
+  lua_Value value; int tt;
+} TValue;
+
+struct lua_State {
+	void *next;
+  unsigned char tt;
+  unsigned char marked;
+	unsigned char status;
+	void* top;  /* first free slot in the stack */
+	void* base;  /* base of current function */
+	void *l_G;
+	void *ci;  /* call info for current function */
+	void* ctx;  /* `savedpc' of current function, or context */
+	void* stack_last;  /* last free slot in the stack */
+	void* stack;  /* stack base */
+	void *end_ci;  /* points after end of ci array*/
+	void *base_ci;  /* array of CallInfo's */
+	int stacksize;
+	int size_ci;  /* size of array `base_ci' */
+	unsigned short nCcalls;  /* number of nested C calls */
+	unsigned short baseCcalls;  /* nested C calls when resuming coroutine */
+	unsigned char hookmask;
+	unsigned char allowhook;
+	int basehookcount;
+	int hookcount;
+	lua_Hook hook;
+	TValue l_gt;  /* table of globals */
+	TValue env;  /* temporary place for environments */
+	void *openupval;  /* list of open upvalues in this stack */
+	void *gclist;
+	struct lua_longjmp *errorJmp;  /* current error recover point */
+	ptrdiff_t errfunc;  /* current error handling function (stack index) */
+};
+
 inline int log2i(int num) {
     if (num == 0) return 0;
     int retval;
@@ -162,10 +205,7 @@ extern std::list<Terminal*>::iterator renderTarget;
 
 extern std::string loadingPlugin;
 extern const char * lastCFunction;
-extern void* getCompCache_glob;
-extern Computer * getCompCache_comp;
-extern Computer * _get_comp(lua_State *L);
-#define get_comp(L) (*(void**)(((ptrdiff_t)L) + sizeof(void*)*3 + 3 + alignof(void*) - ((sizeof(void*)*3 + 3) % alignof(void*))) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
+extern Computer * get_comp(lua_State *L);
 
 template<typename T>
 inline T min(T a, T b) { return a < b ? a : b; }
