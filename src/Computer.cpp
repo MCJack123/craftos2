@@ -358,6 +358,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             self->term->changed = true;
         }
         self->colors = 0xF0;
+        self->system_start = std::chrono::system_clock::now();
 
         /*
         * All Lua contexts are held in this structure. We work with it almost
