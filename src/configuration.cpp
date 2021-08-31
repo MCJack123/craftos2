@@ -246,21 +246,31 @@ void config_init() {
     in.close();
     readConfigSetting(http_enable, Bool);
     readConfigSetting(mount_mode, Int);
-    if (root.isMember("http_whitelist"))
+    if (root.isMember("http_whitelist")) {
+        config.http_whitelist.clear();
         for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
             config.http_whitelist.push_back(it->toString());
-    if (root.isMember("http_blacklist"))
+    }
+    if (root.isMember("http_blacklist")) {
+        config.http_blacklist.clear();
         for (auto it = root["http_blacklist"].arrayBegin(); it != root["http_blacklist"].arrayEnd(); ++it)
             config.http_blacklist.push_back(it->toString());
-    if (root.isMember("mounter_whitelist"))
+    }
+    if (root.isMember("mounter_whitelist")) {
+        config.mounter_whitelist.clear();
         for (auto it = root["mounter_whitelist"].arrayBegin(); it != root["mounter_whitelist"].arrayEnd(); ++it)
             config.mounter_whitelist.push_back(it->toString());
-    if (root.isMember("mounter_blacklist"))
+    }
+    if (root.isMember("mounter_blacklist")) {
+        config.mounter_blacklist.clear();
         for (auto it = root["mounter_blacklist"].arrayBegin(); it != root["mounter_blacklist"].arrayEnd(); ++it)
             config.mounter_blacklist.push_back(it->toString());
-    if (root.isMember("mounter_no_ask"))
+    }
+    if (root.isMember("mounter_no_ask")) {
+        config.mounter_no_ask.clear();
         for (auto it = root["mounter_no_ask"].arrayBegin(); it != root["mounter_no_ask"].arrayEnd(); ++it)
             config.mounter_no_ask.push_back(it->toString());
+    }
     readConfigSetting(disable_lua51_features, Bool);
     readConfigSetting(default_computer_settings, String);
     readConfigSetting(logErrors, Bool);
