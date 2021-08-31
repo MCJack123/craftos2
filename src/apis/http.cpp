@@ -267,7 +267,8 @@ downloadThread_entry:
             else if (uri.getScheme() == "http") {
                 session = new HTTPClientSession(uri.getHost(), uri.getPort());
             } else if (uri.getScheme() == "https") {
-                const Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                context->disableProtocols(Context::PROTO_TLSV1_3); // Some sites break under TLS 1.3 - disable it to maintain compatibility until fixed (pocoproject/poco#3395)
                 session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
             } else status = "Invalid protocol '" + uri.getScheme() + "'";
         }
@@ -406,7 +407,9 @@ void HTTPDownload(const std::string& url, const std::function<void(std::istream*
         callback(NULL, &e, NULL);
         return;
     }
-    HTTPSClientSession session(uri.getHost(), uri.getPort(), new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    ctx->disableProtocols(Context::PROTO_TLSV1_3);
+    HTTPSClientSession session(uri.getHost(), uri.getPort(), ctx);
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
     size_t pos = url.find('/', url.find(uri.getHost()));
     std::string path = urlEncode(pos != std::string::npos ? url.substr(pos) : "/");
@@ -1036,8 +1039,11 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     }
     HTTPClientSession * cs;
     if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
-    else if (uri.getScheme() == "wss") cs = new HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
-    else {
+    else if (uri.getScheme() == "wss") {
+        Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+        ctx->disableProtocols(Context::PROTO_TLSV1_3);
+        cs = new HTTPSClientSession(uri.getHost(), uri.getPort(), ctx);
+    } else {
         websocket_failure_data * data = new websocket_failure_data;
         data->url = str;
         data->reason = "Invalid scheme '" + uri.getScheme() + "'";

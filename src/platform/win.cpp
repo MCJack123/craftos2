@@ -365,11 +365,14 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 
 static bool pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
     Poco::URI uri(url);
-    Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    Poco::Net::Context * ctx = new Poco::Net::Context(Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    ctx->disableProtocols(Poco::Net::Context::PROTO_TLSV1_3);
+    Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), ctx);
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
     Poco::Net::HTTPRequest request(method, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
     Poco::Net::HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
+    request.add("Host", uri.getHost());
     request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     request.add("X-API-Key", getAPIKey());
     request.add("x-amz-server-side-encryption", "AES256");
@@ -379,7 +382,7 @@ static bool pushCrashDump(const char * data, const size_t size, const path_t& pa
         session.sendRequest(request).write(data, size);
         std::istream& stream = session.receiveResponse(response);
         if (response.getStatus() / 100 == 3 && response.has("Location")) 
-            return pushCrashDump(data, size, path, response.get("Location"));
+            return pushCrashDump(data, size, path, response.get("Location"), method);
         else if (response.getStatus() == 200 && method == "POST") {
             Value root;
             Poco::JSON::Object::Ptr p = root.parse(stream);
