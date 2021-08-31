@@ -17,6 +17,7 @@
 #include <codecvt>
 #include <Poco/SHA2Engine.h>
 #include <Poco/URI.h>
+#include <Poco/Version.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPSClientSession.h>
@@ -366,7 +367,9 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 static bool pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
     Poco::URI uri(url);
     Poco::Net::Context * ctx = new Poco::Net::Context(Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+#if POCO_VERSION >= 0x010A0000
     ctx->disableProtocols(Poco::Net::Context::PROTO_TLSV1_3);
+#endif
     Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), ctx);
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
     Poco::Net::HTTPRequest request(method, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
