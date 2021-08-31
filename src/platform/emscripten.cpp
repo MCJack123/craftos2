@@ -77,7 +77,7 @@ std::string getMCSavePath() {
     return "";
 }
 
-void updateNow(const std::string& tag_name) {}
+void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) {}
 
 void migrateOldData() {}
 

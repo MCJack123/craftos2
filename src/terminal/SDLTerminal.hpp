@@ -40,7 +40,7 @@ protected:
     path_t recordingPath;
     int recordedFrames = 0;
     int frameWait = 0;
-    std::vector<std::string> recording;
+    void * recorderHandle = NULL;
     std::mutex recorderMutex;
     std::mutex renderlock;
     bool overridden = false;
@@ -59,6 +59,7 @@ public:
     unsigned char cursorColor = 0;
     bool useOrigFont = false;
     bool isOnTop = false;
+    bool isRecordingWebP = false;
 
     static void init();
     static void quit();

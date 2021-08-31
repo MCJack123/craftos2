@@ -73,6 +73,7 @@ std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
+Poco::JSON::Object updateAtQuitRoot;
 int returnValue = 0;
 std::unordered_map<path_t, std::string> globalPluginErrors;
 static std::string rawWebSocketURL;
@@ -207,6 +208,7 @@ static void update_thread() {
                             switch (choice) {
                             case 0:
                                 updateAtQuit = obj->getValue<std::string>("tag_name");
+                                updateAtQuitRoot = *obj;
                                 return;
                             case 1:
                                 config.skipUpdate = CRAFTOSPC_VERSION;
@@ -223,7 +225,7 @@ static void update_thread() {
                         } case 1:
                             return;
                         case 3:
-                            queueTask([obj](void*)->void*{updateNow(obj->getValue<std::string>("tag_name")); return NULL;}, NULL);
+                            queueTask([obj](void*)->void*{updateNow(obj->getValue<std::string>("tag_name"), obj); return NULL;}, NULL);
                             return;
                         default:
                             // this should never happen
@@ -612,6 +614,9 @@ int main(int argc, char*argv[]) {
 #ifndef NO_CLI
             std::cout << " cli";
 #endif
+#ifndef NO_WEBP
+            std::cout << " webp";
+#endif
 #ifndef NO_PNG
             std::cout << " png";
 #endif
@@ -799,7 +804,7 @@ int main(int argc, char*argv[]) {
 #ifndef __IPHONEOS__
     globalPluginErrors = initializePlugins();
 #endif
-#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+#if !defined(__EMSCRIPTEN__) && !defined(__IPHONEOS__) && !CRAFTOSPC_INDEV
     if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
@@ -863,7 +868,7 @@ int main(int argc, char*argv[]) {
     http_server_stop();
     config_save();
     if (!updateAtQuit.empty()) {
-        updateNow(updateAtQuit);
+        updateNow(updateAtQuit, &updateAtQuitRoot);
         awaitTasks();
     }
 #ifndef NO_CLI

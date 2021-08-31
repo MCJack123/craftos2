@@ -13,9 +13,13 @@
         {
             "name": "dirent",
             "platform": "windows"
+        },
+        {
+            "name": "zlib",
+            "platform": "windows"
         }
     ],
-    "default-features": ["cli", "speaker", "pdf-printer", "png-screenshots"],
+    "default-features": ["cli", "speaker", "pdf-printer", "png-screenshots", "webp-screenshots"],
     "features": {
         "cli": {
             "description": "Console interface",
@@ -43,6 +47,10 @@
         "png-screenshots": {
             "description": "Take screenshots in PNG format",
             "dependencies": [ "pngpp" ]
+        },
+        "webp-screenshots": {
+            "description": "Take screenshots and recordings in WebP format",
+            "dependencies": [ "libwebp" ]
         }
     }
 }

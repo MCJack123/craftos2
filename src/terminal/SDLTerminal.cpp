@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2021 JackMacWindows.
  */
 
+#include <fstream>
 #include <sstream>
 #include <configuration.hpp>
 #include "RawTerminal.hpp"
@@ -16,6 +17,10 @@
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
+#ifndef NO_WEBP
+#include <webp/mux.h>
+#include <webp/encode.h>
+#endif
 #ifndef NO_PNG
 #include <png++/png.hpp>
 #endif
@@ -343,26 +348,39 @@ void SDLTerminal::render() {
     if (shouldScreenshot && !screenshotPath.empty()) {
         shouldScreenshot = false;
         if (gotResizeEvent) return;
-#ifdef PNGPP_PNG_HPP_INCLUDED
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
         if (screenshotPath == WS("clipboard")) {
             copyImage(temp);
         } else {
-            png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
-            for (int i = 0; i < temp->h; i++)
-                memcpy((void*)&pixbuf.get_bytes()[i * temp->w * 3], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
-            png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
-            img.set_pixbuf(pixbuf);
-            std::ofstream out(screenshotPath, std::ios::binary);
-            img.write_stream(out);
-            out.close();
+#ifndef NO_WEBP
+            if (config.useWebP) {
+                uint8_t * data = NULL;
+                size_t size = WebPEncodeLosslessRGB((uint8_t*)temp->pixels, temp->w, temp->h, temp->pitch, &data);
+                if (size) {
+                    std::ofstream out(screenshotPath, std::ios::binary);
+                    out.write((char*)data, size);
+                    out.close();
+                    WebPFree(data);
+                }
+            } else {
+#endif
+#ifndef NO_PNG
+                png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
+                for (int i = 0; i < temp->h; i++)
+                    memcpy((void*)&pixbuf.get_bytes()[i * temp->w * 3], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
+                png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
+                img.set_pixbuf(pixbuf);
+                std::ofstream out(screenshotPath, std::ios::binary);
+                img.write_stream(out);
+                out.close();
+#else
+                SDL_SaveBMP(temp, screenshotPath.c_str());
+#endif
+#ifndef NO_WEBP
+            }
+#endif
         }
         SDL_FreeSurface(temp);
-#else
-        SDL_Surface *conv = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB888, 0);
-        SDL_SaveBMP(conv, screenshotPath.c_str());
-        SDL_FreeSurface(conv);
-#endif
 #ifdef __EMSCRIPTEN__
         queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif
@@ -371,25 +389,44 @@ void SDLTerminal::render() {
         if (recordedFrames >= config.maxRecordingTime * config.recordingFPS) stopRecording();
         else if (--frameWait < 1) {
             std::lock_guard<std::mutex> recorderlock(recorderMutex);
-            uint32_t uw = static_cast<uint32_t>(surf->w), uh = static_cast<uint32_t>(surf->h);
-            std::string rle = std::string((char*)&uw, 4) + std::string((char*)&uh, 4);
-            SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_ABGR8888, 0);
-            uint32_t * px = ((uint32_t*)temp->pixels);
-            uint32_t data = px[0] & 0xFFFFFF;
-            for (int y = 0; y < surf->h; y++) {
-                for (int x = 0; x < surf->w; x++) {
-                    uint32_t p = px[y*surf->w+x];
-                    if ((p & 0xFFFFFF) != (data & 0xFFFFFF) || (data & 0xFF000000) == 0xFF000000) {
-                        rle += std::string((char*)&data, 4);
-                        data = p & 0xFFFFFF;
-                    } else data += 0x1000000;
+#ifndef NO_WEBP
+            if (isRecordingWebP) {
+                if (recorderHandle == NULL) {
+                    WebPAnimEncoderOptions enc_options;
+                    WebPAnimEncoderOptionsInit(&enc_options);
+                    recorderHandle = WebPAnimEncoderNew(surf->w, surf->h, &enc_options);
                 }
+                SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_BGRA32, 0);
+                WebPConfig config;
+                WebPConfigInit(&config);
+                config.lossless = true;
+                WebPPicture frame;
+                WebPPictureInit(&frame);
+                frame.width = temp->w;
+                frame.height = temp->h;
+                frame.use_argb = true;
+                frame.argb = (uint32_t*)temp->pixels;
+                frame.argb_stride = temp->pitch / 4;
+                WebPAnimEncoderAdd((WebPAnimEncoder*)recorderHandle, &frame, (1000 / ::config.recordingFPS) * recordedFrames, &config);
+                SDL_FreeSurface(temp);
+            } else {
+#endif
+                if (recorderHandle == NULL) {
+                    GifWriter * g = new GifWriter;
+                    g->f = platform_fopen(recordingPath.c_str(), "wb");
+                    GifBegin(g, NULL, surf->w, surf->h, 100 / config.recordingFPS);
+                    recorderHandle = g;
+                }
+                SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGBA32, 0);
+                uint32_t pal[256];
+                for (int i = 0; i < 256; i++) pal[i] = newpalette[i].r | (newpalette[i].g << 8) | (newpalette[i].b << 16);
+                GifWriteFrame((GifWriter*)recorderHandle, (uint8_t*)temp->pixels, temp->w, temp->h, 100 / config.recordingFPS, newmode == 2 ? 8 : 5, false, pal);
+                SDL_FreeSurface(temp);
+#ifndef NO_WEBP
             }
-            rle += std::string((char*)&data, 4);
-            SDL_FreeSurface(temp);
-            recording.push_back(rle);
+#endif
             recordedFrames++;
-            frameWait = config.clockSpeed / config.recordingFPS;
+            frameWait = ::config.clockSpeed / ::config.recordingFPS;
             if (gotResizeEvent) return;
         }
         SDL_Surface* circle = SDL_CreateRGBSurfaceWithFormatFrom(circlePix, 10, 10, 32, 40, SDL_PIXELFORMAT_BGRA32);
@@ -421,6 +458,7 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 }
 
 bool SDLTerminal::resize(unsigned w, unsigned h) {
+    if (this->shouldRecord) return false;
     newWidth = w;
     newHeight = h;
     if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
@@ -459,6 +497,9 @@ void SDLTerminal::screenshot(std::string path) {
         char tstr[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
         tstr[23] = '\0';
+#ifndef NO_WEBP
+        if (config.useWebP) screenshotPath += wstr(std::string(tstr)) + WS(".webp"); else
+#endif
 #ifdef NO_PNG
         screenshotPath += wstr(std::string(tstr)) + WS(".bmp");
 #else
@@ -485,8 +526,13 @@ void SDLTerminal::record(std::string path) {
         createDirectory(recordingPath);
         char tstr[20];
         strftime(tstr, 20, "%F_%H.%M.%S", nowt);
+        isRecordingWebP = config.useWebP;
+#ifndef NO_WEBP
+        if (isRecordingWebP) recordingPath += wstr(std::string(tstr)) + WS(".webp"); else
+#endif
         recordingPath += wstr(std::string(tstr)) + WS(".gif");
     }
+    recorderHandle = NULL;
     changed = true;
 }
 
@@ -500,30 +546,24 @@ static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
 void SDLTerminal::stopRecording() {
     shouldRecord = false;
     std::lock_guard<std::mutex> lock(recorderMutex);
-    if (recording.empty()) return;
-    GifWriter g;
-    g.f = platform_fopen(recordingPath.c_str(), "wb");
-    GifBegin(&g, NULL, reinterpret_cast<uint32_t*>(&recording[0][0])[0], reinterpret_cast<uint32_t*>(&recording[0][0])[1], 100 / config.recordingFPS);
-    for (std::string s : recording) {
-        const uint32_t w = reinterpret_cast<uint32_t*>(&s[0])[0], h = reinterpret_cast<uint32_t*>(&s[0])[1];
-        uint32_t* ipixels = new uint32_t[w * h];
-        uint32_t* lp = ipixels;
-        for (unsigned i = 2; i*4 < s.size(); i++) {
-#ifdef __APPLE__
-            // macOS has memset_pattern4, which is much more efficient than my C implementation, so use that if available
-            uint32_t c = ((uint32_t*)&s[0])[i] & 0xFFFFFF;
-            memset_pattern4(lp, &c, min(((((uint32_t*)&s[0])[i] & 0xFF000000) >> 24) + 1, (unsigned int)((w * h) - (lp - ipixels))) * 4);
-            lp += min(((((uint32_t*)&s[0])[i] & 0xFF000000) >> 24) + 1, (unsigned int)((w * h) - (lp - ipixels)));
-#else
-            const uint32_t c = reinterpret_cast<uint32_t*>(&s[0])[i];
-            lp = memset_int(lp, c & 0xFFFFFF, min(((c & 0xFF000000) >> 24) + 1, (unsigned int)((w*h) - (lp - ipixels))));
+    if (recorderHandle == NULL) return;
+#ifndef NO_WEBP
+    if (isRecordingWebP) {
+        WebPAnimEncoderAdd((WebPAnimEncoder*)recorderHandle, NULL, (1000 / ::config.recordingFPS) * recordedFrames, NULL);
+        WebPData webp_data;
+        WebPDataInit(&webp_data);
+        WebPAnimEncoderAssemble((WebPAnimEncoder*)recorderHandle, &webp_data);
+        std::ofstream out(recordingPath.c_str(), std::ios::binary);
+        out.write((char*)webp_data.bytes, webp_data.size);
+        out.close();
+        WebPAnimEncoderDelete((WebPAnimEncoder*)recorderHandle);
+    } else {
 #endif
-        }
-        GifWriteFrame(&g, (uint8_t*)ipixels, w, h, 100 / config.recordingFPS);
-        delete[] ipixels;
+        GifEnd((GifWriter*)recorderHandle);
+#ifndef NO_WEBP
     }
-    GifEnd(&g);
-    recording.clear();
+#endif
+    recorderHandle = NULL;
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
 #endif
@@ -619,6 +659,8 @@ void SDLTerminal::quit() {
 #define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
 #endif
 
+static SDL_TouchID touchDevice = -1;
+
 bool SDLTerminal::pollEvents() {
     SDL_Event e;
     std::string tmps;
@@ -630,6 +672,7 @@ bool SDLTerminal::pollEvents() {
         if (e.type == task_event_type) {
             while (!taskQueue->empty()) {
                 TaskQueueItem * task = taskQueue->front();
+                bool async = task->async;
                 {
                     std::unique_lock<std::mutex> lock(task->lock);
                     try {
@@ -640,7 +683,7 @@ bool SDLTerminal::pollEvents() {
                     task->ready = true;
                     task->notify.notify_all();
                 }
-                if (task->async) delete task;
+                if (async) delete task;
                 taskQueue->pop();
             }
         } else if (e.type == render_event_type) {
@@ -698,8 +741,8 @@ bool SDLTerminal::pollEvents() {
                     for (Computer * c : *computers) {
                         if (((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && checkWindowID(c, e.key.windowID)) ||
                             ((e.type == SDL_DROPFILE || e.type == SDL_DROPTEXT || e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && checkWindowID(c, e.drop.windowID)) ||
-                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
-                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
+                            ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID) && (touchDevice == -1 || SDL_GetNumTouchFingers(touchDevice) < 2)) ||
+                            (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID) && (touchDevice == -1 || SDL_GetNumTouchFingers(touchDevice) < 2)) ||
                             (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
                             (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
                             (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
@@ -711,10 +754,14 @@ bool SDLTerminal::pollEvents() {
                     }
                 }
                 if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
+#ifdef __IPHONEOS__
+                else if (e.type == SDL_FINGERUP || e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION) touchDevice = e.tfinger.touchId;
+#else
                 else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) {
                     if (e.mgesture.dDist < -0.001 && !SDL_IsTextInputActive()) SDL_StartTextInput();
                     else if (e.mgesture.dDist > 0.001 && SDL_IsTextInputActive()) SDL_StopTextInput();
                 }
+#endif
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);

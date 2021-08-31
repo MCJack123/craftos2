@@ -32,6 +32,7 @@
 #include <stdio.h>   // for FILE*
 #include <string.h>  // for memcpy and bzero
 #include <stdint.h>  // for integer typedefs
+#include <algorithm> // for std::sort
 
 // Define these macros to hook into a custom memory allocator.
 // TEMP_MALLOC and TEMP_FREE will only be called in stack fashion - frees in the reverse order of mallocs
@@ -370,6 +371,72 @@ void GifMakePalette( const uint8_t* lastFrame, const uint8_t* nextFrame, uint32_
     GifSplitPalette(destroyableImage, numPixels, 1, lastElt, splitElt, splitDist, 1, buildForDither, pPal);
 
     GIF_TEMP_FREE(destroyableImage);
+
+    // add the bottom node for the transparency index
+    pPal->treeSplit[1 << (bitDepth-1)] = 0;
+    pPal->treeSplitElt[1 << (bitDepth-1)] = 0;
+
+    pPal->r[0] = pPal->g[0] = pPal->b[0] = 0;
+}
+
+void GifSplitColorPalette( uint32_t* colors, int numColors, int treeNode, int lastElt, GifPalette* pPal ) {
+    if (treeNode > lastElt) {
+        // numColors should be 1
+        pPal->r[treeNode-lastElt-1] = colors[0] & 0xFF;
+        pPal->g[treeNode-lastElt-1] = (colors[0] >> 8) & 0xFF;
+        pPal->b[treeNode-lastElt-1] = (colors[0] >> 16) & 0xFF;
+        return;
+    }
+
+    // Find the axis with the largest range
+    int minR = 255, maxR = 0;
+    int minG = 255, maxG = 0;
+    int minB = 255, maxB = 0;
+    for(int ii=0; ii<numColors; ++ii)
+    {
+        int r = colors[ii] & 0xFF;
+        int g = (colors[ii] >> 8) & 0xFF;
+        int b = (colors[ii] >> 16) & 0xFF;
+
+        if(r > maxR) maxR = r;
+        if(r < minR) minR = r;
+
+        if(g > maxG) maxG = g;
+        if(g < minG) minG = g;
+
+        if(b > maxB) maxB = b;
+        if(b < minB) minB = b;
+    }
+
+    int rRange = maxR - minR;
+    int gRange = maxG - minG;
+    int bRange = maxB - minB;
+
+    // and split along that axis. (incidentally, this means this isn't a "proper" k-d tree but I don't know what else to call it)
+    int splitCom = 1;
+    if(bRange > gRange) splitCom = 2;
+    if(rRange > bRange && rRange > gRange) splitCom = 0;
+
+    // sort the colors by the axis split on
+    // (technically this lib is supposed to be pure C, but std::sort is too useful)
+    std::sort(colors, colors + numColors, [splitCom](uint32_t a, uint32_t b)->bool {
+        return ((a >> (splitCom * 8)) & 0xFF) < ((b >> (splitCom * 8)) & 0xFF);
+    });
+
+    pPal->treeSplitElt[treeNode] = (uint8_t)splitCom;
+    pPal->treeSplit[treeNode] = (colors[numColors / 2] >> (splitCom * 8)) & 0xFF;
+
+    GifSplitColorPalette(colors, numColors / 2, treeNode * 2, lastElt, pPal);
+    GifSplitColorPalette(colors + (numColors / 2), numColors / 2, treeNode * 2 + 1, lastElt, pPal);
+}
+
+// Creates a palette from a known set of colors, removing the need to search for colors
+void GifMakePaletteFromColors( const uint32_t* colors, int bitDepth, GifPalette* pPal ) {
+    pPal->bitDepth = bitDepth;
+
+    uint32_t* temp_colors = (uint32_t*)GIF_TEMP_MALLOC((1 << bitDepth) * 4);
+    memcpy(temp_colors, colors, (1 << bitDepth) * 4);
+    GifSplitColorPalette(temp_colors, 1 << bitDepth, 1, (1<<pPal->bitDepth)-1, pPal);
 
     // add the bottom node for the transparency index
     pPal->treeSplit[1 << (bitDepth-1)] = 0;
@@ -797,7 +864,7 @@ bool GifBegin( GifWriter* writer, const char* filename, uint32_t width, uint32_t
 // The GIFWriter should have been created by GIFBegin.
 // AFAIK, it is legal to use different bit depths for different frames of an image -
 // this may be handy to save bits in animations that don't change much.
-bool GifWriteFrame( GifWriter* writer, const uint8_t* image, uint32_t width, uint32_t height, uint32_t delay, int bitDepth = 8, bool dither = false )
+bool GifWriteFrame( GifWriter* writer, const uint8_t* image, uint32_t width, uint32_t height, uint32_t delay, int bitDepth = 8, bool dither = false, uint32_t * palette = NULL )
 {
     if(!writer->f) return false;
 
@@ -805,7 +872,10 @@ bool GifWriteFrame( GifWriter* writer, const uint8_t* image, uint32_t width, uin
     writer->firstFrame = false;
 
     GifPalette pal;
-    GifMakePalette((dither? NULL : oldImage), image, width, height, bitDepth, dither, &pal);
+    if (palette)
+        GifMakePaletteFromColors(palette, bitDepth, &pal);
+    else
+        GifMakePalette((dither? NULL : oldImage), image, width, height, bitDepth, dither, &pal);
 
     if(dither)
         GifDitherImage(oldImage, image, writer->oldImage, width, height, &pal);

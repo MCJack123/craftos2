@@ -347,6 +347,7 @@ bool CLITerminal::pollEvents() {
     }
     while (taskQueue->size() > 0) {
         TaskQueueItem * task = taskQueue->front();
+        bool async = task->async;
         {
             std::unique_lock<std::mutex> lock(task->lock);
             try {
@@ -357,7 +358,7 @@ bool CLITerminal::pollEvents() {
             task->ready = true;
             task->notify.notify_all();
         }
-        if (task->async) delete task;
+        if (async) delete task;
         taskQueue->pop();
     }
     if (ch == KEY_SLEFT) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); } 

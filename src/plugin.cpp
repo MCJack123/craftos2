@@ -9,7 +9,9 @@
  */
 
 #include <unordered_map>
+#define get_comp __get_comp_unused
 #include <CraftOS-PC.hpp>
+#undef get_comp
 #include <dirent.h>
 #include <sys/stat.h>
 #include "apis.hpp"
@@ -57,7 +59,7 @@ extern void setDistanceProvider(const std::function<double(const Computer *, con
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    4,
+    5,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,

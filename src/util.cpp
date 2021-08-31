@@ -8,6 +8,7 @@
  * Copyright (c) 2019-2021 JackMacWindows.
  */
 
+#include <atomic>
 #include <sstream>
 #include <Computer.hpp>
 #include <dirent.h>
@@ -31,16 +32,19 @@ extern std::string standaloneBIOS;
 
 const char * lastCFunction = "(none!)";
 char computer_key = 'C';
-void* getCompCache_glob = NULL;
-Computer * getCompCache_comp = NULL;
+static ProtectedObject<std::unordered_map<void*, Computer*> > getCompCache;
 
-Computer * _get_comp(lua_State *L) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, 1);
-    void * retval = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    getCompCache_glob = *(void**)(((ptrdiff_t)L) + sizeof(void*) + 4);
-    getCompCache_comp = (Computer*)retval;
-    return (Computer*)retval;
+Computer * get_comp(lua_State *L) {
+    try {
+        return getCompCache->at(L->l_G);
+    } catch (std::out_of_range &e) {
+        LockGuard lock(getCompCache);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, 1);
+        Computer * retval = (Computer*)lua_touserdata(L, -1);
+        lua_pop(L, 1);
+        getCompCache->insert(std::make_pair(L->l_G, retval));
+        return retval;
+    }
 }
 
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {
@@ -109,22 +113,22 @@ static std::list<std::string> split_list(const std::string& strToSplit, const ch
 }
 
 path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md, std::string * mountPath) {
-    if (md && fixpath_ro(comp, path.c_str())) return path_t();
+    if (md && fixpath_ro(comp, path)) return path_t();
     std::list<std::string> components = split_list(path, "/\\");
     while (!components.empty() && components.front().empty()) components.pop_front();
     if (components.empty()) return fixpath(comp, "", true);
     components.pop_back();
     std::list<std::string> append;
-    path_t maxPath = fixpath(comp, concat(components, '/').c_str(), false, true, mountPath);
+    path_t maxPath = fixpath(comp, concat(components, '/'), false, true, mountPath);
     while (maxPath.empty()) {
         append.push_front(components.back());
         components.pop_back();
         if (components.empty()) return path_t();
-        maxPath = fixpath(comp, concat(components, '/').c_str(), false, true, mountPath);
+        maxPath = fixpath(comp, concat(components, '/'), false, true, mountPath);
     }
     if (!md) return maxPath;
     if (createDirectory(maxPath + PATH_SEP + wstr(concat(append, PATH_SEPC))) != 0) return path_t();
-    return fixpath(comp, path.c_str(), false, true, mountPath);
+    return fixpath(comp, path, false, true, mountPath);
 }
 
 static bool _nothrow(std::function<void()> f) { try { f(); return true; } catch (...) { return false; } }
@@ -142,12 +146,15 @@ inline bool isVFSPath(path_t path) {
 path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
-    for (const std::string& s : elems) {
+    for (std::string s : elems) {
         if (s == "..") {
             if (pathc.empty() && addExt) return path_t();
             else if (pathc.empty()) pathc.push_back("..");
             else pathc.pop_back();
-        } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
+        } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
+            pathc.push_back(s);
+        }
     }
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua")
@@ -232,9 +239,12 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
 bool fixpath_ro(Computer *comp, const std::string& path) {
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
-    for (const std::string& s : elems) {
+    for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
-        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
+            pathc.push_back(s);
+        }
     }
     std::pair<size_t, bool> max_path = std::make_pair(0, false);
     for (const auto& m : comp->mounts)
@@ -247,9 +257,12 @@ std::set<std::string> getMounts(Computer * computer, const std::string& comp_pat
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     std::set<std::string> retval;
-    for (const std::string& s : elems) {
+    for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return retval; else pathc.pop_back(); }
-        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) pathc.push_back(s);
+        else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
+            pathc.push_back(s);
+        }
     }
     for (const auto& m : computer->mounts)
         if (pathc.size() + 1 == std::get<0>(m).size() && std::equal(pathc.begin(), pathc.end(), std::get<0>(m).begin()))
@@ -259,7 +272,7 @@ std::set<std::string> getMounts(Computer * computer, const std::string& comp_pat
 
 static void xcopy_internal(lua_State *from, lua_State *to, int n, int copies_slot) {
     for (int i = n - 1; i >= 0; i--) {
-        size_t sz;
+        size_t sz = 0;
         switch (lua_type(from, -1-i)) {
             case LUA_TNIL: case LUA_TNONE: lua_pushnil(to); break;
             case LUA_TBOOLEAN: lua_pushboolean(to, lua_toboolean(from, -1-i)); break;
@@ -337,15 +350,20 @@ static std::vector<std::pair<IPv6, uint8_t> > reservedIPv6s = {
     {{0xfe80, 0, 0, 0, 0, 0, 0, 0}, 10}
 };
 
+static std::atomic_bool didAddIPv4IPs(false);
+
 bool matchIPClass(const std::string& address, const std::string& pattern) {
     static const std::regex ipv4_regex("(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)");
     static const std::regex ipv6_regex("");
     static const std::regex ipv4_class_regex("(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)/(\\d+)");
     static const std::regex regex_escape("[\\^\\$\\\\\\.\\+\\?\\(\\)\\[\\]\\{\\}\\|]");
     static const std::regex regex_wildcard("\\*");
-    if (reservedIPv6s.size() < reservedIPv4s.size())
+    if (!didAddIPv4IPs.load()) {
+        didAddIPv4IPs.store(true);
+        reservedIPv6s.reserve(reservedIPv6s.size() + reservedIPv4s.size());
         for (const auto& cl : reservedIPv4s)
             reservedIPv6s.push_back(std::make_pair<IPv6, uint8_t>({0, 0, 0, 0, 0, 0xffff, (uint16_t)(cl.first >> 16), (uint16_t)(cl.first & 0xFFFF)}, cl.second + 96));
+    }
     std::smatch pmatch, amatch;
     const std::regex patreg(std::regex_replace(std::regex_replace(pattern, regex_escape, "\\$&"), regex_wildcard, ".*"));
     if ((pattern == "$private" && address == "localhost") || std::regex_match(address, patreg)) return true;

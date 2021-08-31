@@ -29,9 +29,6 @@ extern "C" {extern void syncfs(); }
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false, 0, 0};
-#ifdef __IPHONEOS__
-    cfg.startFullscreen = true;
-#endif
     std::ifstream in(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
     if (!in.is_open()) return cfg;
     if (in.peek() == std::ifstream::traits_type::eof()) { in.close(); return cfg; } // treat an empty file as if it didn't exist in the first place
@@ -130,7 +127,8 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"snooperEnabled", {2, 0}},
     {"computerWidth", {2, 1}},
     {"computerHeight", {2, 1}},
-    {"keepOpenOnShutdown", {0, 0}}
+    {"keepOpenOnShutdown", {0, 0}},
+    {"useWebP", {0, 0}}
 };
 
 const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion", "pluginData", "http_proxy_server", "http_proxy_port", "cliControlKeyMode", "serverMode", "romReadOnly"};
@@ -205,10 +203,11 @@ void config_init() {
         true,
         false,
 #if defined(__IPHONEOS__) || defined(__ANDROID__)
-        true
+        true,
 #else
-        false
+        false,
 #endif
+        false
     };
     std::ifstream in(getBasePath() + WS("/config/global.json"));
     if (!in.is_open()) { onboardingMode = 1; return; }
@@ -247,21 +246,31 @@ void config_init() {
     in.close();
     readConfigSetting(http_enable, Bool);
     readConfigSetting(mount_mode, Int);
-    if (root.isMember("http_whitelist"))
+    if (root.isMember("http_whitelist")) {
+        config.http_whitelist.clear();
         for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
             config.http_whitelist.push_back(it->toString());
-    if (root.isMember("http_blacklist"))
+    }
+    if (root.isMember("http_blacklist")) {
+        config.http_blacklist.clear();
         for (auto it = root["http_blacklist"].arrayBegin(); it != root["http_blacklist"].arrayEnd(); ++it)
             config.http_blacklist.push_back(it->toString());
-    if (root.isMember("mounter_whitelist"))
+    }
+    if (root.isMember("mounter_whitelist")) {
+        config.mounter_whitelist.clear();
         for (auto it = root["mounter_whitelist"].arrayBegin(); it != root["mounter_whitelist"].arrayEnd(); ++it)
             config.mounter_whitelist.push_back(it->toString());
-    if (root.isMember("mounter_blacklist"))
+    }
+    if (root.isMember("mounter_blacklist")) {
+        config.mounter_blacklist.clear();
         for (auto it = root["mounter_blacklist"].arrayBegin(); it != root["mounter_blacklist"].arrayEnd(); ++it)
             config.mounter_blacklist.push_back(it->toString());
-    if (root.isMember("mounter_no_ask"))
+    }
+    if (root.isMember("mounter_no_ask")) {
+        config.mounter_no_ask.clear();
         for (auto it = root["mounter_no_ask"].arrayBegin(); it != root["mounter_no_ask"].arrayEnd(); ++it)
             config.mounter_no_ask.push_back(it->toString());
+    }
     readConfigSetting(disable_lua51_features, Bool);
     readConfigSetting(default_computer_settings, String);
     readConfigSetting(logErrors, Bool);
@@ -312,8 +321,8 @@ void config_init() {
 #if !(defined(__IPHONEOS__) || defined(__ANDROID__))
     readConfigSetting(keepOpenOnShutdown, Bool);
 #endif
+    readConfigSetting(useWebP, Bool);
     readConfigSetting(jit_ffi_enable, Bool);
-    if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
 #ifndef __EMSCRIPTEN__
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')) != std::string(CRAFTOSPC_VERSION).substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')))) { onboardingMode = 2; config_save(); }
@@ -379,6 +388,7 @@ void config_save() {
     root["snapToSize"] = config.snapToSize;
     root["snooperEnabled"] = config.snooperEnabled;
     root["keepOpenOnShutdown"] = config.keepOpenOnShutdown;
+    root["useWebP"] = config.useWebP;
     root["jit_ffi_enable"] = config.jit_ffi_enable;
     root["lastVersion"] = CRAFTOSPC_VERSION;
     Value pluginRoot;

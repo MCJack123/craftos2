@@ -240,6 +240,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             self->term->changed = true;
         }
         self->colors = 0xF0;
+        self->system_start = std::chrono::system_clock::now();
 
         /*
         * All Lua contexts are held in this structure. We work with it almost
@@ -519,7 +520,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             self->rawFileStack = NULL;
         }
     }
-    if (self->term != NULL) {
+    if (self->term != NULL && !self->term->errorMode) {
         // Reset terminal contents
         std::lock_guard<std::mutex> lock(self->term->locked);
         self->term->blinkX = 0;

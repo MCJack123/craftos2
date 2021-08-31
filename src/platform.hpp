@@ -15,6 +15,7 @@
 #include <thread>
 #include <lib.hpp>
 #include <SDL2/SDL.h>
+#include <Poco/JSON/Object.h>
 
 // Filesystem definitions (UTF-16 vs. not Windows)
 #ifdef WIN32
@@ -73,7 +74,7 @@ extern path_t getBasePath();
 extern path_t getROMPath();
 extern path_t getPlugInPath();
 extern path_t getMCSavePath();
-extern void updateNow(const std::string& tag_name);
+extern void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root);
 extern void migrateOldData();
 extern void copyImage(SDL_Surface* surf);
 extern void setupCrashHandler();

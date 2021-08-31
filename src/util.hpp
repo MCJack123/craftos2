@@ -21,11 +21,12 @@ extern "C" {
 #include <vector>
 #include <Poco/JSON/JSON.h>
 #include <Poco/JSON/Parser.h>
+#include <Poco/Net/HTTPResponse.h>
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.6-luajit"
-#define CRAFTOSPC_CC_VERSION "1.97.0"
+#define CRAFTOSPC_VERSION    "v2.6.1-luajit"
+#define CRAFTOSPC_CC_VERSION "1.98.2"
 #define CRAFTOSPC_INDEV      false
 
 // for some reason Clang complains if this isn't present
@@ -122,6 +123,49 @@ public:
     Poco::JSON::Object::ConstIterator end() { try { return obj.extract<Poco::JSON::Object>().end(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->end(); } }
 };
 
+// For get_comp
+typedef union {
+  void *gc;
+  void *p;
+  lua_Number n;
+  int b;
+} lua_Value;
+
+typedef struct lua_TValue {
+  lua_Value value; int tt;
+} TValue;
+
+struct lua_State {
+	void *next;
+  unsigned char tt;
+  unsigned char marked;
+	unsigned char status;
+	void* top;  /* first free slot in the stack */
+	void* base;  /* base of current function */
+	void *l_G;
+	void *ci;  /* call info for current function */
+	void* ctx;  /* `savedpc' of current function, or context */
+	void* stack_last;  /* last free slot in the stack */
+	void* stack;  /* stack base */
+	void *end_ci;  /* points after end of ci array*/
+	void *base_ci;  /* array of CallInfo's */
+	int stacksize;
+	int size_ci;  /* size of array `base_ci' */
+	unsigned short nCcalls;  /* number of nested C calls */
+	unsigned short baseCcalls;  /* nested C calls when resuming coroutine */
+	unsigned char hookmask;
+	unsigned char allowhook;
+	int basehookcount;
+	int hookcount;
+	lua_Hook hook;
+	TValue l_gt;  /* table of globals */
+	TValue env;  /* temporary place for environments */
+	void *openupval;  /* list of open upvalues in this stack */
+	void *gclist;
+	struct lua_longjmp *errorJmp;  /* current error recover point */
+	ptrdiff_t errfunc;  /* current error handling function (stack index) */
+};
+
 inline int log2i(int num) {
     if (num == 0) return 0;
     int retval;
@@ -161,10 +205,7 @@ extern std::list<Terminal*>::iterator renderTarget;
 
 extern std::string loadingPlugin;
 extern const char * lastCFunction;
-extern void* getCompCache_glob;
-extern Computer * getCompCache_comp;
-extern Computer * _get_comp(lua_State *L);
-#define get_comp(L) (*(void**)(((ptrdiff_t)(L)) + sizeof(void*) + 4) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
+extern Computer * get_comp(lua_State *L);
 
 template<typename T>
 inline T min(T a, T b) { return a < b ? a : b; }
@@ -175,7 +216,7 @@ extern std::string b64decode(const std::string& orig);
 extern std::vector<std::string> split(const std::string& strToSplit, const char * delimeter);
 extern std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
-extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback);
+extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*, Poco::Net::HTTPResponse*)>& callback);
 extern path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
 extern bool fixpath_ro(Computer *comp, const std::string& path);
 extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);

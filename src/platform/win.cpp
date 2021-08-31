@@ -17,11 +17,13 @@
 #include <codecvt>
 #include <Poco/SHA2Engine.h>
 #include <Poco/URI.h>
+#include <Poco/Version.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPSClientSession.h>
 #include <processenv.h>
 #include <Shlwapi.h>
+#include <commctrl.h>
 #include <dirent.h>
 #include <SDL2/SDL_syswm.h>
 #include <sys/stat.h>
@@ -169,8 +171,26 @@ int removeDirectory(const std::wstring& path) {
     } else return DeleteFileW(path.c_str()) ? 0 : (int)GetLastError();
 }
 
-void updateNow(const std::string& tagname) {
-    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname](std::istream * shain, Poco::Exception * e){
+static std::string makeSize(double n) {
+    if (n >= 100) return std::to_string((long)floor(n));
+    else return std::to_string(n).substr(0, 4);
+}
+
+void updateNow(const std::string& tagname, const Poco::JSON::Object::Ptr root) {
+    // If a delta update in the form "CraftOS-PC-Setup_Delta-v2.x.y.exe" is available, use that instead of the full installer
+    // "v2.x.y" indicates the oldest version that can update from this installer
+    std::string assetName = "CraftOS-PC-Setup.exe";
+    Poco::JSON::Array::Ptr assets = root->getArray("assets");
+    for (auto it = assets->begin(); it != assets->end(); it++) {
+        Poco::JSON::Object::Ptr obj = it->extract<Poco::JSON::Object::Ptr>();
+        std::string name = obj->getValue<std::string>("name");
+        if (name.substr(0, 24) == "CraftOS-PC-Setup_Delta-v") {
+            std::string tag = name.substr(23, name.size() - 27);
+            if (strcmp(tag.c_str(), CRAFTOSPC_VERSION) <= 0) assetName = name;
+            break;
+        }
+    }
+    HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/sha256-hashes.txt", [tagname, &assetName](std::istream * shain, Poco::Exception * e, Poco::Net::HTTPResponse * res){
         if (e != NULL) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
             return;
@@ -179,21 +199,76 @@ void updateNow(const std::string& tagname) {
         bool found = false;
         while (!shain->eof()) {
             std::getline(*shain, line);
-            if (line.find("CraftOS-PC-Setup.exe") != std::string::npos) {found = true; break;}
+            if (line.find(assetName) != std::string::npos) {found = true; break;}
         }
         if (!found) {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", "A file required for verification could not be downloaded sucessfully. Please download the installer manually.", NULL);
             return;
         }
         std::string hash = line.substr(0, 64);
-        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/CraftOS-PC-Setup.exe", [hash](std::istream * in, Poco::Exception * e) {
+        HTTPDownload("https://github.com/MCJack123/craftos2/releases/download/" + tagname + "/" + assetName, [&hash](std::istream * in, Poco::Exception * e, Poco::Net::HTTPResponse * res) {
             if (e != NULL) {
                 SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Update Error", std::string("An error occurred while downloading the update: " + e->displayText()).c_str(), NULL);
                 return;
             }
-            std::stringstream ss;
-            ss << in->rdbuf();
-            std::string data = ss.str();
+
+            size_t totalSize = res->getContentLength64();
+            SDL_Window * win = SDL_CreateWindow("Downloading...", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 300, 50, SDL_WINDOW_UTILITY);
+            SDL_FillRect(SDL_GetWindowSurface(win), NULL, 0xeeeeee);
+            SDL_UpdateWindowSurface(win);
+            SDL_SysWMinfo info;
+            SDL_VERSION(&info.version);
+            SDL_GetWindowWMInfo(win, &info);
+            InitCommonControls();
+            HWND hwndPB = CreateWindowEx(0, PROGRESS_CLASS, (LPTSTR) NULL, 
+                                    WS_CHILD | WS_VISIBLE,
+                                    5, 25, 290, 20,
+                                    info.info.win.window, (HMENU) 0, info.info.win.hinstance, NULL);
+            SendMessage(hwndPB, PBM_SETRANGE, 0, MAKELPARAM(0, 10000));
+            SendMessage(hwndPB, PBM_SETSTEP, (WPARAM) 1, 0); 
+            HWND hwndLabel = CreateWindow("static", "ST_U",
+                              WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                              5, 3, 290, 20,
+                              info.info.win.window, (HMENU)(501),
+                              info.info.win.hinstance, NULL);
+            std::string label = "0.0 / " + makeSize(totalSize / 1048576.0) + " MB, 0 B/s";
+            SetWindowText(hwndLabel, label.c_str());
+            HFONT hFont = CreateFont(
+		            18, 0, 0, 0, FW_MEDIUM, FALSE, FALSE, FALSE, ANSI_CHARSET, 
+		            OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 
+		            DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+            SendMessage(hwndLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+            std::string data;
+            data.reserve(totalSize);
+            char buf[2048];
+            size_t total = 0;
+            size_t bps = 0;
+            size_t lastSecondSize = 0;
+            std::chrono::system_clock::time_point lastSecond = std::chrono::system_clock::now();
+            while (in->good() && !in->eof()) {
+                in->read(buf, 2048);
+                size_t sz = in->gcount();
+                data += std::string(buf, sz);
+                total += sz;
+                if (std::chrono::system_clock::now() - lastSecond >= std::chrono::milliseconds(50) || in->eof()) {
+                    bps = (total - lastSecondSize) * 20;
+                    lastSecondSize = total;
+                    lastSecond = std::chrono::system_clock::now();
+                    label = makeSize(total / 1048576.0) + " / " + makeSize(totalSize / 1048576.0) + " MB, ";
+                    if (bps >= 1048576) label += makeSize(bps / 1048576.0) + " MB/s";
+                    else if (bps >= 1024) label += makeSize(bps / 1024.0) + " kB/s";
+                    else label += std::to_string(bps) + " B/s";
+                    SetWindowText(hwndLabel, label.c_str());
+                    SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000) + 1, 0);
+                    SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000), 0);
+                    SDL_PumpEvents();
+                }
+            }
+            SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000) - 1, 0);
+            SendMessage(hwndPB, PBM_SETPOS, (WPARAM)((double)total / (double)totalSize * 10000), 0);
+            SDL_PumpEvents();
+
             Poco::SHA2Engine engine;
             engine.update(data);
             std::string myhash = Poco::SHA2Engine::digestToHex(engine.digest());
@@ -207,11 +282,15 @@ void updateNow(const std::string& tagname) {
             std::ofstream out(path, std::ios::binary);
             out << data;
             out.close();
-            STARTUPINFOA info;
-            memset(&info, 0, sizeof(info));
-            info.cb = sizeof(info);
+            DestroyWindow(hwndPB);
+            DestroyWindow(hwndLabel);
+            SDL_DestroyWindow(win);
+
+            STARTUPINFOA sinfo;
+            memset(&sinfo, 0, sizeof(sinfo));
+            sinfo.cb = sizeof(sinfo);
             PROCESS_INFORMATION process;
-            CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &info, &process);
+            CreateProcessA(path.c_str(), (char*)(path + " /SILENT").c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &sinfo, &process);
             CloseHandle(process.hProcess);
             CloseHandle(process.hThread);
             exit(0);
@@ -287,11 +366,16 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 
 static bool pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
     Poco::URI uri(url);
-    Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+    Poco::Net::Context * ctx = new Poco::Net::Context(Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+#if POCO_VERSION >= 0x010A0000
+    ctx->disableProtocols(Poco::Net::Context::PROTO_TLSV1_3);
+#endif
+    Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), ctx);
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
     Poco::Net::HTTPRequest request(method, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
     Poco::Net::HTTPResponse response;
     session.setTimeout(Poco::Timespan(5000000));
+    request.add("Host", uri.getHost());
     request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
     request.add("X-API-Key", getAPIKey());
     request.add("x-amz-server-side-encryption", "AES256");
@@ -301,7 +385,7 @@ static bool pushCrashDump(const char * data, const size_t size, const path_t& pa
         session.sendRequest(request).write(data, size);
         std::istream& stream = session.receiveResponse(response);
         if (response.getStatus() / 100 == 3 && response.has("Location")) 
-            return pushCrashDump(data, size, path, response.get("Location"));
+            return pushCrashDump(data, size, path, response.get("Location"), method);
         else if (response.getStatus() == 200 && method == "POST") {
             Value root;
             Poco::JSON::Object::Ptr p = root.parse(stream);

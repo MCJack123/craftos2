@@ -100,6 +100,7 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
     while (predicate()) {
         if (!taskQueue->empty()) {
             TaskQueueItem * task = taskQueue->front();
+            bool async = task->async;
             {
                 std::unique_lock<std::mutex> lock(task->lock);
                 try {
@@ -110,7 +111,7 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
                 task->ready = true;
                 task->notify.notify_all();
             }
-            if (task->async) delete task;
+            if (async) delete task;
             taskQueue->pop();
         }
         SDL_PumpEvents();
@@ -133,6 +134,7 @@ void mainLoop() {
             while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
             while (!taskQueue->empty()) {
                 TaskQueueItem * task = taskQueue->front();
+                bool async = task->async;
                 {
                     std::unique_lock<std::mutex> lock(task->lock);
                     try {
@@ -143,7 +145,7 @@ void mainLoop() {
                     task->ready = true;
                     task->notify.notify_all();
                 }
-                if (task->async) delete task;
+                if (async) delete task;
                 taskQueue->pop();
             }
             taskQueueReady = false;
@@ -178,23 +180,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     do {
         if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
         param = lua_newthread(computer->paramQueue);
-        while (termHasEvent(computer)/* && computer->eventQueue.size() < 25*/) {
-            if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
-            std::string name = termGetEvent(param);
-            if (!name.empty()) {
-                if (name == "die") { computer->running = 0; name = "terminate"; }
-                computer->eventQueue.push(name);
-                if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
-                param = lua_newthread(computer->paramQueue);
-            }
-        }
-        if (computer->running != 1) return 0;
-        while (computer->eventQueue.empty()) {
-            std::mutex m;
-            std::unique_lock<std::mutex> l(m);
-            while (computer->running == 1 && !termHasEvent(computer)) 
-                computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return termHasEvent(computer) || computer->running != 1;});
-            if (computer->running != 1) return 0;
+        do {
             while (termHasEvent(computer) && computer->eventQueue.size() < QUEUE_LIMIT) {
                 if (!lua_checkstack(param, 4)) fprintf(stderr, "Could not allocate event\n");
                 std::string name = termGetEvent(param);
@@ -216,7 +202,14 @@ int getNextEvent(lua_State *L, const std::string& filter) {
                     param = lua_newthread(computer->paramQueue);
                 }
             }
-        }
+            if (computer->eventQueue.empty()) {
+                std::mutex m;
+                std::unique_lock<std::mutex> l(m);
+                while (computer->running == 1 && !termHasEvent(computer)) 
+                    computer->event_lock.wait_for(l, std::chrono::seconds(5), [computer]()->bool{return termHasEvent(computer) || computer->running != 1;});
+                if (computer->running != 1) return 0;
+            }
+        } while (computer->eventQueue.empty());
         ev = computer->eventQueue.front();
         computer->eventQueue.pop();
         if (!filter.empty() && ev != filter && ev != "terminate") lua_remove(computer->paramQueue, 1);
