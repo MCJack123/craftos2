@@ -140,6 +140,7 @@ jobs:
         additionalCachedPaths: ${{ env.buildDir }}/vcpkg_installed
     - name: Prepare environment
       run: |
+        tree
         git submodule update --init --recursive
         mkdir x64\ReleaseC
         mkdir x64\Release
