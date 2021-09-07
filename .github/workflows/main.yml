@@ -179,7 +179,7 @@ jobs:
         #$code = Get-Content .\retval.txt
         #if ( $code -ne 0 ) { exit $code }
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v2
       with:
         name: CraftOS-PC_${{ github.sha }}
         path: |
