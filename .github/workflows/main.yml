@@ -175,7 +175,7 @@ jobs:
       continue-on-error: true
     - name: Show logs
       run: |
-        type "%appdata\CraftOS-PC\computer\0\CraftOSTest.log"
+        type "%appdata%\CraftOS-PC\computer\0\CraftOSTest.log"
         $code = Get-Content .\retval.txt
         #if ( $code -ne 0 ) { exit %EXITCODE% }
     - name: Upload artifact
