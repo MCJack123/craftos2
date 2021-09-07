@@ -168,6 +168,9 @@ jobs:
         $tag = git rev-parse --short HEAD
         set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
+        # Remove buildtrees that kill the cache
+        del /F /S /Q vcpkg\buildtrees\*
+        rmdir /S /Q vcpkg\buildtrees\*
     - name: Run CraftOSTest
       run: |
         x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua --rom "C:\Program Files\CraftOS-PC"
