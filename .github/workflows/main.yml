@@ -170,7 +170,7 @@ jobs:
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
     - name: Run CraftOSTest
       run: |
-        x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua
+        x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua --rom "C:\Program Files\CraftOS-PC"
         echo $LASTEXITCODE > retval.txt
       continue-on-error: true
     - name: Show logs
