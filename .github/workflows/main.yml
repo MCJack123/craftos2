@@ -127,7 +127,7 @@ jobs:
     - name: Download ROM
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Restore vcpkg cache
-      uses: MCJack123/run-vcpkg@v7
+      uses: MCJack123/run-vcpkg@v7.4.1
       with:
         # Just install vcpkg for now, do not install any ports in this step yet.
         setupOnly: true
