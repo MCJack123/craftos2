@@ -535,6 +535,7 @@ int main(int argc, char*argv[]) {
         else if (arg.substr(0, 16) == "--raw-websocket=") { rawClient = true; rawWebSocketURL = arg.substr(16); }
         else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); }
         else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
+        else if (arg == "--single") singleWindowMode = true;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
@@ -656,7 +657,8 @@ int main(int argc, char*argv[]) {
                       << "  --raw                            Outputs terminal contents using a binary format\n"
                       << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
                       << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n"
-                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n\n"
+                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n"
+                      << "  --single                         Forces all screen output to a single window\n\n"
                       << "CCEmuX compatibility options:\n"
                       << "  -a|--assets-dir <dir>            Sets the CC:T directory that holds the ROM & BIOS\n"
                       << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"

@@ -79,13 +79,11 @@ public:
     void showMessage(uint32_t flags, const char * title, const char * message) override;
     void toggleFullscreen();
     void setLabel(std::string label) override;
+    void onActivate() override;
     virtual bool resizeWholeWindow(int w, int h);
 
-#ifdef __EMSCRIPTEN__
-    static SDL_Window *win;
-#else
     SDL_Window *win;
-#endif
+    static SDL_Window *singleWin;
 protected:
     friend void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
     friend int main(int argc, char*argv[]);

@@ -32,8 +32,6 @@ static void pressAlt(int sig);
 #define BUTTON_RELEASED NCURSES_BUTTON_RELEASED
 #endif
 
-std::set<unsigned> CLITerminal::currentIDs;
-std::set<unsigned>::iterator CLITerminal::selectedWindow = currentIDs.begin();
 bool CLITerminal::stopRender = false;
 bool CLITerminal::forceRender = false;
 unsigned short CLITerminal::lastPaletteChecksum = 0;
@@ -45,7 +43,7 @@ void CLITerminal::renderNavbar(std::string title) {
     if (stopRender) return;
     clrtoeol();
     if (stopRender) return;
-    printw("%d: %s", *selectedWindow+1, title.c_str());
+    printw("%d: %s", (*renderTarget)->id+1, title.c_str());
     if (stopRender) return;
     for (int i = getcurx(stdscr); i < COLS-3; i++) addch(' ');
     if (stopRender) return;
@@ -69,20 +67,19 @@ void CLITerminal::renderNavbar(std::string title) {
 
 CLITerminal::CLITerminal(std::string title): Terminal(COLS, LINES-1) {
     this->title = title;
-    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++);
-    selectedWindow = currentIDs.insert(currentIDs.end(), id);
+    for (id = 0; currentWindowIDs.find(id) != currentWindowIDs.end(); id++);
     last_pair = 0;
     renderTargets.push_back(this);
+    renderTarget = --renderTargets.end();
+    onActivate();
 }
 
 CLITerminal::~CLITerminal() {
-    auto pos = currentIDs.find(id);
-    auto next = currentIDs.erase(pos);
-    if (currentIDs.empty()) return;
-    if (next == currentIDs.end()) --next;
-    selectedWindow = next;
+    const auto pos = currentWindowIDs.find(id);
+    if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
     std::lock_guard<std::mutex> lock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
+    if (*renderTarget == this) previousRenderTarget();
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);
@@ -105,7 +102,7 @@ void CLITerminal::render() {
         this->height = newHeight;
         changed = true;
     }
-    if (*selectedWindow == id && changed) {
+    if (changed) {
         changed = false;
         std::lock_guard<std::mutex> locked_g(locked);
         move(0, 0);
@@ -162,20 +159,14 @@ void CLITerminal::showMessage(uint32_t flags, const char * title, const char * m
     fprintf(stderr, "%s: %s\n", title, message);
 }
 
-void CLITerminal::nextWindow() {
-    if (++selectedWindow == currentIDs.end()) selectedWindow = currentIDs.begin();
-    forceRender = true;
-}
-
-void CLITerminal::previousWindow() {
-    if (selectedWindow == currentIDs.begin()) selectedWindow = currentIDs.end();
-    selectedWindow--;
-    forceRender = true;
-}
-
 void CLITerminal::setLabel(std::string label) {
     title = label;
-    if (*selectedWindow == id) renderNavbar(label);
+    if (*renderTarget == this) renderNavbar(label);
+}
+
+void CLITerminal::onActivate() {
+    renderNavbar(title);
+    forceRender = true;
 }
 
 static short original_colors[16][3];
@@ -197,7 +188,7 @@ static void pressControl(int sig) {
     e.key.keysym.sym = (SDL_Keycode)29;
     LockGuard lock(computers);
     for (Computer * c : *computers) {
-        if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+        if (*renderTarget == c->term/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
             c->termEventQueue.push(e);
@@ -215,7 +206,7 @@ static void pressAlt(int sig) {
     e.key.keysym.sym = (SDL_Keycode)56;
     LockGuard lock(computers);
     for (Computer * c : *computers) {
-        if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
+        if (*renderTarget == c->term/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
             e.key.windowID = c->term->id;
             c->termEventQueue.push(e);
@@ -228,6 +219,7 @@ static void pressAlt(int sig) {
 }
 
 void CLITerminal::init() {
+    singleWindowMode = true;
     SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER);
     initscr();
     keypad(stdscr, TRUE);
@@ -295,9 +287,9 @@ void CLITerminal::quit() {
 #endif
 
 #define sendEventToTermQueue(e, TYPE) \
-    if (rawClient) {e.TYPE.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}\
+    if (rawClient) {e.TYPE.windowID = (*renderTarget)->id; sendRawEvent(e);}\
     else {LockGuard lock(computers);\
-        for (Computer * c : *computers) {if (*CLITerminal::selectedWindow == c->term->id/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
+        for (Computer * c : *computers) {if (*renderTarget == c->term/*|| findMonitorFromWindowID(c, e.text.windowID, tmps) != NULL*/) {\
             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);\
             e.TYPE.windowID = c->term->id;\
             c->termEventQueue.push(e);\
@@ -361,8 +353,8 @@ bool CLITerminal::pollEvents() {
         if (async) delete task;
         taskQueue->pop();
     }
-    if (ch == KEY_SLEFT) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); } 
-    else if (ch == KEY_SRIGHT) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } 
+    if (ch == KEY_SLEFT) { previousRenderTarget(); CLITerminal::renderNavbar(""); } 
+    else if (ch == KEY_SRIGHT) { nextRenderTarget(); CLITerminal::renderNavbar(""); } 
     else if (ch == KEY_MOUSE) {
         if (getmouse(&me) != OK) return false;
         if (me.y == LINES - 1) {
@@ -370,27 +362,27 @@ bool CLITerminal::pollEvents() {
                 if (me.x == COLS - 1) {
                     e.type = SDL_WINDOWEVENT;
                     e.window.event = SDL_WINDOWEVENT_CLOSE;
-                    if (rawClient) {e.button.windowID = *CLITerminal::selectedWindow; sendRawEvent(e);}
+                    if (rawClient) {e.button.windowID = (*renderTarget)->id; sendRawEvent(e);}
                     else {
                         LockGuard lock(computers);
                         for (Computer * c : *computers) {
-                            if (*CLITerminal::selectedWindow == c->term->id || findMonitorFromWindowID(c, *CLITerminal::selectedWindow, tmps) != NULL) {
+                            if (*renderTarget == c->term || findMonitorFromWindowID(c, (*renderTarget)->id, NULL) != NULL) {
                                 std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
-                                e.button.windowID = *CLITerminal::selectedWindow;
+                                e.button.windowID = (*renderTarget)->id;
                                 c->termEventQueue.push(e);
                                 c->event_lock.notify_all();
                             }
                         }
                         for (Terminal * t : orphanedTerminals) {
-                            if (t->id == *CLITerminal::selectedWindow) {
+                            if (t == *renderTarget) {
                                 orphanedTerminals.erase(t);
                                 delete t;
                                 break;
                             }
                         }
                     }
-                } else if (me.x == COLS - 2) { CLITerminal::nextWindow(); CLITerminal::renderNavbar(""); } 
-                else if (me.x == COLS - 3) { CLITerminal::previousWindow(); CLITerminal::renderNavbar(""); }
+                } else if (me.x == COLS - 2) { nextRenderTarget(); CLITerminal::renderNavbar(""); } 
+                else if (me.x == COLS - 3) { previousRenderTarget(); CLITerminal::renderNavbar(""); }
             }
             return false;
         }

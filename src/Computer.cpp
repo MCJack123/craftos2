@@ -720,7 +720,7 @@ void* computerThread(void* data) {
                             break;
                         } else {
                             std::string side;
-                            monitor * m = findMonitorFromWindowID(comp, e.window.windowID, side);
+                            monitor * m = findMonitorFromWindowID(comp, e.window.windowID, &side);
                             if (m != NULL) detachPeripheral(comp, side);
                         }
                     } else if (e.type == SDL_QUIT) {

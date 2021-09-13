@@ -197,11 +197,6 @@ inline std::string asciify(std::string str) {
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
 extern std::unordered_map<std::string, std::tuple<int, std::function<int(const std::string&, void*)>, void*> > userConfig;
-extern std::list<Terminal*> renderTargets;
-extern std::mutex renderTargetsLock;
-#ifdef __EMSCRIPTEN__
-extern std::list<Terminal*>::iterator renderTarget;
-#endif
 
 extern std::string loadingPlugin;
 extern const char * lastCFunction;

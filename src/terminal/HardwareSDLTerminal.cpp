@@ -41,11 +41,9 @@ extern "C" {
 #ifdef __APPLE__
 extern float getBackingScaleFactor(SDL_Window *win);
 #endif
-#ifdef __EMSCRIPTEN__
-SDL_Renderer *HardwareSDLTerminal::ren = NULL;
-SDL_Texture *HardwareSDLTerminal::font = NULL;
-SDL_Texture *HardwareSDLTerminal::pixtex = NULL;
-#endif
+SDL_Renderer *HardwareSDLTerminal::singleRen = NULL;
+SDL_Texture *HardwareSDLTerminal::singleFont = NULL;
+SDL_Texture *HardwareSDLTerminal::singlePixtex = NULL;
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
@@ -68,9 +66,6 @@ void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 }
 
 HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) {
-#ifdef __EMSCRIPTEN__
-    if (ren == NULL) {
-#endif
     std::lock_guard<std::mutex> lock(locked); // try to prevent race condition (see explanation in render())
     float dpi, defaultDpi;
 #ifdef __APPLE__
@@ -79,47 +74,59 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
     MySDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(win), &dpi, &defaultDpi);
 #endif
     dpiScale = (dpi / defaultDpi) - floor(dpi / defaultDpi) > 0.5f ? (int)ceil(dpi / defaultDpi) : (int)floor(dpi / defaultDpi);
-    ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
-    if (ren == (SDL_Renderer*)0) {
-        SDL_DestroyWindow(win);
-        throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
-    }
-    SDL_RendererInfo info;
-    SDL_GetRendererInfo(ren, &info);
-    if ((!overrideHardwareDriver.empty() && std::string(info.name) != overrideHardwareDriver) || 
-        (overrideHardwareDriver.empty() && !config.preferredHardwareDriver.empty() && std::string(info.name) != config.preferredHardwareDriver))
-        fprintf(stderr, "Warning: Preferred driver %s not available, using %s instead.\n", (overrideHardwareDriver.empty() ? config.preferredHardwareDriver.c_str() : overrideHardwareDriver.c_str()), info.name);
-    if (std::string(info.name) == "software") dpiScale = 1;
-    font = SDL_CreateTextureFromSurface(ren, bmp);
-    if (font == (SDL_Texture*)0) {
-        SDL_DestroyRenderer(ren);
-        SDL_DestroyWindow(win);
-        throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
-    }
-    pixtex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, (int)(width * charWidth * dpiScale), (int)(height * charHeight * dpiScale));
-    if (pixtex == (SDL_Texture*)0) {
-        SDL_DestroyTexture(font);
-        SDL_DestroyRenderer(ren);
-        SDL_DestroyWindow(win);
-        throw window_exception("Failed to create texture for pixels: " + std::string(SDL_GetError()));
-    }
+    if (singleWindowMode && singleRen != NULL) {
+        ren = singleRen;
+        font = singleFont;
+        pixtex = singlePixtex;
+        SDL_RendererInfo info;
+        SDL_GetRendererInfo(ren, &info);
+        if (std::string(info.name) == "software") dpiScale = 1;
+    } else {
+        ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
+        if (ren == (SDL_Renderer*)0) {
+            SDL_DestroyWindow(win);
+            throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
+        }
+        SDL_RendererInfo info;
+        SDL_GetRendererInfo(ren, &info);
+        if ((!overrideHardwareDriver.empty() && std::string(info.name) != overrideHardwareDriver) || 
+            (overrideHardwareDriver.empty() && !config.preferredHardwareDriver.empty() && std::string(info.name) != config.preferredHardwareDriver))
+            fprintf(stderr, "Warning: Preferred driver %s not available, using %s instead.\n", (overrideHardwareDriver.empty() ? config.preferredHardwareDriver.c_str() : overrideHardwareDriver.c_str()), info.name);
+        if (std::string(info.name) == "software") dpiScale = 1;
+        font = SDL_CreateTextureFromSurface(ren, bmp);
+        if (font == (SDL_Texture*)0) {
+            SDL_DestroyRenderer(ren);
+            SDL_DestroyWindow(win);
+            throw window_exception("Failed to load texture from font: " + std::string(SDL_GetError()));
+        }
+        pixtex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, (int)(width * charWidth * dpiScale), (int)(height * charHeight * dpiScale));
+        if (pixtex == (SDL_Texture*)0) {
+            SDL_DestroyTexture(font);
+            SDL_DestroyRenderer(ren);
+            SDL_DestroyWindow(win);
+            throw window_exception("Failed to create texture for pixels: " + std::string(SDL_GetError()));
+        }
 #ifdef __APPLE__
-    // macOS has some weird scaling bug on non-Retina displays that this fixes for some reason?
-    SDL_SetWindowSize(win, realWidth, realHeight);
+        // macOS has some weird scaling bug on non-Retina displays that this fixes for some reason?
+        SDL_SetWindowSize(win, realWidth, realHeight);
 #endif
-#ifdef __EMSCRIPTEN__
     }
-#endif
+    if (singleWindowMode && singleRen == NULL) {
+        singleRen = ren;
+        singleFont = font;
+        singlePixtex = pixtex;
+    }
 }
 
 HardwareSDLTerminal::~HardwareSDLTerminal() {
-#ifndef __EMSCRIPTEN__
-    if (!overridden) {
+    if (!singleWindowMode || renderTargets.size() == 1) {
         SDL_DestroyTexture(pixtex);
         SDL_DestroyTexture(font);
         SDL_DestroyRenderer(ren);
+        singlePixtex = NULL;
+        singleFont = NULL;
+        singleRen = NULL;
     }
-#endif
 }
 
 extern bool operator!=(Color lhs, Color rhs);
@@ -174,9 +181,6 @@ static unsigned char circlePix[] = {
 };
 
 void HardwareSDLTerminal::render() {
-#ifdef __EMSCRIPTEN__
-    if (*renderTarget != this) return;
-#endif
     // copy the screen data so we can let Lua keep going without waiting for the mutex
     std::unique_ptr<vector2d<unsigned char> > newscreen;
     std::unique_ptr<vector2d<unsigned char> > newcolors;
@@ -456,15 +460,8 @@ void HardwareSDLTerminal::quit() {
     SDL_Quit();
 }
 
-#ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
-#else
-#define checkWindowID(c, wid) ((wid) == ( c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
-#endif
-
 bool HardwareSDLTerminal::pollEvents() {
     SDL_Event e;
-    std::string tmps;
 #ifdef __EMSCRIPTEN__
     if (SDL_PollEvent(&e)) {
 #else
@@ -488,21 +485,26 @@ bool HardwareSDLTerminal::pollEvents() {
                 taskQueue->pop();
             }
         } else if (e.type == render_event_type) {
-#ifdef __EMSCRIPTEN__
-            std::lock_guard<std::mutex> lock(((SDLTerminal*)*renderTarget)->renderlock);
-            SDL_RenderPresent(HardwareSDLTerminal::ren);
-            SDL_UpdateWindowSurface(SDLTerminal::win);
-#else
-            for (Terminal* term : renderTargets) {
-                HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
+            if (singleWindowMode) {
+                HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(*renderTarget);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);
-                    if (sdlterm->gotResizeEvent || sdlterm->width == 0 || sdlterm->height == 0) continue;
-                    SDL_RenderPresent(sdlterm->ren);
-                    SDL_UpdateWindowSurface(sdlterm->win);
+                    if (!(sdlterm->gotResizeEvent || sdlterm->width == 0 || sdlterm->height == 0)) {
+                        SDL_RenderPresent(sdlterm->ren);
+                        SDL_UpdateWindowSurface(sdlterm->win);
+                    }
+                }
+            } else {
+                for (Terminal* term : renderTargets) {
+                    HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(term);
+                    if (sdlterm != NULL) {
+                        std::lock_guard<std::mutex> lock(sdlterm->renderlock);
+                        if (sdlterm->gotResizeEvent || sdlterm->width == 0 || sdlterm->height == 0) continue;
+                        SDL_RenderPresent(sdlterm->ren);
+                        SDL_UpdateWindowSurface(sdlterm->win);
+                    }
                 }
             }
-#endif
         } else {
             if (rawClient) {
                 sendRawEvent(e);
@@ -518,7 +520,7 @@ bool HardwareSDLTerminal::pollEvents() {
                             term = c->term;
                             break;
                         } else {
-                            monitor * m = findMonitorFromWindowID(c, lastWindow, tmps);
+                            monitor * m = findMonitorFromWindowID(c, lastWindow, NULL);
                             if (m != NULL) {
                                 comp = c;
                                 term = m->term;
@@ -568,6 +570,8 @@ bool HardwareSDLTerminal::pollEvents() {
                     }
                 }
                 if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
+                else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LEFT && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD) && !(e.key.keysym.mod & KMOD_SHIFT)) previousRenderTarget();
+                else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RIGHT && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD) && !(e.key.keysym.mod & KMOD_SHIFT)) nextRenderTarget();
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);

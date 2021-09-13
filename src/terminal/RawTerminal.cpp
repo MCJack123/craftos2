@@ -199,7 +199,6 @@ Once the server sends back a response, both the server and client MUST communica
 
 */
 
-std::set<unsigned> RawTerminal::currentIDs;
 uint16_t RawTerminal::supportedFeatures = 0;
 uint32_t RawTerminal::supportedExtendedFeatures = 0;
 std::function<void(const std::string&)> rawWriter = [](const std::string& data){
@@ -383,12 +382,6 @@ void sendRawEvent(SDL_Event e) {
             for (int i = 0; i < 6; i++) output.put(0);
         });
 }
-
-#ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
-#else
-#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
-#endif
 
 struct rawMouseProviderData {
     uint8_t evtype;
@@ -997,9 +990,11 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
 RawTerminal::RawTerminal(std::string title, uint8_t cid) : Terminal(config.defaultWidth, config.defaultHeight), computerID(cid) {
     this->title.reserve(title.size());
     std::move(title.begin(), title.end(), this->title.begin());
-    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
-    currentIDs.insert(id);
-    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
+    if (!singleWindowMode) {
+        for (id = 0; currentWindowIDs.find(id) != currentWindowIDs.end(); id++) {}
+        currentWindowIDs.insert(id);
+    }
+    if (!singleWindowMode || renderTargets.empty()) sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
         output.put(0);
         output.put(computerID);
         output.write((char*)&width, 2);
@@ -1009,17 +1004,20 @@ RawTerminal::RawTerminal(std::string title, uint8_t cid) : Terminal(config.defau
     });
     std::lock_guard<std::mutex> rlock(renderTargetsLock);
     renderTargets.push_back(this);
+    renderTarget = --renderTargets.end();
+    onActivate();
 }
 
 RawTerminal::~RawTerminal() {
-    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [](std::ostream& output) {
+    if (!singleWindowMode || renderTargets.size() == 1) sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [](std::ostream& output) {
         output.put(1);
         for (int i = 0; i < 6; i++) output.put(0);
     });
-    const auto pos = currentIDs.find(id);
-    if (pos != currentIDs.end()) currentIDs.erase(pos);
+    const auto pos = currentWindowIDs.find(id);
+    if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
     std::lock_guard<std::mutex> rtlock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
+    if (*renderTarget == this) previousRenderTarget();
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);

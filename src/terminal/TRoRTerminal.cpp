@@ -32,15 +32,8 @@ is assumed to be meant for the first window (ID 0).
 | `SC` | `<message>`   | With the CraftOS-PC extension, clients MAY send a close message to the server as well. |
 */
 
-std::set<unsigned> TRoRTerminal::currentIDs;
 static std::unordered_set<std::string> trorExtensions;
 static std::thread * inputThread;
-
-#ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
-#else
-#define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
-#endif
 
 static std::string trorEvent(lua_State *L, void* userp) {
     std::string * str = (std::string*)userp;
@@ -59,7 +52,6 @@ static std::string trorEvent(lua_State *L, void* userp) {
 }
 
 static void trorInputLoop() {
-    std::string tmps;
     while (!exiting) {
         std::string line;
         std::getline(std::cin, line);
@@ -98,7 +90,7 @@ static void trorInputLoop() {
                     c->term->width = newWidth;
                     c->term->height = newHeight;
                 } else {
-                    monitor * m = findMonitorFromWindowID(c, id, tmps);
+                    monitor * m = findMonitorFromWindowID(c, id, NULL);
                     if (m != NULL) {
                         std::lock_guard<std::mutex> lock(m->term->locked);
                         m->term->screen.resize(newWidth, newHeight, ' ');
@@ -158,18 +150,20 @@ void TRoRTerminal::showGlobalMessage(Uint32 flags, const char * title, const cha
 
 TRoRTerminal::TRoRTerminal(std::string title): Terminal(config.defaultWidth, config.defaultHeight) {
     this->title = title;
-    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) 
-        ;
+    for (id = 0; currentWindowIDs.find(id) != currentWindowIDs.end(); id++) ;
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TN:%d;%s\n", id, title.c_str());
     renderTargets.push_back(this);
+    renderTarget = --renderTargets.end();
+    onActivate();
 }
 
 TRoRTerminal::~TRoRTerminal() {
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TQ:%d;\n", id);
-    const auto pos = currentIDs.find(id);
-    if (pos != currentIDs.end()) currentIDs.erase(pos);
+    const auto pos = currentWindowIDs.find(id);
+    if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
     std::lock_guard<std::mutex> lock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
+    if (*renderTarget == this) previousRenderTarget();
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);

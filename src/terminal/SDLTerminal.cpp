@@ -55,11 +55,8 @@ Uint32 SDLTerminal::lastWindow = 0;
 SDL_Surface* SDLTerminal::bmp = NULL;
 SDL_Surface* SDLTerminal::origfont = NULL;
 std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > SDLTerminal::eventHandlers;
-/* export */ std::list<Terminal*> renderTargets;
-/* export */ std::mutex renderTargetsLock;
+SDL_Window* SDLTerminal::singleWin = NULL;
 #ifdef __EMSCRIPTEN__
-/* export */ std::list<Terminal*>::iterator renderTarget = renderTargets.end();
-SDL_Window *SDLTerminal::win = NULL;
 static int nextWindowID = 1;
 
 extern "C" {
@@ -123,46 +120,45 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         charWidth = fontWidth * charScale;
         charHeight = fontHeight * charScale;
     }
-#if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
-    if (win == NULL) {
-#endif
-    win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale)), SDL_WINDOW_SHOWN | 
+
+    if (singleWindowMode && singleWin != NULL) win = singleWin;
+    else {
+        win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale)), SDL_WINDOW_SHOWN | 
 #if !(defined(__EMSCRIPTEN__) && defined(NO_EMSCRIPTEN_HIDPI))
-    SDL_WINDOW_ALLOW_HIGHDPI |
+            SDL_WINDOW_ALLOW_HIGHDPI |
 #endif
-    SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
-    if (win == (SDL_Window*)0) {
-        overridden = true;
-        throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
-    }
-    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY") {
-        // KMS requires the window to be fullscreen to work
-        // We also set the resolution to the highest possible so users don't get stuck at 640x480 because it's the default
-        int idx = SDL_GetWindowDisplayIndex(win);
-        SDL_DisplayMode mode, max;
-        SDL_GetCurrentDisplayMode(idx, &max);
-        for (int i = 0; i < SDL_GetNumDisplayModes(idx); i++) {
-            SDL_GetDisplayMode(idx, i, &mode);
-            if (mode.w > max.w || mode.h > max.h || (mode.w == max.w && mode.h == max.h && (mode.refresh_rate > max.refresh_rate || SDL_BITSPERPIXEL(mode.format) > SDL_BITSPERPIXEL(max.format)))) max = mode;
+            SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS);
+        if (singleWindowMode && singleWin == NULL) singleWin = win;
+        if (win == (SDL_Window*)0) {
+            overridden = true;
+            throw window_exception("Failed to create window: " + std::string(SDL_GetError()));
         }
-        fprintf(stderr, "Setting display mode to %dx%dx%d@%d\n", max.w, max.h, SDL_BITSPERPIXEL(max.format), max.refresh_rate);
-        SDL_SetWindowDisplayMode(win, &max);
-        SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
-    }
+        if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY") {
+            // KMS requires the window to be fullscreen to work
+            // We also set the resolution to the highest possible so users don't get stuck at 640x480 because it's the default
+            int idx = SDL_GetWindowDisplayIndex(win);
+            SDL_DisplayMode mode, max;
+            SDL_GetCurrentDisplayMode(idx, &max);
+            for (int i = 0; i < SDL_GetNumDisplayModes(idx); i++) {
+                SDL_GetDisplayMode(idx, i, &mode);
+                if (mode.w > max.w || mode.h > max.h || (mode.w == max.w && mode.h == max.h && (mode.refresh_rate > max.refresh_rate || SDL_BITSPERPIXEL(mode.format) > SDL_BITSPERPIXEL(max.format)))) max = mode;
+            }
+            fprintf(stderr, "Setting display mode to %dx%dx%d@%d\n", max.w, max.h, SDL_BITSPERPIXEL(max.format), max.refresh_rate);
+            SDL_SetWindowDisplayMode(win, &max);
+            SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        }
 #if defined(__ANDROID__) || defined(__IPHONEOS__)
-    SDL_GetWindowSize(win, &realWidth, &realHeight);
-    width = (realWidth - 4*charScale*dpiScale) / (charWidth*dpiScale);
-    height = (realHeight - 4*charScale*dpiScale) / (charHeight*dpiScale);
-    this->screen.resize(width, height, ' ');
-    this->colors.resize(width, height, 0xF0);
-    this->pixels.resize(width * fontWidth, height * fontHeight, 0x0F);
+        SDL_GetWindowSize(win, &realWidth, &realHeight);
+        width = (realWidth - 4*charScale*dpiScale) / (charWidth*dpiScale);
+        height = (realHeight - 4*charScale*dpiScale) / (charHeight*dpiScale);
+        this->screen.resize(width, height, ' ');
+        this->colors.resize(width, height, 0xF0);
+        this->pixels.resize(width * fontWidth, height * fontHeight, 0x0F);
 #else
-    realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
-    realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
+        realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
+        realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
 #endif
-#if defined(__EMSCRIPTEN__) && !defined(NO_EMSCRIPTEN_HIDPI)
     }
-#endif
 #ifndef __EMSCRIPTEN__
     id = SDL_GetWindowID(win);
 #else
@@ -181,9 +177,8 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     SDL_FreeSurface(icon);
 #endif
     renderTargets.push_back(this);
-#ifdef __EMSCRIPTEN__
-    if (renderTargets.size() == 1) renderTarget = renderTargets.begin();
-#endif
+    renderTarget = --renderTargets.end();
+    onActivate();
 }
 
 SDLTerminal::~SDLTerminal() {
@@ -193,6 +188,11 @@ SDLTerminal::~SDLTerminal() {
 #endif
     {std::lock_guard<std::mutex> locked_g(renderlock);} {
         std::lock_guard<std::mutex> lock(renderTargetsLock);
+        if (singleWindowMode) {
+            if (*renderTarget == this) previousRenderTarget();
+            const auto pos = currentWindowIDs.find(id);
+            if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
+        }
         for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
             if (*it == this)
                 it = renderTargets.erase(it);
@@ -201,9 +201,7 @@ SDLTerminal::~SDLTerminal() {
     }
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
-#ifndef __EMSCRIPTEN__
-        SDL_DestroyWindow(win);
-#endif
+        if (!singleWindowMode || renderTargets.size() == 0) {SDL_DestroyWindow(win); singleWin = NULL;}
     }
 }
 
@@ -594,6 +592,10 @@ void SDLTerminal::setLabel(std::string label) {
     queueTask([label](void*win)->void*{SDL_SetWindowTitle((SDL_Window*)win, label.c_str()); return NULL;}, win, true);
 }
 
+void SDLTerminal::onActivate() {
+    queueTask([this](void*win)->void*{SDL_SetWindowTitle((SDL_Window*)win, title.c_str()); return NULL;}, win, true);
+}
+
 void SDLTerminal::init() {
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
@@ -653,17 +655,10 @@ void SDLTerminal::quit() {
     SDL_Quit();
 }
 
-#ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
-#else
-#define checkWindowID(c, wid) ((wid) == (c)->term->id || findMonitorFromWindowID((c), (wid), tmps) != NULL)
-#endif
-
 static SDL_TouchID touchDevice = -1;
 
 bool SDLTerminal::pollEvents() {
     SDL_Event e;
-    std::string tmps;
 #ifdef __EMSCRIPTEN__
     if (SDL_PollEvent(&e)) {
 #else
@@ -687,20 +682,8 @@ bool SDLTerminal::pollEvents() {
                 taskQueue->pop();
             }
         } else if (e.type == render_event_type) {
-#ifdef __EMSCRIPTEN__
-            SDLTerminal* term = dynamic_cast<SDLTerminal*>(*renderTarget);
-            if (term != NULL) {
-                std::lock_guard<std::mutex> lock(term->renderlock);
-                if (term->surf != NULL) {
-                    SDL_BlitSurface(term->surf, NULL, SDL_GetWindowSurface(SDLTerminal::win), NULL);
-                    SDL_UpdateWindowSurface(SDLTerminal::win);
-                    SDL_FreeSurface(term->surf);
-                    term->surf = NULL;
-                }
-            }
-#else
-            for (Terminal* term : renderTargets) {
-                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+            if (singleWindowMode) {
+                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(*renderTarget);
                 if (sdlterm != NULL) {
                     std::lock_guard<std::mutex> lock(sdlterm->renderlock);
                     if (sdlterm->surf != NULL && !(sdlterm->width == 0 || sdlterm->height == 0)) {
@@ -708,8 +691,18 @@ bool SDLTerminal::pollEvents() {
                         SDL_UpdateWindowSurface(sdlterm->win);
                     }
                 }
+            } else {
+                for (Terminal* term : renderTargets) {
+                    SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+                    if (sdlterm != NULL) {
+                        std::lock_guard<std::mutex> lock(sdlterm->renderlock);
+                        if (sdlterm->surf != NULL && !(sdlterm->width == 0 || sdlterm->height == 0)) {
+                            SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
+                            SDL_UpdateWindowSurface(sdlterm->win);
+                        }
+                    }
+                }
             }
-#endif
         } else {
             if (rawClient) {
                 sendRawEvent(e);
@@ -725,7 +718,7 @@ bool SDLTerminal::pollEvents() {
                             term = c->term;
                             break;
                         } else {
-                            monitor * m = findMonitorFromWindowID(c, lastWindow, tmps);
+                            monitor * m = findMonitorFromWindowID(c, lastWindow, NULL);
                             if (m != NULL) {
                                 comp = c;
                                 term = m->term;
@@ -776,6 +769,8 @@ bool SDLTerminal::pollEvents() {
                     }
                 }
                 if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) lastWindow = e.window.windowID;
+                else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LEFT && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD) && !(e.key.keysym.mod & KMOD_SHIFT)) previousRenderTarget();
+                else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RIGHT && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD) && !(e.key.keysym.mod & KMOD_SHIFT)) nextRenderTarget();
 #ifdef __IPHONEOS__
                 else if (e.type == SDL_FINGERUP || e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION) touchDevice = e.tfinger.touchId;
 #else
