@@ -248,12 +248,12 @@ bool singleWindowMode = false;
 
 int convertX(SDLTerminal * term, int x) {
     if (term->mode != 0) {
-        if (x < 2 * term->dpiScale * (int)term->charScale) return 0;
+        if ((unsigned)x < 2 * term->dpiScale * (int)term->charScale) return 0;
         else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale)
             return (int)(Terminal::fontWidth * term->width - 1);
         return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale));
     } else {
-        if (x < 2 * term->dpiScale * (int)term->charScale) return 1;
+        if ((unsigned)x < 2 * term->dpiScale * (int)term->charScale) return 1;
         else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale) return (int)term->width;
         return (int)((x - 2 * term->charScale * term->dpiScale) / (term->dpiScale * term->charWidth) + 1);
     }
@@ -261,12 +261,12 @@ int convertX(SDLTerminal * term, int x) {
 
 int convertY(SDLTerminal * term, int x) {
     if (term->mode != 0) {
-        if (x < 2 * term->dpiScale * (int)term->charScale) return 0;
+        if ((unsigned)x < 2 * term->dpiScale * (int)term->charScale) return 0;
         else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale)
             return (int)(Terminal::fontHeight * term->height - 1);
         return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale));
     } else {
-        if (x < 2 * (int)term->charScale * term->dpiScale) return 1;
+        if ((unsigned)x < 2 * (int)term->charScale * term->dpiScale) return 1;
         else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale) return (int)term->height;
         return (int)((x - 2 * term->charScale * term->dpiScale) / (term->dpiScale * term->charHeight) + 1);
     }
@@ -826,7 +826,7 @@ std::string termGetEvent(lua_State *L) {
                             buttons,
                             NULL
                         };
-                        if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)b;}, &msg)) {
+                        if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)(ptrdiff_t)b;}, &msg)) {
                             SDL_free(e.drop.file);
                             return "";
                         }
@@ -882,9 +882,9 @@ std::string termGetEvent(lua_State *L) {
             if (selectedRenderer == 0 || selectedRenderer == 5) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
                 if (sdlterm != NULL) {
-                    if (e.window.data1 < 4*sdlterm->charScale*sdlterm->dpiScale) w = 0;
+                    if ((unsigned)e.window.data1 < 4*sdlterm->charScale*sdlterm->dpiScale) w = 0;
                     else w = (e.window.data1 - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charWidth*sdlterm->dpiScale);
-                    if (e.window.data2 < 4*sdlterm->charScale*sdlterm->dpiScale) h = 0;
+                    if ((unsigned)e.window.data2 < 4*sdlterm->charScale*sdlterm->dpiScale) h = 0;
                     else h = (e.window.data2 - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
                 } else {w = 51; h = 19;}
             } else {w = e.window.data1; h = e.window.data2;}

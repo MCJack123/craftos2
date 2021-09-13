@@ -445,8 +445,8 @@ static int term_drawPixels(lua_State *L) {
         return 0;
     }
 
-    const int str_offset = init_x < 0 ? -init_x : 0,
-              str_maxlen = init_x > pixelWidth ? 0 : pixelWidth - init_x;
+    const size_t str_offset = init_x < 0 ? (size_t)-init_x : 0,
+                 str_maxlen = init_x > pixelWidth ? 0 : (size_t)(pixelWidth - init_x);
 
     const unsigned cool_height = min((int) height, pixelHeight - init_y);
     for (unsigned h = max(-init_y, 0); h < cool_height; h++) {

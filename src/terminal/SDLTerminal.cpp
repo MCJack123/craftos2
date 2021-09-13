@@ -186,10 +186,10 @@ SDLTerminal::~SDLTerminal() {
 #ifdef __EMSCRIPTEN__
     onWindowDestroy(id);
 #endif
+    if (singleWindowMode && *renderTarget == this) previousRenderTarget();
     {std::lock_guard<std::mutex> locked_g(renderlock);} {
         std::lock_guard<std::mutex> lock(renderTargetsLock);
         if (singleWindowMode) {
-            if (*renderTarget == this) previousRenderTarget();
             const auto pos = currentWindowIDs.find(id);
             if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
         }
@@ -278,9 +278,9 @@ void SDLTerminal::render() {
     std::unique_ptr<vector2d<unsigned char> > newcolors;
     std::unique_ptr<vector2d<unsigned char> > newpixels;
     Color newpalette[256];
-    unsigned newwidth, newheight, newcharWidth, newcharHeight, newfontScale, newcharScale;
+    unsigned newwidth, newheight, newcharWidth, newcharHeight, newcharScale;
     int newblinkX, newblinkY, newmode;
-    bool newblink, newuseOrigFont;
+    bool newblink;
     unsigned char newcursorColor;
     {
         std::lock_guard<std::mutex> locked_g(locked);
@@ -301,9 +301,9 @@ void SDLTerminal::render() {
         newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
         memcpy(newpalette, palette, sizeof(newpalette));
         newblinkX = blinkX; newblinkY = blinkY; newmode = mode;
-        newblink = blink; newuseOrigFont = useOrigFont;
+        newblink = blink;
         newcursorColor = cursorColor;
-        newwidth = width; newheight = height; newcharWidth = charWidth; newcharHeight = charHeight; newfontScale = fontScale; newcharScale = charScale;
+        newwidth = width; newheight = height; newcharWidth = charWidth; newcharHeight = charHeight; newcharScale = charScale;
         changed = false;
     }
     std::lock_guard<std::mutex> rlock(renderlock);
@@ -533,13 +533,6 @@ void SDLTerminal::record(std::string path) {
     recorderHandle = NULL;
     changed = true;
 }
-
-#ifndef __APPLE__
-static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
-    for (size_t i = 0; i < num; i++) memcpy(&ptr[i], &value, 4);
-    return &ptr[num];
-}
-#endif
 
 void SDLTerminal::stopRecording() {
     shouldRecord = false;

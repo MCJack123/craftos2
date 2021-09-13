@@ -161,9 +161,9 @@ TRoRTerminal::~TRoRTerminal() {
     if (trorExtensions.find("ccpcTerm") != trorExtensions.end()) printf("TQ:%d;\n", id);
     const auto pos = currentWindowIDs.find(id);
     if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
+    if (singleWindowMode && *renderTarget == this) previousRenderTarget();
     std::lock_guard<std::mutex> lock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
-    if (*renderTarget == this) previousRenderTarget();
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);

@@ -48,7 +48,7 @@ extern int termPanic(lua_State *L);
 extern monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string* sideReturn);
 extern void displayFailure(Terminal * term, const std::string& message, const std::string& extra = "");
 
-inline bool checkWindowID(Computer * c, int wid) {
+inline bool checkWindowID(Computer * c, unsigned wid) {
     if (singleWindowMode) return c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, NULL) != NULL;
     return wid == c->term->id || findMonitorFromWindowID(c, wid, NULL) != NULL;
 }
@@ -56,6 +56,7 @@ inline bool checkWindowID(Computer * c, int wid) {
 inline std::list<Terminal*>::iterator& nextRenderTarget() {
     std::lock_guard<std::mutex> lock(renderTargetsLock);
     if (++renderTarget == renderTargets.end()) renderTarget = renderTargets.begin();
+    (*renderTarget)->changed = true;
     (*renderTarget)->onActivate();
     return renderTarget;
 }
@@ -64,6 +65,7 @@ inline std::list<Terminal*>::iterator& previousRenderTarget() {
     std::lock_guard<std::mutex> lock(renderTargetsLock);
     if (renderTarget == renderTargets.begin()) renderTarget = renderTargets.end();
     --renderTarget;
+    (*renderTarget)->changed = true;
     (*renderTarget)->onActivate();
     return renderTarget;
 }

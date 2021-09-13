@@ -207,7 +207,7 @@ static std::string http_check(lua_State *L, void* data) {
 static std::string urlEncode(const std::string& tmppath) {
     static const char * hexstr = "0123456789ABCDEF";
     std::string path;
-    for (int i = 0; i < tmppath.size(); i++) {
+    for (size_t i = 0; i < tmppath.size(); i++) {
         char c = tmppath[i];
         if (isalnum(c) || (c == '%' && i + 2 < tmppath.size() && isxdigit(tmppath[i+1]) && isxdigit(tmppath[i+2]))) path += c;
         else {
@@ -1160,7 +1160,7 @@ static int http_websocket(lua_State *L) {
     lastCFunction = __func__;
     if (!config.http_websocket_enabled) luaL_error(L, "Websocket connections are disabled");
     Computer * comp = get_comp(L);
-    if (comp->openWebsockets.size() >= config.http_max_websockets) return luaL_error(L, "Too many websockets already open");
+    if (comp->openWebsockets.size() >= (size_t)config.http_max_websockets) return luaL_error(L, "Too many websockets already open");
     if (lua_isstring(L, 1)) {
         Computer * comp = get_comp(L);
         if (config.http_max_websockets > 0 && comp->openWebsockets.size() >= (unsigned)config.http_max_websockets) luaL_error(L, "Too many websockets already open");

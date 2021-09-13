@@ -785,7 +785,7 @@ static void rawInputLoop() {
                         if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
                         else size = lua_objlen(comp->rawFileStack, -1);
                         out.write((char*)&size, 4);
-                        if (size != 0xFFFFFFFF) for (int i = 0; i < size; i++) {
+                        if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
                             lua_rawgeti(comp->rawFileStack, -1, i + 1);
                             out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
                             out.put(0);
@@ -836,7 +836,7 @@ static void rawInputLoop() {
                         if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
                         else size = lua_objlen(comp->rawFileStack, -1);
                         out.write((char*)&size, 4);
-                        if (size != 0xFFFFFFFF) for (int i = 0; i < size; i++) {
+                        if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
                             lua_rawgeti(comp->rawFileStack, -1, i + 1);
                             out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
                             out.put(0);
@@ -1015,9 +1015,9 @@ RawTerminal::~RawTerminal() {
     });
     const auto pos = currentWindowIDs.find(id);
     if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
+    if (singleWindowMode && *renderTarget == this) previousRenderTarget();
     std::lock_guard<std::mutex> rtlock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
-    if (*renderTarget == this) previousRenderTarget();
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);

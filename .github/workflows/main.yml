@@ -140,6 +140,7 @@ jobs:
         additionalCachedPaths: ${{ github.workspace }}\vcpkg_installed
     - name: Prepare environment
       run: |
+        echo $Env:ImageOS
         git submodule update --init --recursive
         mkdir x64\ReleaseC
         mkdir x64\Release

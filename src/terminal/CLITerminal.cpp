@@ -77,9 +77,9 @@ CLITerminal::CLITerminal(std::string title): Terminal(COLS, LINES-1) {
 CLITerminal::~CLITerminal() {
     const auto pos = currentWindowIDs.find(id);
     if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
+    if (*renderTarget == this) previousRenderTarget();
     std::lock_guard<std::mutex> lock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
-    if (*renderTarget == this) previousRenderTarget();
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
             it = renderTargets.erase(it);
