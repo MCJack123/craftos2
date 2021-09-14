@@ -42,11 +42,14 @@ extern "C" {
 #import <objc/runtime.h>
 #include "../platform.hpp"
 #include "../runtime.hpp"
+#include "../termsupport.hpp"
 #include "../terminal/SDLTerminal.hpp"
 
 extern bool exiting;
 std::string base_path_expanded;
 std::string rom_path_expanded;
+static SDL_SysWMinfo window_info;
+static UIView * sdlView;
 
 void setBasePath(const char * path) {
     base_path_expanded = path;
@@ -163,44 +166,6 @@ void copyImage(SDL_Surface* surf) {
     [nsdata release];*/
 }
 
-void handler(int sig) {
-    void *array[25];
-    size_t size;
-
-    // get void*'s for all entries on the stack
-    size = backtrace(array, 25);
-
-    // print out all the frames to stderr
-    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Application)\n", strsignal(sig));
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    signal(sig, NULL);
-}
-
-static std::string mobile_keyboard_open(lua_State *L, void* ud) {
-    SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
-    int size = ((int)(ptrdiff_t)ud - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
-    if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
-    lua_pushinteger(L, size);
-    return "_CCPC_mobile_keyboard_open";
-}
-
-void setupCrashHandler() {
-    signal(SIGSEGV, handler);
-    signal(SIGILL, handler);
-    signal(SIGBUS, handler);
-    signal(SIGTRAP, handler);
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIKeyboardDidShowNotification object:nil queue:nil usingBlock:^(NSNotification* notif) {
-        NSValue* obj = (NSValue*)[notif.userInfo valueForKey:UIKeyboardFrameEndUserInfoKey];
-        CGRect keyboardBound = CGRectNull;
-        [obj getValue:&keyboardBound];
-        CGRect screenSize = [[UIApplication sharedApplication] keyWindow].rootViewController.view.bounds;
-        if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)(ptrdiff_t)(screenSize.size.height - keyboardBound.size.height));
-    }];
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIKeyboardDidHideNotification object:nil queue:nil usingBlock:^(NSNotification* notif) {
-        if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)PTRDIFF_MAX);
-    }];
-}
-
 float getBackingScaleFactor(SDL_Window *win) {
     /*SDL_SysWMinfo info;
     SDL_VERSION(&info.version);
@@ -212,22 +177,6 @@ float getBackingScaleFactor(SDL_Window *win) {
 }
 
 void setFloating(SDL_Window* win, bool state) {}
-
-/*
- * The following code is a long-winded workaround to make SDL views work nicely on iPhone X/iPad Pro.
- * Normally, the view SDL creates is set as the root view, which means it is the size of the screen.
- * However, we need to constrain it using the safe area insets to make sure we don't draw outside the
- * screen area (in the corners or notch). To do this, we need to adjust the view controller so that
- * the view SDL uses is inside another view, and that the view is automatically resized to fit the
- * safe area. Unfortunately, a bit of the logic in SDL's view controllers assumes that a) the view is
- * always the size of the screen, and b) that the view is the root view. Since all of the initialization
- * code and classes are private to SDL, we can't just extend the view controller and use an initializer
- * that uses that class. Instead, we have to swizzle (override - a new word I learned for this!) the
- * affected methods to use our overridden ones that can handle the new view hierarchy. Luckily the
- * Objective-C runtime is very flexible, so we can just set up a template class that has the properties
- * we need from SDL's view controller, and then swap in the methods from that into the view controller
- * object/class.
- */
 
 // From SDL/src/video/SDL_sysvideo.h
 extern "C" {
@@ -279,26 +228,6 @@ extern "C" {
     };
 }
 
-static int RemovePendingSizeChangedAndResizedEvents(void * userdata, SDL_Event *event) {
-    SDL_Event *new_event = (SDL_Event *)userdata;
-
-    if (event->type == SDL_WINDOWEVENT &&
-        (event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
-         event->window.event == SDL_WINDOWEVENT_RESIZED) &&
-        event->window.windowID == new_event->window.windowID) {
-        /* We're about to post a new size event, drop the old one */
-        return 0;
-    }
-    return 1;
-}
-
-static bool forceInitView = true;
-
-#define addSwipeGesture(dir) UISwipeGestureRecognizer * dir##Rec = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];\
-    dir##Rec.numberOfTouchesRequired = 2;\
-    dir##Rec.direction = UISwipeGestureRecognizerDirection##dir;\
-    [view addGestureRecognizer:dir##Rec];
-
 struct hold_data {
     int x;
     int y;
@@ -327,60 +256,52 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     return interval;
 }
 
-// Small view to hold a reference to the inner view held by SDL
-// This also sets up gesture recognizers on the view
-@interface SDLRootView : UIView {
+@interface ViewController : UIViewController<UIGestureRecognizerDelegate> {
     CGFloat lastPinchScale;
     hold_data hold;
     SDL_TimerID holdTimer;
+    BOOL isCtrlDown;
+    BOOL isAltDown;
 }
-@property UIView * sdlView;
-@property SDL_Window * sdlWindow;
+@property (strong, nonatomic) IBOutlet UIToolbar *hotkeyToolbar;
+@property (strong, nonatomic) UIViewController * oldvc;
+@property (strong, nonatomic) IBOutlet UIBarButtonItem *ctrlButton;
+@property (strong, nonatomic) IBOutlet UIBarButtonItem *altButton;
+@property (assign) SDL_Window * sdlWindow;
 @end
-@implementation SDLRootView
-- (id) initWithSDLView:(UIView*)view window:(SDL_Window*)w {
-    self = [super init];
-    self.sdlView = view;
-    self.sdlWindow = w;
-    self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+
+@implementation ViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    // Add insets to let the view go under the navigation bar
+    self.additionalSafeAreaInsets = UIEdgeInsetsMake(-self.navigationController.navigationBar.frame.size.height, 0.0, 0.0, 0.0);
+    // Add the old view controller as a child of the new one
+    [self addChildViewController:self.oldvc];
+    [self.view addSubview:self.oldvc.view];
+    // Set up constraints inside the safe area
+    self.oldvc.view.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.oldvc.view.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor].active = YES;
+    [self.oldvc.view.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor].active = YES;
+    [self.oldvc.view.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor].active = YES;
+    [self.oldvc.view.trailingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor].active = YES;
+    [self.oldvc didMoveToParentViewController:self];
+    // Add the hotkey toolbar to the invisible text field so it shows up on input grab
+    UITextField * textField = (UITextField*)object_getIvar(self.oldvc, class_getInstanceVariable([self.oldvc class], "textField"));
+    [self.view addSubview:textField]; // ?
+    textField.inputAccessoryView = self.hotkeyToolbar;
+    isCtrlDown = NO;
+    isAltDown = NO;
     holdTimer = 0;
-    hold.winid = SDL_GetWindowID(w);
-    
-    // Add gesture recognizers
-    UITapGestureRecognizer * tabRec = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDoubleTap)];
-    tabRec.numberOfTouchesRequired = 2;
-    tabRec.numberOfTapsRequired = 2;
-    [view addGestureRecognizer:tabRec];
-    UIPinchGestureRecognizer * pinchRec = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handlePinch:)];
-    [view addGestureRecognizer:pinchRec];
-    UILongPressGestureRecognizer * holdRec = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleHold:)];
-    holdRec.numberOfTouchesRequired = 2;
-    [view addGestureRecognizer:holdRec];
-    addSwipeGesture(Up)
-    addSwipeGesture(Down)
-    addSwipeGesture(Left)
-    addSwipeGesture(Right)
-    
-    return self;
+    hold.winid = SDL_GetWindowID(self.sdlWindow);
 }
 
-- (void) handleDoubleTap {
-    SDL_Event e;
-    e.type = SDL_KEYDOWN;
-    e.key.timestamp = time(0);
-    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
-    e.key.state = SDL_PRESSED;
-    e.key.repeat = 0;
-    e.key.keysym.scancode = SDL_SCANCODE_TAB;
-    e.key.keysym.sym = SDLK_TAB;
-    e.key.keysym.mod = 0;
-    SDL_PushEvent(&e);
-    e.type = SDL_KEYUP;
-    e.key.state = SDL_RELEASED;
-    SDL_PushEvent(&e);
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    SDL_StartTextInput();
 }
 
-- (void) handleSwipe:(UISwipeGestureRecognizer*)rec {
+- (IBAction)handleSwipe:(UISwipeGestureRecognizer*)rec {
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.timestamp = time(0);
@@ -412,24 +333,14 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_PushEvent(&e);
 }
 
-- (void) handlePinch:(UIPinchGestureRecognizer*)rec {
-    if (rec.state == UIGestureRecognizerStateBegan) lastPinchScale = rec.scale;
-    else if (rec.state == UIGestureRecognizerStateChanged && lastPinchScale != 0.0) {
-        if (rec.scale < lastPinchScale) SDL_StartTextInput();
-        else if (rec.scale > lastPinchScale) SDL_StopTextInput();
-        else return;
-        lastPinchScale = 0.0;
-    }
-}
-
-- (void) handleHold:(UILongPressGestureRecognizer*)rec {
+- (IBAction)handleHold:(UILongPressGestureRecognizer*)rec {
     if (rec.state == UIGestureRecognizerStateBegan) {
-        CGPoint touchPoint = [rec locationInView:self.sdlView];
+        CGPoint touchPoint = [rec locationInView:self.oldvc.view];
         hold.x = 0; hold.y = 0;
-        if (touchPoint.x < self.sdlView.bounds.size.width / 4.0) hold.x = -1;
-        else if (touchPoint.x > self.sdlView.bounds.size.width / 4.0 * 3.0) hold.x = 1;
-        if (touchPoint.y < self.sdlView.bounds.size.height / 4.0) hold.y = 1;
-        else if (touchPoint.y > self.sdlView.bounds.size.height / 4.0 * 3.0) hold.y = -1;
+        if (touchPoint.x < self.oldvc.view.bounds.size.width / 4.0) hold.x = -1;
+        else if (touchPoint.x > self.oldvc.view.bounds.size.width / 4.0 * 3.0) hold.x = 1;
+        if (touchPoint.y < self.oldvc.view.bounds.size.height / 4.0) hold.y = 1;
+        else if (touchPoint.y > self.oldvc.view.bounds.size.height / 4.0 * 3.0) hold.y = -1;
         if (hold.x == 0 && hold.y == 0) return;
         if (holdTimer != 0) SDL_RemoveTimer(holdTimer);
         
@@ -472,103 +383,230 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
         }
     }
 }
-@end
 
-// This class holds the overridden methods we'll be inserting into SDL's view controller
-// This should never be instantiated as it is not complete
-@interface VCOverride : UIViewController
-@property (nonatomic, assign) SDL_Window *window;
-@property (nonatomic, assign, getter=isKeyboardVisible) BOOL keyboardVisible;
-- (void)viewDidLayoutSubviews;
-- (void)setView:(UIView*)view;
-- (void)showKeyboard;
-@end
-@implementation VCOverride
-- (void)viewDidLayoutSubviews {
-    [super viewDidLayoutSubviews];
-    const CGSize size = ((SDLRootView*)self.view).sdlView.bounds.size;
-    int data1 = (int) size.width;
-    int data2 = (int) size.height;
-    SDL_Window *window = self.window;
-
-    // SDL_SendWindowEvent
-    if (!(window->flags & SDL_WINDOW_FULLSCREEN)) {
-        window->windowed.w = data1;
-        window->windowed.h = data2;
-    }
-    if (data1 == window->w && data2 == window->h) {
-        return;
-    }
-    window->w = data1;
-    window->h = data2;
-    
-    window->surface_valid = SDL_FALSE;
-    if (SDL_GetEventState(SDL_WINDOWEVENT) == SDL_ENABLE) {
-        SDL_Event event;
-        event.type = SDL_WINDOWEVENT;
-        event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
-        event.window.data1 = data1;
-        event.window.data2 = data2;
-        event.window.windowID = window->id;
-
-        /* Fixes queue overflow with resize events that aren't processed */
-        SDL_FilterEvents(RemovePendingSizeChangedAndResizedEvents, &event);
-        SDL_PushEvent(&event);
-        
-        event.window.event = SDL_WINDOWEVENT_RESIZED;
-
-        SDL_PushEvent(&event);
-    }
+- (IBAction)toggleNavbar:(id)sender {
+    [self.navigationController setNavigationBarHidden:![self.navigationController isNavigationBarHidden] animated:YES];
 }
-- (void)setView:(UIView*)view {
-    if (self.view == nil || forceInitView) {
-        forceInitView = false;
-        // Create the new parent view
-        SDLRootView* rview = [[SDLRootView alloc] initWithSDLView:view window:self.window];
-        // Since super doesn't work, we directly invoke the setView method to set the view
-        ((void(*)(id, SEL, UIView*))class_getMethodImplementation([self superclass], @selector(setView:)))(self, @selector(setView:), rview);
-        // Add the view to the parent
-        [rview addSubview:view];
-        // Set constraints to size to safe area
-        view.translatesAutoresizingMaskIntoConstraints = NO;
-        [view.topAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.topAnchor].active = YES;
-        [view.bottomAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.bottomAnchor].active = YES;
-        [view.leadingAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.leadingAnchor].active = YES;
-        [view.trailingAnchor constraintEqualToAnchor:rview.safeAreaLayoutGuide.trailingAnchor].active = YES;
+
+- (IBAction)toggleKeyboard:(id)sender {
+    if (SDL_IsTextInputActive()) SDL_StopTextInput();
+    else SDL_StartTextInput();
+}
+
+- (IBAction)onPrevious:(id)sender {
+    previousRenderTarget();
+}
+
+- (IBAction)onNext:(id)sender {
+    nextRenderTarget();
+}
+
+- (IBAction)onClose:(id)sender {
+    // TODO
+}
+
+- (IBAction)onCtrl:(id)sender {
+    SDL_Event e;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_LCTRL;
+    e.key.keysym.sym = SDLK_LCTRL;
+    e.key.keysym.mod = KMOD_LCTRL;
+    if (isCtrlDown) {
+        e.type = SDL_KEYUP;
+        self.ctrlButton.style = UIBarButtonItemStylePlain;
     } else {
-        // If the parent already exists, remove the old view and add the new view
-        SDLRootView * v = (SDLRootView*)self.view;
-        [v.sdlView removeFromSuperview];
-        [v addSubview:view];
-        v.sdlView = view;
+        e.type = SDL_KEYDOWN;
+        self.ctrlButton.style = UIBarButtonItemStyleDone;
     }
-
-    // We don't have access to textField from here, so we use the ObjC runtime to grab it for us
-    [view addSubview:object_getIvar(self, class_getInstanceVariable([self class], "textField"))];
-
-    if (self.keyboardVisible) {
-        [self showKeyboard];
-    }
+    isCtrlDown = !isCtrlDown;
+    SDL_PushEvent(&e);
 }
-- (void)showKeyboard {} // to suppress warnings
+
+- (IBAction)onAlt:(id)sender {
+    SDL_Event e;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_LALT;
+    e.key.keysym.sym = SDLK_LALT;
+    e.key.keysym.mod = KMOD_LALT;
+    if (isAltDown) {
+        e.type = SDL_KEYUP;
+        self.altButton.style = UIBarButtonItemStylePlain;
+    } else {
+        e.type = SDL_KEYDOWN;
+        self.altButton.style = UIBarButtonItemStyleDone;
+    }
+    isAltDown = !isAltDown;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onTab:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_TAB;
+    e.key.keysym.sym = SDLK_TAB;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onPaste:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_V;
+    e.key.keysym.sym = SDLK_v;
+    e.key.keysym.mod = KMOD_GUI;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onTerminate:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_T;
+    e.key.keysym.sym = SDLK_t;
+    e.key.keysym.mod = KMOD_CTRL;
+    SDL_PushEvent(&e);
+    e.key.repeat = 1;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onShutdown:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_S;
+    e.key.keysym.sym = SDLK_s;
+    e.key.keysym.mod = KMOD_CTRL;
+    SDL_PushEvent(&e);
+    e.key.repeat = 1;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onReboot:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_R;
+    e.key.keysym.sym = SDLK_r;
+    e.key.keysym.mod = KMOD_CTRL;
+    SDL_PushEvent(&e);
+    e.key.repeat = 1;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (void)updateKeyboard {} // placeholder empty method
+
+// MARK: UIGestureRecognizerDelegate
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer
+shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    return YES;
+}
+
 @end
+
+static ViewController * viewController;
 
 void iosSetSafeAreaConstraints(SDLTerminal * term) {
     // First, grab the view controller + view
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version);
-    SDL_GetWindowWMInfo(term->win, &info);
-    UIView * view = info.info.uikit.window.rootViewController.view;
-    // Set the viewDidLayoutSubview and setView methods to our overrides
-    method_setImplementation(class_getInstanceMethod([info.info.uikit.window.rootViewController class], @selector(viewDidLayoutSubviews)), [VCOverride instanceMethodForSelector:@selector(viewDidLayoutSubviews)]);
-    method_setImplementation(class_getInstanceMethod([info.info.uikit.window.rootViewController class], @selector(setView:)), [VCOverride instanceMethodForSelector:@selector(setView:)]);
-    // Add the new superview through the overridden setView method
-    [info.info.uikit.window.rootViewController setView:view];
-    info.info.uikit.window.rootViewController.view.backgroundColor = [[UIColor alloc] initWithRed:term->palette[15].r / 255.0 green:term->palette[15].g / 255.0 blue:term->palette[15].b / 255.0 alpha:1.0];
-    // Force a layout update to reload the renderer and set the proper dimensions
-    [view layoutSubviews];
+    SDL_VERSION(&window_info.version);
+    SDL_GetWindowWMInfo(term->win, &window_info);
+    // Instantiate the new view controller from the storyboard (that's linked, right?), and add the properties in
+    UIViewController * oldvc = window_info.info.uikit.window.rootViewController;
+    UINavigationController * rootvc = (UINavigationController*)[[UIStoryboard storyboardWithName:@"Main" bundle:[NSBundle mainBundle]] instantiateInitialViewController];
+    ViewController * vc = (ViewController*)[rootvc.viewControllers firstObject];
+    vc.oldvc = oldvc;
+    vc.sdlWindow = term->win;
+    // Start setting up the new view controller in the view hierarchy (we'll finish this once the VC is loaded)
+    [oldvc.view removeFromSuperview];
+    window_info.info.uikit.window.rootViewController = rootvc;
+    sdlView = oldvc.view;
+    viewController = vc;
+    // Remove the updateKeyboard method in the old view controller, as it glitches out the screen when opening/closing the keyboard
+    method_setImplementation(class_getInstanceMethod([oldvc class], @selector(updateKeyboard)), [ViewController instanceMethodForSelector:@selector(updateKeyboard)]);
     // Set fullscreen mode, but only on devices without a notch
-    if (info.info.uikit.window.safeAreaInsets.top <= 30) SDL_SetWindowFullscreen(term->win, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    if (window_info.info.uikit.window.safeAreaInsets.top <= 30) SDL_SetWindowFullscreen(term->win, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    viewController.navigationItem.title = [NSString stringWithCString:term->title.c_str() encoding:NSASCIIStringEncoding];
+}
+
+void iOS_SetWindowTitle(SDL_Window * win, const char * title) {
+    viewController.navigationItem.title = [NSString stringWithCString:title encoding:NSASCIIStringEncoding];
+}
+
+void handler(int sig) {
+    void *array[25];
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 25);
+
+    // print out all the frames to stderr
+    fprintf(stderr, "Uh oh, CraftOS-PC has crashed! Reason: %s. Please report this to https://www.craftos-pc.cc/bugreport. Paste the following text under the 'Screenshots' section:\nOS: Mac (Application)\n", strsignal(sig));
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    signal(sig, NULL);
+}
+
+static std::string mobile_keyboard_open(lua_State *L, void* ud) {
+    SDLTerminal * sdlterm = (SDLTerminal*)get_comp(L)->term;
+    int size = ((int)(ptrdiff_t)ud - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
+    if (size >= sdlterm->height) return "_CCPC_mobile_keyboard_close";
+    lua_pushinteger(L, size);
+    return "_CCPC_mobile_keyboard_open";
+}
+
+void setupCrashHandler() {
+    signal(SIGSEGV, handler);
+    signal(SIGILL, handler);
+    signal(SIGBUS, handler);
+    signal(SIGTRAP, handler);
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIKeyboardDidShowNotification object:nil queue:nil usingBlock:^(NSNotification* notif) {
+        NSValue* obj = (NSValue*)[notif.userInfo valueForKey:UIKeyboardFrameEndUserInfoKey];
+        CGRect keyboardBound = CGRectNull;
+        [obj getValue:&keyboardBound];
+        CGRect screenSize = [[UIApplication sharedApplication] keyWindow].rootViewController.view.bounds;
+        CGRect termSize = sdlView.frame;
+        if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)(ptrdiff_t)(screenSize.size.height - keyboardBound.size.height - termSize.origin.y));
+    }];
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIKeyboardDidHideNotification object:nil queue:nil usingBlock:^(NSNotification* notif) {
+        if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)PTRDIFF_MAX);
+    }];
 }
 
 #ifdef __INTELLISENSE__
@@ -577,7 +615,7 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
 
 static int mobile_openKeyboard(lua_State *L) {
     if (lua_isnone(L, 1) || lua_toboolean(L, 1)) queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
-    else queueTask([](void*)->void*{SDL_StartTextInput(); return NULL;}, NULL, true);
+    else queueTask([](void*)->void*{SDL_StopTextInput(); return NULL;}, NULL, true);
     return 0;
 }
 
@@ -592,9 +630,9 @@ static luaL_Reg mobile_reg[] = {
     {NULL, NULL}
 };
 
-static luaL_Reg ios_reg[] = {
+/*static luaL_Reg ios_reg[] = {
     {NULL, NULL}
-};
+};*/
 
 int mobile_luaopen(lua_State *L) {
     luaL_register(L, "mobile", mobile_reg);

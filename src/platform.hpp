@@ -63,6 +63,11 @@ extern void uploadCrashDumps();
 #define pathcmp strcmp
 #endif
 
+#ifdef __IPHONEOS__
+extern void iOS_SetWindowTitle(SDL_Window * win, const char * title);
+#define SDL_SetWindowTitle iOS_SetWindowTitle
+#endif
+
 extern void setThreadName(std::thread &t, const std::string& name);
 extern int createDirectory(const path_t& path);
 extern unsigned long long getFreeSpace(const path_t& path);
