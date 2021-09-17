@@ -805,65 +805,92 @@ std::string termGetEvent(lua_State *L) {
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return e.motion.state ? "mouse_drag" : "mouse_move";
         } else if (e.type == SDL_DROPFILE) {
-            // Copy the file into the computer
-            path_t path = fixpath(computer, basename(e.drop.file), false);
-            struct_stat st;
-            if (platform_stat(path.c_str(), &st) == 0) {
-                if (S_ISREG(st.st_mode)) {
-                    SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
-                    if (term != NULL) {
-                        SDL_MessageBoxButtonData buttons[] = {
-                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No"},
-                            {0, 1, "Yes"}
-                        };
-                        std::string text = std::string("A file named ") + basename(e.drop.file) + " already exists on this computer. Would you like to overwrite it?";
-                        SDL_MessageBoxData msg = {
-                            SDL_MESSAGEBOX_WARNING,
-                            term->win,
-                            "File already exists",
-                            text.c_str(),
-                            2,
-                            buttons,
-                            NULL
-                        };
-                        if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)(ptrdiff_t)b;}, &msg)) {
-                            SDL_free(e.drop.file);
-                            return "";
+            if (config.dropFilePath) {
+                // Simply paste the file path
+                // Look for a path relative to a mount; if not then just give it the whole thing
+                path_t path = wstr(e.drop.file);
+                std::string path_final = e.drop.file;
+                path_t::iterator largestMatch = path.begin();
+                {
+                    auto match = std::mismatch(path.begin(), path.end(), computer->dataDir.begin());
+                    if (match.first > largestMatch) {
+                        path_final = astr(path_t(match.first + 1, path.end()));
+                        largestMatch = match.first;
+                    }
+                }
+                for (const auto& m : computer->mounts) {
+                    auto match = std::mismatch(path.begin(), path.end(), std::get<1>(m).begin());
+                    if (match.first > largestMatch) {
+                        path_final = "";
+                        for (const std::string& c : std::get<0>(m)) path_final += c + "/";
+                        path_final += astr(path_t(match.first + 1, path.end()));
+                        largestMatch = match.first;
+                    }
+                }
+                lua_pushfstring(L, "%s ", astr(fixpath(computer, path_final, false, false)).c_str());
+                SDL_free(e.drop.file);
+                return "paste";
+            } else {
+                // Copy the file into the computer
+                path_t path = fixpath(computer, basename(e.drop.file), false);
+                struct_stat st;
+                if (platform_stat(path.c_str(), &st) == 0) {
+                    if (S_ISREG(st.st_mode)) {
+                        SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
+                        if (term != NULL) {
+                            SDL_MessageBoxButtonData buttons[] = {
+                                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No"},
+                                {0, 1, "Yes"}
+                            };
+                            std::string text = std::string("A file named ") + basename(e.drop.file) + " already exists on this computer. Would you like to overwrite it?";
+                            SDL_MessageBoxData msg = {
+                                SDL_MESSAGEBOX_WARNING,
+                                term->win,
+                                "File already exists",
+                                text.c_str(),
+                                2,
+                                buttons,
+                                NULL
+                            };
+                            if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)(ptrdiff_t)b;}, &msg)) {
+                                SDL_free(e.drop.file);
+                                return "";
+                            }
                         }
                     }
                 }
-            }
-            FILE * infile = fopen(e.drop.file, "rb");
-            if (infile == NULL) {
-                char * err = strerror(errno);
-                char * msg = new char[strlen(err)+1];
-                strcpy(msg, err);
-                queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The input file could not be read: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
-                SDL_free(e.drop.file);
-                return "";
-            }
-            FILE * outfile = platform_fopen(path.c_str(), "wb");
-            if (outfile == NULL) {
-                char * err = strerror(errno);
-                char * msg = new char[strlen(err)+1];
-                strcpy(msg, err);
-                queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The output file could not be written: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
+                FILE * infile = fopen(e.drop.file, "rb");
+                if (infile == NULL) {
+                    char * err = strerror(errno);
+                    char * msg = new char[strlen(err)+1];
+                    strcpy(msg, err);
+                    queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The input file could not be read: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
+                    SDL_free(e.drop.file);
+                    return "";
+                }
+                FILE * outfile = platform_fopen(path.c_str(), "wb");
+                if (outfile == NULL) {
+                    char * err = strerror(errno);
+                    char * msg = new char[strlen(err)+1];
+                    strcpy(msg, err);
+                    queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The output file could not be written: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
+                    fclose(infile);
+                    SDL_free(e.drop.file);
+                    return "";
+                }
+                char buf[4096];
+                while (!feof(infile)) {
+                    size_t sz = fread(buf, 1, 4096, infile);
+                    fwrite(buf, 1, sz, outfile);
+                    if (sz < 4096) break;
+                }
                 fclose(infile);
+                fclose(outfile);
+                computer->fileUploadCount++;
                 SDL_free(e.drop.file);
                 return "";
             }
-            char buf[4096];
-            while (!feof(infile)) {
-                size_t sz = fread(buf, 1, 4096, infile);
-                fwrite(buf, 1, sz, outfile);
-                if (sz < 4096) break;
-            }
-            fclose(infile);
-            fclose(outfile);
-            computer->fileUploadCount++;
-            SDL_free(e.drop.file);
-            return "";
-        } else if (e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) {
+        } else if ((e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && !config.dropFilePath) {
             int c = computer->fileUploadCount;
             if (e.type == SDL_DROPCOMPLETE && computer->fileUploadCount)
                 queueTask([computer, c](void*)->void*{computer->term->showMessage(SDL_MESSAGEBOX_INFORMATION, "Upload Succeeded", (std::to_string(c) + " files uploaded.").c_str()); return NULL;}, NULL, true);
