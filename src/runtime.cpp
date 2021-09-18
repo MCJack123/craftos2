@@ -185,13 +185,16 @@ Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
             msg.numbuttons = 2;
             msg.buttons = buttons;
             msg.colorScheme = NULL;
-            if (queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL) {
-                computer->running = 2;
-                lua_halt(computer->L);
-                return 0;
-            } else {
-                computer->timeoutCheckCount = -15;
-                return 1000;
+            bool response = queueTask([](void* arg)->void* {int num = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, &num); return (void*)(ptrdiff_t)num; }, &msg) != NULL;
+            if (freedComputers.find(computer) == freedComputers.end() && computer->L != NULL) {
+                if (response) {
+                    computer->running = 2;
+                    lua_halt(computer->L);
+                    return 0;
+                } else {
+                    computer->timeoutCheckCount = -15;
+                    return 1000;
+                }
             }
         }
     }
