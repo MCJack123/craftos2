@@ -759,22 +759,25 @@ struct ws_handle {
     std::condition_variable cv;
     bool inUse;
     uint16_t port;
+    void * clientID = NULL;
 };
 
 struct websocket_failure_data {
     std::string url;
     std::string reason;
+    uint16_t port;
 };
 
 struct ws_message {
     std::string url;
     std::string data;
     uint16_t port;
+    void * clientID = NULL;
 };
 
 static std::string websocket_failure(lua_State *L, void* userp) {
     websocket_failure_data * data = (websocket_failure_data*)userp;
-    if (data->url.empty()) lua_pushnil(L);
+    if (data->url.empty()) lua_pushnumber(L, data->port);
     else lua_pushstring(L, data->url.c_str());
     lua_pushstring(L, data->reason.c_str());
     delete data;
@@ -790,7 +793,9 @@ static std::string websocket_closed(lua_State *L, void* userp) {
 }
 
 static std::string websocket_closed_server(lua_State *L, void* userp) {
-    lua_pushnumber(L, (ptrdiff_t)userp);
+    ws_handle * wsh = (ws_handle*)userp;
+    lua_pushnumber(L, wsh->port);
+    lua_pushlightuserdata(L, wsh->clientID);
     return "websocket_closed";
 }
 
@@ -847,7 +852,7 @@ static int websocket_receive(lua_State *L) {
                 delete url;
                 url = new std::string(lua_tostring(L, 2));
             }
-            if (*ev == "websocket_message" && (ws->url.empty() ? port == ws->port : *url == ws->url)) {
+            if (*ev == "websocket_message" && (ws->url.empty() ? port == ws->port : *url == ws->url) && (ws->clientID == NULL || (lua_islightuserdata(L, 4) && lua_touserdata(L, 4) == ws->clientID))) {
                 lua_pushvalue(L, 3);
                 delete ev;
                 delete url;
@@ -919,6 +924,7 @@ static std::string websocket_success(lua_State *L, void* userp) {
     lua_settable(L, -3);
 
     lua_remove(L, pos);
+    if (ws->clientID) lua_pushlightuserdata(L, ws->clientID);
     return "websocket_success";
 }
 
@@ -927,6 +933,7 @@ static std::string websocket_message(lua_State *L, void* userp) {
     if (message->url.empty()) lua_pushinteger(L, message->port);
     else lua_pushstring(L, message->url.c_str());
     lua_pushlstring(L, message->data.c_str(), message->data.size());
+    if (message->clientID) lua_pushlightuserdata(L, message->clientID);
     delete message;
     return "websocket_message";
 }
@@ -946,6 +953,7 @@ public:
             websocket_failure_data * data = new websocket_failure_data;
             data->url = "";
             data->reason = e.message();
+            data->port = srv->port();
             queueEvent(comp, websocket_failure, data);
             delete ws;
             if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
@@ -962,6 +970,7 @@ public:
         wsh->url = "";
         wsh->inUse = true;
         wsh->port = srv->port();
+        wsh->clientID = &request;
         comp->openWebsockets.push_back(&wsh);
         queueEvent(comp, websocket_success, &wsh);
         char * buf = new char[config.http_max_websocket_message];
@@ -972,23 +981,23 @@ public:
                 res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
                 if (res == 0) {
                     wsh->ws = NULL;
-                    queueEvent(comp, websocket_closed_server, (void*)(ptrdiff_t)wsh->port);
+                    queueEvent(comp, websocket_closed_server, wsh);
                     break;
                 }
             } catch (Poco::TimeoutException &e) {
                 if (!wsh->ws) {
-                    queueEvent(comp, websocket_closed_server, (void*)(ptrdiff_t)wsh->port);
+                    queueEvent(comp, websocket_closed_server, wsh);
                     break;
                 }
                 continue;
             } catch (NetException &e) {
                 wsh->ws = NULL;
-                queueEvent(comp, websocket_closed_server, (void*)(ptrdiff_t)wsh->port);
+                queueEvent(comp, websocket_closed_server, wsh);
                 break;
             }
             if ((flags & 0x0f) & WebSocket::FRAME_OP_CLOSE) {
                 wsh->ws = NULL;
-                queueEvent(comp, websocket_closed_server, (void*)(ptrdiff_t)wsh->port);
+                queueEvent(comp, websocket_closed_server, wsh);
                 break;
             } else if ((flags & 0x0f) == WebSocket::FRAME_OP_PING) {
                 ws->sendFrame(buf, res, WebSocket::FRAME_FLAG_FIN | WebSocket::FRAME_OP_PONG);
@@ -997,6 +1006,7 @@ public:
                 message->url = "";
                 message->port = wsh->port;
                 message->data = std::string((const char*)buf, res);
+                message->clientID = &request;
                 queueEvent(comp, websocket_message, message);
             }
             std::this_thread::yield();
