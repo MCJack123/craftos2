@@ -794,6 +794,11 @@ static std::string websocket_closed_server(lua_State *L, void* userp) {
     return "websocket_closed";
 }
 
+static std::string websocket_server_closed(lua_State *L, void* userp) {
+    lua_pushnumber(L, (ptrdiff_t)userp);
+    return "websocket_server_closed";
+}
+
 // WebSocket handle functions
 static int websocket_free(lua_State *L) {
     lastCFunction = __func__;
@@ -931,7 +936,8 @@ public:
     Computer * comp;
     HTTPServer *srv;
     std::unordered_map<std::string, std::string> headers;
-    websocket_server(Computer * c, HTTPServer *s, const std::unordered_map<std::string, std::string>& h): comp(c), srv(s), headers(h) {}
+    int * retainCount;
+    websocket_server(Computer * c, HTTPServer *s, const std::unordered_map<std::string, std::string>& h, int *r): comp(c), srv(s), headers(h), retainCount(r) {}
     void handleRequest(HTTPServerRequest &request, HTTPServerResponse &response) override {
         WebSocket * ws = NULL;
         try {
@@ -945,6 +951,7 @@ public:
             if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
             return;
         }
+        (*retainCount)++;
         ws->setReceiveTimeout(Poco::Timespan(1, 0));
 #if POCO_VERSION >= 0x01090100
         if (config.http_max_websocket_message > 0) ws->setMaxPayloadSize(config.http_max_websocket_message);
@@ -997,7 +1004,13 @@ public:
         auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
         if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
         try {ws->shutdown();} catch (...) {}
-        if (srv != NULL) { try {srv->stop();} catch (...) {} delete srv; }
+        if (--(*retainCount) == 0 && srv != NULL) {
+            try {srv->stop();}
+            catch (...) {}
+            delete srv;
+            srv = NULL;
+            queueEvent(comp, websocket_server_closed, (void*)(ptrdiff_t)wsh->port);
+        }
         std::unique_lock<std::mutex> lock(wsh->lock);
         wsh->ws = NULL;
         wsh->inUse = false;
@@ -1009,9 +1022,10 @@ public:
         Computer *comp;
         HTTPServer *srv = NULL;
         std::unordered_map<std::string, std::string> headers;
+        int retainCount = 0;
         Factory(Computer *c, const std::unordered_map<std::string, std::string>& h): comp(c), headers(h) {}
         HTTPRequestHandler* createRequestHandler(const HTTPServerRequest&) override {
-            return new websocket_server(comp, srv, headers);
+            return new websocket_server(comp, srv, headers, &retainCount);
         }
     };
 };
