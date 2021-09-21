@@ -326,6 +326,7 @@ void config_init() {
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
 #ifndef __EMSCRIPTEN__
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')) != std::string(CRAFTOSPC_VERSION).substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')))) { onboardingMode = 2; config_save(); }
+    if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
     for (const auto& e : root)
         if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
             unknownOptions.insert(e);
