@@ -760,6 +760,7 @@ struct ws_handle {
     bool inUse;
     uint16_t port;
     void * clientID = NULL;
+    bool hasSwitched;
 };
 
 struct websocket_failure_data {
@@ -773,6 +774,7 @@ struct ws_message {
     std::string data;
     uint16_t port;
     void * clientID = NULL;
+    bool binary;
 };
 
 static std::string websocket_failure(lua_State *L, void* userp) {
@@ -852,8 +854,9 @@ static int websocket_receive(lua_State *L) {
                 delete url;
                 url = new std::string(lua_tostring(L, 2));
             }
-            if (*ev == "websocket_message" && (ws->url.empty() ? port == ws->port : *url == ws->url) && (ws->clientID == NULL || (lua_islightuserdata(L, 4) && lua_touserdata(L, 4) == ws->clientID))) {
+            if (*ev == "websocket_message" && (ws->url.empty() ? port == ws->port : *url == ws->url) && (ws->clientID == NULL || (lua_islightuserdata(L, 5) && lua_touserdata(L, 5) == ws->clientID))) {
                 lua_pushvalue(L, 3);
+                lua_pushvalue(L, 4);
                 delete ev;
                 delete url;
                 return 1;
@@ -899,6 +902,7 @@ static std::string websocket_success(lua_State *L, void* userp) {
         memcpy(ws, *wsh, sizeof(ws_handle));
         *wsh = ws;
     }
+    ws->hasSwitched = true;
     int pos = lua_gettop(L);
     lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
@@ -933,6 +937,7 @@ static std::string websocket_message(lua_State *L, void* userp) {
     if (message->url.empty()) lua_pushinteger(L, message->port);
     else lua_pushstring(L, message->url.c_str());
     lua_pushlstring(L, message->data.c_str(), message->data.size());
+    lua_pushboolean(L, message->binary);
     if (message->clientID) lua_pushlightuserdata(L, message->clientID);
     delete message;
     return "websocket_message";
@@ -971,6 +976,7 @@ public:
         wsh->inUse = true;
         wsh->port = srv->port();
         wsh->clientID = &request;
+        wsh->hasSwitched = false;
         comp->openWebsockets.push_back(&wsh);
         queueEvent(comp, websocket_success, &wsh);
         char * buf = new char[config.http_max_websocket_message];
@@ -1005,7 +1011,8 @@ public:
                 ws_message * message = new ws_message;
                 message->url = "";
                 message->port = wsh->port;
-                message->data = std::string((const char*)buf, res);
+                message->binary = (flags & WebSocket::FRAME_OP_BITMASK) == WebSocket::FRAME_OP_BINARY;
+                message->data = message->binary ? std::string((const char*)buf, res) : makeASCIISafe((const char*)buf, res);
                 message->clientID = &request;
                 queueEvent(comp, websocket_message, message);
             }
@@ -1021,6 +1028,7 @@ public:
             srv = NULL;
             queueEvent(comp, websocket_server_closed, (void*)(ptrdiff_t)wsh->port);
         }
+        while (!wsh->hasSwitched) std::this_thread::yield();
         std::unique_lock<std::mutex> lock(wsh->lock);
         wsh->ws = NULL;
         wsh->inUse = false;
@@ -1138,6 +1146,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     wsh->url = str;
     wsh->ws = ws;
     wsh->inUse = true;
+    wsh->hasSwitched = false;
     comp->openWebsockets.push_back(&wsh);
     queueEvent(comp, websocket_success, &wsh);
     char * buf = new char[config.http_max_websocket_message];
@@ -1186,7 +1195,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         } else {
             ws_message * message = new ws_message;
             message->url = str;
-            message->data = std::string((const char*)buf, res);
+            message->binary = (flags & WebSocket::FRAME_OP_BITMASK) == WebSocket::FRAME_OP_BINARY;
+            message->data = message->binary ? std::string((const char*)buf, res) : makeASCIISafe((const char*)buf, res);
             queueEvent(comp, websocket_message, message);
         }
         std::this_thread::yield();
@@ -1196,6 +1206,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
     wsh->url = "";
     try {ws->shutdown();} catch (...) {}
+    while (!wsh->hasSwitched) std::this_thread::yield();
     std::unique_lock<std::mutex> lock(wsh->lock);
     wsh->ws = NULL;
     wsh->inUse = false;
