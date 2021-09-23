@@ -1026,6 +1026,7 @@ public:
             catch (...) {}
             delete srv;
             srv = NULL;
+            comp->openWebsocketServers.erase(wsh->port);
             queueEvent(comp, websocket_server_closed, (void*)(ptrdiff_t)wsh->port);
         }
         while (!wsh->hasSwitched) std::this_thread::yield();
@@ -1248,6 +1249,7 @@ static int http_websocket(lua_State *L) {
             lua_pushstring(L, e.displayText().c_str());
             return 2;
         }
+        comp->openWebsocketServers.insert(port);
         f->srv->start();
     } else if (lua_isstring(L, 1)) {
         Computer * comp = get_comp(L);

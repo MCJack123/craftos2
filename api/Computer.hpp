@@ -123,7 +123,7 @@ struct Computer {
     std::mutex httpRequestQueueMutex; // A mutex locking httpRequestQueueMutex
 
     // The following fields are available in API version 10.6 and later.
-    std::set<uint16_t> openWebsocketServers; // List of ports currently in use by WebSocket servers
+    std::unordered_set<uint16_t> openWebsocketServers; // List of ports currently in use by WebSocket servers
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.
