@@ -1221,6 +1221,13 @@ static int http_websocket(lua_State *L) {
     Computer * comp = get_comp(L);
     if (comp->openWebsockets.size() >= (size_t)config.http_max_websockets) return luaL_error(L, "Too many websockets already open");
     if (!(config.serverMode || config.vanilla) && (lua_isnoneornil(L, 1) || lua_isnumber(L, 1))) {
+        int port = luaL_optinteger(L, 1, 80);
+        if (port < 0 || port > 65535) luaL_error(L, "bad argument #1 (port out of range)");
+        if (comp->openWebsocketServers.find(port) != comp->openWebsocketServers.end()) {
+            // if there's already an open server, reuse that
+            lua_pushboolean(L, true);
+            return 1;
+        }
         std::unordered_map<std::string, std::string> headers;
         if (lua_istable(L, 2)) {
             lua_pushvalue(L, 2);
@@ -1232,9 +1239,9 @@ static int http_websocket(lua_State *L) {
                 lua_pop(L, 2);
             }
             lua_pop(L, 1);
-        } else if (!lua_isnoneornil(L, 2)) luaL_error(L, "bad argument #2 (expected table or nil, got %s)", lua_typename(L, lua_type(L, 2)));
-        websocket_server::Factory * f = new websocket_server::Factory(get_comp(L), headers);
-        try {f->srv = new HTTPServer(f, lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 80);}
+        } else if (!lua_isnoneornil(L, 2)) luaL_error(L, "bad argument #2 (expected table, got %s)", lua_typename(L, lua_type(L, 2)));
+        websocket_server::Factory * f = new websocket_server::Factory(comp, headers);
+        try {f->srv = new HTTPServer(f, port);}
         catch (Poco::Exception& e) {
             fprintf(stderr, "Could not open server: %s\n", e.displayText().c_str());
             lua_pushboolean(L, false);
