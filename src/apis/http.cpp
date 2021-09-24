@@ -829,11 +829,20 @@ static int websocket_close(lua_State *L) {
 
 static int websocket_send(lua_State *L) {
     lastCFunction = __func__;
-    luaL_checkstring(L, 1);
+    size_t len = 0;
+    const char * str = luaL_checklstring(L, 1, &len);
     if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
-    if (ws->ws->sendFrame(lua_tostring(L, 1), lua_strlen(L, 1), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
+    std::string buf;
+    if (!lua_toboolean(L, 2)) {
+        std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
+        std::wstring wstr;
+        for (unsigned char c : str) wstr += (wchar_t)c;
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
+        buf = converter.to_bytes(wstr);
+    } else buf = std::string(str, len);
+    if (ws->ws->sendFrame(buf.c_str(), buf.size(), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
         websocket_close(L);
     return 0;
 }
