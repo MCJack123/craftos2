@@ -122,7 +122,9 @@ if test "x$enable_wasm" != "xyes"; then
 
     AS_IF([test "x$with_ncurses" != "xno"], [
         AC_CHECK_HEADERS(ncurses.h, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses header.])], [NO_CLI=1])])
-        AC_SEARCH_LIBS(initscr, ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
+        AC_SEARCH_LIBS(initscr, ncursesw, [], [AS_IF([test "x$with_ncurses" = "xyes"], [
+            AC_SEARCH_LIBS(initscr, ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
+        ])])
     ], [NO_CLI=1])
 
     AS_IF([test "x$with_sdl_mixer" != "xno"], [
