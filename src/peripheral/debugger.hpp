@@ -63,7 +63,7 @@ public:
     lua_State * volatile thread = NULL;
     std::unordered_map<std::string, std::unordered_map<std::string, profile_entry > > profile;
     bool isProfiling = false;
-    static peripheral * init(lua_State *L, const char * side) {return new debugger(L, side);}
+    static peripheral * _init(lua_State *L, const char * side) {return new debugger(L, side);}
     static void deinit(peripheral * p) {delete (debugger*)p;}
     destructor getDestructor() const override {return deinit;}
     debugger(lua_State *L, const char * side);

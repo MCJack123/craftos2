@@ -53,6 +53,7 @@ extern "C" {extern int Android_JNI_SetupThread(void);}
 
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
+extern void clearPeripherals();
 extern library_t * libraries[];
 extern int onboardingMode;
 extern std::function<void(const std::string&)> rawWriter;
@@ -854,8 +855,11 @@ int main(int argc, char*argv[]) {
     awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     computerThreads.clear();
-    // C++ doesn't like it if we try to empty the SDL event list once the plugins are gone
+    // Clear out a few lists that plugins may insert functions into
+    // We can't let these stay past the lifetime of plugins since C++ will try
+    // to access methods that were unloaded to destroy the objects
     SDLTerminal::eventHandlers.clear();
+    clearPeripherals();
     deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();

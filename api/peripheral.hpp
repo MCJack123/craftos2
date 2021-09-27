@@ -13,10 +13,16 @@
 #include "lib.hpp"
 
 class peripheral;
+
 // This function type is used to create a new instance of a peripheral. It takes
 // the Lua state and side that should be passed to the constructor, and returns
 // a new peripheral pointer object. This function template is the one that is
-// passed to the registerPeripheral function. 
+// passed to the registerPeripheralFn function.
+typedef std::function<peripheral*(lua_State*, const char *)> peripheral_init_fn;
+
+// This type is the same as the above, but uses standard function pointers, so
+// it doesn't support lambdas or bound methods. This type is used by the
+// registerPeripheral function (deprecated).
 typedef peripheral*(*peripheral_init)(lua_State*, const char *);
 
 // This class is the main interface class that is overridden when making custom

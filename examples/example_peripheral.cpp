@@ -48,7 +48,7 @@ extern "C" {
 _declspec(dllexport)
 #endif
 PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
-    func->registerPeripheral("example_peripheral", &example_peripheral::init);
+    func->registerPeripheralFn("example_peripheral", &example_peripheral::init);
     return &info;
 }
 }
