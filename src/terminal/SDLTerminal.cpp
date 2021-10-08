@@ -674,9 +674,11 @@ bool SDLTerminal::pollEvents() {
             case SDL_MOUSEMOTION: case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: case SDL_MOUSEWHEEL: case SDL_USEREVENT:
                 e.window.windowID = (*renderTarget)->id;
                 break;
+#if SDL_VERSION_ATLEAST(2, 0, 12)
             case SDL_FINGERUP: case SDL_FINGERDOWN: case SDL_FINGERMOTION:
                 e.tfinger.windowID = (*renderTarget)->id;
                 break;
+#endif
             case SDL_DROPBEGIN: case SDL_DROPCOMPLETE: case SDL_DROPFILE: case SDL_DROPTEXT:
                 e.drop.windowID = (*renderTarget)->id;
                 break;
