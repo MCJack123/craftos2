@@ -56,8 +56,8 @@ SDL_Surface* SDLTerminal::bmp = NULL;
 SDL_Surface* SDLTerminal::origfont = NULL;
 std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > SDLTerminal::eventHandlers;
 SDL_Window* SDLTerminal::singleWin = NULL;
-#ifdef __EMSCRIPTEN__
 static int nextWindowID = 1;
+#ifdef __EMSCRIPTEN__
 
 extern "C" {
     void EMSCRIPTEN_KEEPALIVE nextRenderTarget() {
@@ -89,6 +89,7 @@ void onWindowDestroy(int id) {EM_ASM({if (Module.windowEventListener !== undefin
 #endif
 
 #ifdef __IPHONEOS__
+extern void updateCloseButton();
 extern void iosSetSafeAreaConstraints(SDLTerminal * term);
 static Uint32 textInputTimer(Uint32 interval, void* param) {
     queueTask([](void*win)->void*{iosSetSafeAreaConstraints((SDLTerminal*)win); return NULL;}, param, true);
@@ -164,12 +165,12 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
         SDL_StartTextInput();
 #endif
     }
-#ifndef __EMSCRIPTEN__
-    id = SDL_GetWindowID(win);
-#else
-    id = nextWindowID++;
-    onWindowCreate(id, title.c_str());
+    if (singleWindowMode) {
+        id = nextWindowID++;
+#ifdef __EMSCRIPTEN__
+        onWindowCreate(id, title.c_str());
 #endif
+    } else id = SDL_GetWindowID(win);
     lastWindow = id;
 #if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
     SDL_Surface* icon = SDL_CreateRGBSurfaceFrom(favicon.pixel_data, (int)favicon.width, (int)favicon.height, (int)favicon.bytes_per_pixel * 8, (int)favicon.width * (int)favicon.bytes_per_pixel, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
@@ -178,7 +179,11 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #endif
     renderTargets.push_back(this);
     renderTarget = --renderTargets.end();
+    SDL_GetWindowSurface(win);
     onActivate();
+#ifdef __IPHONEOS__
+    updateCloseButton();
+#endif
 }
 
 SDLTerminal::~SDLTerminal() {
@@ -203,6 +208,9 @@ SDLTerminal::~SDLTerminal() {
         if (surf != NULL) SDL_FreeSurface(surf);
         if (!singleWindowMode || renderTargets.size() == 0) {SDL_DestroyWindow(win); singleWin = NULL;}
     }
+#ifdef __IPHONEOS__
+    updateCloseButton();
+#endif
 }
 
 void SDLTerminal::setPalette(Color * p) {
@@ -657,6 +665,23 @@ bool SDLTerminal::pollEvents() {
 #else
     if (SDL_WaitEvent(&e)) {
 #endif
+        if (singleWindowMode) {
+            // Transform window IDs in single window mode
+            // All events with windowID have it in the same place (except drop & touch)! We don't have to dance around checking each individual struct in the union.
+            // (TODO: Fix the **NASTY** code below to do what we do here.)
+            switch (e.type) {
+            case SDL_WINDOWEVENT: case SDL_KEYDOWN: case SDL_KEYUP: case SDL_TEXTINPUT: case SDL_TEXTEDITING:
+            case SDL_MOUSEMOTION: case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: case SDL_MOUSEWHEEL: case SDL_USEREVENT:
+                e.window.windowID = (*renderTarget)->id;
+                break;
+            case SDL_FINGERUP: case SDL_FINGERDOWN: case SDL_FINGERMOTION:
+                e.tfinger.windowID = (*renderTarget)->id;
+                break;
+            case SDL_DROPBEGIN: case SDL_DROPCOMPLETE: case SDL_DROPFILE: case SDL_DROPTEXT:
+                e.drop.windowID = (*renderTarget)->id;
+                break;
+            }
+        }
         if (e.type == task_event_type) {
             while (!taskQueue->empty()) {
                 TaskQueueItem * task = taskQueue->front();
@@ -693,6 +718,23 @@ bool SDLTerminal::pollEvents() {
                             SDL_BlitSurface(sdlterm->surf, NULL, SDL_GetWindowSurface(sdlterm->win), NULL);
                             SDL_UpdateWindowSurface(sdlterm->win);
                         }
+                    }
+                }
+            }
+        } else if (singleWindowMode && e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
+            // Send the resize event to ALL windows, including monitors
+            for (Computer * c : *computers) {
+                e.window.windowID = c->term->id;
+                std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
+                c->termEventQueue.push(e);
+                c->event_lock.notify_all();
+                std::lock_guard<std::mutex> lock2(c->peripherals_mutex);
+                for (const std::pair<std::string, peripheral*> p : c->peripherals) {
+                    monitor * m = dynamic_cast<monitor*>(p.second);
+                    if (m != NULL) {
+                        e.window.windowID = m->term->id;
+                        c->termEventQueue.push(e);
+                        c->event_lock.notify_all();
                     }
                 }
             }

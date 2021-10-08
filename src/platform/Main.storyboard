@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="19158" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="ro5-es-Qe9">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="19162" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="ro5-es-Qe9">
     <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19141"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19144"/>
         <capability name="Image references" minToolsVersion="12.0"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
@@ -15,7 +15,7 @@
         <scene sceneID="f3O-Pp-mLE">
             <objects>
                 <navigationController navigationBarHidden="YES" id="ro5-es-Qe9" sceneMemberID="viewController">
-                    <navigationBar key="navigationBar" opaque="NO" contentMode="scaleToFill" id="oEj-K2-hsw">
+                    <navigationBar key="navigationBar" opaque="NO" contentMode="scaleToFill" barStyle="black" id="oEj-K2-hsw">
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="VcB-Me-KWK">
@@ -68,7 +68,7 @@
                                     <action selector="onNext:" destination="Q4U-DV-xIG" id="i0q-lo-r54"/>
                                 </connections>
                             </barButtonItem>
-                            <barButtonItem title="Close" image="xmark" catalog="system" id="yyU-je-Dtj">
+                            <barButtonItem enabled="NO" title="Close" image="xmark" catalog="system" id="yyU-je-Dtj">
                                 <color key="tintColor" systemColor="systemRedColor"/>
                                 <connections>
                                     <action selector="onClose:" destination="Q4U-DV-xIG" id="TAY-5d-Khf"/>
@@ -78,6 +78,7 @@
                     </navigationItem>
                     <connections>
                         <outlet property="altButton" destination="96X-Er-fMH" id="e6h-xh-Qqq"/>
+                        <outlet property="closeButton" destination="yyU-je-Dtj" id="kdi-hW-xBP"/>
                         <outlet property="ctrlButton" destination="JrA-QI-TA0" id="Vqb-D8-Jto"/>
                         <outlet property="hotkeyToolbar" destination="oo2-wD-jTu" id="UoI-6c-rGo"/>
                     </connections>
@@ -152,7 +153,7 @@
                             <imageReference key="image" image="minus.circle" catalog="system" renderingMode="template"/>
                             <color key="tintColor" systemColor="systemRedColor"/>
                             <connections>
-                                <action selector="onTerminate:" destination="Q4U-DV-xIG" id="Pri-so-Gpe"/>
+                                <action selector="onTerminate:forEvent:" destination="Q4U-DV-xIG" id="TKZ-TB-tBU"/>
                             </connections>
                         </barButtonItem>
                         <barButtonItem style="plain" systemItem="flexibleSpace" id="tbp-yn-zfF"/>
@@ -160,7 +161,7 @@
                             <imageReference key="image" image="power" catalog="system" renderingMode="template"/>
                             <color key="tintColor" systemColor="systemRedColor"/>
                             <connections>
-                                <action selector="onShutdown:" destination="Q4U-DV-xIG" id="TeU-UD-Hhw"/>
+                                <action selector="onShutdown:forEvent:" destination="Q4U-DV-xIG" id="yHw-rs-6yP"/>
                             </connections>
                         </barButtonItem>
                         <barButtonItem style="plain" systemItem="flexibleSpace" id="RtO-8e-Nxw"/>
@@ -168,7 +169,7 @@
                             <imageReference key="image" image="restart" catalog="system" renderingMode="template"/>
                             <color key="tintColor" systemColor="systemRedColor"/>
                             <connections>
-                                <action selector="onReboot:" destination="Q4U-DV-xIG" id="g0A-Kb-QMg"/>
+                                <action selector="onReboot:forEvent:" destination="Q4U-DV-xIG" id="J3G-sQ-6xa"/>
                             </connections>
                         </barButtonItem>
                     </items>
@@ -188,7 +189,7 @@
         <image name="restart" catalog="system" width="120" height="128"/>
         <image name="xmark" catalog="system" width="128" height="113"/>
         <namedColor name="BackgroundColor">
-            <color red="0.062745098040000002" green="0.066666666669999999" blue="0.062745098040000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+            <color red="0.063000001013278961" green="0.067000001668930054" blue="0.063000001013278961" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
         </namedColor>
         <systemColor name="systemRedColor">
             <color red="1" green="0.23137254901960785" blue="0.18823529411764706" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>

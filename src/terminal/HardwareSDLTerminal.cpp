@@ -467,6 +467,23 @@ bool HardwareSDLTerminal::pollEvents() {
 #else
     if (SDL_WaitEvent(&e)) {
 #endif
+        if (singleWindowMode) {
+            // Transform window IDs in single window mode
+            // All events with windowID have it in the same place (except drop & touch)! We don't have to dance around checking each individual struct in the union.
+            // (TODO: Fix the **NASTY** code below to do what we do here.)
+            switch (e.type) {
+            case SDL_WINDOWEVENT: case SDL_KEYDOWN: case SDL_KEYUP: case SDL_TEXTINPUT: case SDL_TEXTEDITING:
+            case SDL_MOUSEMOTION: case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: case SDL_MOUSEWHEEL: case SDL_USEREVENT:
+                e.window.windowID = (*renderTarget)->id;
+                break;
+            case SDL_FINGERUP: case SDL_FINGERDOWN: case SDL_FINGERMOTION:
+                e.tfinger.windowID = (*renderTarget)->id;
+                break;
+            case SDL_DROPBEGIN: case SDL_DROPCOMPLETE: case SDL_DROPFILE: case SDL_DROPTEXT:
+                e.drop.windowID = (*renderTarget)->id;
+                break;
+            }
+        }
         if (e.type == task_event_type) {
             while (!taskQueue->empty()) {
                 TaskQueueItem * task = taskQueue->front();
@@ -502,6 +519,23 @@ bool HardwareSDLTerminal::pollEvents() {
                         if (sdlterm->gotResizeEvent || sdlterm->width == 0 || sdlterm->height == 0) continue;
                         SDL_RenderPresent(sdlterm->ren);
                         SDL_UpdateWindowSurface(sdlterm->win);
+                    }
+                }
+            }
+        } else if (singleWindowMode && e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
+            // Send the resize event to ALL windows, including monitors
+            for (Computer * c : *computers) {
+                e.window.windowID = c->term->id;
+                std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
+                c->termEventQueue.push(e);
+                c->event_lock.notify_all();
+                std::lock_guard<std::mutex> lock2(c->peripherals_mutex);
+                for (const std::pair<std::string, peripheral*> p : c->peripherals) {
+                    monitor * m = dynamic_cast<monitor*>(p.second);
+                    if (m != NULL) {
+                        e.window.windowID = m->term->id;
+                        c->termEventQueue.push(e);
+                        c->event_lock.notify_all();
                     }
                 }
             }

@@ -267,6 +267,7 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
 @property (strong, nonatomic) UIViewController * oldvc;
 @property (strong, nonatomic) IBOutlet UIBarButtonItem *ctrlButton;
 @property (strong, nonatomic) IBOutlet UIBarButtonItem *altButton;
+@property (strong, nonatomic) IBOutlet UIBarButtonItem *closeButton;
 @property (assign) SDL_Window * sdlWindow;
 @end
 
@@ -290,6 +291,17 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     UITextField * textField = (UITextField*)object_getIvar(self.oldvc, class_getInstanceVariable([self.oldvc class], "textField"));
     [self.view addSubview:textField]; // ?
     textField.inputAccessoryView = self.hotkeyToolbar;
+    textField.keyboardAppearance = UIKeyboardAppearanceDark;
+    // Fix transparent navigation bar background on iOS 15+
+    if (@available(iOS 15, *)) {
+        UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+        [appearance configureWithDefaultBackground];
+        appearance.backgroundColor = [UIColor colorWithRed:44.0/255.0 green:44.0/255.0 blue:46.0/255.0 alpha:1.0];
+        appearance.titleTextAttributes = @{NSForegroundColorAttributeName: [UIColor whiteColor]};
+        self.navigationController.navigationBar.standardAppearance = appearance;
+        self.navigationController.navigationBar.scrollEdgeAppearance = appearance;
+    }
+    // Initialize properties
     isCtrlDown = NO;
     isAltDown = NO;
     holdTimer = 0;
@@ -402,7 +414,15 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
 }
 
 - (IBAction)onClose:(id)sender {
-    // TODO
+    if (renderTargets.size() < 2) return;
+    SDL_Event e;
+    e.type = SDL_WINDOWEVENT;
+    e.window.timestamp = time(0);
+    e.window.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.window.event = SDL_WINDOWEVENT_CLOSE;
+    e.window.data1 = 0;
+    e.window.data2 = 0;
+    SDL_PushEvent(&e);
 }
 
 - (IBAction)onCtrl:(id)sender {
@@ -477,7 +497,8 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_PushEvent(&e);
 }
 
-- (IBAction)onTerminate:(id)sender {
+- (IBAction)onTerminate:(id)sender forEvent:(UIEvent*)event {
+    if (event.allTouches == nil || event.allTouches.anyObject == nil || event.allTouches.anyObject.tapCount != 0) return;
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.timestamp = time(0);
@@ -495,7 +516,8 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_PushEvent(&e);
 }
 
-- (IBAction)onShutdown:(id)sender {
+- (IBAction)onShutdown:(id)sender forEvent:(UIEvent*)event {
+    if (event.allTouches == nil || event.allTouches.anyObject == nil || event.allTouches.anyObject.tapCount != 0) return;
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.timestamp = time(0);
@@ -513,7 +535,8 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_PushEvent(&e);
 }
 
-- (IBAction)onReboot:(id)sender {
+- (IBAction)onReboot:(id)sender forEvent:(UIEvent*)event {
+    if (event.allTouches == nil || event.allTouches.anyObject == nil || event.allTouches.anyObject.tapCount != 0) return;
     SDL_Event e;
     e.type = SDL_KEYDOWN;
     e.key.timestamp = time(0);
@@ -564,6 +587,11 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
     // Set fullscreen mode, but only on devices without a notch
     if (window_info.info.uikit.window.safeAreaInsets.top <= 30) SDL_SetWindowFullscreen(term->win, SDL_WINDOW_FULLSCREEN_DESKTOP);
     viewController.navigationItem.title = [NSString stringWithCString:term->title.c_str() encoding:NSASCIIStringEncoding];
+}
+
+void updateCloseButton() {
+    // TODO: Enable close button when there's one computer + monitors/debugger
+    viewController.closeButton.enabled = computers->size() > 1;
 }
 
 void iOS_SetWindowTitle(SDL_Window * win, const char * title) {
