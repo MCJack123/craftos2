@@ -365,6 +365,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         * all the time.
         */
         lua_State *L = self->L = luaL_newstate();
+        uncache_state(L);
 
         self->coro = lua_newthread(L);
         self->paramQueue = lua_newthread(L);

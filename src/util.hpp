@@ -201,6 +201,7 @@ extern std::unordered_map<std::string, std::tuple<int, std::function<int(const s
 extern std::string loadingPlugin;
 extern const char * lastCFunction;
 extern Computer * get_comp(lua_State *L);
+extern void uncache_state(lua_State *L);
 
 template<typename T>
 inline T min(T a, T b) { return a < b ? a : b; }
@@ -230,9 +231,10 @@ inline std::string checkstring(lua_State *L, int idx) {
     const char * str = luaL_checklstring(L, idx, &sz);
     return std::string(str, sz);
 }
-inline std::string tostring(lua_State *L, int idx) {
+inline std::string tostring(lua_State *L, int idx, const std::string& def = "") {
     size_t sz = 0;
     const char * str = lua_tolstring(L, idx, &sz);
+    if (str == NULL) return def;
     return std::string(str, sz);
 }
 

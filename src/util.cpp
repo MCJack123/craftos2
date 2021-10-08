@@ -47,6 +47,11 @@ Computer * get_comp(lua_State *L) {
     }
 }
 
+void uncache_state(lua_State *L) {
+    LockGuard lock(getCompCache);
+    getCompCache->erase(L->l_G);
+}
+
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {
     luaL_register(L, lib.name, lib.functions);
     if (lib.init != NULL) lib.init(comp);
