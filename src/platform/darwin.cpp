@@ -184,7 +184,7 @@ void migrateOldData() {
         recursiveMove(oldpath, getBasePath());
 }
 
-void copyImage(SDL_Surface* surf) {
+void copyImage(SDL_Surface* surf, SDL_Window* win) {
     png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
     memcpy((void*)&pixbuf.get_bytes()[0], surf->pixels, surf->h * surf->pitch);
     png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);

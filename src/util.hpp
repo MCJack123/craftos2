@@ -41,12 +41,15 @@ class ProtectedObject {
     std::mutex mutex;
     bool isLocked;
 public:
+    ProtectedObject() {}
+    ProtectedObject(T o): obj(o) {}
     void lock() { mutex.lock(); isLocked = true; }
     void unlock() { mutex.unlock(); isLocked = false; }
     bool locked() { return isLocked; }
     std::mutex& getMutex() { return mutex; }
     T& operator*() { return obj; }
     T* operator->() { return &obj; }
+    ProtectedObject<T>& operator=(const T& rhs) {obj = rhs; return *this;}
 };
 
 class LockGuard : public std::lock_guard<std::mutex> {

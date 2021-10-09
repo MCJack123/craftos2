@@ -262,7 +262,7 @@ void HardwareSDLTerminal::render() {
         if (screenshotPath == WS("clipboard")) {
             SDL_Surface * temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 24, SDL_PIXELFORMAT_RGB24);
             if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, temp->pixels, temp->pitch) != 0) return;
-            copyImage(temp);
+            copyImage(temp, win);
             SDL_FreeSurface(temp);
         } else {
 #ifndef NO_WEBP

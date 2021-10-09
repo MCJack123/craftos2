@@ -816,11 +816,11 @@ Computer * startComputer(int id) {
     try {comp = new Computer(id);}
     catch (Poco::Exception &e) {
         if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + e.displayText() + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
-        else fprintf(stderr, "An error occurred while opening the computer session: %s", e.displayText().c_str());
+        fprintf(stderr, "An error occurred while opening the computer session: %s\n", e.displayText().c_str());
         return NULL;
     } catch (std::exception &e) {
         if ((selectedRenderer == 0 || selectedRenderer == 5) && !config.standardsMode) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to open computer", std::string("An error occurred while opening the computer session: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info.").c_str(), NULL);
-        else fprintf(stderr, "An error occurred while opening the computer session: %s", e.what());
+        fprintf(stderr, "An error occurred while opening the computer session: %s\n", e.what());
         return NULL;
     }
     {

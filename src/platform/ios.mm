@@ -153,17 +153,17 @@ void migrateOldData() {
     
 }
 
-void copyImage(SDL_Surface* surf) {
-    /*png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
+void copyImage(SDL_Surface* surf, SDL_Window* win) {
+    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
     memcpy((void*)&pixbuf.get_bytes()[0], surf->pixels, surf->h * surf->pitch);
     png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);
     img.set_pixbuf(pixbuf);
     std::stringstream ss;
     img.write_stream(ss);
     NSData * nsdata = [NSData dataWithBytes:ss.str().c_str() length:surf->w*surf->h*3];
-    [[NSPasteboard generalPasteboard] clearContents];
-    [[NSPasteboard generalPasteboard] setData:nsdata forType:NSPasteboardTypePNG];
-    [nsdata release];*/
+    [[UIPasteboard generalPasteboard] clearContents];
+    [[UIPasteboard generalPasteboard] setData:nsdata forPasteboardType:kUTTypePNG];
+    [nsdata release];
 }
 
 float getBackingScaleFactor(SDL_Window *win) {

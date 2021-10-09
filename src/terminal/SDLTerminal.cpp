@@ -356,7 +356,7 @@ void SDLTerminal::render() {
         if (gotResizeEvent) return;
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
         if (screenshotPath == WS("clipboard")) {
-            copyImage(temp);
+            copyImage(temp, win);
         } else {
 #ifndef NO_WEBP
             if (config.useWebP) {

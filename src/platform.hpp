@@ -81,7 +81,7 @@ extern path_t getPlugInPath();
 extern path_t getMCSavePath();
 extern void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root);
 extern void migrateOldData();
-extern void copyImage(SDL_Surface* surf);
+extern void copyImage(SDL_Surface* surf, SDL_Window* win);
 extern void setupCrashHandler();
 extern void setFloating(SDL_Window* win, bool state);
 #endif
