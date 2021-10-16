@@ -52,8 +52,11 @@ public:
     // into the proper function calls: 
     //   if (m == "a") return a(L); else if (m == "b") return b(L); ...
     virtual int call(lua_State *L, const char * method)=0;
-    // This function is called every render tick on the render thread. This can
-    // be used for anything that requires a constant update cycle.
+    // This function is deprecated, and no longer works. In fact, it did not work
+    // in any version of the API. Just leave this as-is.
+#if __cplusplus >= 201402L
+    [[deprecated]]
+#endif
     virtual void update() {}
     // This function should return a library_t containing the names of all of the
     // methods available to the peripheral. Only the keys, name, and size members
