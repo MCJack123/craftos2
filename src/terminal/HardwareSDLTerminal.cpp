@@ -10,12 +10,14 @@
 
 #include <fstream>
 #include <configuration.hpp>
+#include <SDL2/SDL_ttf.h>
 #include "HardwareSDLTerminal.hpp"
 #include "RawTerminal.hpp"
 #include "../gif.hpp"
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
+#include "../UTFString.hpp"
 #ifndef NO_WEBP
 #include <webp/mux.h>
 #include <webp/encode.h>
@@ -44,6 +46,7 @@ extern float getBackingScaleFactor(SDL_Window *win);
 SDL_Renderer *HardwareSDLTerminal::singleRen = NULL;
 SDL_Texture *HardwareSDLTerminal::singleFont = NULL;
 SDL_Texture *HardwareSDLTerminal::singlePixtex = NULL;
+extern TTF_Font * unicodeFont;
 
 void MySDL_GetDisplayDPI(int displayIndex, float* dpi, float* defaultDpi)
 {
@@ -106,6 +109,14 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
             SDL_DestroyWindow(win);
             throw window_exception("Failed to create texture for pixels: " + std::string(SDL_GetError()));
         }
+        unitex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, (int)(width * charWidth * dpiScale), (int)(height * charHeight * dpiScale));
+        if (unitex == (SDL_Texture*)0) {
+            SDL_DestroyTexture(pixtex);
+            SDL_DestroyTexture(font);
+            SDL_DestroyRenderer(ren);
+            SDL_DestroyWindow(win);
+            throw window_exception("Failed to create texture for Unicode: " + std::string(SDL_GetError()));
+        }
 #ifdef __APPLE__
         // macOS has some weird scaling bug on non-Retina displays that this fixes for some reason?
         SDL_SetWindowSize(win, realWidth, realHeight);
@@ -120,6 +131,7 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
 
 HardwareSDLTerminal::~HardwareSDLTerminal() {
     if (!singleWindowMode || renderTargets.size() == 1) {
+        SDL_DestroyTexture(unitex);
         SDL_DestroyTexture(pixtex);
         SDL_DestroyTexture(font);
         SDL_DestroyRenderer(ren);
@@ -131,7 +143,7 @@ HardwareSDLTerminal::~HardwareSDLTerminal() {
 
 extern bool operator!=(Color lhs, Color rhs);
 
-bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool HardwareSDLTerminal::drawChar(char32_t c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
         (int)(x * charWidth * dpiScale + 2 * charScale * dpiScale), 
@@ -155,7 +167,16 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         if (gotResizeEvent) return false;
         if (SDL_RenderFillRect(ren, &bgdestrect) != 0) return false;
     }
-    if (c != ' ' && c != '\0') {
+    if (c > 255) {
+        std::string utf8 = unicodeToUTF8(std::u32string(&c, 1));
+        SDL_Surface * s = TTF_RenderText_Solid(unicodeFont, utf8.c_str(), {fg.r, fg.g, fg.b, 255});
+        if (s) {
+            destrect.x -= 2 * charScale * dpiScale;
+            destrect.y -= 2 * charScale * dpiScale;
+            SDL_BlitScaled(s, NULL, unitex_surf, &destrect);
+            SDL_FreeSurface(s);
+        }
+    } else if (c != ' ' && c != '\0') {
         if (gotResizeEvent) return false;
         fg = grayscalify(fg);
         if (SDL_SetTextureColorMod(font, fg.r, fg.g, fg.b) != 0) return false;
@@ -182,7 +203,7 @@ static unsigned char circlePix[] = {
 
 void HardwareSDLTerminal::render() {
     // copy the screen data so we can let Lua keep going without waiting for the mutex
-    std::unique_ptr<vector2d<unsigned char> > newscreen;
+    std::unique_ptr<vector2d<char32_t> > newscreen;
     std::unique_ptr<vector2d<unsigned char> > newcolors;
     std::unique_ptr<vector2d<unsigned char> > newpixels;
     Color newpalette[256];
@@ -206,7 +227,7 @@ void HardwareSDLTerminal::render() {
             gotResizeEvent = false;
         }
         if ((!changed && !shouldScreenshot && !shouldRecord) || width == 0 || height == 0) return;
-        newscreen = std::make_unique<vector2d<unsigned char> >(screen);
+        newscreen = std::make_unique<vector2d<char32_t> >(screen);
         newcolors = std::make_unique<vector2d<unsigned char> >(colors);
         newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
         memcpy(newpalette, palette, sizeof(newpalette));
@@ -236,6 +257,11 @@ void HardwareSDLTerminal::render() {
         SDL_UnlockTexture(pixtex);
         SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * newcharScale * dpiScale), (int)(2 * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
     } else {
+        void * pixels = NULL;
+        int pitch = 0;
+        SDL_LockTexture(unitex, NULL, &pixels, &pitch);
+        unitex_surf = SDL_CreateRGBSurfaceWithFormatFrom(pixels, (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale), 32, pitch, SDL_PIXELFORMAT_RGBA8888);
+        SDL_FillRect(unitex_surf, NULL, 0);
         for (unsigned y = 0; y < newheight; y++) {
             for (unsigned x = 0; x < newwidth; x++) {
                 if (gotResizeEvent) return;
@@ -244,6 +270,8 @@ void HardwareSDLTerminal::render() {
         }
         if (gotResizeEvent) return;
         if (newblink && newblinkX >= 0 && newblinkY >= 0 && (unsigned)newblinkX < newwidth && (unsigned)newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
+        SDL_UnlockTexture(unitex);
+        SDL_RenderCopy(ren, unitex, NULL, setRect(&rect, (int)(2 * newcharScale * dpiScale), (int)(2 * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -403,6 +431,9 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
     return true;
 }
 
+extern unsigned char unifont_14_0_01_ttf[];
+extern unsigned int unifont_14_0_01_ttf_len;
+
 void HardwareSDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
@@ -450,11 +481,16 @@ void HardwareSDLTerminal::init() {
         SDL_FreeSurface(old_bmp);
         SDL_SetColorKey(origfont, SDL_TRUE, SDL_MapRGB(origfont->format, 0, 0, 0));
     }
+    TTF_Init();
+    SDL_RWops* rw = SDL_RWFromConstMem(unifont_14_0_01_ttf, unifont_14_0_01_ttf_len);
+    unicodeFont = TTF_OpenFontRW(rw, true, 14);
 }
 
 void HardwareSDLTerminal::quit() {
     renderThread->join();
     delete renderThread;
+    TTF_CloseFont(unicodeFont);
+    TTF_Quit();
     SDL_FreeSurface(bmp);
     if (bmp != origfont) SDL_FreeSurface(origfont);
     SDL_Quit();

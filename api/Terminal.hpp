@@ -131,7 +131,7 @@ public:
     unsigned newWidth = 0, newHeight = 0; // If a resize event was sent, these store the new size of the window
     std::string title; // The window's title
     std::mutex locked; // A mutex locking access to the terminal - lock this before making any changes!
-    vector2d<unsigned char> screen; // The buffer storing the characters displayed on screen
+    vector2d<char32_t> screen; // The buffer storing the characters displayed on screen
     vector2d<unsigned char> colors; // The buffer storing the foreground and background colors for each character
     vector2d<unsigned char> pixels; // The buffer storing the values of all pixels in graphics mode
     int mode = 0; // The current mode of the screen: 0 = text, 1 = 16-color GFX, 2 = 256-color GFX

@@ -23,6 +23,7 @@
 #include "handles/fs_handle.hpp"
 #include "../platform.hpp"
 #include "../runtime.hpp"
+#include "../UTFString.hpp"
 #ifdef WIN32
 #include <io.h>
 #define W_OK 0x02
@@ -50,10 +51,15 @@ static path_t ignored_files[4] = {
     WS("desktop.ini")
 };
 
+static std::string checkutfstring(lua_State *L, int arg) {
+    if (isUTFString(L, arg)) return unicodeToUTF8(toUTFString(L, arg));
+    else return checkstring(L, arg);
+}
+
 static int fs_list(lua_State *L) {
     lastCFunction = __func__;
     struct_dirent *dir;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     const path_t paths = fixpath(get_comp(L), str, true, true, NULL, true);
     if (paths.empty()) err(L, 1, "Not a directory");
     std::vector<path_t> possible_paths = split(paths, WS("\n"));
@@ -97,7 +103,7 @@ static int fs_list(lua_State *L) {
 
 static int fs_exists(lua_State *L) {
     lastCFunction = __func__;
-    const path_t path = fixpath(get_comp(L), checkstring(L, 1), true);
+    const path_t path = fixpath(get_comp(L), checkutfstring(L, 1), true);
     if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
         bool found = true;
         try {get_comp(L)->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));} catch (...) {found = false;}
@@ -114,7 +120,7 @@ static int fs_exists(lua_State *L) {
 
 static int fs_isDir(lua_State *L) {
     lastCFunction = __func__;
-    const path_t path = fixpath(get_comp(L), checkstring(L, 1), true);
+    const path_t path = fixpath(get_comp(L), checkutfstring(L, 1), true);
     if (path.empty()) {
         lua_pushboolean(L, false);
         return 1;
@@ -131,7 +137,7 @@ static int fs_isDir(lua_State *L) {
 
 static int fs_isReadOnly(lua_State *L) {
     lastCFunction = __func__;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     if (fixpath_ro(get_comp(L), str)) {
         lua_pushboolean(L, true);
         return 1;
@@ -167,7 +173,7 @@ static int fs_getName(lua_State *L) {
 static int fs_getDrive(lua_State *L) {
     lastCFunction = __func__;
     std::string retval;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     fixpath_mkdir(get_comp(L), str + "/a", false, &retval);
     lua_pushstring(L, retval.c_str());
     return 1;
@@ -175,7 +181,7 @@ static int fs_getDrive(lua_State *L) {
 
 static int fs_getSize(lua_State *L) {
     lastCFunction = __func__;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     const path_t path = fixpath(get_comp(L), str, true);
     if (path.empty()) err(L, 1, "No such file");
     if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
@@ -217,7 +223,7 @@ static int calculateDirectorySize(const path_t& path) {
 static int fs_getFreeSpace(lua_State *L) {
     lastCFunction = __func__;
     std::string mountPath;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     const path_t path = fixpath(get_comp(L), str, false, true, &mountPath);
     if (path.empty()) err(L, 1, "No such path");
     if (fixpath_ro(get_comp(L), str)) lua_pushinteger(L, 0);
@@ -228,7 +234,7 @@ static int fs_getFreeSpace(lua_State *L) {
 
 static int fs_makeDir(lua_State *L) {
     lastCFunction = __func__;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     if (fixpath_ro(get_comp(L), str)) err(L, 1, "Access denied");
     const path_t path = fixpath_mkdir(get_comp(L), str);
     if (path.empty()) err(L, 1, "Could not create directory");
@@ -240,8 +246,8 @@ static int fs_makeDir(lua_State *L) {
 
 static int fs_move(lua_State *L) {
     lastCFunction = __func__;
-    std::string str1 = checkstring(L, 1);
-    std::string str2 = checkstring(L, 2);
+    std::string str1 = checkutfstring(L, 1);
+    std::string str2 = checkutfstring(L, 2);
     if (fixpath_ro(get_comp(L), str1)) luaL_error(L, "Access denied");
     if (fixpath_ro(get_comp(L), str2)) luaL_error(L, "Access denied");
     bool isRoot = false;
@@ -302,8 +308,8 @@ std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& 
 
 static int fs_copy(lua_State *L) {
     lastCFunction = __func__;
-    std::string str1 = checkstring(L, 1);
-    std::string str2 = checkstring(L, 2);
+    std::string str1 = checkutfstring(L, 1);
+    std::string str2 = checkutfstring(L, 2);
     if (fixpath_ro(get_comp(L), str2)) luaL_error(L, "/%s: Access denied", fixpath(get_comp(L), str2, false, false).c_str());
     const path_t fromPath = fixpath(get_comp(L), str1, true);
     const path_t toPath = fixpath_mkdir(get_comp(L), str2);
@@ -350,7 +356,7 @@ static int fs_copy(lua_State *L) {
 
 static int fs_delete(lua_State *L) {
     lastCFunction = __func__;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     if (fixpath_ro(get_comp(L), str)) err(L, 1, "Access denied");
     bool isRoot = false;
     const path_t path = fixpath(get_comp(L), str, true, true, NULL, false, &isRoot);
@@ -374,8 +380,8 @@ static int fs_open(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * mode = luaL_checkstring(L, 2);
-    if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (mode[1] != 'b' && mode[1] != '\0')) luaL_error(L, "%s: Unsupported mode", mode);
-    std::string str = checkstring(L, 1);
+    if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (mode[1] != 'b' && mode[1] != 'u' && mode[1] != '\0')) luaL_error(L, "%s: Unsupported mode", mode);
+    std::string str = checkutfstring(L, 1);
     const path_t path = mode[0] == 'r' ? fixpath(get_comp(L), str, true) : fixpath_mkdir(get_comp(L), str);
     if (path.empty()) {
         if (mode[0] != 'r' && fixpath_ro(computer, str)) {
@@ -438,6 +444,27 @@ static int fs_open(lua_State *L) {
             lua_pushvalue(L, fpid);
             lua_pushcclosure(L, fs_handle_istream_readChar, 1);
             lua_settable(L, -3);
+        } else if (strcmp(mode, "ru") == 0) {
+            lua_createtable(L, 0, 4);
+            lua_pushstring(L, "close");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_istream_close, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "readAll");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_istream_readAllUTF, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "readLine");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_istream_readLineUTF, 2);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "read");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_istream_readCharUTF, 1);
+            lua_settable(L, -3);
         } else if (strcmp(mode, "rb") == 0) {
             lua_createtable(L, 0, 5);
             lua_pushstring(L, "close");
@@ -475,11 +502,11 @@ static int fs_open(lua_State *L) {
         struct_stat st;
         if (platform_stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { 
             lua_pushnil(L);
-            if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, str, false, false)).c_str());
+            if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0 || strcmp(mode, "ru") == 0) lua_pushfstring(L, "/%s: No such file", astr(fixpath(computer, str, false, false)).c_str());
             else lua_pushfstring(L, "/%s: Cannot write to directory", astr(fixpath(computer, str, false, false)).c_str());
             return 2; 
         }
-        if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0 || strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
+        if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0 || strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0 || strcmp(mode, "wu") == 0 || strcmp(mode, "au") == 0) {
             if (fixpath_ro(computer, str)) {
                 lua_pushnil(L);
                 lua_pushfstring(L, "/%s: Access denied", astr(fixpath(computer, str, false, false)).c_str());
@@ -493,7 +520,8 @@ static int fs_open(lua_State *L) {
         }
         FILE ** fp = (FILE**)lua_newuserdata(L, sizeof(FILE*));
         int fpid = lua_gettop(L);
-        if (mode[1] != 'b') *fp = platform_fopen(path.c_str(), (std::string(mode) + 'b').c_str());
+        if (mode[1] == 'u') *fp = platform_fopen(path.c_str(), std::string(mode).substr(0, 1).c_str());
+        else if (mode[1] != 'b') *fp = platform_fopen(path.c_str(), (std::string(mode) + 'b').c_str());
         else *fp = platform_fopen(path.c_str(), mode);
         if (*fp == NULL) { 
             lua_remove(L, fpid);
@@ -562,7 +590,22 @@ static int fs_open(lua_State *L) {
             lua_pushvalue(L, fpid);
             lua_pushcclosure(L, fs_handle_seek, 1);
             lua_settable(L, -3);
-        } else if (strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
+        } else if (strcmp(mode, "ru") == 0) {
+            lua_pushstring(L, "readAll");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_readAllUTF, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "readLine");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_readLineUTF, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "read");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_readCharUTF, 1);
+            lua_settable(L, -3);
+        } else if (strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0 || strcmp(mode, "wu") == 0 || strcmp(mode, "au") == 0) {
             lua_pushstring(L, "write");
             lua_pushvalue(L, fpid);
             lua_pushcclosure(L, fs_handle_writeByte, 1);
@@ -638,7 +681,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
 
 static int fs_find(lua_State *L) {
     lastCFunction = __func__;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     std::vector<std::string> elems = split(str, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
@@ -671,7 +714,7 @@ static int fs_find(lua_State *L) {
 
 static int fs_getDir(lua_State *L) {
     lastCFunction = __func__;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     std::string path = astr(fixpath(get_comp(L), str + "/..", false, false));
     lua_pushlstring(L, path.c_str(), path.size());
     return 1;
@@ -687,7 +730,7 @@ static int fs_getDir(lua_State *L) {
 
 static int fs_attributes(lua_State *L) {
     lastCFunction = __func__;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     const path_t path = fixpath(get_comp(L), str, true);
     if (path.empty()) err(L, 1, "No such file");
     if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
@@ -751,7 +794,7 @@ static int fs_attributes(lua_State *L) {
 static int fs_getCapacity(lua_State *L) {
     lastCFunction = __func__;
     std::string mountPath;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     const path_t path = fixpath(get_comp(L), str, false, true, &mountPath);
     if (mountPath == "rom") {
         lua_pushnil(L);
@@ -768,7 +811,7 @@ static int fs_getCapacity(lua_State *L) {
 static int fs_isDriveRoot(lua_State *L) {
     lastCFunction = __func__;
     bool res = false;
-    std::string str = checkstring(L, 1);
+    std::string str = checkutfstring(L, 1);
     fixpath(get_comp(L), str, false, true, NULL, false, &res);
     lua_pushboolean(L, res);
     return 1;

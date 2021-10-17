@@ -28,6 +28,7 @@ extern "C" {
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
+#include "UTFString.hpp"
 
 #ifdef __ANDROID__
 extern "C" {extern int Android_JNI_SetupThread(void);}
@@ -347,7 +348,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             std::lock_guard<std::mutex> lock(self->term->locked);
             self->term->blinkX = 0;
             self->term->blinkY = 0;
-            self->term->screen = vector2d<unsigned char>(self->term->width, self->term->height, ' ');
+            self->term->screen = vector2d<char32_t>(self->term->width, self->term->height, ' ');
             self->term->colors = vector2d<unsigned char>(self->term->width, self->term->height, 0xF0);
             self->term->pixels = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
             memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
@@ -395,6 +396,8 @@ void runComputer(Computer * self, const path_t& bios_name) {
 
         // Load libraries
         luaL_openlibs(self->coro);
+        lua_pushcfunction(self->coro, luaopen_UTFString);
+        lua_call(self->coro, 0, 0);
         lua_getglobal(L, "os");
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
@@ -656,7 +659,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         std::lock_guard<std::mutex> lock(self->term->locked);
         self->term->blinkX = 0;
         self->term->blinkY = 0;
-        self->term->screen = vector2d<unsigned char>(self->term->width, self->term->height, ' ');
+        self->term->screen = vector2d<char32_t>(self->term->width, self->term->height, ' ');
         self->term->colors = vector2d<unsigned char>(self->term->width, self->term->height, 0xF0);
         self->term->pixels = vector2d<unsigned char>(self->term->width * Terminal::fontWidth, self->term->height * Terminal::fontHeight, 0x0F);
         memcpy(self->term->palette, defaultPalette, sizeof(defaultPalette));
@@ -700,7 +703,7 @@ void* computerThread(void* data) {
 #if defined(__IPHONEOS__) || defined(__ANDROID__)
             {
                 std::lock_guard<std::mutex> lock(comp->term->locked);
-                memcpy(comp->term->screen.data(), "Tap to restart", sizeof("Tap to restart")-1);
+                memcpy(comp->term->screen.data(), U"Tap to restart", sizeof(U"Tap to restart")-1);
                 memcpy(comp->term->colors.data(), "\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4", sizeof("\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4\xF4")-1);
                 comp->term->changed = true;
             }

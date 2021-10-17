@@ -12,10 +12,23 @@
 #include <configuration.hpp>
 #include "../terminal/SDLTerminal.hpp"
 #include "../runtime.hpp"
+#include "../UTFString.hpp"
 #include "../util.hpp"
 
 static int headlessCursorX = 1, headlessCursorY = 1;
 static bool can_blink_headless = true;
+
+#ifdef __APPLE__
+static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
+    memset_pattern4(ptr, &value, num * 4);
+    return &ptr[num];
+}
+#else
+static uint32_t *memset_int(uint32_t *ptr, uint32_t value, size_t num) {
+    for (size_t i = 0; i < num; i++) memcpy(&ptr[i], &value, 4);
+    return &ptr[num];
+}
+#endif
 
 static int term_write(lua_State *L) {
     lastCFunction = __func__;
@@ -26,14 +39,15 @@ static int term_write(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TW:%d;%s\n", get_comp(L)->term->id, luaL_checkstring(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    size_t str_sz = 0;
-    const char * str = luaL_checklstring(L, 1, &str_sz);
+    std::u32string str;
+    if (isUTFString(L, 1)) str = toUTFString(L, 1);
+    else str = ansiToUnicode(checkstring(L, 1));
 #ifdef TESTING
     printf("%s\n", str);
 #endif
     std::lock_guard<std::mutex> locked_g(term->locked);
     if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
-    for (size_t i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
+    for (size_t i = 0; i < str.size() && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             term->screen[term->blinkY][term->blinkX] = str[i];
             term->colors[term->blinkY][term->blinkX] = computer->colors;
@@ -55,16 +69,16 @@ static int term_scroll(lua_State *L) {
     std::lock_guard<std::mutex> locked_g(term->locked);
     if (lines > 0 ? (unsigned)lines >= term->height : (unsigned)-lines >= term->height) {
         // scrolling more than the height is equivalent to clearing the screen
-        memset(term->screen.data(), ' ', term->height * term->width);
+        memset_int((uint32_t*)term->screen.data(), U' ', term->height * term->width);
         memset(term->colors.data(), computer->colors, term->height * term->width);
     } else if (lines > 0) {
-        memmove(term->screen.data(), term->screen.data() + lines * term->width, (term->height - lines) * term->width);
-        memset(term->screen.data() + (term->height - lines) * term->width, ' ', lines * term->width);
+        memmove(term->screen.data(), term->screen.data() + lines * term->width, (term->height - lines) * term->width * 4);
+        memset_int((uint32_t*)term->screen.data() + (term->height - lines) * term->width, U' ', lines * term->width);
         memmove(term->colors.data(), term->colors.data() + lines * term->width, (term->height - lines) * term->width);
         memset(term->colors.data() + (term->height - lines) * term->width, computer->colors, lines * term->width);
     } else if (lines < 0) {
-        memmove(term->screen.data() - lines * term->width, term->screen.data(), (term->height + lines) * term->width);
-        memset(term->screen.data(), ' ', -lines * term->width);
+        memmove(term->screen.data() - lines * term->width, term->screen.data(), (term->height + lines) * term->width * 4);
+        memset_int((uint32_t*)term->screen.data(), U' ', -lines * term->width);
         memmove(term->colors.data() - lines * term->width, term->colors.data(), (term->height + lines) * term->width);
         memset(term->colors.data(), computer->colors, -lines * term->width);
     }
@@ -157,7 +171,7 @@ static int term_clear(lua_State *L) {
     if (term->mode > 0) {
         memset(term->pixels.data(), 0x0F, term->width * Terminal::fontWidth * term->height * Terminal::fontHeight);
     } else {
-        memset(term->screen.data(), ' ', term->height * term->width);
+        memset_int((uint32_t*)term->screen.data(), U' ', term->height * term->width);
         memset(term->colors.data(), computer->colors, term->height * term->width);
     }
     term->changed = true;
@@ -176,7 +190,7 @@ static int term_clearLine(lua_State *L) {
     Terminal * term = computer->term;
     if (term->blinkY < 0 || (unsigned)term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> locked_g(term->locked);
-    memset(term->screen.data() + (term->blinkY * term->width), ' ', term->width);
+    memset_int((uint32_t*)term->screen.data() + (term->blinkY * term->width), U' ', term->width);
     memset(term->colors.data() + (term->blinkY * term->width), computer->colors, term->width);
     term->changed = true;
     return 0;
@@ -240,14 +254,18 @@ static int term_blit(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     if (term == NULL) return 0;
-    size_t str_sz, fg_sz, bg_sz;
-    const char * str = luaL_checklstring(L, 1, &str_sz);
-    const char * fg = luaL_checklstring(L, 2, &fg_sz);
-    const char * bg = luaL_checklstring(L, 3, &bg_sz);
-    if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
+    std::u32string str;
+    std::string fg, bg;
+    if (isUTFString(L, 1)) str = toUTFString(L, 1);
+    else str = ansiToUnicode(checkstring(L, 1));
+    if (isUTFString(L, 2)) fg = unicodeToAnsi(toUTFString(L, 2));
+    else fg = checkstring(L, 2);
+    if (isUTFString(L, 3)) bg = unicodeToAnsi(toUTFString(L, 3));
+    else bg = checkstring(L, 3);
+    if (str.size() != fg.size() || fg.size() != bg.size()) luaL_error(L, "Arguments must be the same length");
     std::lock_guard<std::mutex> locked_g(term->locked);
     if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
-    for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
+    for (unsigned i = 0; i < str.size() && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             computer->colors = (unsigned char)(htoi(bg[i], 15) << 4) | htoi(fg[i], 0);
             if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i], 0);

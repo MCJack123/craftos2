@@ -33,6 +33,7 @@
 #include "peripheral/debugger.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "termsupport.hpp"
+#include "UTFString.hpp"
 #ifndef NO_CLI
 #include "terminal/CLITerminal.hpp"
 #endif
@@ -690,11 +691,13 @@ std::string termGetEvent(lua_State *L) {
                 return "key_up";
             }
         } else if (e.type == SDL_TEXTINPUT) {
+            std::u32string ustr = UTF8ToUnicode(std::string(e.text.text));
             std::string str;
             try {str = utf8_to_string(e.text.text, std::locale("C"));}
             catch (std::exception &ignored) {str = "?";}
             if (!str.empty()) {
                 lua_pushlstring(L, str.c_str(), 1);
+                createUTFString(L, ustr);
                 return "char";
             }
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config->isColor || computer->isDebugger)) {

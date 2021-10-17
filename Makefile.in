@@ -33,7 +33,7 @@ endif
 SDIR=@srcdir@/src
 IDIR=@srcdir@/api
 ODIR=obj
-_OBJ=Computer.o configuration.o favicon.o font.o gif.o main.o plugin.o runtime.o speaker_sounds.o termsupport.o util.o \
+_OBJ=Computer.o configuration.o favicon.o font.o font_unicode.o gif.o main.o plugin.o runtime.o speaker_sounds.o termsupport.o UTFString.o util.o \
 	 apis_config.o apis_fs.o apis_fs_handle.o @HTTP_TARGET@ apis_mounter.o apis_os.o apis_periphemu.o apis_peripheral.o apis_redstone.o apis_term.o \
 	 peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o peripheral_speaker.o \
 	 terminal_SDLTerminal.o terminal_CLITerminal.o terminal_RawTerminal.o terminal_TRoRTerminal.o terminal_HardwareSDLTerminal.o @OBJS@

@@ -11,12 +11,14 @@
 #include <fstream>
 #include <sstream>
 #include <configuration.hpp>
+#include <SDL2/SDL_ttf.h>
 #include "RawTerminal.hpp"
 #include "SDLTerminal.hpp"
 #include "../gif.hpp"
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
+#include "../UTFString.hpp"
 #ifndef NO_WEBP
 #include <webp/mux.h>
 #include <webp/encode.h>
@@ -57,6 +59,7 @@ SDL_Surface* SDLTerminal::origfont = NULL;
 std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > SDLTerminal::eventHandlers;
 SDL_Window* SDLTerminal::singleWin = NULL;
 static int nextWindowID = 1;
+TTF_Font * unicodeFont = NULL;
 #ifdef __EMSCRIPTEN__
 
 extern "C" {
@@ -235,7 +238,7 @@ bool operator!=(Color lhs, Color rhs) {
     return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b;
 }
 
-bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
+bool SDLTerminal::drawChar(char32_t c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
     SDL_Rect destrect = {
         (int)(x * charWidth * dpiScale + 2 * charScale * dpiScale), 
@@ -257,7 +260,14 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         bg = grayscalify(bg);
         if (SDL_FillRect(surf, &bgdestrect, rgb(bg)) != 0) return false;
     }
-    if (c != ' ' && c != '\0') {
+    if (c > 255) {
+        std::string utf8 = unicodeToUTF8(std::u32string(&c, 1));
+        SDL_Surface * s = TTF_RenderUTF8_Solid(unicodeFont, utf8.c_str(), {fg.r, fg.g, fg.b, 255});
+        if (s) {
+            SDL_BlitSurface(s, NULL, surf, &destrect);
+            SDL_FreeSurface(s);
+        }
+    } else if (c != ' ' && c != '\0') {
         if (gotResizeEvent) return false;
         fg = grayscalify(fg);
         if (SDL_SetSurfaceColorMod(useOrigFont ? origfont : bmp, fg.r, fg.g, fg.b) != 0) return false;
@@ -282,7 +292,7 @@ static unsigned char circlePix[] = {
 
 void SDLTerminal::render() {
     // copy the screen data so we can let Lua keep going without waiting for the mutex
-    std::unique_ptr<vector2d<unsigned char> > newscreen;
+    std::unique_ptr<vector2d<char32_t> > newscreen;
     std::unique_ptr<vector2d<unsigned char> > newcolors;
     std::unique_ptr<vector2d<unsigned char> > newpixels;
     Color newpalette[256];
@@ -304,7 +314,7 @@ void SDLTerminal::render() {
             gotResizeEvent = false;
         }
         if ((!changed && !shouldScreenshot && !shouldRecord) || width == 0 || height == 0) return;
-        newscreen = std::make_unique<vector2d<unsigned char> >(screen);
+        newscreen = std::make_unique<vector2d<char32_t> >(screen);
         newcolors = std::make_unique<vector2d<unsigned char> >(colors);
         newpixels = std::make_unique<vector2d<unsigned char> >(pixels);
         memcpy(newpalette, palette, sizeof(newpalette));
@@ -597,6 +607,9 @@ void SDLTerminal::onActivate() {
     queueTask([this](void*win)->void*{SDL_SetWindowTitle((SDL_Window*)win, title.c_str()); return NULL;}, win, true);
 }
 
+extern unsigned char unifont_14_0_01_ttf[];
+extern unsigned int unifont_14_0_01_ttf_len;
+
 void SDLTerminal::init() {
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
@@ -646,11 +659,16 @@ void SDLTerminal::init() {
         SDL_FreeSurface(old_bmp);
         SDL_SetColorKey(origfont, SDL_TRUE, SDL_MapRGB(origfont->format, 0, 0, 0));
     }
+    TTF_Init();
+    SDL_RWops* rw = SDL_RWFromConstMem(unifont_14_0_01_ttf, unifont_14_0_01_ttf_len);
+    unicodeFont = TTF_OpenFontRW(rw, true, 14);
 }
 
 void SDLTerminal::quit() {
     renderThread->join();
     delete renderThread;
+    TTF_CloseFont(unicodeFont);
+    TTF_Quit();
     SDL_FreeSurface(bmp);
     if (bmp != origfont) SDL_FreeSurface(origfont);
     SDL_Quit();

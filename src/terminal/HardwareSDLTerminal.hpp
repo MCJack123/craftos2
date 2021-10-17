@@ -19,13 +19,15 @@ public:
     static bool pollEvents();
     HardwareSDLTerminal(std::string title);
     ~HardwareSDLTerminal() override;
-    bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false) override;
+    bool drawChar(char32_t c, int x, int y, Color fg, Color bg, bool transparent = false) override;
     void render() override;
     bool resize(unsigned w, unsigned h) override;
 private:
     SDL_Renderer *ren = NULL;
     SDL_Texture *font = NULL;
     SDL_Texture *pixtex = NULL;
+    SDL_Texture *unitex = NULL;
+    SDL_Surface *unitex_surf = NULL;
     static SDL_Renderer *singleRen;
     static SDL_Texture *singleFont;
     static SDL_Texture *singlePixtex;

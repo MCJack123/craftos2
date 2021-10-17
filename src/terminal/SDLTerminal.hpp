@@ -68,7 +68,7 @@ public:
     ~SDLTerminal() override;
     void setPalette(Color * p);
     virtual void setCharScale(int scale);
-    virtual bool drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent = false);
+    virtual bool drawChar(char32_t c, int x, int y, Color fg, Color bg, bool transparent = false);
     void render() override;
     bool resize(unsigned w, unsigned h) override;
     void getMouse(int *x, int *y);

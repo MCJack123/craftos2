@@ -16,6 +16,7 @@
 #include <string>
 #include "fs_handle.hpp"
 #include "../../util.hpp"
+#include "../../UTFString.hpp"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #include "../../runtime.hpp"
@@ -239,6 +240,177 @@ int fs_handle_istream_readChar(lua_State *L) {
     return 1;
 }
 
+int fs_handle_readAllUTF(lua_State *L) {
+    lastCFunction = __func__;
+    FILE * fp = *(FILE**)lua_touserdata(L, lua_upvalueindex(1));
+    if (fp == NULL) luaL_error(L, "attempt to use a closed file");
+    if (feof(fp)) return 0;
+    const long pos = ftell(fp);
+    fseek(fp, 0, SEEK_END);
+    const long size = ftell(fp) - pos;
+    char * retval = new char[size + 1];
+    memset(retval, 0, size + 1);
+    fseek(fp, pos, SEEK_SET);
+    int i;
+    for (i = 0; !feof(fp) && i < size; i++) {
+        int c = fgetc(fp);
+        if (c == EOF && feof(fp)) c = '\n';
+        if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
+        else retval[i] = (char)c;
+    }
+    createUTFString(L, UTF8ToUnicode(std::string(retval, i - (i == size ? 0 : 1))));
+    delete[] retval;
+    return 1;
+}
+
+int fs_handle_istream_readAllUTF(lua_State *L) {
+    lastCFunction = __func__;
+    std::istream * fp = *(std::istream**)lua_touserdata(L, lua_upvalueindex(1));
+    if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
+    if (fp->eof()) return 0;
+    const long pos = (long)fp->tellg();
+    fp->seekg(0, std::ios::end);
+    const long size = (long)fp->tellg() - pos;
+    char * retval = new char[size + 1];
+    memset(retval, 0, size + 1);
+    fp->seekg(pos);
+    int i;
+    for (i = 0; !fp->eof() && i < size; i++) {
+        int c = fp->get();
+        if (c == EOF && fp->eof()) c = '\n';
+        if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
+        else retval[i] = (char)c;
+    }
+    createUTFString(L, UTF8ToUnicode(std::string(retval, i - (i == size ? 0 : 1))));
+    delete[] retval;
+    return 1;
+}
+
+int fs_handle_readLineUTF(lua_State *L) {
+    lastCFunction = __func__;
+    FILE * fp = *(FILE**)lua_touserdata(L, lua_upvalueindex(1));
+    if (fp == NULL) luaL_error(L, "attempt to use a closed file");
+    if (feof(fp) || ferror(fp)) return 0;
+    char* retval = (char*)malloc(256);
+    retval[0] = 0;
+    for (unsigned i = 0; true; i += 255) {
+        if (fgets(&retval[i], 256, fp) == NULL || feof(fp)) break;
+        bool found = false;
+        for (unsigned j = 0; j < 256; j++) if (retval[i+j] == '\n') {found = true; break;}
+        if (found) break;
+        char * retvaln = (char*)realloc(retval, i + 511);
+        if (retvaln == NULL) {
+            free(retval);
+            return luaL_error(L, "failed to allocate memory");
+        }
+        retval = retvaln;
+    }
+    size_t len = strlen(retval) - (strlen(retval) > 0 && retval[strlen(retval)-1] == '\n' && !lua_toboolean(L, 1));
+    if (len == 0 && feof(fp)) {free(retval); return 0;}
+    if (len > 0 && retval[len-1] == '\r') retval[--len] = '\0';
+    createUTFString(L, UTF8ToUnicode(std::string(retval, len)));
+    free(retval);
+    return 1;
+}
+
+int fs_handle_istream_readLineUTF(lua_State *L) {
+    lastCFunction = __func__;
+    std::istream * fp = *(std::istream**)lua_touserdata(L, lua_upvalueindex(1));
+    if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
+    if (fp->bad() || fp->eof()) return 0;
+    std::string retval;
+    std::getline(*fp, retval);
+    if (retval.empty() && fp->eof()) return 0;
+    size_t len = retval.length() - (retval[retval.length()-1] == '\n' && !lua_toboolean(L, 1));
+    if (len > 0 && retval[len-1] == '\r') {if (lua_toboolean(L, 1)) {retval[len] = '\0'; retval[--len] = '\n';} else retval[--len] = '\0';}
+    createUTFString(L, UTF8ToUnicode(std::string(retval, len)));
+    return 1;
+}
+
+int fs_handle_readCharUTF(lua_State *L) {
+    lastCFunction = __func__;
+    FILE * fp = *(FILE**)lua_touserdata(L, lua_upvalueindex(1));
+    if (fp == NULL) luaL_error(L, "attempt to use a closed file");
+    if (feof(fp)) return 0;
+    std::u32string retval;
+    for (int i = 0; i < (lua_isnumber(L, 1) ? lua_tointeger(L, 1) : 1) && !feof(fp); i++) {
+        uint32_t codepoint;
+        const int c = fgetc(fp);
+        if (c == EOF) break;
+        else if (c < 0) {
+            if (c & 64) {
+                const int c2 = fgetc(fp);
+                if (c2 == EOF) {retval += '?'; break;}
+                else if (c2 >= 0 || c2 & 64) codepoint = 1U<<31;
+                else if (c & 32) {
+                    const int c3 = fgetc(fp);
+                    if (c3 == EOF) {retval += '?'; break;}
+                    else if (c3 >= 0 || c3 & 64) codepoint = 1U<<31;
+                    else if (c & 16) {
+                        if (c & 8) codepoint = 1U<<31;
+                        else {
+                            const int c4 = fgetc(fp);
+                            if (c4 == EOF) {retval += '?'; break;}
+                            else if (c4 >= 0 || c4 & 64) codepoint = 1U<<31;
+                            else codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                        }
+                    } else codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                } else codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
+            } else codepoint = 1U<<31;
+        } else codepoint = (unsigned char)c;
+        if (codepoint == '\r') {
+            const int nextc = fgetc(fp);
+            if (nextc == '\n') codepoint = nextc;
+            else ungetc(nextc, fp);
+        }
+        retval += codepoint;
+    }
+    createUTFString(L, retval);
+    return 1;
+}
+
+int fs_handle_istream_readCharUTF(lua_State *L) {
+    lastCFunction = __func__;
+    std::istream * fp = *(std::istream**)lua_touserdata(L, lua_upvalueindex(1));
+    if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
+    if (fp->eof()) return 0;
+    std::u32string retval;
+    for (int i = 0; i < luaL_optinteger(L, 1, 1) && !fp->eof(); i++) {
+        uint32_t codepoint;
+        const int c = fp->get();
+        if (c == EOF) break;
+        else if (c > 0x7F) {
+            if (c & 64) {
+                const int c2 = fp->get();
+                if (c2 == EOF) {retval += '?'; break;}
+                else if (c2 < 0x80 || c2 & 64) codepoint = 1U<<31;
+                else if (c & 32) {
+                    const int c3 = fp->get();
+                    if (c3 == EOF) {retval += '?'; break;}
+                    else if (c3 < 0x80 || c3 & 64) codepoint = 1U<<31;
+                    else if (c & 16) {
+                        if (c & 8) codepoint = 1U<<31;
+                        else {
+                            const int c4 = fp->get();
+                            if (c4 == EOF) {retval += '?'; break;}
+                            else if (c4 < 0x80 || c4 & 64) codepoint = 1U<<31;
+                            else codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                        }
+                    } else codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                } else codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
+            } else codepoint = 1U<<31;
+        } else codepoint = (unsigned char)c;
+        if (codepoint == '\r') {
+            const int nextc = fp->get();
+            if (nextc == '\n') codepoint = nextc;
+            else fp->putback((char)nextc);
+        }
+        retval += codepoint;
+    }
+    createUTFString(L, retval);
+    return 1;
+}
+
 int fs_handle_readByte(lua_State *L) {
     lastCFunction = __func__;
     FILE * fp = *(FILE**)lua_touserdata(L, lua_upvalueindex(1));
@@ -341,13 +513,14 @@ int fs_handle_writeString(lua_State *L) {
     lastCFunction = __func__;
     FILE * fp = *(FILE**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
-    if (lua_isnoneornil(L, 1)) return 0;
-    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
-    std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
-    std::wstring wstr;
-    for (unsigned char c : str) wstr += (wchar_t)c;
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
-    const std::string newstr = converter.to_bytes(wstr);
+    std::u32string wstr;
+    if (lua_isstring(L, 1)) {
+        std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
+        for (unsigned char c : str) wstr += (char32_t)c;
+    } else if (isUTFString(L, 1)) {
+        wstr = toUTFString(L, 1);
+    } else if (!lua_isnoneornil(L, 1)) luaL_typerror(L, 1, "string");
+    const std::string newstr = unicodeToUTF8(wstr);
     fwrite(newstr.c_str(), newstr.size(), 1, fp);
     return 0;
 }
@@ -356,13 +529,14 @@ int fs_handle_writeLine(lua_State *L) {
     lastCFunction = __func__;
     FILE * fp = *(FILE**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
-    if (lua_isnoneornil(L, 1)) return 0;
-    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
-    std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
-    std::wstring wstr;
-    for (unsigned char c : str) wstr += (wchar_t)c;
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
-    const std::string newstr = converter.to_bytes(wstr);
+    std::u32string wstr;
+    if (lua_isstring(L, 1)) {
+        std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
+        for (unsigned char c : str) wstr += (wchar_t)c;
+    } else if (isUTFString(L, 1)) {
+        wstr = toUTFString(L, 1);
+    } else if (!lua_isnoneornil(L, 1)) luaL_typerror(L, 1, "string");
+    const std::string newstr = unicodeToUTF8(wstr);
     fwrite(newstr.c_str(), newstr.size(), 1, fp);
     fputc('\n', fp);
     return 0;

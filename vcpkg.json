@@ -4,6 +4,7 @@
     "description": "Advanced ComputerCraft emulator",
     "dependencies": [
         "sdl2",
+        "sdl2-ttf",
         "openssl",
         {
             "name": "poco",
