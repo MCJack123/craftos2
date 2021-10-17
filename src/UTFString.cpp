@@ -18,6 +18,12 @@
 
 static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> characterConverter;
 
+static ptrdiff_t posrelat (ptrdiff_t pos, size_t len) {
+  /* relative string position: negative means back from end */
+  if (pos < 0) pos += (ptrdiff_t)len + 1;
+  return (pos >= 0) ? pos : 0;
+}
+
 std::u32string ansiToUnicode(const std::string& str) {
     std::u32string retval;
     for (unsigned char c : str) retval += c;
@@ -105,10 +111,11 @@ static int UTFString_byte(lua_State *L) {
     if (lua_isstring(L, 1)) return libstring.byte(L);
     if (!isUTFString(L, 1)) luaL_typerror(L, 1, "UTFString");
     std::u32string& str = toUTFString(L, 1);
-    long start = luaL_optinteger(L, 2, 1);
-    long end = luaL_optinteger(L, 3, 1);
-    if (start < 0) start += str.size();
-    if (end < 0) end += str.size();
+    long start = posrelat(luaL_optinteger(L, 2, 1), str.size());
+    long end = posrelat(luaL_optinteger(L, 3, start), str.size());
+    if (start < 1) start = 1;
+    if (end > str.size()) end = str.size();
+    if (start > end || end > str.size()) return 0;
     int size = end - start + 1;
     luaL_checkstack(L, size + 3, "could not allocate space for bytes");
     while (start <= end && start <= str.size()) {
@@ -231,15 +238,12 @@ static int UTFString_sub(lua_State *L) {
     if (lua_isstring(L, 1)) return libstring.sub(L);
     if (!isUTFString(L, 1)) luaL_typerror(L, 1, "UTFString");
     std::u32string& str = toUTFString(L, 1);
-    long start = luaL_optinteger(L, 2, 1);
-    long end = luaL_optinteger(L, 3, -1);
-    if (start < 0) start += str.size();
-    if (start == 0) start++;
-    if (end < 0) end += str.size();
-    if (end == 0) end++;
+    long start = posrelat(luaL_optinteger(L, 2, 1), str.size());
+    long end = posrelat(luaL_optinteger(L, 3, -1), str.size());
+    if (start < 1) start = 1;
     if (end > str.size()) end = str.size();
-    long size = end - start + 1;
-    createUTFString(L, str.substr(start - 1, size));
+    if (start <= end) createUTFString(L, str.substr(start - 1, end - start + 1));
+    else createUTFString(L);
     return 1;
 }
 
@@ -309,12 +313,6 @@ static int UTFString_utf8(lua_State *L) {
 ** PATTERN MATCHING
 ** =======================================================
 */
-
-static ptrdiff_t posrelat (ptrdiff_t pos, size_t len) {
-  /* relative string position: negative means back from end */
-  if (pos < 0) pos += (ptrdiff_t)len + 1;
-  return (pos >= 0) ? pos : 0;
-}
 
 
 #define CAP_UNFINISHED	(-1)
