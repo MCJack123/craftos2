@@ -208,6 +208,9 @@
     <ClInclude Include="api\generic_peripheral\fluid_storage.hpp">
       <Filter>Header Files\api\generic_peripheral</Filter>
     </ClInclude>
+    <ClInclude Include="src\UTFString.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\platform.cpp">
@@ -338,6 +341,12 @@
     </ClCompile>
     <ClCompile Include="src\platform\android.cpp">
       <Filter>Source Files\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="src\font_unicode.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\UTFString.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

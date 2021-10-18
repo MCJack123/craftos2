@@ -569,6 +569,7 @@
     <ClCompile Include="src\apis\peripheral.cpp" />
     <ClCompile Include="src\apis\term.cpp" />
     <ClCompile Include="src\configuration.cpp" />
+    <ClCompile Include="src\font_unicode.c" />
     <ClCompile Include="src\platform\android.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseC|ARM64'">true</ExcludedFromBuild>
@@ -639,6 +640,7 @@
     <ClInclude Include="src\terminal\RawTerminal.hpp" />
     <ClInclude Include="src\terminal\SDLTerminal.hpp" />
     <ClInclude Include="src\terminal\TRoRTerminal.hpp" />
+    <ClInclude Include="src\UTFString.hpp" />
     <ClInclude Include="src\util.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -675,6 +677,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\plugin.cpp" />
+    <ClCompile Include="src\UTFString.cpp" />
     <ClCompile Include="src\util.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\runtime.cpp" />
