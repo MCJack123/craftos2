@@ -63,6 +63,7 @@ if test "x$enable_wasm" != "xyes"; then
     AC_SEARCH_LIBS(pthread_create, pthread, [], [AC_MSG_ERROR([Could not find pthread library.])])
     AC_SEARCH_LIBS(dlopen, dl, [], [AC_MSG_ERROR([Could not find dl library.])])
     AC_SEARCH_LIBS(SDL_Init, SDL2, [], [AC_MSG_ERROR([Could not find SDL2 library.])])
+    AC_SEARCH_LIBS(TTF_Init, SDL2_ttf, [], [AC_MSG_ERROR([Could not find SDL2_ttf library.])])
     AC_SEARCH_LIBS(SSL_new, ssl, [], [AC_MSG_ERROR([Could not find OpenSSL library.])])
     AC_SEARCH_LIBS(RSA_new, crypto, [], [AC_MSG_ERROR([Could not find OpenSSL crypto library.])])
     if test $(uname) == "Linux"; then
@@ -72,6 +73,7 @@ if test "x$enable_wasm" != "xyes"; then
 fi
 
 AC_CHECK_HEADERS(SDL2/SDL.h, [], [AC_MSG_ERROR([Could not find SDL2 header.])])
+AC_CHECK_HEADERS(SDL2/SDL_ttf.h, [], [AC_MSG_ERROR([Could not find SDL2_ttf header.])])
 AC_CHECK_HEADERS(openssl/opensslv.h, [], [AC_MSG_ERROR([Could not find OpenSSL headers.])])
 AC_CHECK_HEADERS(Poco/Foundation.h, [], [AC_MSG_ERROR([Could not find Poco Foundation headers.])])
 AC_CHECK_HEADERS(Poco/Util/Util.h, [], [AC_MSG_ERROR([Could not find Poco Util headers.])])

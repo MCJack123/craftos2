@@ -4302,6 +4302,66 @@ else $as_nop
   as_fn_error $? "Could not find SDL2 library." "$LINENO" 5
 fi
 
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing TTF_Init" >&5
+printf %s "checking for library containing TTF_Init... " >&6; }
+if test ${ac_cv_search_TTF_Init+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+namespace conftest {
+  extern "C" int TTF_Init ();
+}
+int
+main (void)
+{
+return conftest::TTF_Init ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' SDL2_ttf
+do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"
+then :
+  ac_cv_search_TTF_Init=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext
+  if test ${ac_cv_search_TTF_Init+y}
+then :
+  break
+fi
+done
+if test ${ac_cv_search_TTF_Init+y}
+then :
+
+else $as_nop
+  ac_cv_search_TTF_Init=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_TTF_Init" >&5
+printf "%s\n" "$ac_cv_search_TTF_Init" >&6; }
+ac_res=$ac_cv_search_TTF_Init
+if test "$ac_res" != no
+then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else $as_nop
+  as_fn_error $? "Could not find SDL2_ttf library." "$LINENO" 5
+fi
+
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing SSL_new" >&5
 printf %s "checking for library containing SSL_new... " >&6; }
 if test ${ac_cv_search_SSL_new+y}
@@ -4523,6 +4583,18 @@ then :
 
 else $as_nop
   as_fn_error $? "Could not find SDL2 header." "$LINENO" 5
+fi
+
+done
+       for ac_header in SDL2/SDL_ttf.h
+do :
+  ac_fn_cxx_check_header_compile "$LINENO" "SDL2/SDL_ttf.h" "ac_cv_header_SDL2_SDL_ttf_h" "$ac_includes_default"
+if test "x$ac_cv_header_SDL2_SDL_ttf_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SDL2_SDL_TTF_H 1" >>confdefs.h
+
+else $as_nop
+  as_fn_error $? "Could not find SDL2_ttf header." "$LINENO" 5
 fi
 
 done
