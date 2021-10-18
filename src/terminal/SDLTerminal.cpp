@@ -50,6 +50,8 @@ extern "C" {
         unsigned char	 pixel_data[32 * 32 * 4 + 1];
     };
     extern struct favicon favicon;
+    extern unsigned char unifont_14_0_01_ttf[];
+    extern unsigned int unifont_14_0_01_ttf_len;
 }
 
 unsigned SDLTerminal::fontScale = 2;
@@ -606,9 +608,6 @@ void SDLTerminal::setLabel(std::string label) {
 void SDLTerminal::onActivate() {
     queueTask([this](void*win)->void*{SDL_SetWindowTitle((SDL_Window*)win, title.c_str()); return NULL;}, win, true);
 }
-
-extern unsigned char unifont_14_0_01_ttf[];
-extern unsigned int unifont_14_0_01_ttf_len;
 
 void SDLTerminal::init() {
     SDL_SetHint(SDL_HINT_RENDER_DIRECT3D_THREADSAFE, "1");
