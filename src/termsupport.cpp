@@ -671,11 +671,11 @@ std::string termGetEvent(lua_State *L) {
                 } else if ((computer->waitingForTerminate & 48) == 0) computer->waitingForTerminate |= 16;
             } else if (e.key.keysym.sym == SDLK_v && (e.key.keysym.mod & KMOD_SYSMOD) && SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
-                std::string str;
-                try {str = utf8_to_string(text, std::locale("C"));}
-                catch (std::exception &e) {return "";}
-                str = str.substr(0, min(str.find_first_of("\r\n"), (std::string::size_type)512));
-                lua_pushlstring(L, str.c_str(), str.size());
+                std::u32string ustr = UTF8ToUnicode(text);
+                ustr = ustr.substr(0, min(ustr.find_first_of(U"\r\n"), (std::string::size_type)512));
+                std::string str = unicodeToAnsi(ustr);
+                pushstring(L, str);
+                createUTFString(L, ustr);
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
@@ -692,14 +692,10 @@ std::string termGetEvent(lua_State *L) {
             }
         } else if (e.type == SDL_TEXTINPUT) {
             std::u32string ustr = UTF8ToUnicode(std::string(e.text.text));
-            std::string str;
-            try {str = utf8_to_string(e.text.text, std::locale("C"));}
-            catch (std::exception &ignored) {str = "?";}
-            if (!str.empty()) {
-                lua_pushlstring(L, str.c_str(), 1);
-                createUTFString(L, ustr);
-                return "char";
-            }
+            std::string str = unicodeToAnsi(ustr);
+            lua_pushlstring(L, str.c_str(), 1);
+            createUTFString(L, ustr);
+            return "char";
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config->isColor || computer->isDebugger)) {
             std::string side;
             Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, &side)->term;

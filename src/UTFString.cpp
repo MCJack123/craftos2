@@ -175,21 +175,21 @@ static int UTFString_pack(lua_State *L) {
             pattern[i] = 'z';
             if (!isUTFString(L, p)) luaL_typerror(L, p, "UTFString");
             std::string utf8 = unicodeToAnsi(toUTFString(L, p));
-            lua_pushlstring(L, utf8.c_str(), utf8.size());
+            pushstring(L, utf8);
             lua_replace(L, p++);
             break;
         } case 'U': {
             pattern[i] = 'z';
             if (!isUTFString(L, p)) luaL_typerror(L, p, "UTFString");
             std::string utf8 = unicodeToUTF8(toUTFString(L, p));
-            lua_pushlstring(L, utf8.c_str(), utf8.size());
+            pushstring(L, utf8);
             lua_replace(L, p++);
             break;
         } case 'b': case 'B': case 'h': case 'H': case 'l': case 'L': case 'j': case 'J': case 'T':
           case 'i': case 'I': case 'f': case 'd': case 'c': case 'z': case 's': p++; break;
         }
     }
-    lua_pushlstring(L, pattern.c_str(), pattern.size());
+    pushstring(L, pattern);
     lua_replace(L, 1);
     libstring.pack(L);
     createUTFString(L, ansiToUnicode(tostring(L, -1)));
@@ -201,7 +201,7 @@ static int UTFString_packsize(lua_State *L) {
     if (isUTFString(L, 1)) pattern = unicodeToAnsi(toUTFString(L, 1));
     else pattern = checkstring(L, 1);
     for (char& c : pattern) if (c == 'u' || c == 'U') c = 'z';
-    lua_pushlstring(L, pattern.c_str(), pattern.size());
+    pushstring(L, pattern);
     lua_replace(L, 1);
     return libstring.packsize(L);
 }
@@ -254,7 +254,7 @@ static int UTFString_tostring(lua_State *L) {
     }
     std::u32string& str = toUTFString(L, 1);
     std::string retval = unicodeToAnsi(str);
-    lua_pushlstring(L, retval.c_str(), retval.size());
+    pushstring(L, retval);
     return 1;
 }
 
@@ -264,11 +264,11 @@ static int UTFString_unpack(lua_State *L) {
     else pattern = checkstring(L, 1);
     oldpattern = pattern;
     for (char& c : pattern) if (c == 'u' || c == 'U') c = 'z';
-    lua_pushlstring(L, pattern.c_str(), pattern.size());
+    pushstring(L, pattern);
     lua_replace(L, 1);
     if (isUTFString(L, 2)) {
         std::string str = unicodeToAnsi(toUTFString(L, 2));
-        lua_pushlstring(L, str.c_str(), str.size());
+        pushstring(L, str);
         lua_replace(L, 2);
     }
     int n = libstring.unpack(L);
@@ -304,7 +304,7 @@ static int UTFString_utf8(lua_State *L) {
     if (!isUTFString(L, 1)) luaL_typerror(L, 1, "UTFString");
     std::u32string& str = toUTFString(L, 1);
     std::string retval = unicodeToUTF8(str);
-    lua_pushlstring(L, retval.c_str(), retval.size());
+    pushstring(L, retval);
     return 1;
 }
 
@@ -732,8 +732,8 @@ static int gmatch_aux (lua_State *L) {
 
 
 static int UTFString_gmatch (lua_State *L) {
-  luaL_checkstring(L, 1);
-  luaL_checkstring(L, 2);
+  if (!isUTFString(L, 1)) luaL_checkstring(L, 1);
+  if (!isUTFString(L, 2)) luaL_checkstring(L, 2);
   lua_settop(L, 2);
   lua_pushinteger(L, 0);
   lua_pushcclosure(L, gmatch_aux, 3);

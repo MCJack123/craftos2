@@ -240,5 +240,8 @@ inline std::string tostring(lua_State *L, int idx, const std::string& def = "") 
     if (str == NULL) return def;
     return std::string(str, sz);
 }
+inline void pushstring(lua_State *L, const std::string& str) {
+    lua_pushlstring(L, str.c_str(), str.size());
+}
 
 #endif

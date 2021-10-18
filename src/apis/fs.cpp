@@ -162,11 +162,10 @@ static int fs_isReadOnly(lua_State *L) {
 
 static int fs_getName(lua_State *L) {
     lastCFunction = __func__;
-    luaL_checkstring(L, 1);
-    char * path = new char[lua_strlen(L, 1) + 1];
-    strcpy(path, lua_tostring(L, 1));
-    lua_pushstring(L, basename(path));
-    delete[] path;
+    std::string str = checkutfstring(L, 1);
+    if (str.find_last_of("/\\") != std::string::npos) str = str.substr(str.find_last_of("/\\")+1);
+    if (isUTFString(L, 1)) createUTFString(L, UTF8ToUnicode(str));
+    else pushstring(L, str);
     return 1;
 }
 
@@ -369,10 +368,11 @@ static int fs_delete(lua_State *L) {
 
 static int fs_combine(lua_State *L) {
     lastCFunction = __func__;
-    std::string basePath = checkstring(L, 1);
-    for (int i = 2; i <= lua_gettop(L); i++) basePath += "/" + checkstring(L, i);
+    std::string basePath = checkutfstring(L, 1);
+    for (int i = 2; i <= lua_gettop(L); i++) basePath += "/" + checkutfstring(L, i);
     basePath = astr(fixpath(get_comp(L), basePath, false, false));
-    lua_pushlstring(L, basePath.c_str(), basePath.size());
+    if (isUTFString(L, 1)) createUTFString(L, UTF8ToUnicode(basePath));
+    else pushstring(L, basePath);
     return 1;
 }
 
@@ -716,7 +716,8 @@ static int fs_getDir(lua_State *L) {
     lastCFunction = __func__;
     std::string str = checkutfstring(L, 1);
     std::string path = astr(fixpath(get_comp(L), str + "/..", false, false));
-    lua_pushlstring(L, path.c_str(), path.size());
+    if (isUTFString(L, 1)) createUTFString(L, UTF8ToUnicode(path));
+    else pushstring(L, path);
     return 1;
 }
 

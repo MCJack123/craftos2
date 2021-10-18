@@ -561,7 +561,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
                     fclose(in);
                 } else script = "printError('Could not load startup script: " + std::string(strerror(errno)) + "')";
             }
-            lua_pushlstring(L, script.c_str(), script.size());
+            pushstring(L, script);
             lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
         }
         if (!script_args.empty()) {

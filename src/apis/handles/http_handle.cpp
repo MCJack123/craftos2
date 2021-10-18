@@ -171,7 +171,7 @@ int http_handle_readAllByte(lua_State *L) {
     while (handle->stream->read(buffer, sizeof(buffer)))
         ret.append(buffer, sizeof(buffer));
     ret.append(buffer, handle->stream->gcount());
-    lua_pushlstring(L, ret.c_str(), ret.size());
+    pushstring(L, ret);
     return 1;
 }
 
