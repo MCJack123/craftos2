@@ -35,6 +35,8 @@ extern "C" {
         unsigned char	 pixel_data[128 * 175 * 2 + 1];
     };
     extern struct font_image font_image;
+    extern unsigned char unifont_14_0_01_ttf[];
+    extern unsigned int unifont_14_0_01_ttf_len;
 #ifdef __EMSCRIPTEN__
     extern void syncfs();
 #endif
@@ -430,9 +432,6 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
     while (gotResizeEvent) std::this_thread::yield();
     return true;
 }
-
-extern unsigned char unifont_14_0_01_ttf[];
-extern unsigned int unifont_14_0_01_ttf_len;
 
 void HardwareSDLTerminal::init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
