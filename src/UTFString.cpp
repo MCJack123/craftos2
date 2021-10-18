@@ -767,7 +767,7 @@ static void add_s (MatchState *ms, std::basic_stringstream<char32_t> *b,
         push_onecapture(ms, news[i] - '1', s, e);
         /* add capture to accumulated result */
         if (isUTFString(ms->L, -1)) *b << toUTFString(ms->L, -1);
-        else if (lua_isnumber(ms->L, -1)) *b << lua_tonumber(ms->L, -1);
+        else if (lua_isnumber(ms->L, -1)) *b << ansiToUnicode(std::to_string(lua_tonumber(ms->L, -1)));
         else *b << ansiToUnicode(tostring(ms->L, -1));
         lua_pop(ms->L, 1);
       }
