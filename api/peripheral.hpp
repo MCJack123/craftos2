@@ -34,6 +34,7 @@ public:
     peripheral() = default; // unused
     // This is the main constructor that is used to create a peripheral.
     // You must provide your own version of this constructor.
+    // Additional arguments to the create call start at stack index 3.
     peripheral(lua_State *L, const char * side) {}
     // You also should define a destructor for your peripheral.
     virtual ~peripheral()=0;
