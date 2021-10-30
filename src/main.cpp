@@ -418,8 +418,8 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                 uint32_t ef = 0;
                 in.read((char*)&f, 2);
                 if (f & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) in.read((char*)&ef, 4);
-                RawTerminal::supportedFeatures &= f;
-                RawTerminal::supportedExtendedFeatures &= ef;
+                RawTerminal::supportedFeatures = f & (CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM | CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT | CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS);
+                RawTerminal::supportedExtendedFeatures = ef & (0x00000000);
             }}
             std::this_thread::yield();
         }

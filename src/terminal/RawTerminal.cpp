@@ -434,10 +434,12 @@ static void rawInputLoop() {
             size_t sizen;
             if (protocol_type == 'C') {
                 char size[5];
+                size[4] = 0;
                 std::cin.read(size, 4);
                 sizen = strtoul(size, NULL, 16);
             } else if (isVersion1_1 && protocol_type == 'D') {
                 char size[13];
+                size[12] = 0;
                 std::cin.read(size, 12);
                 sizen = strtoul(size, NULL, 16);
             } else continue;
