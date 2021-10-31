@@ -53,6 +53,7 @@ extern "C" {extern int Android_JNI_SetupThread(void);}
 
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
+extern void clearPeripherals();
 extern library_t * libraries[];
 extern int onboardingMode;
 extern std::function<void(const std::string&)> rawWriter;
@@ -423,8 +424,8 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                 uint32_t ef = 0;
                 in.read((char*)&f, 2);
                 if (f & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) in.read((char*)&ef, 4);
-                RawTerminal::supportedFeatures &= f;
-                RawTerminal::supportedExtendedFeatures &= ef;
+                RawTerminal::supportedFeatures = f & (CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM | CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT | CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS);
+                RawTerminal::supportedExtendedFeatures = ef & (0x00000000);
             }}
             std::this_thread::yield();
         }
@@ -541,6 +542,7 @@ int main(int argc, char*argv[]) {
         else if (arg.substr(0, 16) == "--raw-websocket=") { rawClient = true; rawWebSocketURL = arg.substr(16); }
         else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); }
         else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
+        else if (arg == "--single") singleWindowMode = true;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
@@ -662,7 +664,8 @@ int main(int argc, char*argv[]) {
                       << "  --raw                            Outputs terminal contents using a binary format\n"
                       << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
                       << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n"
-                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n\n"
+                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n"
+                      << "  --single                         Forces all screen output to a single window\n\n"
                       << "CCEmuX compatibility options:\n"
                       << "  -a|--assets-dir <dir>            Sets the CC:T directory that holds the ROM & BIOS\n"
                       << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"
@@ -858,8 +861,11 @@ int main(int argc, char*argv[]) {
     awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     computerThreads.clear();
-    // C++ doesn't like it if we try to empty the SDL event list once the plugins are gone
+    // Clear out a few lists that plugins may insert functions into
+    // We can't let these stay past the lifetime of plugins since C++ will try
+    // to access methods that were unloaded to destroy the objects
     SDLTerminal::eventHandlers.clear();
+    clearPeripherals();
     deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();

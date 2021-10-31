@@ -82,19 +82,20 @@ static int config_get(lua_State *L) {
     getConfigSetting(snooperEnabled, boolean);
     getConfigSetting(keepOpenOnShutdown, boolean);
     getConfigSetting(useWebP, boolean);
+    getConfigSetting(dropFilePath, boolean);
     else if (strcmp(name, "useHDFont") == 0) {
         if (config.customFontPath.empty()) lua_pushboolean(L, false);
         else if (config.customFontPath == "hdfont") lua_pushboolean(L, true);
         else lua_pushnil(L);
     } else if (strcmp(name, "http_whitelist") == 0) {
         lua_createtable(L, config.http_whitelist.size(), 0);
-        for (int i = 0; i < config.http_whitelist.size(); i++) {
+        for (size_t i = 0; i < config.http_whitelist.size(); i++) {
             lua_pushstring(L, config.http_whitelist[i].c_str());
             lua_rawseti(L, -2, i+1);
         }
     } else if (strcmp(name, "http_blacklist") == 0) {
         lua_createtable(L, config.http_blacklist.size(), 0);
-        for (int i = 0; i < config.http_blacklist.size(); i++) {
+        for (size_t i = 0; i < config.http_blacklist.size(); i++) {
             lua_pushstring(L, config.http_blacklist[i].c_str());
             lua_rawseti(L, -2, i+1);
         }
@@ -213,6 +214,7 @@ static int config_set(lua_State *L) {
     setConfigSetting(snooperEnabled, boolean);
     setConfigSetting(keepOpenOnShutdown, boolean);
     setConfigSetting(useWebP, boolean);
+    setConfigSetting(dropFilePath, boolean);
     else if (strcmp(name, "useHDFont") == 0)
         config.customFontPath = lua_toboolean(L, 2) ? "hdfont" : "";
     else if (strcmp(name, "http_whitelist") == 0) {

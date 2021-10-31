@@ -63,6 +63,11 @@ extern void uploadCrashDumps();
 #define pathcmp strcmp
 #endif
 
+#ifdef __IPHONEOS__
+extern void iOS_SetWindowTitle(SDL_Window * win, const char * title);
+#define SDL_SetWindowTitle iOS_SetWindowTitle
+#endif
+
 extern void setThreadName(std::thread &t, const std::string& name);
 extern int createDirectory(const path_t& path);
 extern unsigned long long getFreeSpace(const path_t& path);
@@ -76,7 +81,7 @@ extern path_t getPlugInPath();
 extern path_t getMCSavePath();
 extern void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root);
 extern void migrateOldData();
-extern void copyImage(SDL_Surface* surf);
+extern void copyImage(SDL_Surface* surf, SDL_Window* win);
 extern void setupCrashHandler();
 extern void setFloating(SDL_Window* win, bool state);
 #endif

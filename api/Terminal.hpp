@@ -176,6 +176,7 @@ public:
     virtual void showMessage(uint32_t flags, const char * title, const char * message)=0; // Displays a message on screen outside the bounds of CC
     virtual void setLabel(std::string label)=0; // Sets the title of the window
     virtual bool resize(unsigned w, unsigned h)=0; // Safely sets the size of the window
+    virtual void onActivate()=0; // Called in single window mode when the window becomes active
 };
 
 #endif

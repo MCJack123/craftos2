@@ -14,7 +14,6 @@
 #include <Terminal.hpp>
 
 class TRoRTerminal: public Terminal {
-    static std::set<unsigned> currentIDs;
 public:
     static void init();
     static void quit();
@@ -24,6 +23,7 @@ public:
     void render() override {}
     void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
+    void onActivate() override {}
     bool resize(unsigned w, unsigned h) override {return false;}
 };
 

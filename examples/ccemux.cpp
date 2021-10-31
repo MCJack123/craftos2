@@ -24,7 +24,6 @@ extern "C" {
 #include <stdlib.h>
 #define COMP_DIR "/computer/"
 #endif
-#define libFunc(lib, name) getLibraryFunction(functions->getLibrary(lib), name)
 
 static const PluginFunctions * functions;
 
@@ -137,46 +136,28 @@ shell.setCompletionFunction(\"rom/programs/emu.lua\", function(shell, index, tex
     end\n\
 end)"}}}};
 
-static lua_CFunction getLibraryFunction(library_t * lib, const char * name) {
-    for (int i = 0; lib->functions[i].name; i++) if (std::string(lib->functions[i].name) == std::string(name)) return lib->functions[i].func;
-    return NULL;
-}
-
 static int ccemux_getVersion(lua_State *L) {
-    libFunc("os", "about")(L);
-    lua_getglobal(L, "string");
-    lua_pushstring(L, "match");
-    lua_gettable(L, -2);
-    lua_pushvalue(L, -3);
-    lua_pushstring(L, "^CraftOS%-PC A-c-c-e-l-e-r-a-t-e-d- -v([%d%l%.%-]+)\n");
-    lua_call(L, 2, 1);
+    lua_pushstring(L, functions->craftos_pc_version);
     return 1;
 }
 
 static int ccemux_openEmu(lua_State *L) {
-    int id = 1;
+    Computer * comp = get_comp(L);
+    int id = 0;
     if (lua_isnumber(L, 1)) id = (int)lua_tointeger(L, 1);
+    else if (!lua_isnoneornil(L, 1)) luaL_typerror(L, 1, "number");
     else {
-        library_t * plib = functions->getLibrary("peripheral");
-        for (; id < 256; id++) { // don't search forever
-            lua_pushcfunction(L, getLibraryFunction(plib, "isPresent"));
-            lua_pushfstring(L, "computer_%d", id);
-            lua_call(L, 1, 1);
-            if (!lua_toboolean(L, -1)) {lua_pop(L, 1); break;}
-            lua_pop(L, 1);
-        }
+        std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
+        while (functions->getComputerById(id) != NULL) id++;
     }
-    lua_pushcfunction(L, libFunc("periphemu", "create"));
-    lua_pushinteger(L, id);
-    lua_pushstring(L, "computer");
-    if (lua_pcall(L, 2, 1, 0) != 0) lua_error(L);
-    if (lua_toboolean(L, -1)) lua_pushinteger(L, id);
-    else lua_pushnil(L);
+    if (functions->attachPeripheral(comp, "computer_" + std::to_string(id), "computer", NULL, "") == NULL) lua_pushnil(L);
+    else lua_pushinteger(L, id);
     return 1;
 }
 
 static int ccemux_closeEmu(lua_State *L) {
-    return libFunc("os", "shutdown")(L);
+    get_comp(L)->running = 0;
+    return 0;
 }
 
 static int ccemux_openDataDir(lua_State *L) {
@@ -234,19 +215,20 @@ static int ccemux_setClipboard(lua_State *L) {
 }
 
 static int ccemux_attach(lua_State *L) {
-    if (lua_isstring(L, 2) && std::string(lua_tostring(L, 2)) == "disk_drive") {
-        lua_pushstring(L, "drive");
-        lua_replace(L, 2);
-    }
-    if (lua_isstring(L, 2) && std::string(lua_tostring(L, 2)) == "wireless_modem") {
-        lua_pushstring(L, "modem");
-        lua_replace(L, 2);
-    }
-    return libFunc("periphemu", "create")(L);
+    std::string side = luaL_checkstring(L, 1);
+    std::string type = luaL_checkstring(L, 2);
+    if (type == "disk_drive") type = "drive";
+    else if (type == "wireless_modem") type = "modem"; 
+    lua_remove(L, 1); lua_remove(L, 1);
+    std::string err;
+    functions->attachPeripheral(get_comp(L), side, type, &err, "L", L);
+    if (!err.empty()) luaL_error(L, "%s", err.c_str());
+    return 0;
 }
 
 static int ccemux_detach(lua_State *L) {
-    return libFunc("periphemu", "remove")(L);
+    functions->detachPeripheral(get_comp(L), luaL_checkstring(L, 1));
+    return 0;
 }
 
 static struct luaL_Reg M[] = {
@@ -264,7 +246,7 @@ static struct luaL_Reg M[] = {
     {NULL, NULL}
 };
 
-static PluginInfo info("ccemux");
+static PluginInfo info("ccemux", 3);
 
 extern "C" {
 #ifdef _WIN32

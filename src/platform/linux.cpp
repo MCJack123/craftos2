@@ -31,6 +31,19 @@ extern "C" {
 #include <ucontext.h>
 #include <unistd.h>
 #include <wordexp.h>
+#ifndef NO_PNG
+#include <png++/png.hpp>
+#endif
+#ifndef NO_WEBP
+#include <webp/mux.h>
+#include <webp/encode.h>
+#endif
+#ifdef _X11_XLIB_H_
+#include <X11/Xutil.h>
+#endif
+#ifdef SDL_VIDEO_DRIVER_WAYLAND
+#include <wayland-client.h>
+#endif
 #include "../platform.hpp"
 #include "../util.hpp"
 
@@ -195,8 +208,230 @@ void migrateOldData() {
         recursiveMove(oldpath, getBasePath());
 }
 
-void copyImage(SDL_Surface* surf) {
-    fprintf(stderr, "Warning: Linux does not support taking screenshots to the clipboard.\n");
+static ProtectedObject<SDL_Surface*> copiedSurface((SDL_Surface*)NULL);
+
+#ifdef _X11_XLIB_H_
+static Atom ATOM_CLIPBOARD, ATOM_TARGETS, ATOM_MULTIPLE, ATOM_WEBP, ATOM_PNG, ATOM_BMP;
+static bool didInitAtoms = false;
+
+static int eventFilter(void* userdata, SDL_Event* e) {
+    if (e->type == SDL_SYSWMEVENT) {
+        XSelectionRequestEvent xe = e->syswm.msg->msg.x11.event.xselectionrequest;
+        if (xe.type == SelectionRequest && xe.selection == ATOM_CLIPBOARD && *copiedSurface != NULL) {
+            LockGuard lock(copiedSurface);
+            SDL_Surface* temp = *copiedSurface;
+            XSelectionEvent sev;
+            sev.type = SelectionNotify; sev.display = xe.display; sev.requestor = xe.requestor;
+            sev.selection = xe.selection; sev.time = xe.time; sev.target = xe.target; sev.property = xe.property;
+            if (xe.target == ATOM_TARGETS) {
+                std::vector<Atom> targets;
+                targets.reserve(6);
+                targets.push_back(ATOM_TARGETS);
+                targets.push_back(ATOM_MULTIPLE);
+#ifndef NO_WEBP
+                targets.push_back(ATOM_WEBP);
+#endif
+#ifndef NO_PNG
+                targets.push_back(ATOM_PNG);
+#endif
+                targets.push_back(ATOM_BMP);
+                //targets.push_back(XA_PIXMAP);
+                XChangeProperty(xe.display, xe.requestor, xe.property, XA_ATOM, 32, PropModeReplace, (unsigned char*)&targets[0], targets.size());
+#ifndef NO_WEBP
+            } else if (xe.target == ATOM_WEBP) {
+                uint8_t * data = NULL;
+                size_t size = WebPEncodeLosslessRGB((uint8_t*)temp->pixels, temp->w, temp->h, temp->pitch, &data);
+                if (size) {
+                    XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_WEBP, 8, PropModeReplace, data, size);
+                    WebPFree(data);
+                } else sev.property = None;
+#endif
+#ifndef NO_PNG
+            } else if (xe.target == ATOM_PNG) {
+                png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
+                for (int i = 0; i < temp->h; i++)
+                    memcpy((void*)&pixbuf.get_bytes()[i * temp->w * 3], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
+                png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
+                img.set_pixbuf(pixbuf);
+                std::stringstream out;
+                img.write_stream(out);
+                std::string data = out.str();
+                XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_PNG, 8, PropModeReplace, (const unsigned char*)data.c_str(), data.size());
+#endif
+            } else if (xe.target == ATOM_BMP) {
+                size_t size = temp->w * temp->h * 4 + 4096;
+                unsigned char * data = new unsigned char[size]; // this should be enough for an image, right?
+                SDL_RWops* rw = SDL_RWFromMem(data, size);
+                SDL_SaveBMP_RW(temp, rw, false);
+                size = SDL_RWtell(rw);
+                SDL_RWclose(rw);
+                XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_BMP, 8, PropModeReplace, data, size);
+                delete[] data;
+            } /*else if (xe.target == XA_PIXMAP) {
+                XWindowAttributes attr;
+                XGetWindowAttributes(xe.display, xe.requestor, &attr);
+                SDL_PixelFormat format;
+                format.palette = NULL; format.BitsPerPixel = (attr.visual->bits_per_rgb * 3 / 8) * 8; format.BytesPerPixel = attr.visual->bits_per_rgb * 3 / 8;
+                format.Rmask = attr.visual->red_mask; format.Gmask = attr.visual->green_mask; format.Bmask = attr.visual->blue_mask; format.Amask = 0;
+                SDL_Surface * surf = SDL_ConvertSurface(temp, &format, 0);
+                XImage* img = XCreateImage(xe.display, attr.visual, surf->format->BitsPerPixel, ZPixmap, 0, (char*)surf->pixels, surf->w, surf->h, 8, surf->pitch);
+                Pixmap pm = XCreatePixmap(xe.display, xe.requestor, surf->w, surf->h, attr.depth);
+                GC gc = XCreateGC(xe.display, pm, 0, NULL);
+                XPutImage(xe.display, pm, gc, img, 0, 0, 0, 0, surf->w, surf->h);
+                XFreeGC(xe.display, gc);
+                //XDestroyImage(img);
+                SDL_FreeSurface(surf);
+                XChangeProperty(xe.display, xe.requestor, xe.property, XA_PIXMAP, 32, PropModeReplace, (unsigned char*)&pm, 1);
+                // free pixmap?
+            }*/ else {
+                sev.property = None;
+            }
+            XSendEvent(xe.display, xe.requestor, true, 0, (XEvent*)&sev);
+        } else return 0;
+    }
+    return 1;
+}
+#endif
+
+#ifdef SDL_VIDEO_DRIVER_WAYLAND
+static struct wl_data_device_manager *data_device_manager = NULL;
+static struct wl_seat *seat = NULL;
+static bool addedListener = false;
+
+static void registry_handle_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
+	printf("interface: '%s', version: %d, name: %d\n",
+			interface, version, name);
+    if (strcmp(interface, wl_data_device_manager_interface.name) == 0) {
+		data_device_manager = (struct wl_data_device_manager*)wl_registry_bind(registry, name,
+            &wl_data_device_manager_interface, 3);
+    } else if (strcmp(interface, wl_seat_interface.name) == 0 && seat == NULL) {
+        // We only bind to the first seat. Multi-seat support is an exercise
+        // left to the reader.
+        seat = (struct wl_seat*)wl_registry_bind(registry, name, &wl_seat_interface, 1);
+    }
+}
+
+static void registry_handle_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
+	// This space deliberately left blank
+}
+
+static const struct wl_registry_listener registry_listener = {
+	.global = registry_handle_global,
+	.global_remove = registry_handle_global_remove,
+};
+
+static void data_source_handle_send(void *data, struct wl_data_source *source, const char *mime_type, int fd) {
+    LockGuard lock(copiedSurface);
+    SDL_Surface* temp = *copiedSurface;
+    if (temp == NULL) {
+        close(fd);
+        return;
+    }
+	// An application wants to paste the clipboard contents
+    if (strcmp(mime_type, "image/bmp") == 0) {
+        size_t size = temp->w * temp->h * 4 + 4096;
+        unsigned char * data = new unsigned char[size]; // this should be enough for an image, right?
+        SDL_RWops* rw = SDL_RWFromMem(data, size);
+        SDL_SaveBMP_RW(temp, rw, false);
+        size = SDL_RWtell(rw);
+        SDL_RWclose(rw);
+        write(fd, data, size);
+        delete[] data;
+#ifndef NO_WEBP
+    } else if (strcmp(mime_type, "image/webp") == 0) {
+		uint8_t * data = NULL;
+        size_t size = WebPEncodeLosslessRGB((uint8_t*)temp->pixels, temp->w, temp->h, temp->pitch, &data);
+        if (size) {
+            write(fd, data, size);
+            WebPFree(data);
+        }
+#endif
+#ifndef NO_PNG
+	} else if (strcmp(mime_type, "image/png") == 0) {
+		png::solid_pixel_buffer<png::rgb_pixel> pixbuf(temp->w, temp->h);
+        for (int i = 0; i < temp->h; i++)
+            memcpy((void*)&pixbuf.get_bytes()[i * temp->w * 3], (char*)temp->pixels + (i * temp->pitch), temp->w * 3);
+        png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(temp->w, temp->h);
+        img.set_pixbuf(pixbuf);
+        std::stringstream out;
+        img.write_stream(out);
+        std::string data = out.str();
+        write(fd, data.c_str(), data.size());
+#endif
+	} else {
+		fprintf(stderr,
+			"Destination client requested unsupported MIME type: %s\n",
+			mime_type);
+	}
+	close(fd);
+}
+
+static void data_source_handle_cancelled(void *data, struct wl_data_source *source) {
+	// An application has replaced the clipboard contents
+	wl_data_source_destroy(source);
+}
+
+static const struct wl_data_source_listener data_source_listener = {
+	.send = data_source_handle_send,
+	.cancelled = data_source_handle_cancelled,
+};
+#endif
+
+void copyImage(SDL_Surface* surf, SDL_Window* win) {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(win, &info);
+    if (info.subsystem == SDL_SYSWM_X11) {
+#ifdef _X11_XLIB_H_
+        LockGuard lock(copiedSurface);
+        Display* d = info.info.x11.display;
+        if (!didInitAtoms) {
+            ATOM_CLIPBOARD = XInternAtom(d, "CLIPBOARD", false);
+            ATOM_TARGETS = XInternAtom(d, "TARGETS", false);
+            ATOM_MULTIPLE = XInternAtom(d, "MULTIPLE", false);
+            ATOM_WEBP = XInternAtom(d, "image/webp", false);
+            ATOM_PNG = XInternAtom(d, "image/png", false);
+            ATOM_BMP = XInternAtom(d, "image/bmp", false);
+            didInitAtoms = true;
+        }
+        SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+        SDL_SetEventFilter(eventFilter, NULL);
+        if (*copiedSurface != NULL) SDL_FreeSurface(*copiedSurface);
+        copiedSurface = SDL_CreateRGBSurfaceWithFormat(surf->flags, surf->w, surf->h, surf->format->BitsPerPixel, surf->format->format);
+        SDL_BlitSurface(surf, NULL, *copiedSurface, NULL);
+        XSetSelectionOwner(d, ATOM_CLIPBOARD, info.info.x11.window, CurrentTime);
+#endif
+    } else if (info.subsystem == SDL_SYSWM_WAYLAND) {
+#ifdef SDL_VIDEO_DRIVER_WAYLAND
+        struct wl_registry *registry = wl_display_get_registry(info.info.wl.display);
+        while (data_device_manager == NULL || seat == NULL) {
+            if (!addedListener) {
+                wl_registry_add_listener(registry, &registry_listener, NULL);
+                addedListener = true;
+            }
+            wl_display_roundtrip(info.info.wl.display);
+        }
+        struct wl_data_device *data_device = wl_data_device_manager_get_data_device(data_device_manager, seat);
+        struct wl_data_source *source = wl_data_device_manager_create_data_source(data_device_manager);
+        wl_data_source_add_listener(source, &data_source_listener, NULL);
+#ifndef NO_WEBP
+        wl_data_source_offer(source, "image/webp");
+#endif
+#ifndef NO_PNG
+        wl_data_source_offer(source, "image/png");
+#endif
+        wl_data_source_offer(source, "image/bmp");
+        if (*copiedSurface != NULL) SDL_FreeSurface(*copiedSurface);
+        copiedSurface = SDL_CreateRGBSurfaceWithFormat(surf->flags, surf->w, surf->h, surf->format->BitsPerPixel, surf->format->format);
+        SDL_BlitSurface(surf, NULL, *copiedSurface, NULL);
+        wl_data_device_set_selection(data_device, source, 0);
+        // TODO: figure out if this leaks memory/resources? (I can't test Wayland very easily on my system)
+#endif
+    } else if (info.subsystem == SDL_SYSWM_DIRECTFB) {
+#ifdef __DIRECTFB_H__
+
+#endif
+    }
 }
 
 #if defined(__i386__) || defined(__x86_64__)

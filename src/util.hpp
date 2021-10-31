@@ -25,7 +25,7 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.6.1-luajit"
+#define CRAFTOSPC_VERSION    "v2.6.2-luajit"
 #define CRAFTOSPC_CC_VERSION "1.98.2"
 #define CRAFTOSPC_INDEV      false
 
@@ -41,12 +41,15 @@ class ProtectedObject {
     std::mutex mutex;
     bool isLocked;
 public:
+    ProtectedObject() {}
+    ProtectedObject(T o): obj(o) {}
     void lock() { mutex.lock(); isLocked = true; }
     void unlock() { mutex.unlock(); isLocked = false; }
     bool locked() { return isLocked; }
     std::mutex& getMutex() { return mutex; }
     T& operator*() { return obj; }
     T* operator->() { return &obj; }
+    ProtectedObject<T>& operator=(const T& rhs) {obj = rhs; return *this;}
 };
 
 class LockGuard : public std::lock_guard<std::mutex> {
@@ -197,15 +200,11 @@ inline std::string asciify(std::string str) {
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
 extern std::unordered_map<std::string, std::tuple<int, std::function<int(const std::string&, void*)>, void*> > userConfig;
-extern std::list<Terminal*> renderTargets;
-extern std::mutex renderTargetsLock;
-#ifdef __EMSCRIPTEN__
-extern std::list<Terminal*>::iterator renderTarget;
-#endif
 
 extern std::string loadingPlugin;
 extern const char * lastCFunction;
 extern Computer * get_comp(lua_State *L);
+extern void uncache_state(lua_State *L);
 
 template<typename T>
 inline T min(T a, T b) { return a < b ? a : b; }
@@ -235,9 +234,10 @@ inline std::string checkstring(lua_State *L, int idx) {
     const char * str = luaL_checklstring(L, idx, &sz);
     return std::string(str, sz);
 }
-inline std::string tostring(lua_State *L, int idx) {
+inline std::string tostring(lua_State *L, int idx, const std::string& def = "") {
     size_t sz = 0;
     const char * str = lua_tolstring(L, idx, &sz);
+    if (str == NULL) return def;
     return std::string(str, sz);
 }
 

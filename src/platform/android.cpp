@@ -164,7 +164,7 @@ void migrateOldData() {
     
 }
 
-void copyImage(SDL_Surface* surf) {
+void copyImage(SDL_Surface* surf, SDL_Window* win) {
     fprintf(stderr, "Warning: Android does not support taking screenshots to the clipboard.\n");
 }
 

@@ -81,7 +81,7 @@ void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) 
 
 void migrateOldData() {}
 
-void copyImage(SDL_Surface* surf) {}
+void copyImage(SDL_Surface* surf, SDL_Window* win) {}
 
 void setupCrashHandler() {}
 

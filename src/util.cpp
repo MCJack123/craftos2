@@ -47,6 +47,11 @@ Computer * get_comp(lua_State *L) {
     }
 }
 
+void uncache_state(lua_State *L) {
+    LockGuard lock(getCompCache);
+    getCompCache->erase(L->l_G);
+}
+
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {
     luaL_register(L, lib.name, lib.functions);
     if (lib.init != NULL) lib.init(comp);
@@ -277,8 +282,10 @@ static void xcopy_internal(lua_State *from, lua_State *to, int n, int copies_slo
             case LUA_TNIL: case LUA_TNONE: lua_pushnil(to); break;
             case LUA_TBOOLEAN: lua_pushboolean(to, lua_toboolean(from, -1-i)); break;
             case LUA_TNUMBER: lua_pushnumber(to, lua_tonumber(from, -1-i)); break;
-            case LUA_TSTRING: lua_pushlstring(to, lua_tolstring(from, -1-i, &sz), sz); break;
-            case LUA_TTABLE: {
+            case LUA_TSTRING: {
+                const char * str = lua_tolstring(from, -1-i, &sz);
+                lua_pushlstring(to, str, sz); break;
+            } case LUA_TTABLE: {
                 const void* ptr = lua_topointer(from, -1-i);
                 lua_rawgeti(to, copies_slot, (ptrdiff_t)ptr);
                 if (!lua_isnil(to, -1)) continue;

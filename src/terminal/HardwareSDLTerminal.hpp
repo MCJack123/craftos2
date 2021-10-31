@@ -23,14 +23,11 @@ public:
     void render() override;
     bool resize(unsigned w, unsigned h) override;
 private:
-#ifdef __EMSCRIPTEN__
-    static SDL_Renderer *ren;
-    static SDL_Texture *font;
-    static SDL_Texture *pixtex;
-#else
     SDL_Renderer *ren = NULL;
     SDL_Texture *font = NULL;
     SDL_Texture *pixtex = NULL;
-#endif
+    static SDL_Renderer *singleRen;
+    static SDL_Texture *singleFont;
+    static SDL_Texture *singlePixtex;
 };
 #endif

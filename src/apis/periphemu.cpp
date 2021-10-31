@@ -21,22 +21,24 @@
 #include "../runtime.hpp"
 #include "../util.hpp"
 
-static std::unordered_map<std::string, peripheral_init> initializers = {
-#if !defined(__IPHONEOS__) && !defined(__ANDROID__)
-    {"monitor", &monitor::init},
-    {"computer", &computer::init},
-    {"debugger", &debugger::init},
-#endif
-    {"printer", &printer::init},
-    {"modem", &modem::init},
-    {"drive", &drive::init},
+static std::unordered_map<std::string, peripheral_init_fn> initializers = {
+    {"monitor", peripheral_init_fn(monitor::init)},
+    {"computer", peripheral_init_fn(computer::init)},
+    {"debugger", peripheral_init_fn(debugger::_init)},
+    {"printer", peripheral_init_fn(printer::init)},
+    {"modem", peripheral_init_fn(modem::init)},
+    {"drive", peripheral_init_fn(drive::init)},
 #ifndef NO_MIXER
-    {"speaker", &speaker::init}
+    {"speaker", peripheral_init_fn(speaker::init)}
 #endif
 };
 
-void registerPeripheral(const std::string& name, const peripheral_init& initializer) {
+void registerPeripheral(const std::string& name, const peripheral_init_fn& initializer) {
     initializers[name] = initializer;
+}
+
+void clearPeripherals() {
+    initializers.clear();
 }
 
 static std::string peripheral_attach(lua_State *L, void* arg) {

@@ -490,6 +490,7 @@ testStart "settings"
 		"shell.allow_disk_startup",
 		"shell.allow_startup",
 		"shell.autocomplete",
+		"shell.mobile_resize_with_keyboard",
 		"shell.report_plugin_errors",
 		"test",
 		"test2"

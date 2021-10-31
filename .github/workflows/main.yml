@@ -107,69 +107,71 @@ jobs:
         cat ~/.local/share/craftos-pc/computer/0/test-log.txt
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
       
-#  build-windows:
-#
-#    runs-on: windows-latest
-#    steps:
-#    - uses: actions/checkout@v1
-#    - name: Download ROM
-#      run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
-#    - name: Restore vcpkg cache
-#      uses: lukka/run-vcpkg@v7
-#      with:
-#        # Just install vcpkg for now, do not install any ports in this step yet.
-#        setupOnly: true
-#        vcpkgGitCommitId: b1b4808228377515acd849b8706ee2ad25ba455d
-#        # Since the cache must be invalidated when content of the vcpkg.json file changes, let's
-#        # compute its hash and append this to the computed cache's key.
-#        appendedCacheKey: ${{ hashFiles( 'vcpkg.json' ) }}
-#        vcpkgTriplet: ${{ matrix.triplet }}
-#        # Ensure the vcpkg artifacts are cached, they are generated in the 'CMAKE_BINARY_DIR/vcpkg_installed' directory.
-#        additionalCachedPaths: ${{ env.buildDir }}/vcpkg_installed
-#    - name: Prepare environment
-#      run: |
-#        git submodule update --init --recursive
-#        mkdir x64\ReleaseC
-#        mkdir x64\Release
-#        & $Env:VCPKG_ROOT\vcpkg integrate install
-#        (Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "ENABLE_NETSSL_WIN", "FORCE_OPENSSL" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco#\portfile.cmake"
-#    - name: Build CraftOS-PC
-#      run: |
-#        function Invoke-Environment {
-#            param
-#            (
-#                # Any cmd shell command, normally a configuration batch file.
-#                [Parameter(Mandatory=$true)]
-#                [string] $Command
-#            )
-#
-#            $Command = "`"" + $Command + "`""
-#            cmd /c "$Command > nul 2>&1 && set" | . { process {
-#                if ($_ -match '^([^=]+)=(.*)') {
-#                    [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
-#                }
-#            }}
-#
-#        }
-#
-#        Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-#        $tag = git rev-parse --short HEAD
-#        set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
-#        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
-#    - name: Run CraftOSTest
-#      run: |
-#        x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua
-#        echo $LASTEXITCODE > retval.txt
-#      continue-on-error: true
-#    - name: Show logs
-#      run: |
-#        type "%appdata\CraftOS-PC\computer\0\CraftOSTest.log"
-#        $code = Get-Content .\retval.txt
-#        if ( $code -ne 0 ) { exit %EXITCODE% }
-#    - name: Upload artifact
-#      uses: actions/upload-artifact@v1.0.0
-#      with:
-#        name: CraftOS-PC_${{ github.sha }}
-#        path: |
-#          x64\ReleaseC\CraftOS-PC.exe
-#          x64\ReleaseC\lua51.dll
+  build-windows:
+
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
+    - name: Restore vcpkg cache
+      uses: MCJack123/run-vcpkg@v7.4.2
+      with:
+        # Just install vcpkg for now, do not install any ports in this step yet.
+        setupOnly: true
+        vcpkgGitCommitId: 71422c627264daedcbcd46f01f1ed0dcd8460f1b
+        # Since the cache must be invalidated when content of the vcpkg.json file changes, let's
+        # compute its hash and append this to the computed cache's key.
+        appendedCacheKey: ${{ hashFiles( 'vcpkg.json' ) }}-2
+        vcpkgTriplet: ${{ matrix.triplet }}
+        # Ensure the vcpkg artifacts are cached, they are generated in the 'CMAKE_BINARY_DIR/vcpkg_installed' directory.
+        additionalCachedPaths: ${{ github.workspace }}\vcpkg_installed
+    - name: Prepare environment
+      run: |
+        git submodule update --init --recursive
+        mkdir x64\ReleaseC
+        mkdir x64\Release
+        & $Env:VCPKG_ROOT\vcpkg integrate install
+        (Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "ENABLE_NETSSL_WIN", "FORCE_OPENSSL" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
+    - name: Build CraftOS-PC
+      run: |
+        function Invoke-Environment {
+            param
+            (
+                # Any cmd shell command, normally a configuration batch file.
+                [Parameter(Mandatory=$true)]
+                [string] $Command
+            )
+
+            $Command = "`"" + $Command + "`""
+            cmd /c "$Command > nul 2>&1 && set" | . { process {
+                if ($_ -match '^([^=]+)=(.*)') {
+                    [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+                }
+            }}
+
+        }
+
+        Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        $tag = git rev-parse --short HEAD
+        set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
+        # Remove buildtrees that kill the cache
+        Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
+    - name: Run CraftOSTest
+      run: |
+        x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua --rom "C:\Program Files\CraftOS-PC"
+        echo $LASTEXITCODE > retval.txt
+      continue-on-error: true
+    - name: Show logs
+      run: |
+        type "$ENV:APPDATA\CraftOS-PC\computer\0\CraftOSTest.log"
+        $code = Get-Content .\retval.txt
+        if ( $code -ne 0 ) { exit $code }
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: CraftOS-PC_${{ github.sha }}
+        path: |
+          x64\ReleaseC\CraftOS-PC.exe
+          x64\ReleaseC\lua51.dll

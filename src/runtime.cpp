@@ -50,13 +50,13 @@ std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
 static std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > globalEventHooks;
 
-monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string& sideReturn) {
+monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string* sideReturn) {
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
     for (const auto& p : comp->peripherals) {
         if (p.second != NULL && strcmp(p.second->getMethods().name, "monitor") == 0) {
             monitor * m = (monitor*)p.second;
             if (m->term->id == id) {
-                sideReturn.assign(p.first);
+                if (sideReturn != NULL) *sideReturn = p.first;
                 return m;
             }
         }

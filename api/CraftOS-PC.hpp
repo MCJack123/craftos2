@@ -101,6 +101,7 @@ struct PluginFunctions {
      * @param name The name of the peripheral to register.
      * @param initializer The initialization function that creates the peripheral object.
      * @see peripheral_init The prototype for a peripheral initializer
+     * @deprecated Use registerPeripheralFn instead, as this can take a function object.
      */
     void (*registerPeripheral)(const std::string& name, const peripheral_init& initializer);
 
@@ -272,6 +273,18 @@ struct PluginFunctions {
      * specifying the distance.
      */
     void (*setDistanceProvider)(const std::function<double(const Computer *, const Computer *)>& func);
+
+    // The following fields are available in API version 10.6 and later.
+
+    /**
+     * Registers a peripheral with the specified name. This function is preferred
+     * over registerPeripheral because it can take a function object in addition
+     * to a standard function pointer.
+     * @param name The name of the peripheral to register.
+     * @param initializer The initialization function that creates the peripheral object.
+     * @see peripheral_init_fn The prototype for a peripheral initializer
+     */
+    void (*registerPeripheralFn)(const std::string& name, const peripheral_init_fn& initializer);
 };
 
 /**

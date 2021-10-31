@@ -336,7 +336,7 @@ void migrateOldData() {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
 }
 
-void copyImage(SDL_Surface* surf) {
+void copyImage(SDL_Surface* surf, SDL_Window* win) {
     char * bmp = new char[surf->w*surf->h*surf->format->BytesPerPixel + 128];
     SDL_RWops * rw = SDL_RWFromMem(bmp, surf->w*surf->h*surf->format->BytesPerPixel + 128);
     SDL_SaveBMP_RW(surf, rw, false);

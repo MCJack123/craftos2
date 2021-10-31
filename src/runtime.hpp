@@ -48,7 +48,7 @@ extern Computer* startComputer(int id);
 extern void queueEvent(Computer *comp, const event_provider& p, void* data);
 extern bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only);
 extern bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path);
-extern void registerPeripheral(const std::string& name, const peripheral_init& initializer);
+extern void registerPeripheral(const std::string& name, const peripheral_init_fn& initializer);
 extern void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
 extern void mainLoop();
 extern std::unordered_map<path_t, std::string> initializePlugins();

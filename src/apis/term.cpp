@@ -382,8 +382,7 @@ static int term_drawPixels(lua_State *L) {
     const int init_x = (int)luaL_checkinteger(L, 1),
               init_y = (int)luaL_checkinteger(L, 2);
 
-    if (init_x >= pixelWidth) return 0;
-    else if (init_y >= pixelHeight) return 0;
+    if (init_x >= pixelWidth || init_y >= pixelHeight) return 0;
 
     const int fillType = lua_type(L, 3);
     const bool isSolidFill = fillType == LUA_TNUMBER;
@@ -433,8 +432,9 @@ static int term_drawPixels(lua_State *L) {
             ? (unsigned char) color
             : (unsigned char) log2i(color);
 
-        const unsigned memset_x = max(init_x, 0),
-                       memset_len = min((int) width, max(pixelWidth - init_x, 0)) + min(init_x, 0);
+        const unsigned memset_x = max((int)init_x, 0),
+                       memset_len = max(min((int) width, max(pixelWidth - init_x, 0)) + min((int)init_x, 0), 0);
+        if (memset_len == 0) return 0;
 
         const int cool_height = min((int) height, pixelHeight - init_y);
         for (int h = max(-init_y, 0); h < cool_height; h++) {
@@ -445,8 +445,8 @@ static int term_drawPixels(lua_State *L) {
         return 0;
     }
 
-    const int str_offset = init_x < 0 ? -init_x : 0,
-              str_maxlen = init_x > pixelWidth ? 0 : pixelWidth - init_x;
+    const size_t str_offset = init_x < 0 ? (size_t)-init_x : 0,
+                 str_maxlen = init_x > pixelWidth ? 0 : (size_t)(pixelWidth - init_x);
 
     const unsigned cool_height = min((int) height, pixelHeight - init_y);
     for (unsigned h = max(-init_y, 0); h < cool_height; h++) {

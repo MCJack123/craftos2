@@ -64,6 +64,10 @@ if test "x$enable_wasm" != "xyes"; then
     AC_SEARCH_LIBS(SDL_Init, SDL2, [], [AC_MSG_ERROR([Could not find SDL2 library.])])
     AC_SEARCH_LIBS(SSL_new, ssl, [], [AC_MSG_ERROR([Could not find OpenSSL library.])])
     AC_SEARCH_LIBS(RSA_new, crypto, [], [AC_MSG_ERROR([Could not find OpenSSL crypto library.])])
+    if test $(uname) == "Linux"; then
+        # Add Wayland to the libraries if on Linux (but don't fail if it's not found)
+        AC_SEARCH_LIBS(wl_proxy_marshal_constructor, wayland-client, [], [])
+    fi
 fi
 
 AC_CHECK_HEADERS(SDL2/SDL.h, [], [AC_MSG_ERROR([Could not find SDL2 header.])])
@@ -121,7 +125,7 @@ if test "x$enable_wasm" != "xyes"; then
 
     AS_IF([test "x$with_ncurses" != "xno"], [
         AC_CHECK_HEADERS(ncurses.h, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses header.])], [NO_CLI=1])])
-        AC_SEARCH_LIBS(initscr, ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
+        AC_SEARCH_LIBS(initscr, ncursesw ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
     ], [NO_CLI=1])
 
     AS_IF([test "x$with_sdl_mixer" != "xno"], [

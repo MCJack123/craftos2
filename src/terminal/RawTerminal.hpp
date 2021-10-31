@@ -55,7 +55,6 @@ enum {
 #define CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES  0x8000
 
 class RawTerminal: public Terminal {
-    static std::set<unsigned> currentIDs;
 public:
     static uint16_t supportedFeatures;
     static uint32_t supportedExtendedFeatures;
@@ -70,6 +69,7 @@ public:
     bool resize(unsigned w, unsigned h) override;
     void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
+    void onActivate() override {}
 };
 
 extern void sendRawEvent(SDL_Event e);

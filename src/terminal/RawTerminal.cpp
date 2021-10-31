@@ -199,7 +199,6 @@ Once the server sends back a response, both the server and client MUST communica
 
 */
 
-std::set<unsigned> RawTerminal::currentIDs;
 uint16_t RawTerminal::supportedFeatures = 0;
 uint32_t RawTerminal::supportedExtendedFeatures = 0;
 std::function<void(const std::string&)> rawWriter = [](const std::string& data){
@@ -384,12 +383,6 @@ void sendRawEvent(SDL_Event e) {
         });
 }
 
-#ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
-#else
-#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
-#endif
-
 struct rawMouseProviderData {
     uint8_t evtype;
     uint8_t button;
@@ -441,10 +434,12 @@ static void rawInputLoop() {
             size_t sizen;
             if (protocol_type == 'C') {
                 char size[5];
+                size[4] = 0;
                 std::cin.read(size, 4);
                 sizen = strtoul(size, NULL, 16);
             } else if (isVersion1_1 && protocol_type == 'D') {
                 char size[13];
+                size[12] = 0;
                 std::cin.read(size, 12);
                 sizen = strtoul(size, NULL, 16);
             } else continue;
@@ -792,7 +787,7 @@ static void rawInputLoop() {
                         if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
                         else size = lua_objlen(comp->rawFileStack, -1);
                         out.write((char*)&size, 4);
-                        if (size != 0xFFFFFFFF) for (int i = 0; i < size; i++) {
+                        if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
                             lua_rawgeti(comp->rawFileStack, -1, i + 1);
                             out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
                             out.put(0);
@@ -843,7 +838,7 @@ static void rawInputLoop() {
                         if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
                         else size = lua_objlen(comp->rawFileStack, -1);
                         out.write((char*)&size, 4);
-                        if (size != 0xFFFFFFFF) for (int i = 0; i < size; i++) {
+                        if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
                             lua_rawgeti(comp->rawFileStack, -1, i + 1);
                             out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
                             out.put(0);
@@ -997,9 +992,11 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
 RawTerminal::RawTerminal(std::string title, uint8_t cid) : Terminal(config.defaultWidth, config.defaultHeight), computerID(cid) {
     this->title.reserve(title.size());
     std::move(title.begin(), title.end(), this->title.begin());
-    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
-    currentIDs.insert(id);
-    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
+    if (!singleWindowMode) {
+        for (id = 0; currentWindowIDs.find(id) != currentWindowIDs.end(); id++) {}
+        currentWindowIDs.insert(id);
+    }
+    if (!singleWindowMode || renderTargets.empty()) sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
         output.put(0);
         output.put(computerID);
         output.write((char*)&width, 2);
@@ -1009,15 +1006,18 @@ RawTerminal::RawTerminal(std::string title, uint8_t cid) : Terminal(config.defau
     });
     std::lock_guard<std::mutex> rlock(renderTargetsLock);
     renderTargets.push_back(this);
+    renderTarget = --renderTargets.end();
+    onActivate();
 }
 
 RawTerminal::~RawTerminal() {
-    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [](std::ostream& output) {
+    if (!singleWindowMode || renderTargets.size() == 1) sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [](std::ostream& output) {
         output.put(1);
         for (int i = 0; i < 6; i++) output.put(0);
     });
-    const auto pos = currentIDs.find(id);
-    if (pos != currentIDs.end()) currentIDs.erase(pos);
+    const auto pos = currentWindowIDs.find(id);
+    if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
+    if (singleWindowMode && *renderTarget == this) previousRenderTarget();
     std::lock_guard<std::mutex> rtlock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
