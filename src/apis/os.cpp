@@ -74,9 +74,8 @@ static ProtectedObject<std::unordered_map<SDL_TimerID, struct timer_data_t*> > r
 static std::string timer_event(lua_State *L, void* param) {
     struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
-    runningTimerData.lock();
+    LockGuard lock(runningTimerData);
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
-    runningTimerData.unlock();
     if (!found) return "";
     data->lock->lock();
     lua_pushinteger(L, data->timer);
@@ -91,9 +90,8 @@ static std::string timer_event(lua_State *L, void* param) {
 static Uint32 notifyEvent(Uint32 interval, void* param) {
     struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
-    runningTimerData.lock();
+    LockGuard lock2(runningTimerData);
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
-    runningTimerData.unlock();
     if (!found) return 0;
     data->lock->lock();
     if (exiting || data->comp == NULL) {
@@ -144,12 +142,11 @@ int os_startTimer(lua_State *L) {
             if (time < 50) time = 50;
             else time = (Uint32)ceil(time / 50.0) * 50;
         }
+        LockGuard lock(runningTimerData);
         data->timer = SDL_AddTimer(time, notifyEvent, data);
+        runningTimerData->insert(std::make_pair(data->timer, data));
         return NULL;
     }, data);
-    runningTimerData.lock();
-    runningTimerData->insert(std::make_pair(data->timer, data));
-    runningTimerData.unlock();
     lua_pushinteger(L, data->timer);
     std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
@@ -286,12 +283,11 @@ static int os_setAlarm(lua_State *L) {
         struct timer_data_t * data = (timer_data_t*)a;
         Uint32 time = real_time;
         if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
+        LockGuard lock(runningTimerData);
         data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
+        runningTimerData->insert(std::make_pair(data->timer, data));
         return NULL;
     }, data);
-    runningTimerData.lock();
-    runningTimerData->insert(std::make_pair(data->timer, data));
-    runningTimerData.unlock();
     lua_pushinteger(L, data->timer);
     std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
