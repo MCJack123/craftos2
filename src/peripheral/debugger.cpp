@@ -608,6 +608,7 @@ debugger::~debugger() {
         std::this_thread::yield();
     }
     if (compThread->joinable()) compThread->join();
+    computer->shouldDeleteDebugger = false;
     computer->shouldDeinitDebugger = true;
 }
 

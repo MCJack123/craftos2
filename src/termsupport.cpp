@@ -426,7 +426,8 @@ void termHook(lua_State *L, lua_Debug *ar) {
         lua_sethook(computer->L, NULL, 0, 0);
         lua_sethook(computer->coro, NULL, 0, 0);
         lua_sethook(L, NULL, 0, 0);
-        queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
+        if (computer->shouldDeleteDebugger) queueTask([computer](void*arg)->void*{delete (debugger*)arg; computer->shouldDeleteDebugger = true; return NULL;}, computer->debugger, true);
+        computer->shouldDeleteDebugger = true;
         computer->debugger = NULL;
     }
     if (ar->event == LUA_HOOKLINE) {
