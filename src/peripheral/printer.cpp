@@ -224,6 +224,7 @@ int printer::endPage(lua_State *L) {
     try {
         HPDF_Page_BeginText(page);
         HPDF_Page_SetFontAndSize(page, HPDF_GetFont(out, "Courier", "StandardEncoding"), 24.0);
+        HPDF_Page_SetRGBFill(page, defaultPalette[inkColor].r / 255.0, defaultPalette[inkColor].g / 255.0, defaultPalette[inkColor].b / 255.0);
         for (unsigned i = 0; i < body.size(); i++) {
             char * str = new char[width + 1];
             memcpy(str, &body[i][0], width);
@@ -243,7 +244,7 @@ int printer::endPage(lua_State *L) {
 #if PRINT_TYPE == PRINT_TYPE_HTML
     out << "<html>\n\t";
     if (title != "") out << "<head>\n\t\t<title>" << title << "</title>\n\t</head>\n\t";
-    out << "<body>\n\t\t<pre>";
+    out << "<body>\n\t\t<pre style=\"color: rgb(" << defaultPalette[inkColor].r << ", " << defaultPalette[inkColor].g << ", " << defaultPalette[inkColor].b << ")\">";
 #endif
     for (std::vector<char> r : body) {
         for (char c : r) out.put(c);
@@ -277,6 +278,20 @@ int printer::getPaperLevel(lua_State *L) {
     return 1;
 }
 
+int printer::getInkColor(lua_State *L) {
+    lastCFunction = __func__;
+    lua_pushinteger(L, 2^inkColor);
+    return 1;
+}
+
+int printer::setInkColor(lua_State *L) {
+    lastCFunction = __func__;
+    int color = log2i((int)luaL_checkinteger(L, 1));
+    if (color > 15) luaL_error(L, "bad argument #1 (color out of range)");
+    inkColor = color;
+    return 0;
+}
+
 int printer::call(lua_State *L, const char * method) {
     const std::string m(method);
     if (m == "write") return write(L);
@@ -288,6 +303,8 @@ int printer::call(lua_State *L, const char * method) {
     else if (m == "getInkLevel") return getInkLevel(L);
     else if (m == "setPageTitle") return setPageTitle(L);
     else if (m == "getPaperLevel") return getPaperLevel(L);
+    else if (m == "getInkColor" || m == "getInkColour") return getInkColor(L);
+    else if (m == "setInkColor" || m == "setInkColour") return setInkColor(L);
     else return 0;
 }
 
@@ -301,6 +318,10 @@ static luaL_Reg printer_reg[] = {
     {"getInkLevel", NULL},
     {"setPageTitle", NULL},
     {"getPaperLevel", NULL},
+    {"getInkColor", NULL},
+    {"getInkColour", NULL},
+    {"setInkColor", NULL},
+    {"setInkColour", NULL},
     {NULL, NULL}
 };
 
