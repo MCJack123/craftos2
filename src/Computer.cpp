@@ -134,7 +134,10 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else dataDir = computerDir + WS("/") + to_path_t(id);
 #endif
     // Create the root directory
-    createDirectory(dataDir);
+    if (createDirectory(dataDir) != 0) {
+        if (term) delete term;
+        throw std::runtime_error("Could not create computer data directory");
+    }
     config = new computer_configuration(_config);
 }
 
