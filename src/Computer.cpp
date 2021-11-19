@@ -357,6 +357,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             self->term->mode = 0;
             self->term->blink = false;
             self->term->canBlink = false;
+            self->term->frozen = false;
             if (dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->cursorColor = 0;
             self->term->changed = true;
         }
@@ -666,6 +667,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->term->mode = 0;
         self->term->blink = false;
         self->term->canBlink = false;
+        self->term->frozen = false;
         if (dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->cursorColor = 0;
         self->term->changed = true;
     }

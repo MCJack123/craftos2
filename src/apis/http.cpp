@@ -868,9 +868,9 @@ static int websocket_receive(lua_State *L) {
                 lua_pushvalue(L, 4);
                 delete ev;
                 delete url;
-                return 1;
+                return 2;
             } else if ((*ev == "websocket_closed" && *url == ws->url && ws->ws == NULL) ||
-                       (*ev == "timer" && lua_isnumber(L, 2) && lua_tointeger(L, 2) == tm)) {
+                       (tm > 0 && *ev == "timer" && lua_isnumber(L, 2) && lua_tointeger(L, 2) == tm)) {
                 lua_pushnil(L);
                 delete ev;
                 delete url;
