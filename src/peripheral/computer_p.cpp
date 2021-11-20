@@ -85,7 +85,7 @@ int computer::call(lua_State *L, const char * method) {
     else if (m == "getID") return getID(L);
     else if (m == "isOn") return isOn(L);
     else if (m == "getLabel") return getLabel(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg computer_reg[] = {

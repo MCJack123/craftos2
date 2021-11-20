@@ -201,7 +201,7 @@ int modem::call(lua_State *L, const char * method) {
     else if (m == "isPresentRemote") return isPresentRemote(L);
     else if (m == "getMethodsRemote") return getMethodsRemote(L);
     else if (m == "callRemote") return callRemote(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg modem_reg[] = {

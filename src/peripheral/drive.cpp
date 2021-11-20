@@ -249,7 +249,7 @@ int drive::call(lua_State *L, const char * method) {
     else if (m == "ejectDisk") return ejectDisk(L);
     else if (m == "getDiskID") return getDiskID(L);
     else if (m == "insertDisk") return insertDisk(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg drive_reg[] = {

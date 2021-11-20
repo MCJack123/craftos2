@@ -591,7 +591,7 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "screenshot") return screenshot(L);
     else if (m == "setFrozen") return setFrozen(L);
     else if (m == "getFrozen") return getFrozen(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg monitor_reg[] = {

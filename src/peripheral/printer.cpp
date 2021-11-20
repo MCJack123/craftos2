@@ -305,7 +305,7 @@ int printer::call(lua_State *L, const char * method) {
     else if (m == "getPaperLevel") return getPaperLevel(L);
     else if (m == "getInkColor" || m == "getInkColour") return getInkColor(L);
     else if (m == "setInkColor" || m == "setInkColour") return setInkColor(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg printer_reg[] = {
