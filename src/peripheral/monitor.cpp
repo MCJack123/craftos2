@@ -558,9 +558,10 @@ int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
     else if (m == "scroll") return scroll(L);
-    else if (m == "setCursorPos") return setCursorPos(L);
+    else if (m == "getCursorBlink") return getCursorBlink(L);
     else if (m == "setCursorBlink") return setCursorBlink(L);
     else if (m == "getCursorPos") return getCursorPos(L);
+    else if (m == "setCursorPos") return setCursorPos(L);
     else if (m == "getSize") return getSize(L);
     else if (m == "clear") return clear(L);
     else if (m == "clearLine") return clearLine(L);
