@@ -131,7 +131,7 @@ jobs:
       with:
         # Just install vcpkg for now, do not install any ports in this step yet.
         setupOnly: true
-        vcpkgGitCommitId: 71422c627264daedcbcd46f01f1ed0dcd8460f1b
+        vcpkgGitCommitId: 709e9ec32e27319636c047a38744e1ce0e229ae4
         # Since the cache must be invalidated when content of the vcpkg.json file changes, let's
         # compute its hash and append this to the computed cache's key.
         appendedCacheKey: ${{ hashFiles( 'vcpkg.json' ) }}-2
