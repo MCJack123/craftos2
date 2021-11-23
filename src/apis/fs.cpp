@@ -279,9 +279,9 @@ std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& 
         } else return std::make_pair(1, "Cannot open directory");
         return std::make_pair(0, "");
     } else {
-        FILE * fromfp = platform_fopen(fromPath.c_str(), "r");
+        FILE * fromfp = platform_fopen(fromPath.c_str(), "rb");
         if (fromfp == NULL) return std::make_pair(1, "Cannot read file");
-        FILE * tofp = platform_fopen(toPath.c_str(), "w");
+        FILE * tofp = platform_fopen(toPath.c_str(), "wb");
         if (tofp == NULL) {
             fclose(fromfp);
             return std::make_pair(2, "Cannot write file");
