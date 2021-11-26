@@ -386,6 +386,7 @@ void sendRawEvent(SDL_Event e) {
 struct rawMouseProviderData {
     uint8_t evtype;
     uint8_t button;
+    uint8_t id;
     uint32_t x;
     uint32_t y;
 };
@@ -396,12 +397,28 @@ static std::string rawMouseProvider(lua_State *L, void* data) {
         delete d;
         return "";
     }
-    lua_pushinteger(L, d->button);
+    Computer * comp = get_comp(L);
+    if (comp->term->id == d->id || config.monitorsUseMouseEvents) lua_pushinteger(L, d->button);
+    else {
+        if (d->evtype != 0) {
+            delete d;
+            return "";
+        }
+        std::string side;
+        monitor * m = findMonitorFromWindowID(comp, d->id, &side);
+        if (!m) {
+            delete d;
+            return "";
+        }
+        lua_pushlstring(L, side.c_str(), side.size());
+    }
     lua_pushinteger(L, d->x);
     lua_pushinteger(L, d->y);
     std::string retval;
-    if (d->evtype == 0) retval = "mouse_click";
-    else if (d->evtype == 1) retval = "mouse_up";
+    if (d->evtype == 0) {
+        if (comp->term->id != d->id && !config.monitorsUseMouseEvents) retval = "monitor_touch";
+        else retval = "mouse_click";
+    } else if (d->evtype == 1) retval = "mouse_up";
     else if (d->evtype == 2) retval = "mouse_scroll";
     else if (d->evtype == 3) retval = "mouse_drag";
     delete d;
@@ -530,6 +547,7 @@ static void rawInputLoop() {
                 for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
                         struct rawMouseProviderData * d = new struct rawMouseProviderData;
+                        d->id = id;
                         d->evtype = evtype;
                         d->button = button;
                         d->x = x;

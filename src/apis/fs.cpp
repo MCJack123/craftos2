@@ -602,7 +602,7 @@ static std::string regex_escape[] = {"\\", ".", "[", "]", "{", "}", "^", "$", "(
 static std::list<std::string> matchWildcard(Computer * comp, const std::list<std::string>& options, std::list<std::string>::iterator pathc, const std::list<std::string>::iterator end) {
     if (pathc == end) return {};
     std::string pathc_regex = *pathc;
-    for (const std::string& r : regex_escape) pathc_regex = replace_str(pathc_regex, r, "\\" + r);
+    for (const std::string& r : regex_escape) pathc_regex = replace_str(replace_str(pathc_regex, r, "\\" + r), "*", ".*");
     std::list<std::string> nextOptions;
     for (const std::string& opt : options) {
         struct_dirent *dir;
@@ -613,7 +613,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
             if (std::regex_search(path, pathregex(WS("^\\d+:")))) {
                 try {
                     const FileEntry &d = comp->virtualMounts[(unsigned)std::stoul(path.substr(0, path.find_first_of(':')))]->path(path.substr(path.find_first_of(':') + 1));
-                    if (d.isDir) for (auto p : d.dir) if (std::regex_match(p.first, std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(opt + (opt == "" ? "" : "/") + p.first);
+                    if (d.isDir) for (auto p : d.dir) if (std::regex_match(p.first, std::regex(pathc_regex))) nextOptions.push_back(opt + (opt == "" ? "" : "/") + p.first);
                 } catch (...) {continue;}
             } else {
                 platform_DIR * d = platform_opendir(path.c_str());
@@ -623,7 +623,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
                         for (const path_t& ign : ignored_files)
                             if (pathcmp(dir->d_name, ign.c_str()) == 0) { i--; found = 1; }
                         if (found) continue;
-                        if (std::regex_match(std::string(astr(dir->d_name)), std::regex(replace_str(pathc_regex, "*", ".*")))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + std::string(astr(dir->d_name)));
+                        if (std::regex_match(std::string(astr(dir->d_name)), std::regex(pathc_regex))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + std::string(astr(dir->d_name)));
                     }
                     platform_closedir(d);
                 }
