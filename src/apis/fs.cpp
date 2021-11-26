@@ -602,7 +602,8 @@ static std::string regex_escape[] = {"\\", ".", "[", "]", "{", "}", "^", "$", "(
 static std::list<std::string> matchWildcard(Computer * comp, const std::list<std::string>& options, std::list<std::string>::iterator pathc, const std::list<std::string>::iterator end) {
     if (pathc == end) return {};
     std::string pathc_regex = *pathc;
-    for (const std::string& r : regex_escape) pathc_regex = replace_str(replace_str(pathc_regex, r, "\\" + r), "*", ".*");
+    for (const std::string& r : regex_escape) pathc_regex = replace_str(pathc_regex, r, "\\" + r);
+    pathc_regex = replace_str(pathc_regex, "*", ".*");
     std::list<std::string> nextOptions;
     for (const std::string& opt : options) {
         struct_dirent *dir;
