@@ -97,7 +97,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.16.5-1.97.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.16.5-1.99.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -134,7 +134,7 @@ jobs:
         vcpkgGitCommitId: 709e9ec32e27319636c047a38744e1ce0e229ae4
         # Since the cache must be invalidated when content of the vcpkg.json file changes, let's
         # compute its hash and append this to the computed cache's key.
-        appendedCacheKey: ${{ hashFiles( 'vcpkg.json' ) }}-2
+        appendedCacheKey: ${{ hashFiles( 'vcpkg.json' ) }}-3
         vcpkgTriplet: ${{ matrix.triplet }}
         # Ensure the vcpkg artifacts are cached, they are generated in the 'CMAKE_BINARY_DIR/vcpkg_installed' directory.
         additionalCachedPaths: ${{ github.workspace }}\vcpkg_installed
