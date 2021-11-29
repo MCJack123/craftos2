@@ -125,6 +125,7 @@ struct Computer {
     // The following fields are available in API version 10.6 and later.
     std::unordered_set<uint16_t> openWebsocketServers; // List of ports currently in use by WebSocket servers
 
+    // The following fields are available in API version 10.7 and later.
     bool shouldDeleteDebugger = true;
 
 private:

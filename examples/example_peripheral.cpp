@@ -26,7 +26,7 @@ public:
         if (m == "add") return add(L);
         else if (m == "subtract") return subtract(L);
         else if (m == "ping") return ping(L);
-        else return 0;
+        else return luaL_error(L, "No such method");
     }
     static peripheral * init(lua_State *L, const char * side) {return new example_peripheral(L, side);}
     static void deinit(peripheral * p) {delete (example_peripheral*)p;}

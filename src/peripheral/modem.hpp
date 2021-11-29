@@ -36,6 +36,7 @@ private:
     int isPresentRemote(lua_State *L);
     int getMethodsRemote(lua_State *L);
     int callRemote(lua_State *L);
+    int hasTypeRemote(lua_State *L);
     void receive(lua_State *data, uint16_t port, uint16_t replyPort, modem * sender);
 public:
     static library_t methods;
