@@ -38,12 +38,6 @@ extern "C" {
 #include <webp/mux.h>
 #include <webp/encode.h>
 #endif
-#ifdef _X11_XLIB_H_
-#include <X11/Xutil.h>
-#endif
-#ifdef SDL_VIDEO_DRIVER_WAYLAND
-#include <wayland-client.h>
-#endif
 #include "../platform.hpp"
 #include "../util.hpp"
 
@@ -213,6 +207,11 @@ static ProtectedObject<SDL_Surface*> copiedSurface((SDL_Surface*)NULL);
 #ifdef _X11_XLIB_H_
 static Atom ATOM_CLIPBOARD, ATOM_TARGETS, ATOM_MULTIPLE, ATOM_WEBP, ATOM_PNG, ATOM_BMP;
 static bool didInitAtoms = false;
+static void* x11_handle = NULL;
+static int (*_XChangeProperty)(Display*, Window, Atom, Atom, int, int, _Xconst unsigned char*, int);
+static Status (*_XSendEvent)(Display*, Window, Bool, long, XEvent*);
+static Atom (*_XInternAtom)(Display*, _Xconst char*, Bool);
+static int (*_XSetSelectionOwner)(Display*, Atom, Window, Time);
 
 static int eventFilter(void* userdata, SDL_Event* e) {
     if (e->type == SDL_SYSWMEVENT) {
@@ -236,13 +235,13 @@ static int eventFilter(void* userdata, SDL_Event* e) {
 #endif
                 targets.push_back(ATOM_BMP);
                 //targets.push_back(XA_PIXMAP);
-                XChangeProperty(xe.display, xe.requestor, xe.property, XA_ATOM, 32, PropModeReplace, (unsigned char*)&targets[0], targets.size());
+                _XChangeProperty(xe.display, xe.requestor, xe.property, XA_ATOM, 32, PropModeReplace, (unsigned char*)&targets[0], targets.size());
 #ifndef NO_WEBP
             } else if (xe.target == ATOM_WEBP) {
                 uint8_t * data = NULL;
                 size_t size = WebPEncodeLosslessRGB((uint8_t*)temp->pixels, temp->w, temp->h, temp->pitch, &data);
                 if (size) {
-                    XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_WEBP, 8, PropModeReplace, data, size);
+                    _XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_WEBP, 8, PropModeReplace, data, size);
                     WebPFree(data);
                 } else sev.property = None;
 #endif
@@ -256,7 +255,7 @@ static int eventFilter(void* userdata, SDL_Event* e) {
                 std::stringstream out;
                 img.write_stream(out);
                 std::string data = out.str();
-                XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_PNG, 8, PropModeReplace, (const unsigned char*)data.c_str(), data.size());
+                _XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_PNG, 8, PropModeReplace, (const unsigned char*)data.c_str(), data.size());
 #endif
             } else if (xe.target == ATOM_BMP) {
                 size_t size = temp->w * temp->h * 4 + 4096;
@@ -265,7 +264,7 @@ static int eventFilter(void* userdata, SDL_Event* e) {
                 SDL_SaveBMP_RW(temp, rw, false);
                 size = SDL_RWtell(rw);
                 SDL_RWclose(rw);
-                XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_BMP, 8, PropModeReplace, data, size);
+                _XChangeProperty(xe.display, xe.requestor, xe.property, ATOM_BMP, 8, PropModeReplace, data, size);
                 delete[] data;
             } /*else if (xe.target == XA_PIXMAP) {
                 XWindowAttributes attr;
@@ -286,7 +285,7 @@ static int eventFilter(void* userdata, SDL_Event* e) {
             }*/ else {
                 sev.property = None;
             }
-            XSendEvent(xe.display, xe.requestor, true, 0, (XEvent*)&sev);
+            _XSendEvent(xe.display, xe.requestor, true, 0, (XEvent*)&sev);
         } else return 0;
     }
     return 1;
@@ -294,6 +293,39 @@ static int eventFilter(void* userdata, SDL_Event* e) {
 #endif
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND
+struct wl_interface {
+	const char *name;
+	int version;
+	int method_count;
+	const void *methods;
+	int event_count;
+	const void *events;
+};
+static void* wayland_client_handle = NULL;
+static const struct wl_interface * _wl_data_device_manager_interface;
+static const struct wl_interface * _wl_seat_interface;
+static const struct wl_interface * _wl_registry_interface;
+static const struct wl_interface * _wl_data_device_interface;
+static const struct wl_interface * _wl_data_source_interface;
+static struct wl_proxy * (*_wl_proxy_marshal_constructor)(struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interface, ...);
+static struct wl_proxy * (*_wl_proxy_marshal_constructor_versioned)(struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interface, uint32_t version, ...);
+static void (*_wl_proxy_marshal)(struct wl_proxy *p, uint32_t opcode, ...);
+static void (*_wl_proxy_destroy)(struct wl_proxy *proxy);
+static int (*_wl_proxy_add_listener)(struct wl_proxy *proxy, void (**implementation)(void), void *data);
+static int (*_wl_display_roundtrip)(struct wl_display *display);
+struct wl_registry_listener {
+	void (*global)(void *data, struct wl_registry *wl_registry, uint32_t name, const char *interface, uint32_t version);
+	void (*global_remove)(void *data, struct wl_registry *wl_registry, uint32_t name);
+};
+struct wl_data_source_listener {
+	void (*target)(void *data, struct wl_data_source *wl_data_source, const char *mime_type);
+	void (*send)(void *data, struct wl_data_source *wl_data_source, const char *mime_type, int32_t fd);
+	void (*cancelled)(void *data, struct wl_data_source *wl_data_source);
+	void (*dnd_drop_performed)(void *data, struct wl_data_source *wl_data_source);
+	void (*dnd_finished)(void *data, struct wl_data_source *wl_data_source);
+	void (*action)(void *data, struct wl_data_source *wl_data_source, uint32_t dnd_action);
+};
+
 static struct wl_data_device_manager *data_device_manager = NULL;
 static struct wl_seat *seat = NULL;
 static bool addedListener = false;
@@ -301,13 +333,12 @@ static bool addedListener = false;
 static void registry_handle_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
 	printf("interface: '%s', version: %d, name: %d\n",
 			interface, version, name);
-    if (strcmp(interface, wl_data_device_manager_interface.name) == 0) {
-		data_device_manager = (struct wl_data_device_manager*)wl_registry_bind(registry, name,
-            &wl_data_device_manager_interface, 3);
-    } else if (strcmp(interface, wl_seat_interface.name) == 0 && seat == NULL) {
+    if (strcmp(interface, _wl_data_device_manager_interface->name) == 0) {
+		data_device_manager = (struct wl_data_device_manager*)_wl_proxy_marshal_constructor_versioned((struct wl_proxy *)registry, 0, _wl_data_device_manager_interface, 3, name, interface, 3, NULL);
+    } else if (strcmp(interface, _wl_seat_interface->name) == 0 && seat == NULL) {
         // We only bind to the first seat. Multi-seat support is an exercise
         // left to the reader.
-        seat = (struct wl_seat*)wl_registry_bind(registry, name, &wl_seat_interface, 1);
+        seat = (struct wl_seat*)_wl_proxy_marshal_constructor_versioned((struct wl_proxy *)registry, 0, _wl_seat_interface, 1, name, interface, 1, NULL);
     }
 }
 
@@ -368,7 +399,8 @@ static void data_source_handle_send(void *data, struct wl_data_source *source, c
 
 static void data_source_handle_cancelled(void *data, struct wl_data_source *source) {
 	// An application has replaced the clipboard contents
-	wl_data_source_destroy(source);
+    _wl_proxy_marshal((struct wl_proxy *)source, 1);
+    _wl_proxy_destroy((struct wl_proxy *)source);
 }
 
 static const struct wl_data_source_listener data_source_listener = {
@@ -383,15 +415,26 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
     SDL_GetWindowWMInfo(win, &info);
     if (info.subsystem == SDL_SYSWM_X11) {
 #ifdef _X11_XLIB_H_
+        if (x11_handle == NULL) {
+            x11_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_X11_DYNAMIC);
+            if (x11_handle == NULL) {
+                fprintf(stderr, "Could not load X11 library: %s. Copying is not available.\n", SDL_GetError());
+                return;
+            }
+            _XChangeProperty = (int (*)(Display*, Window, Atom, Atom, int, int, _Xconst unsigned char*, int))SDL_LoadFunction(x11_handle, "XChangeProperty");
+            _XSendEvent = (Status (*)(Display*, Window, Bool, long, XEvent*))SDL_LoadFunction(x11_handle, "XSendEvent");
+            _XInternAtom = (Atom (*)(Display*, _Xconst char*, Bool))SDL_LoadFunction(x11_handle, "XInternAtom");
+            _XSetSelectionOwner = (int (*)(Display*, Atom, Window, Time))SDL_LoadFunction(x11_handle, "XSetSelectionOwner");
+        }
         LockGuard lock(copiedSurface);
         Display* d = info.info.x11.display;
         if (!didInitAtoms) {
-            ATOM_CLIPBOARD = XInternAtom(d, "CLIPBOARD", false);
-            ATOM_TARGETS = XInternAtom(d, "TARGETS", false);
-            ATOM_MULTIPLE = XInternAtom(d, "MULTIPLE", false);
-            ATOM_WEBP = XInternAtom(d, "image/webp", false);
-            ATOM_PNG = XInternAtom(d, "image/png", false);
-            ATOM_BMP = XInternAtom(d, "image/bmp", false);
+            ATOM_CLIPBOARD = _XInternAtom(d, "CLIPBOARD", false);
+            ATOM_TARGETS = _XInternAtom(d, "TARGETS", false);
+            ATOM_MULTIPLE = _XInternAtom(d, "MULTIPLE", false);
+            ATOM_WEBP = _XInternAtom(d, "image/webp", false);
+            ATOM_PNG = _XInternAtom(d, "image/png", false);
+            ATOM_BMP = _XInternAtom(d, "image/bmp", false);
             didInitAtoms = true;
         }
         SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
@@ -399,32 +442,50 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
         if (*copiedSurface != NULL) SDL_FreeSurface(*copiedSurface);
         copiedSurface = SDL_CreateRGBSurfaceWithFormat(surf->flags, surf->w, surf->h, surf->format->BitsPerPixel, surf->format->format);
         SDL_BlitSurface(surf, NULL, *copiedSurface, NULL);
-        XSetSelectionOwner(d, ATOM_CLIPBOARD, info.info.x11.window, CurrentTime);
+        _XSetSelectionOwner(d, ATOM_CLIPBOARD, info.info.x11.window, CurrentTime);
 #endif
     } else if (info.subsystem == SDL_SYSWM_WAYLAND) {
 #ifdef SDL_VIDEO_DRIVER_WAYLAND
-        struct wl_registry *registry = wl_display_get_registry(info.info.wl.display);
+        if (wayland_client_handle == NULL) {
+            wayland_client_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC);
+            if (wayland_client_handle == NULL) {
+                fprintf(stderr, "Could not load Wayland client library: %s. Copying is not available.\n", SDL_GetError());
+                return;
+            }
+            _wl_data_device_manager_interface = (struct wl_interface *)SDL_LoadFunction(wayland_client_handle, "wl_data_device_manager_interface");
+            _wl_seat_interface = (struct wl_interface *)SDL_LoadFunction(wayland_client_handle, "wl_seat_interface");
+            _wl_registry_interface = (struct wl_interface *)SDL_LoadFunction(wayland_client_handle, "wl_registry_interface");
+            _wl_data_device_interface = (struct wl_interface *)SDL_LoadFunction(wayland_client_handle, "wl_data_device_interface");
+            _wl_data_source_interface = (struct wl_interface *)SDL_LoadFunction(wayland_client_handle, "wl_data_source_interface");
+            _wl_proxy_marshal_constructor = (struct wl_proxy * (*)(struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interface, ...))SDL_LoadFunction(wayland_client_handle, "wl_proxy_marshal_constructor");
+            _wl_proxy_marshal_constructor_versioned = (struct wl_proxy * (*)(struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interface, uint32_t version, ...))SDL_LoadFunction(wayland_client_handle, "wl_proxy_marshal_constructor_versioned");
+            _wl_proxy_marshal = (void (*)(struct wl_proxy *p, uint32_t opcode, ...))SDL_LoadFunction(wayland_client_handle, "wl_proxy_marshal");
+            _wl_proxy_destroy = (void (*)(struct wl_proxy *proxy))SDL_LoadFunction(wayland_client_handle, "wl_proxy_destroy");
+            _wl_proxy_add_listener = (int (*)(struct wl_proxy *proxy, void (**implementation)(void), void *data))SDL_LoadFunction(wayland_client_handle, "wl_proxy_add_listener");
+            _wl_display_roundtrip = (int (*)(struct wl_display *display))SDL_LoadFunction(wayland_client_handle, "wl_display_roundtrip");
+        }
+        struct wl_registry *registry = (struct wl_registry *)_wl_proxy_marshal_constructor((struct wl_proxy *)info.info.wl.display, 1, _wl_registry_interface, NULL);
         while (data_device_manager == NULL || seat == NULL) {
             if (!addedListener) {
-                wl_registry_add_listener(registry, &registry_listener, NULL);
+                _wl_proxy_add_listener((struct wl_proxy*)registry, (void (**)(void))&registry_listener, NULL);
                 addedListener = true;
             }
-            wl_display_roundtrip(info.info.wl.display);
+            _wl_display_roundtrip(info.info.wl.display);
         }
-        struct wl_data_device *data_device = wl_data_device_manager_get_data_device(data_device_manager, seat);
-        struct wl_data_source *source = wl_data_device_manager_create_data_source(data_device_manager);
-        wl_data_source_add_listener(source, &data_source_listener, NULL);
+        struct wl_data_device *data_device = (struct wl_data_device *)_wl_proxy_marshal_constructor((struct wl_proxy *)data_device_manager, 1, _wl_data_device_interface, NULL, seat);
+        struct wl_data_source *source = (struct wl_data_source *)_wl_proxy_marshal_constructor((struct wl_proxy *) data_device_manager, 0, _wl_data_source_interface, NULL);
+        _wl_proxy_add_listener((struct wl_proxy *)source, (void (**)(void))&data_source_listener, NULL);
 #ifndef NO_WEBP
-        wl_data_source_offer(source, "image/webp");
+        _wl_proxy_marshal((struct wl_proxy *)source, 0, "image/webp");
 #endif
 #ifndef NO_PNG
-        wl_data_source_offer(source, "image/png");
+        _wl_proxy_marshal((struct wl_proxy *)source, 0, "image/png");
 #endif
-        wl_data_source_offer(source, "image/bmp");
+        _wl_proxy_marshal((struct wl_proxy *)source, 0, "image/bmp");
         if (*copiedSurface != NULL) SDL_FreeSurface(*copiedSurface);
         copiedSurface = SDL_CreateRGBSurfaceWithFormat(surf->flags, surf->w, surf->h, surf->format->BitsPerPixel, surf->format->format);
         SDL_BlitSurface(surf, NULL, *copiedSurface, NULL);
-        wl_data_device_set_selection(data_device, source, 0);
+        _wl_proxy_marshal((struct wl_proxy *)data_device, 1, source, 0);
         // TODO: figure out if this leaks memory/resources? (I can't test Wayland very easily on my system)
 #endif
     } else if (info.subsystem == SDL_SYSWM_DIRECTFB) {
@@ -511,16 +572,16 @@ Status x11_window_set_on_top (Display* display, Window xid, bool state)
     event.xclient.send_event = True;
     event.xclient.display = display;
     event.xclient.window  = xid;
-    event.xclient.message_type = XInternAtom (display, "_NET_WM_STATE", False);
+    event.xclient.message_type = _XInternAtom (display, "_NET_WM_STATE", False);
     event.xclient.format = 32;
 
     event.xclient.data.l[0] = state ? _NET_WM_STATE_ADD : _NET_WM_STATE_REMOVE;
-    event.xclient.data.l[1] = XInternAtom (display, "_NET_WM_STATE_ABOVE", False);
+    event.xclient.data.l[1] = _XInternAtom (display, "_NET_WM_STATE_ABOVE", False);
     event.xclient.data.l[2] = 0; //unused.
     event.xclient.data.l[3] = 0;
     event.xclient.data.l[4] = 0;
 
-    return XSendEvent (display, DefaultRootWindow(display), False,
+    return _XSendEvent (display, DefaultRootWindow(display), False,
                        SubstructureRedirectMask|SubstructureNotifyMask, &event);
 }
 #endif
@@ -541,6 +602,15 @@ void setFloating(SDL_Window* win, bool state) {
         SetStackingClass(info.info.dfb.window, state ? DWSC_UPPER : DWSC_MIDDLE);
 #endif
     }
+}
+
+void platformExit() {
+#ifdef _X11_XLIB_H_
+    if (x11_handle != NULL) SDL_UnloadObject(x11_handle);
+#endif
+#ifdef SDL_VIDEO_DRIVER_WAYLAND
+    if (wayland_client_handle != NULL) SDL_UnloadObject(wayland_client_handle);
+#endif
 }
 
 #endif // __INTELLISENSE__

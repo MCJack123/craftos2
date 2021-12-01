@@ -450,3 +450,5 @@ void setFloating(SDL_Window* win, bool state) {
 #endif
     }
 }
+
+void platformExit() {}

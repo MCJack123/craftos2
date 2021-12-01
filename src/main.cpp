@@ -57,9 +57,6 @@ extern void clearPeripherals();
 extern library_t * libraries[];
 extern int onboardingMode;
 extern std::function<void(const std::string&)> rawWriter;
-#ifdef WIN32
-extern void* kernel32handle;
-#endif
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
 extern FileEntry standaloneDebug;
@@ -880,8 +877,6 @@ int main(int argc, char*argv[]) {
     else if (selectedRenderer == 4) TRoRTerminal::quit();
     else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
     else SDL_Quit();
-#ifdef WIN32
-    if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
-#endif
+    platformExit();
     return returnValue;
 }

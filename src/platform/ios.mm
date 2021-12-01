@@ -637,6 +637,8 @@ void setupCrashHandler() {
     }];
 }
 
+void platformExit() {}
+
 #ifdef __INTELLISENSE__
 #region Mobile API
 #endif

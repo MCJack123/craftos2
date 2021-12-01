@@ -19,9 +19,6 @@ ifeq ($(shell uname), Darwin)
 LIBS+= -framework ApplicationServices
 LIBEXT=.dylib
 endif
-ifeq ($(shell uname), Linux)
-LIBS+= -lX11
-endif
 endif
 endif
 PREFIX?=@prefix@

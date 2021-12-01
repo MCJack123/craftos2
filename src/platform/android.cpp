@@ -174,6 +174,8 @@ void setupCrashHandler() {
 
 void setFloating(SDL_Window* win, bool state) {}
 
+void platformExit() {}
+
 #ifdef __INTELLISENSE__
 #region Mobile API
 #endif

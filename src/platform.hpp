@@ -84,4 +84,5 @@ extern void migrateOldData();
 extern void copyImage(SDL_Surface* surf, SDL_Window* win);
 extern void setupCrashHandler();
 extern void setFloating(SDL_Window* win, bool state);
+extern void platformExit();
 #endif
