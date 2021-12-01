@@ -416,7 +416,11 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
     if (info.subsystem == SDL_SYSWM_X11) {
 #ifdef _X11_XLIB_H_
         if (x11_handle == NULL) {
+#ifdef SDL_VIDEO_DRIVER_X11_DYNAMIC
             x11_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_X11_DYNAMIC);
+#else
+            x11_handle = SDL_LoadObject("libX11.so");
+#endif
             if (x11_handle == NULL) {
                 fprintf(stderr, "Could not load X11 library: %s. Copying is not available.\n", SDL_GetError());
                 return;
@@ -447,7 +451,11 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
     } else if (info.subsystem == SDL_SYSWM_WAYLAND) {
 #ifdef SDL_VIDEO_DRIVER_WAYLAND
         if (wayland_client_handle == NULL) {
+#ifdef SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC
             wayland_client_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC);
+#else
+            wayland_client_handle = SDL_LoadObject("libwayland-client.so");
+#endif
             if (wayland_client_handle == NULL) {
                 fprintf(stderr, "Could not load Wayland client library: %s. Copying is not available.\n", SDL_GetError());
                 return;
