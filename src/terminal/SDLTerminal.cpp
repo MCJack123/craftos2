@@ -179,7 +179,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #endif
     renderTargets.push_back(this);
     renderTarget = --renderTargets.end();
-    SDL_GetWindowSurface(win);
+    //SDL_GetWindowSurface(win);
     onActivate();
 #ifdef __IPHONEOS__
     updateCloseButton();

@@ -82,8 +82,7 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
         SDL_GetRendererInfo(ren, &info);
         if (std::string(info.name) == "software") dpiScale = 1;
     } else {
-        ren = SDL_GetRenderer(win);
-        if (!ren) ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
+        ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | (config.useVsync ? SDL_RENDERER_PRESENTVSYNC : 0));
         if (ren == (SDL_Renderer*)0) {
             SDL_DestroyWindow(win);
             throw window_exception("Failed to create renderer: " + std::string(SDL_GetError()));
