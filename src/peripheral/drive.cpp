@@ -119,10 +119,15 @@ int drive::getDiskID(lua_State *L) {
     return 1;
 }
 
+// thanks Windows
+#ifdef _MSC_VER
+#pragma optimize("", off)
+#endif
 int drive::insertDisk(lua_State *L, bool init) {
     lastCFunction = __func__;
     Computer * comp = get_comp(L);
     const int arg = init * 2 + 1;
+    const char * error, *errparam;
     if (diskType != disk_type::DISK_TYPE_NONE) lua_pop(L, ejectDisk(L));
     if (lua_isnumber(L, arg)) {
         id = lua_tointeger(L, arg);
@@ -163,7 +168,10 @@ int drive::insertDisk(lua_State *L, bool init) {
             try {std::stoi(path.substr(9));}
             catch (std::invalid_argument &e) {
                 if (init) throw std::invalid_argument("Could not mount: Invalid computer ID");
-                else luaL_error(L, "Could not mount: Invalid computer ID");
+                else {
+                    error = "Could not mount: Invalid computer ID";
+                    goto throwError;
+                }
             }
 #ifdef _WIN32
             path = getBasePath() + WS("\\computer\\") + path.substr(9);
@@ -174,12 +182,19 @@ int drive::insertDisk(lua_State *L, bool init) {
 #ifdef NO_MOUNTER
         else {
             if (init) throw std::invalid_argument("Could not mount: Access denied");
-            else luaL_error(L, "Could not mount: Permission denied");
+            else {
+                error = "Could not mount: Permission denied";
+                goto throwError;
+            }
         }
 #endif
         if (platform_stat(path.c_str(), &st) != 0) {
             if (init) throw std::system_error(errno, std::system_category(), "Could not mount: ");
-            else luaL_error(L, "Could not mount: %s", strerror(errno));
+            else {
+                error = "Could not mount: %s";
+                errparam = strerror(errno);
+                goto throwErrorParam;
+            }
         }
         if (S_ISDIR(st.st_mode)) {
             diskType = disk_type::DISK_TYPE_MOUNT;
@@ -192,7 +207,10 @@ int drive::insertDisk(lua_State *L, bool init) {
                 comp->usedDriveMounts.erase(i);
                 mount_path.clear();
                 if (init) throw std::runtime_error("Could not mount: Access denied");
-                else luaL_error(L, "Could not mount: Access denied");
+                else {
+                    error = "Could not mount: Access denied";
+                    goto throwError;
+                }
             }
         }
 #ifndef NO_MIXER
@@ -203,7 +221,10 @@ int drive::insertDisk(lua_State *L, bool init) {
 #else
         else {
             if (init) throw std::invalid_argument("Playing audio is not available in this build");
-            else luaL_error(L, "Playing audio is not available in this build");
+            else {
+                error = "Playing audio is not available in this build";
+                goto throwError;
+            }
         }
 #endif
     } else {
@@ -211,7 +232,17 @@ int drive::insertDisk(lua_State *L, bool init) {
         else luaL_typerror(L, arg, "string or number");
     }
     return 0;
+    // This dirty hack is because Windows randomly attempts to deallocate a std::wstring
+    // in the stack that doesn't exist. (???) The only way to fix it is to make it jump
+    // out of scope, and disable optimizations. (TODO: Find if scope escape is required.)
+throwError:
+    return luaL_error(L, error);
+throwErrorParam:
+    return luaL_error(L, error, errparam);
 }
+#ifdef _MSC_VER
+#pragma optimize("", on)
+#endif
 
 void driveInit() {
 #ifndef NO_MIXER
