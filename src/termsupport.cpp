@@ -521,14 +521,18 @@ void termHook(lua_State *L, lua_Debug *ar) {
 }
 
 static bool renderTerminal(Terminal * term, bool& pushEvent) {
-    if (!term->canBlink) term->blink = false;
-    else if (selectedRenderer != 1 && selectedRenderer != 2 && selectedRenderer != 3 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 400) {
-        term->blink = !term->blink;
-        term->last_blink = std::chrono::high_resolution_clock::now();
-        term->changed = true;
+    bool changed;
+    {
+        std::lock_guard<std::mutex> lock(term->locked);
+        if (!term->canBlink) term->blink = false;
+        else if (selectedRenderer != 1 && selectedRenderer != 2 && selectedRenderer != 3 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 400) {
+            term->blink = !term->blink;
+            term->last_blink = std::chrono::high_resolution_clock::now();
+            term->changed = true;
+        }
+        if (term->frozen) return false;
+        changed = term->changed;
     }
-    if (term->frozen) return false;
-    const bool changed = term->changed;
     try {
         term->render();
     } catch (std::exception &ex) {

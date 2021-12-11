@@ -45,7 +45,7 @@ struct computer_configuration getComputerConfig(int id) {
         return cfg;
     }
     in.close();
-    cfg.isColor = root["isColor"].asBool();
+    if (root.isMember("isColor")) cfg.isColor = root["isColor"].asBool();
     if (root.isMember("label")) {
         if (root.isMember("base64")) cfg.label = b64decode(root["label"].asString());
         else cfg.label = std::string(root["label"].asString());

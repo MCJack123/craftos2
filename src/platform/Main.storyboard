@@ -51,7 +51,7 @@
                     <toolbarItems/>
                     <navigationItem key="navigationItem" title="CraftOS Terminal" id="GmD-yA-A3Q">
                         <leftBarButtonItems>
-                            <barButtonItem title="Previous" image="chevron.left" catalog="system" id="Qpy-kl-m2Y">
+                            <barButtonItem enabled="NO" title="Previous" image="chevron.left" catalog="system" id="Qpy-kl-m2Y">
                                 <connections>
                                     <action selector="onPrevious:" destination="Q4U-DV-xIG" id="uWw-Ie-bIg"/>
                                 </connections>
@@ -63,7 +63,7 @@
                             </barButtonItem>
                         </leftBarButtonItems>
                         <rightBarButtonItems>
-                            <barButtonItem title="Next" image="chevron.right" catalog="system" id="FJ3-kZ-47N">
+                            <barButtonItem enabled="NO" title="Next" image="chevron.right" catalog="system" id="FJ3-kZ-47N">
                                 <connections>
                                     <action selector="onNext:" destination="Q4U-DV-xIG" id="i0q-lo-r54"/>
                                 </connections>
@@ -81,6 +81,8 @@
                         <outlet property="closeButton" destination="yyU-je-Dtj" id="kdi-hW-xBP"/>
                         <outlet property="ctrlButton" destination="JrA-QI-TA0" id="Vqb-D8-Jto"/>
                         <outlet property="hotkeyToolbar" destination="oo2-wD-jTu" id="UoI-6c-rGo"/>
+                        <outlet property="nextButton" destination="FJ3-kZ-47N" id="vXZ-p0-Vvr"/>
+                        <outlet property="previousButton" destination="Qpy-kl-m2Y" id="cHO-Pi-aau"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="wzY-RT-v2q" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>

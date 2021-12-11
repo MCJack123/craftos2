@@ -177,8 +177,11 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     SDL_SetWindowIcon(win, icon);
     SDL_FreeSurface(icon);
 #endif
-    renderTargets.push_back(this);
-    renderTarget = --renderTargets.end();
+    {
+        std::lock_guard<std::mutex> lock(renderTargetsLock);
+        renderTargets.push_back(this);
+        renderTarget = --renderTargets.end();
+    }
     //SDL_GetWindowSurface(win);
     onActivate();
 #ifdef __IPHONEOS__
@@ -465,17 +468,20 @@ SDL_Rect SDLTerminal::getCharacterRect(unsigned char c) {
 
 bool SDLTerminal::resize(unsigned w, unsigned h) {
     if (this->shouldRecord) return false;
-    newWidth = w;
-    newHeight = h;
-    if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
-    SDL_GetWindowSize(win, &realWidth, &realHeight);
-    gotResizeEvent = (newWidth != width || newHeight != height);
-    if (!gotResizeEvent) return false;
     {
-        std::lock_guard<std::mutex> lock(renderlock);
-        SDL_FreeSurface(surf);
-        surf = NULL;
-        changed = true;
+        std::lock_guard<std::mutex> lock2(locked);
+        newWidth = w;
+        newHeight = h;
+        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
+        SDL_GetWindowSize(win, &realWidth, &realHeight);
+        gotResizeEvent = (newWidth != width || newHeight != height);
+        if (!gotResizeEvent) return false;
+        {
+            std::lock_guard<std::mutex> lock(renderlock);
+            SDL_FreeSurface(surf);
+            surf = NULL;
+            changed = true;
+        }
     }
     while (gotResizeEvent) std::this_thread::yield(); // this should probably be a condition variable
     return true;
@@ -685,6 +691,7 @@ bool SDLTerminal::pollEvents() {
             }
         }
         if (e.type == task_event_type) {
+            LockGuard lock(taskQueue);
             while (!taskQueue->empty()) {
                 TaskQueueItem * task = taskQueue->front();
                 bool async = task->async;

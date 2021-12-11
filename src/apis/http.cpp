@@ -396,8 +396,8 @@ downloadThread_finish:
         param = p;
         goto downloadThread_entry;
     }
-    param->comp->httpRequestQueueMutex.unlock();
     param->comp->requests_open--;
+    param->comp->httpRequestQueueMutex.unlock();
     delete param;
 }
 
