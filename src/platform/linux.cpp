@@ -347,8 +347,8 @@ static void registry_handle_global_remove(void *data, struct wl_registry *regist
 }
 
 static const struct wl_registry_listener registry_listener = {
-	.global = registry_handle_global,
-	.global_remove = registry_handle_global_remove,
+	registry_handle_global,
+	registry_handle_global_remove,
 };
 
 static void data_source_handle_send(void *data, struct wl_data_source *source, const char *mime_type, int fd) {
@@ -404,8 +404,9 @@ static void data_source_handle_cancelled(void *data, struct wl_data_source *sour
 }
 
 static const struct wl_data_source_listener data_source_listener = {
-	.send = data_source_handle_send,
-	.cancelled = data_source_handle_cancelled,
+    NULL,
+	data_source_handle_send,
+	data_source_handle_cancelled,
 };
 #endif
 
