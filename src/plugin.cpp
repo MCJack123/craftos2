@@ -60,7 +60,7 @@ static void registerPeripheral_ptr(const std::string& name, const peripheral_ini
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    6,
+    7,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,

@@ -11,6 +11,7 @@
 #ifndef CRAFTOS_PC_PERIPHERAL_HPP
 #define CRAFTOS_PC_PERIPHERAL_HPP
 #include "lib.hpp"
+#include <vector>
 
 class peripheral;
 
@@ -68,6 +69,10 @@ public:
     // references that were destroyed when the previous Lua state was closed.
     // The state this function is called with is the computer's global state.
     virtual void reinitialize(lua_State *L) {}
+    // This function optionally provides a list of types that this peripheral
+    // provides. It is only called if the peripheral's type in getMethods() is
+    // exactly "!!MULTITYPE". This function is only used in API version 10.7 or later.
+    virtual std::vector<std::string> getTypes() const {return {};};
 };
 inline peripheral::~peripheral() {}
 #endif

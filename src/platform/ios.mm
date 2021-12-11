@@ -154,7 +154,7 @@ void migrateOldData() {
 }
 
 void copyImage(SDL_Surface* surf, SDL_Window* win) {
-    png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
+    /*png::solid_pixel_buffer<png::rgb_pixel> pixbuf(surf->w, surf->h);
     memcpy((void*)&pixbuf.get_bytes()[0], surf->pixels, surf->h * surf->pitch);
     png::image<png::rgb_pixel, png::solid_pixel_buffer<png::rgb_pixel> > img(surf->w, surf->h);
     img.set_pixbuf(pixbuf);
@@ -163,7 +163,7 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
     NSData * nsdata = [NSData dataWithBytes:ss.str().c_str() length:surf->w*surf->h*3];
     [[UIPasteboard generalPasteboard] clearContents];
     [[UIPasteboard generalPasteboard] setData:nsdata forPasteboardType:kUTTypePNG];
-    [nsdata release];
+    [nsdata release];*/
 }
 
 float getBackingScaleFactor(SDL_Window *win) {
@@ -268,6 +268,8 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
 @property (strong, nonatomic) IBOutlet UIBarButtonItem *ctrlButton;
 @property (strong, nonatomic) IBOutlet UIBarButtonItem *altButton;
 @property (strong, nonatomic) IBOutlet UIBarButtonItem *closeButton;
+@property (strong, nonatomic) IBOutlet UIBarButtonItem *nextButton;
+@property (strong, nonatomic) IBOutlet UIBarButtonItem *previousButton;
 @property (assign) SDL_Window * sdlWindow;
 @end
 
@@ -407,10 +409,12 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
 
 - (IBAction)onPrevious:(id)sender {
     previousRenderTarget();
+    self.closeButton.enabled = computers->size() > 1 || (*renderTarget) != computers->front()->term;
 }
 
 - (IBAction)onNext:(id)sender {
     nextRenderTarget();
+    self.closeButton.enabled = computers->size() > 1 || (*renderTarget) != computers->front()->term;
 }
 
 - (IBAction)onClose:(id)sender {
@@ -565,33 +569,39 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
 
 @end
 
-static ViewController * viewController;
+static ViewController * viewController = NULL;
 
 void iosSetSafeAreaConstraints(SDLTerminal * term) {
-    // First, grab the view controller + view
-    SDL_VERSION(&window_info.version);
-    SDL_GetWindowWMInfo(term->win, &window_info);
-    // Instantiate the new view controller from the storyboard (that's linked, right?), and add the properties in
-    UIViewController * oldvc = window_info.info.uikit.window.rootViewController;
-    UINavigationController * rootvc = (UINavigationController*)[[UIStoryboard storyboardWithName:@"Main" bundle:[NSBundle mainBundle]] instantiateInitialViewController];
-    ViewController * vc = (ViewController*)[rootvc.viewControllers firstObject];
-    vc.oldvc = oldvc;
-    vc.sdlWindow = term->win;
-    // Start setting up the new view controller in the view hierarchy (we'll finish this once the VC is loaded)
-    [oldvc.view removeFromSuperview];
-    window_info.info.uikit.window.rootViewController = rootvc;
-    sdlView = oldvc.view;
-    viewController = vc;
-    // Remove the updateKeyboard method in the old view controller, as it glitches out the screen when opening/closing the keyboard
-    method_setImplementation(class_getInstanceMethod([oldvc class], @selector(updateKeyboard)), [ViewController instanceMethodForSelector:@selector(updateKeyboard)]);
-    // Set fullscreen mode, but only on devices without a notch
-    if (window_info.info.uikit.window.safeAreaInsets.top <= 30) SDL_SetWindowFullscreen(term->win, SDL_WINDOW_FULLSCREEN_DESKTOP);
-    viewController.navigationItem.title = [NSString stringWithCString:term->title.c_str() encoding:NSASCIIStringEncoding];
+    @autoreleasepool {
+        if (viewController != NULL) return;
+        // First, grab the view controller + view
+        SDL_VERSION(&window_info.version);
+        SDL_GetWindowWMInfo(term->win, &window_info);
+        // Instantiate the new view controller from the storyboard (that's linked, right?), and add the properties in
+        UIViewController * oldvc = window_info.info.uikit.window.rootViewController;
+        UINavigationController * rootvc = (UINavigationController*)[[UIStoryboard storyboardWithName:@"Main" bundle:[NSBundle mainBundle]] instantiateInitialViewController];
+        ViewController * vc = (ViewController*)[rootvc.viewControllers firstObject];
+        vc.oldvc = oldvc;
+        vc.sdlWindow = term->win;
+        // Start setting up the new view controller in the view hierarchy (we'll finish this once the VC is loaded)
+        [oldvc.view removeFromSuperview];
+        window_info.info.uikit.window.rootViewController = rootvc;
+        sdlView = oldvc.view;
+        viewController = vc;
+        // Remove the updateKeyboard method in the old view controller, as it glitches out the screen when opening/closing the keyboard
+        method_setImplementation(class_getInstanceMethod([oldvc class], @selector(updateKeyboard)), [ViewController instanceMethodForSelector:@selector(updateKeyboard)]);
+        // Set fullscreen mode, but only on devices without a notch
+        if (window_info.info.uikit.window.safeAreaInsets.top <= 30) SDL_SetWindowFullscreen(term->win, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        viewController.navigationItem.title = [NSString stringWithCString:term->title.c_str() encoding:NSASCIIStringEncoding];
+        //std::thread([](){while (true) queueTask([](void*)->void*{[viewController toggleNavbar:nil]; return NULL;}, NULL);}).detach();
+    }
 }
 
 void updateCloseButton() {
-    // TODO: Enable close button when there's one computer + monitors/debugger
-    viewController.closeButton.enabled = computers->size() > 1;
+    if (computers->empty()) return;
+    viewController.closeButton.enabled = computers->size() > 1 || (*renderTarget) != computers->front()->term;
+    viewController.nextButton.enabled = renderTargets.size() > 1;
+    viewController.previousButton.enabled = renderTargets.size() > 1;
 }
 
 void iOS_SetWindowTitle(SDL_Window * win, const char * title) {
@@ -636,6 +646,8 @@ void setupCrashHandler() {
         if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)PTRDIFF_MAX);
     }];
 }
+
+void platformExit() {}
 
 #ifdef __INTELLISENSE__
 #region Mobile API

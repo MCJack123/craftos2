@@ -607,6 +607,7 @@ debugger::~debugger() {
         std::this_thread::yield();
     }
     if (compThread->joinable()) compThread->join();
+    computer->shouldDeleteDebugger = false;
     computer->shouldDeinitDebugger = true;
 }
 
@@ -616,7 +617,7 @@ int debugger::call(lua_State *L, const char * method) {
     else if (m == "setBreakpoint") return setBreakpoint(L);
     else if (m == "print") return print(L);
     else if (m == "deinit") return _deinit(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 int debugger::_deinit(lua_State *L) {

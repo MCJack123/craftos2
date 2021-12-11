@@ -29,7 +29,7 @@ public:
         // Check the value of m for each method:
         // if (m == "a") return a(L);
         // etc...
-        // else return 0;
+        // else return luaL_error(L, "No such method");
     }
     void update() override {}
     library_t getMethods() const override {return methods;}

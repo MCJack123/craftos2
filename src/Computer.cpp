@@ -133,7 +133,10 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     else dataDir = computerDir + WS("/") + to_path_t(id);
 #endif
     // Create the root directory
-    createDirectory(dataDir);
+    if (createDirectory(dataDir) != 0) {
+        if (term) delete term;
+        throw std::runtime_error("Could not create computer data directory");
+    }
     config = new computer_configuration(_config);
 }
 
@@ -236,6 +239,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
             self->term->mode = 0;
             self->term->blink = false;
             self->term->canBlink = false;
+            self->term->frozen = false;
             if (dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->cursorColor = 0;
             self->term->changed = true;
         }
@@ -540,6 +544,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
         self->term->mode = 0;
         self->term->blink = false;
         self->term->canBlink = false;
+        self->term->frozen = false;
         if (dynamic_cast<SDLTerminal*>(self->term) != NULL) ((SDLTerminal*)self->term)->cursorColor = 0;
         self->term->changed = true;
     }
@@ -587,17 +592,25 @@ void* computerThread(void* data) {
             while (true) {
                 SDL_Event e;
                 std::string tmpstrval;
+                {
+                    std::mutex m;
+                    std::unique_lock<std::mutex> l(m);
+                    while (comp->termEventQueue.empty()) 
+                        comp->event_lock.wait_for(l, std::chrono::seconds(5), [comp]()->bool{return !comp->termEventQueue.empty();});
+                }
                 if (Computer_getEvent(comp, &e)) {
 #if defined(__IPHONEOS__) || defined(__ANDROID__)
                     if (e.type == SDL_MOUSEBUTTONUP) {
                         break;
 #else
-                    if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
+                    if (e.type == SDL_KEYDOWN && ((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                         if (comp->waitingForTerminate & 16) {
                             comp->waitingForTerminate |= 32;
                             comp->waitingForTerminate &= ~16;
                             break;
                         } else if ((comp->waitingForTerminate & 48) == 0) comp->waitingForTerminate |= 16;
+                    } else if (e.type == SDL_KEYUP) {
+                        comp->waitingForTerminate = 0;
 #endif
                     } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
                         if (e.window.windowID == comp->term->id) {
@@ -665,6 +678,7 @@ void* computerThread(void* data) {
         first = false;
     } while ((config.keepOpenOnShutdown || config.standardsMode) && !comp->requestedExit);
     freedComputers.insert(comp);
+    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp, true);
     {
         LockGuard lock(computers);
         for (auto it = computers->begin(); it != computers->end(); ++it) {
@@ -674,7 +688,6 @@ void* computerThread(void* data) {
             }
         }
     }
-    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp);
     if (selectedRenderer != 0 && selectedRenderer != 2 && selectedRenderer != 5 && !exiting) {
         {LockGuard lock(taskQueue);}
         while (taskQueueReady && !exiting) std::this_thread::sleep_for(std::chrono::milliseconds(1));

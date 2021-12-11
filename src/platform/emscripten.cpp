@@ -87,4 +87,6 @@ void setupCrashHandler() {}
 
 void setFloating(SDL_Window* win, bool state) {}
 
+void platformExit() {}
+
 #endif

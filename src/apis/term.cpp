@@ -98,8 +98,10 @@ static int term_setCursorBlink(lua_State *L) {
     lastCFunction = __func__;
     if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
     if (selectedRenderer != 1) {
-        get_comp(L)->term->canBlink = lua_toboolean(L, 1);
-        get_comp(L)->term->changed = true;
+        Terminal * term = get_comp(L)->term;
+        std::lock_guard<std::mutex> lock(term->locked);
+        term->canBlink = lua_toboolean(L, 1);
+        term->changed = true;
     } else can_blink_headless = lua_toboolean(L, 1);
     if (selectedRenderer == 4) printf("TB:%d;%s\n", get_comp(L)->term->id, lua_toboolean(L, 1) ? "true" : "false");
     return 0;
@@ -135,6 +137,7 @@ static int term_getSize(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
+    std::lock_guard<std::mutex> lock(term->locked);
     if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
         lua_pushinteger(L, term->width * Terminal::fontWidth);
         lua_pushinteger(L, term->height * Terminal::fontHeight);
@@ -191,7 +194,10 @@ static int term_setTextColor(lua_State *L) {
     if (c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
     //if ((computer->config->isColor || computer->isDebugger) || ((c & 7) - 1) >= 6) {
     computer->colors = (computer->colors & 0xf0) | (unsigned char)c;
-    if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = (char)c;
+    if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
+        std::lock_guard<std::mutex> lock(computer->term->locked);
+        dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = (char)c;
+    }
     //}
     return 0;
 }

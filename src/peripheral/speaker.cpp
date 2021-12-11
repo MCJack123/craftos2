@@ -515,7 +515,7 @@ int speaker::call(lua_State *L, const char * method) {
     else if (m == "listSounds") return listSounds(L);
     else if (m == "playLocalMusic") return playLocalMusic(L);
     else if (m == "setSoundFont") return setSoundFont(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 #define MIXER_FORMATS (MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_MID)

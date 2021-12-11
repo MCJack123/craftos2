@@ -173,6 +173,7 @@ private:
     int cursorX = 0;
     int cursorY = 0;
     bool started = false;
+    int inkColor = 15;
 
     int write(lua_State *L);
     int setCursorPos(lua_State *L);
@@ -183,6 +184,8 @@ private:
     int getInkLevel(lua_State *L);
     int setPageTitle(lua_State *L);
     int getPaperLevel(lua_State *L);
+    int getInkColor(lua_State *L);
+    int setInkColor(lua_State *L);
 
 public:
     static peripheral * init(lua_State *L, const char * side) {return new printer(L, side);}

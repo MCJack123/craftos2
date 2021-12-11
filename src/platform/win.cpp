@@ -489,4 +489,8 @@ void setFloating(SDL_Window* win, bool state) {
     SetWindowPos(info.info.win.window, state ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 }
 
+void platformExit() {
+    if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
+}
+
 #endif
