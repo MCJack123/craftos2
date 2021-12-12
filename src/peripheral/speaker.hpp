@@ -20,8 +20,10 @@ class speaker: public peripheral {
     std::chrono::system_clock::time_point lastTickReset = std::chrono::system_clock::now();
     unsigned int noteCount = 0;
     int channelGroup;
+    const char * side;
     int playNote(lua_State *L);
     int playSound(lua_State *L);
+    int playAudio(lua_State *L);
     int playLocalMusic(lua_State *L);
     int listSounds(lua_State *L);
     int setSoundFont(lua_State *L);

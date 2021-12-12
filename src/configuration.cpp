@@ -129,7 +129,8 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"computerHeight", {2, 1}},
     {"keepOpenOnShutdown", {0, 0}},
     {"useWebP", {0, 0}},
-    {"dropFilePath", {0, 0}}
+    {"dropFilePath", {0, 0}},
+    {"useDFPWM", {0, 0}},
 };
 
 const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "customCharScale", "skipUpdate", "lastVersion", "pluginData", "http_proxy_server", "http_proxy_port", "cliControlKeyMode", "serverMode", "romReadOnly"};
@@ -208,6 +209,7 @@ void config_init() {
 #else
         false,
 #endif
+        false,
         false,
         false
     };
@@ -325,6 +327,7 @@ void config_init() {
 #endif
     readConfigSetting(useWebP, Bool);
     readConfigSetting(dropFilePath, Bool);
+    readConfigSetting(useDFPWM, Bool);
     // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
     if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
 #ifndef __EMSCRIPTEN__
@@ -393,6 +396,7 @@ void config_save() {
     root["keepOpenOnShutdown"] = config.keepOpenOnShutdown;
     root["useWebP"] = config.useWebP;
     root["dropFilePath"] = config.dropFilePath;
+    root["useDFPWM"] = config.useDFPWM;
     root["lastVersion"] = CRAFTOSPC_VERSION;
     Value pluginRoot;
     for (const auto& e : config.pluginData) pluginRoot[e.first] = e.second;

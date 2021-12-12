@@ -224,6 +224,96 @@ void setupForNextPlayback(float& speed, Mix_Chunk* chunk, int channel, bool loop
     }
 }
 
+// DFPWM transcoder from https://github.com/asiekierka/pixmess/blob/master/scraps/
+
+// note, len denotes how many compressed bytes there are (uncompressed bytes / 8).
+static void au_compress(int *q, int *s, int *lt, int ri, int rd, int len, uint8_t *outbuf, int8_t *inbuf)
+{
+	int i,j;
+	uint8_t d = 0;
+	for(i = 0; i < len; i++)
+	{
+		for(j = 0; j < 8; j++)
+		{
+			// get sample
+			int v = *(inbuf++);
+			
+			// set bit / target
+			int t = (v < *q || v == -128 ? -128 : 127);
+			d >>= 1;
+			if(t > 0)
+				d |= 0x80;
+			
+			// adjust charge
+			int nq = *q + ((*s * (t-*q) + 0x80)>>8);
+			if(nq == *q && nq != t)
+				nq += (t == 127 ? 1 : -1);
+			*q = nq;
+			
+			// adjust strength
+			int st = (t != *lt ? 0 : 255);
+			int sr = (t != *lt ? rd : ri);
+			int ns = *s + ((sr*(st-*s) + 0x80)>>8);
+			if(ns == *s && ns != st)
+				ns += (st == 255 ? 1 : -1);
+			*s = ns;
+			
+			*lt = t;
+			
+			//fprintf(stderr, "%4i %4i %4i %4i\n", v, *q, *s, t);
+			//usleep(10000);
+		}
+		
+		// output bits
+		*(outbuf++) = d;
+	}
+}
+
+static void au_decompress(int *fq, int *q, int *s, int *lt, int fs, int ri, int rd, int len, int8_t *outbuf, uint8_t *inbuf)
+{
+	int i,j;
+	uint8_t d;
+	for(i = 0; i < len; i++)
+	{
+		// get bits
+		d = *(inbuf++);
+		
+		for(j = 0; j < 8; j++)
+		{
+			// set target
+			int t = ((d&1) ? 127 : -128);
+			d >>= 1;
+			
+			// adjust charge
+			int nq = *q + ((*s * (t-*q) + 0x80)>>8);
+			if(nq == *q && nq != t)
+				*q += (t == 127 ? 1 : -1);
+			int lq = *q;
+			*q = nq;
+			
+			// adjust strength
+			int st = (t != *lt ? 0 : 255);
+			int sr = (t != *lt ? rd : ri);
+			int ns = *s + ((sr*(st-*s) + 0x80)>>8);
+			if(ns == *s && ns != st)
+				ns += (st == 255 ? 1 : -1);
+			*s = ns;
+			
+			// FILTER: perform antijerk
+			int ov = (t != *lt ? (nq+lq)>>1 : nq);
+			
+			// FILTER: perform LPF
+			*fq += ((fs*(ov-*fq) + 0x80)>>8);
+			ov = *fq;
+			
+			// output sample
+			*(outbuf++) = ov;
+			
+			*lt = t;
+		}
+	}
+}
+
 #ifdef __INTELLISENSE__
 #pragma endregion
 #endif
@@ -261,7 +351,9 @@ static Mix_Music * currentlyPlayingMusic = NULL;
 static speaker * musicSpeaker = NULL;
 
 static void musicFinished() { if (currentlyPlayingMusic != NULL) { Mix_FreeMusic(currentlyPlayingMusic); currentlyPlayingMusic = NULL; musicSpeaker = NULL; } }
-static void channelFinished(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
+static std::unordered_map<int, std::function<void(int)>> channelFinishCallbacks;
+static void channelFinished_default(int c) { Mix_FreeChunk(Mix_GetChunk(c)); }
+static void channelFinished(int c) { if (channelFinishCallbacks.find(c) != channelFinishCallbacks.end()) channelFinishCallbacks[c](c); }
 
 static bool playSoundEvent(std::string name, float volume, float speed, unsigned int channel) {
     if (name.find(':') == std::string::npos) name = "minecraft:" + name;
@@ -330,8 +422,11 @@ static bool playSoundEvent(std::string name, float volume, float speed, unsigned
                 newchunk->alen = (Uint32)((float)chunk->alen / speed);
                 newchunk->allocated = true;
                 newchunk->volume = (int)(min(volume * f.volume, 3.0f) * (MIX_MAX_VOLUME / 3.0f));
-                if (Mix_PlayChannel(channel, newchunk, 0) == -1) return false;
-                Mix_ChannelFinished(channelFinished);
+                if (Mix_PlayChannel(channel, newchunk, 0) == -1) {
+                    Mix_FreeChunk(newchunk);
+                    return false;
+                }
+                channelFinishCallbacks[channel] = channelFinished_default;
                 return true;
             }
         }
@@ -386,13 +481,83 @@ int speaker::playNote(lua_State *L) {
         newchunk->allocated = true;
         newchunk->volume = (Uint8)(volume * (MIX_MAX_VOLUME / 3.0f));
         if (Mix_PlayChannel(channel, newchunk, 0) == -1) {
+            Mix_FreeChunk(newchunk);
             lua_pushboolean(L, false);
             return 1;
         }
-        Mix_ChannelFinished(channelFinished);
+        channelFinishCallbacks[channel] = channelFinished_default;
         lua_pushboolean(L, true);
     }
     if (lua_toboolean(L, -1)) { lua_pushinteger(L, channel); return 2; }
+    return 1;
+}
+
+int speaker::playAudio(lua_State *L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    const double volume = luaL_optnumber(L, 2, 1.0);
+    if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
+    size_t len = lua_objlen(L, 1);
+    if (len > 131072) luaL_error(L, "Audio data is too large");
+    else if (len == 0) luaL_error(L, "Cannot play empty audio");
+    int8_t * data = new int8_t[len+(len==0?0:8-(len%8))+44];
+    for (size_t i = 0; i < len; i++) {
+        lua_rawgeti(L, 1, i+1);
+        lua_Integer sample = luaL_checkinteger(L, -1);
+        lua_pop(L, 1);
+        if (sample < -128 || sample > 127) luaL_error(L, "table item #%d must be between -128 and 127", i+1);
+        data[i+44] = (int8_t)sample;
+    }
+    if (config.useDFPWM) {
+        uint8_t * encdata = new uint8_t[len / 8 + (len % 8 != 0)];
+        {
+            int q = 0;
+            int s = 0;
+            int lt = -128;
+            int ri = 7;
+            int rd = 20;
+            au_compress(&q, &s, &lt, ri, rd, len / 8 + (len % 8 != 0), encdata, data + 44);
+        }
+        {
+            int q = 0;
+            int s = 0;
+            int lt = -128;
+            int ri = 7;
+            int rd = 20;
+            int fq = 0;
+            int fs = 100;
+            au_decompress(&fq, &q, &s, &lt, fs, ri, rd, len / 8 + (len % 8 != 0), data + 44, encdata);
+        }
+        delete[] encdata;
+    }
+    memcpy(data, "RIFF\0\0\0\0WAVEfmt \x10\0\0\0\x01\0\x01\0\x80\xBB\0\0\x80\xBB\0\0\x01\0\x08\0data", 40);
+    *(uint32_t*)(data + 4) = len + 36;
+    *(uint32_t*)(data + 40) = len;
+    for (size_t i = 44; i < len + 44; i++) data[i] += 128;
+    SDL_RWops * rw = SDL_RWFromMem(data, len + 44);
+    Mix_Chunk * newchunk = Mix_LoadWAV_RW(rw, true);
+    delete[] data;
+    int channel;
+    for (channel = Mix_GroupAvailable(channelGroup); channel == -1; channel = Mix_GroupAvailable(channelGroup)) {
+        int next = Mix_GroupAvailable(0);
+        if (next == -1) next = Mix_AllocateChannels(Mix_AllocateChannels(-1) + 1) - 1;
+        Mix_GroupChannel(next, channelGroup);
+    }
+    if (Mix_PlayChannel(channel, newchunk, 0) == -1) {
+        Mix_FreeChunk(newchunk);
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    Mix_Volume(channel, volume / 3 * 128);
+    Computer * comp = get_comp(L);
+    const char * side = this->side;
+    channelFinishCallbacks[channel] = [comp, side](int c) {
+        if (freedComputers.find(comp) == freedComputers.end()) queueEvent(comp, [side](lua_State *L, void*data)->std::string{
+            lua_pushstring(L, side);
+            return "speaker_audio_empty";
+        }, NULL);
+        Mix_FreeChunk(Mix_GetChunk(c));
+    };
+    lua_pushboolean(L, true);
     return 1;
 }
 
@@ -499,6 +664,7 @@ int speaker::stopSounds(lua_State *L) {
 speaker::speaker(lua_State *L, const char * side) {
     RNG.seed((unsigned)time(0)); // doing this here so the seed can be refreshed
     channelGroup = nextChannelGroup++;
+    this->side = side;
 }
 
 speaker::~speaker() {
@@ -512,6 +678,7 @@ int speaker::call(lua_State *L, const char * method) {
     const std::string m(method);
     if (m == "playNote") return playNote(L);
     else if (m == "playSound") return playSound(L);
+    else if (m == "playAudio") return playAudio(L);
     else if (m == "listSounds") return listSounds(L);
     else if (m == "playLocalMusic") return playLocalMusic(L);
     else if (m == "setSoundFont") return setSoundFont(L);
@@ -529,6 +696,7 @@ void speakerInit() {
         if (!(loadedFormats & MIX_INIT_MID)) fprintf(stderr, "mid ");
         fprintf(stderr, "\n");
     }
+    Mix_ChannelFinished(channelFinished);
     Mix_GroupChannels(0, Mix_AllocateChannels(config.maxNotesPerTick)-1, 0);
 #ifndef STANDALONE_ROM
     platform_DIR * d = platform_opendir((getROMPath() + WS("/sounds")).c_str());
@@ -588,6 +756,7 @@ void speakerQuit() {
 static luaL_Reg speaker_reg[] = {
     {"playNote", NULL},
     {"playSound", NULL},
+    {"playAudio", NULL},
     {"listSounds", NULL},
     {"playLocalMusic", NULL},
     {"setSoundFont", NULL},
