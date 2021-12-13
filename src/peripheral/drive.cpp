@@ -247,7 +247,7 @@ throwErrorParam:
 void driveInit() {
 #ifndef NO_MIXER
     Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
-    Mix_OpenAudio(44100, AUDIO_S16, 2, 512);
+    Mix_OpenAudio(48000, AUDIO_S16, 2, 512); // NOTE: If changing the chunk size, update playAudio!
 #endif
 }
 

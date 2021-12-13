@@ -50,6 +50,8 @@ public:
     T& operator*() { return obj; }
     T* operator->() { return &obj; }
     ProtectedObject<T>& operator=(const T& rhs) {obj = rhs; return *this;}
+    template<typename U>
+    U block(const std::function<U()>& func) { std::lock_guard<std::mutex> lock(mutex); return func(); }
 };
 
 class LockGuard : public std::lock_guard<std::mutex> {
