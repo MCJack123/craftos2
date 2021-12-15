@@ -92,6 +92,9 @@ struct configuration {
 
     // The following fields are available in API version 10.6 and later.
     bool dropFilePath;
+
+    // The following fields are available in API version 10.8 and later.
+    bool useDFPWM;
 };
 
 // A smaller structure that holds the configuration for a single computer.

@@ -14,18 +14,30 @@
 #include <chrono>
 #include <peripheral.hpp>
 
+static void audioEffect(int chan, void *stream, int len, void *udata);
 class speaker: public peripheral {
+    friend void speakerInit();
+    friend void audioEffect(int chan, void *stream, int len, void *udata);
     static library_t methods;
     static int nextChannelGroup;
+    static int sampleSize;
     std::chrono::system_clock::time_point lastTickReset = std::chrono::system_clock::now();
     unsigned int noteCount = 0;
     int channelGroup;
+    int audioChannel;
+    ProtectedObject<std::queue<void*>> audioQueue;
+    std::queue<double> volumeQueue;
+    int audioQueueEnd = 0;
+    Computer * comp;
+    const char * side;
     int playNote(lua_State *L);
     int playSound(lua_State *L);
+    int playAudio(lua_State *L);
     int playLocalMusic(lua_State *L);
     int listSounds(lua_State *L);
     int setSoundFont(lua_State *L);
-    int stopSounds(lua_State *L);
+    int stop(lua_State *L);
+    int setPosition(lua_State *L);
 public:
     static peripheral * init(lua_State *L, const char * side) {return new speaker(L, side);}
     static void deinit(peripheral * p) {delete (speaker*)p;}
