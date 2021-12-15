@@ -719,12 +719,10 @@ static void audioEffect(int chan, void *stream, int len, void *udata) {
         memcpy(stream, data, len);
         free(data);
         Mix_Volume(chan, vol / 3 * 128);
-        if (sp->audioQueue->empty()) {
-            sp->audioQueueEnd = 0;
-            //std::cout << "queue empty\n";
+        if (sp->audioQueue->size() == 1)
             if (freedComputers.find(sp->comp) == freedComputers.end())
                 queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side);
-        }
+        else if (sp->audioQueue->empty()) sp->audioQueueEnd = 0;
     }
 }
 
