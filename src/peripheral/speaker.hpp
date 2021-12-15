@@ -36,7 +36,7 @@ class speaker: public peripheral {
     int playLocalMusic(lua_State *L);
     int listSounds(lua_State *L);
     int setSoundFont(lua_State *L);
-    int stopSounds(lua_State *L);
+    int stop(lua_State *L);
     int setPosition(lua_State *L);
 public:
     static peripheral * init(lua_State *L, const char * side) {return new speaker(L, side);}

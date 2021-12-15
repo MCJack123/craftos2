@@ -673,15 +673,22 @@ int speaker::setSoundFont(lua_State *L) {
     return 0;
 }
 
-int speaker::stopSounds(lua_State *L) {
+int speaker::stop(lua_State *L) {
     lastCFunction = __func__;
     if (lua_isnumber(L, 1)) Mix_HaltChannel((int)lua_tointeger(L, 1));
     else {
         if (musicSpeaker == this) { Mix_HaltMusic(); musicSpeaker = NULL; }
         Mix_HaltGroup(channelGroup);
     }
+    LockGuard lock(audioQueue);
+    while (!audioQueue->empty()) audioQueue->pop();
+    audioQueueEnd = 0;
     return 0;
 }
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264
+#endif
 
 int speaker::setPosition(lua_State *L) {
     lastCFunction = __func__;
@@ -750,7 +757,7 @@ int speaker::call(lua_State *L, const char * method) {
     else if (m == "listSounds") return listSounds(L);
     else if (m == "playLocalMusic") return playLocalMusic(L);
     else if (m == "setSoundFont") return setSoundFont(L);
-    else if (m == "stopSounds") return stopSounds(L);
+    else if (m == "stop" || m == "stopSounds") return stop(L);
     else if (m == "setPosition") return setPosition(L);
     else return luaL_error(L, "No such method");
 }
@@ -835,6 +842,7 @@ static luaL_Reg speaker_reg[] = {
     {"listSounds", NULL},
     {"playLocalMusic", NULL},
     {"setSoundFont", NULL},
+    {"stop", NULL},
     {"stopSounds", NULL},
     {"setPosition", NULL},
     {NULL, NULL}
