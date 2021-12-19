@@ -33,6 +33,8 @@ static void pressAlt(int sig);
 #define BUTTON_RELEASED NCURSES_BUTTON_RELEASED
 #endif
 
+int width, height;
+
 bool CLITerminal::stopRender = false;
 bool CLITerminal::forceRender = false;
 unsigned short CLITerminal::lastPaletteChecksum = 0;
@@ -89,7 +91,7 @@ void CLITerminal::renderNavbar(std::string title) {
     fflush(stdout);
 }
 
-CLITerminal::CLITerminal(std::string title): Terminal(COLS, LINES-1) {
+CLITerminal::CLITerminal(std::string title): Terminal(::width, ::height-1) {
     this->title = title;
     for (id = 0; currentWindowIDs.find(id) != currentWindowIDs.end(); id++);
     last_pair = 0;
@@ -251,6 +253,13 @@ static void pressAlt(int sig) {
 
 void CLITerminal::init() {
     singleWindowMode = true;
+    if (config.defaultWidth == 51 && config.defaultHeight == 19) {
+        ::width = COLS;
+        ::height = LINES;
+    } else {
+        ::width = config.defaultWidth;
+        ::height = config.defaultHeight;
+    }
     SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER);
     initscr();
     keypad(stdscr, TRUE);
