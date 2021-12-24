@@ -15,9 +15,13 @@
 #include <peripheral.hpp>
 
 static void audioEffect(int chan, void *stream, int len, void *udata);
+static Uint32 audioTimer(Uint32 interval, void* param);
+static Uint32 speaker_audio_empty_timer(Uint32 interval, void* param);
 class speaker: public peripheral {
     friend void speakerInit();
     friend void audioEffect(int chan, void *stream, int len, void *udata);
+    friend Uint32 audioTimer(Uint32 interval, void* param);
+    friend Uint32 speaker_audio_empty_timer(Uint32 interval, void* param);
     static library_t methods;
     static int nextChannelGroup;
     static int sampleSize;
@@ -28,6 +32,9 @@ class speaker: public peripheral {
     ProtectedObject<std::queue<void*>> audioQueue;
     std::queue<double> volumeQueue;
     int audioQueueEnd = 0;
+    uint8_t * delayedBuffer;
+    int delayedBufferPos = 0;
+    SDL_TimerID delayedBufferTimer = 0;
     Computer * comp;
     const char * side;
     int playNote(lua_State *L);
