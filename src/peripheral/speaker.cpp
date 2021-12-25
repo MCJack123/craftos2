@@ -446,6 +446,70 @@ static bool playSoundEvent(std::string name, float volume, float speed, unsigned
     return false;
 }
 
+static std::string speaker_audio_empty(lua_State *L, void* data) {
+    lua_pushstring(L, (const char*)data);
+    return "speaker_audio_empty";
+}
+
+static void audioEffect(int chan, void *stream, int len, void *udata) {
+    speaker * sp = (speaker*)udata;
+    LockGuard lock(sp->audioQueue);
+    if (!sp->audioQueue->empty()) {
+        void* data = sp->audioQueue->front();
+        double vol = sp->volumeQueue.front();
+        sp->audioQueue->pop();
+        sp->volumeQueue.pop();
+        memcpy(stream, data, len);
+        free(data);
+        Mix_Volume(chan, vol / 3 * 128);
+        if (!config.standardsMode && sp->audioQueue->size() == 1)
+            if (freedComputers.find(sp->comp) == freedComputers.end())
+                queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side);
+        else if (sp->audioQueue->empty()) sp->audioQueueEnd = 0;
+    }
+}
+
+static Uint32 audioTimer(Uint32 interval, void* param) {
+    speaker * sp = (speaker*)param;
+    LockGuard lock(sp->audioQueue);
+    Uint8 * pos = sp->delayedBuffer;
+    const Uint8 * end = sp->delayedBuffer + sp->delayedBufferPos;
+    if (sp->audioQueueEnd > 0 && !sp->audioQueue->empty()) {
+        int l = min((int)sp->delayedBufferPos, 512*speaker::sampleSize - sp->audioQueueEnd);
+        memcpy((Uint8*)sp->audioQueue->back() + sp->audioQueueEnd, pos, l);
+        pos += l;
+        sp->audioQueueEnd = (sp->audioQueueEnd + l) % (512*speaker::sampleSize);
+    }
+    if (pos < end) {
+        while (pos <= end - 512*speaker::sampleSize) {
+            void * arr = malloc(512*speaker::sampleSize);
+            memcpy(arr, pos, 512*speaker::sampleSize);
+            sp->audioQueue->push(arr);
+            sp->volumeQueue.push(1);
+            pos += 512*speaker::sampleSize;
+        }
+        int remaining = end - pos;
+        if (remaining > 0) {
+            void * arr = malloc(512*speaker::sampleSize);
+            memcpy(arr, pos, remaining);
+            memset((Uint8*)arr + remaining, 0, 512*speaker::sampleSize - remaining);
+            sp->audioQueue->push(arr);
+            sp->volumeQueue.push(1);
+            sp->audioQueueEnd = remaining;
+        } else sp->audioQueueEnd = 0;
+    }
+    sp->delayedBufferTimer = 0;
+    sp->delayedBufferPos = 0;
+    return 0;
+}
+
+static Uint32 speaker_audio_empty_timer(Uint32 interval, void* param) {
+    speaker * sp = (speaker*)param;
+    if (freedComputers.find(sp->comp) == freedComputers.end())
+        queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side);
+    return 0;
+}
+
 int speaker::playNote(lua_State *L) {
     lastCFunction = __func__;
     const std::string inst = luaL_checkstring(L, 1);
@@ -512,6 +576,10 @@ int speaker::playAudio(lua_State *L) {
     size_t len = lua_objlen(L, 1);
     if (len > 131072) luaL_error(L, "Audio data is too large");
     else if (len == 0) luaL_error(L, "Cannot play empty audio");
+    if (config.standardsMode && audioQueue->size() > 47) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
     int8_t * data = new int8_t[len+(len==0?0:8-(len%8))+44];
     for (size_t i = 0; i < len; i++) {
         lua_rawgeti(L, 1, i+1);
@@ -520,7 +588,7 @@ int speaker::playAudio(lua_State *L) {
         if (sample < -128 || sample > 127) luaL_error(L, "table item #%d must be between -128 and 127", i+1);
         data[i+44] = (int8_t)sample;
     }
-    if (config.useDFPWM) {
+    if (config.useDFPWM || config.standardsMode) {
         uint8_t * encdata = new uint8_t[len / 8 + (len % 8 != 0)];
         {
             int q = 0;
@@ -544,7 +612,35 @@ int speaker::playAudio(lua_State *L) {
     SDL_RWops * rw = SDL_RWFromMem(data, len + 44);
     Mix_Chunk * newchunk = Mix_LoadWAV_RW(rw, true);
     delete[] data;
-    {
+    if (config.standardsMode) {
+        LockGuard lock(audioQueue);
+        size_t remaining = newchunk->alen;
+        Uint8 * pos = newchunk->abuf;
+        while (remaining > 0) {
+            size_t chunk = min(remaining, (size_t)24064*sampleSize - delayedBufferPos);
+            memcpy(delayedBuffer + delayedBufferPos, pos, chunk);
+            delayedBufferPos += chunk;
+            pos += chunk;
+            remaining -= chunk;
+            if (delayedBufferPos >= 24064*sampleSize) {
+                for (int i = 0; i < 47; i++) {
+                    void * arr = malloc(512*sampleSize);
+                    memcpy(arr, delayedBuffer + i*512*sampleSize, 512*sampleSize);
+                    audioQueue->push(arr);
+                    // TODO: this isn't very great
+                    volumeQueue.push(volume);
+                }
+                delayedBufferPos = 0;
+                if (delayedBufferTimer != 0) queueTask([](void*tm)->void*{SDL_RemoveTimer((SDL_TimerID)(ptrdiff_t)tm); return NULL;}, (void*)(ptrdiff_t)delayedBufferTimer, true);
+                delayedBufferTimer = 0;
+            }
+        }
+        int eventTime = ceil(-500.0 + (audioQueue->size() + 1) * (512.0 / 48.0) + (delayedBufferPos / sampleSize / 48.0));
+        if (eventTime > 0) queueTask([eventTime](void*sp)->void*{SDL_AddTimer(eventTime, speaker_audio_empty_timer, sp); return NULL;}, this, true);
+        else queueEvent(comp, speaker_audio_empty, (void*)side);
+        if (delayedBufferPos > 0 && delayedBufferTimer == 0)
+            delayedBufferTimer = (ptrdiff_t)queueTask([](void*sp)->void*{return (void*)(ptrdiff_t)SDL_AddTimer(500, audioTimer, sp);}, this);
+    } else {
         LockGuard lock(audioQueue);
         Uint8 * pos = newchunk->abuf;
         const Uint8 * end = newchunk->abuf + newchunk->alen;
@@ -574,11 +670,14 @@ int speaker::playAudio(lua_State *L) {
                 volumeQueue.push(volume);
                 audioQueueEnd = remaining;
             } else audioQueueEnd = 0;
-        } else {
-            //std::cout << "less\n";
         }
     }
     Mix_FreeChunk(newchunk);
+    if (!Mix_Playing(audioChannel)) {
+        Mix_UnregisterEffect(audioChannel, audioEffect);
+        Mix_RegisterEffect(audioChannel, audioEffect, NULL, this);
+        Mix_PlayChannel(audioChannel, empty_chunk, -1);
+    }
     lua_pushboolean(L, true);
     return 1;
 }
@@ -680,8 +779,14 @@ int speaker::stop(lua_State *L) {
         if (musicSpeaker == this) { Mix_HaltMusic(); musicSpeaker = NULL; }
         Mix_HaltGroup(channelGroup);
     }
+    if (delayedBufferTimer != 0) queueTask([](void*tm)->void*{SDL_RemoveTimer((SDL_TimerID)(ptrdiff_t)tm); return NULL;}, (void*)(ptrdiff_t)delayedBufferTimer, true);
+    delayedBufferTimer = 0;
+    delayedBufferPos = 0;
     LockGuard lock(audioQueue);
-    while (!audioQueue->empty()) audioQueue->pop();
+    while (!audioQueue->empty()) {
+        free(audioQueue->front());
+        audioQueue->pop();
+    }
     audioQueueEnd = 0;
     return 0;
 }
@@ -703,34 +808,12 @@ int speaker::setPosition(lua_State *L) {
     return 0;
 }
 
-static std::string speaker_audio_empty(lua_State *L, void* data) {
-    lua_pushstring(L, (const char*)data);
-    return "speaker_audio_empty";
-}
-
-static void audioEffect(int chan, void *stream, int len, void *udata) {
-    speaker * sp = (speaker*)udata;
-    LockGuard lock(sp->audioQueue);
-    if (!sp->audioQueue->empty()) {
-        void* data = sp->audioQueue->front();
-        double vol = sp->volumeQueue.front();
-        sp->audioQueue->pop();
-        sp->volumeQueue.pop();
-        memcpy(stream, data, len);
-        free(data);
-        Mix_Volume(chan, vol / 3 * 128);
-        if (sp->audioQueue->size() == 1)
-            if (freedComputers.find(sp->comp) == freedComputers.end())
-                queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side);
-        else if (sp->audioQueue->empty()) sp->audioQueueEnd = 0;
-    }
-}
-
 speaker::speaker(lua_State *L, const char * side) {
     RNG.seed((unsigned)time(0)); // doing this here so the seed can be refreshed
     channelGroup = nextChannelGroup++;
     comp = get_comp(L);
     this->side = side;
+    delayedBuffer = new uint8_t[24064*sampleSize];
     for (audioChannel = Mix_GroupAvailable(channelGroup); audioChannel == -1; audioChannel = Mix_GroupAvailable(channelGroup)) {
         int next = Mix_GroupAvailable(0);
         if (next == -1) next = Mix_AllocateChannels(Mix_AllocateChannels(-1) + 1) - 1;
@@ -745,6 +828,8 @@ speaker::~speaker() {
     Mix_HaltGroup(channelGroup);
     for (int channel = Mix_GroupAvailable(channelGroup); channel != -1; channel = Mix_GroupAvailable(channelGroup))
         Mix_GroupChannel(channel, 0);
+    if (delayedBufferTimer != 0) queueTask([](void*tm)->void*{SDL_RemoveTimer((SDL_TimerID)(ptrdiff_t)tm); return NULL;}, (void*)(ptrdiff_t)delayedBufferTimer, true);
+    delete[] delayedBuffer;
 }
 
 int speaker::call(lua_State *L, const char * method) {

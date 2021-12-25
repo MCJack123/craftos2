@@ -25,8 +25,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.6.3-luajit"
-#define CRAFTOSPC_CC_VERSION "1.99.1"
+#define CRAFTOSPC_VERSION    "v2.6.4-luajit"
+#define CRAFTOSPC_CC_VERSION "1.100.0"
 #define CRAFTOSPC_INDEV      false
 
 // for some reason Clang complains if this isn't present

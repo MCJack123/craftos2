@@ -569,7 +569,28 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
 
 @end
 
+@interface CCAppDelegate : NSObject<UIApplicationDelegate>
+@property (retain, nonatomic) NSObject<UIApplicationDelegate> * delegate;
+@end
+@implementation CCAppDelegate
+- (id)initWithDelegate:(NSObject<UIApplicationDelegate> *)del {
+    self.delegate = del;
+    return self;
+}
+
+- (void)applicationDidBecomeActive:(UIApplication *)application {
+    [self.delegate applicationDidBecomeActive:application];
+    SDL_StartTextInput();
+}
+
+- (id)forwardingTargetForSelector:(SEL)sel {
+    if ([self.delegate respondsToSelector:sel]) return self.delegate;
+    return nil;
+}
+@end
+
 static ViewController * viewController = NULL;
+static CCAppDelegate * appDelegate = NULL;
 
 void iosSetSafeAreaConstraints(SDLTerminal * term) {
     @autoreleasepool {
@@ -593,6 +614,9 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
         // Set fullscreen mode, but only on devices without a notch
         if (window_info.info.uikit.window.safeAreaInsets.top <= 30) SDL_SetWindowFullscreen(term->win, SDL_WINDOW_FULLSCREEN_DESKTOP);
         viewController.navigationItem.title = [NSString stringWithCString:term->title.c_str() encoding:NSASCIIStringEncoding];
+        // Add an application delegate override so we can hook some things
+        appDelegate = [[CCAppDelegate alloc] initWithDelegate:[UIApplication sharedApplication].delegate];
+        [UIApplication sharedApplication].delegate = appDelegate;
         //std::thread([](){while (true) queueTask([](void*)->void*{[viewController toggleNavbar:nil]; return NULL;}, NULL);}).detach();
     }
 }

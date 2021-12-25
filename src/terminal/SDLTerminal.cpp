@@ -107,15 +107,6 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     SDL_GetDisplayDPI(0, &dpi, NULL, NULL);
     if (dpi >= 150) dpiScale = dpi / 150;
 #endif
-    if (config.customFontPath == "hdfont") {
-        fontScale = 1;
-        charWidth = fontWidth * charScale;
-        charHeight = fontHeight * charScale;
-    } else if (!config.customFontPath.empty()) {
-        fontScale = config.customFontScale;
-        charWidth = fontWidth * charScale;
-        charHeight = fontHeight * charScale;
-    }
     if (config.customCharScale > 0) {
         charScale = config.customCharScale;
         charWidth = fontWidth * charScale;
@@ -627,11 +618,15 @@ void SDLTerminal::init() {
     SDL_Surface* old_bmp;
     std::string bmp_path = "built-in file";
 #ifndef STANDALONE_ROM
-    if (config.customFontPath == "hdfont") bmp_path = astr(getROMPath() + WS("/hdfont.bmp"));
-    else 
+    if (config.customFontPath == "hdfont") {
+        bmp_path = astr(getROMPath() + WS("/hdfont.bmp"));
+        fontScale = 1;
+    } else 
 #endif
-    if (!config.customFontPath.empty())
+    if (!config.customFontPath.empty()) {
         bmp_path = config.customFontPath;
+        fontScale = config.customFontScale;
+    }
     if (config.customFontPath.empty()) 
         old_bmp = SDL_CreateRGBSurfaceWithFormatFrom((void*)font_image.pixel_data, (int)font_image.width, (int)font_image.height, (int)font_image.bytes_per_pixel * 8, (int)font_image.bytes_per_pixel * (int)font_image.width, SDL_PIXELFORMAT_RGB565);
     else old_bmp = SDL_LoadBMP(bmp_path.c_str());
