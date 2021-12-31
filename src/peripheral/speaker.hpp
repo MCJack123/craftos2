@@ -36,7 +36,7 @@ class speaker: public peripheral {
     int delayedBufferPos = 0;
     SDL_TimerID delayedBufferTimer = 0;
     Computer * comp;
-    const char * side;
+    std::string side;
     int playNote(lua_State *L);
     int playSound(lua_State *L);
     int playAudio(lua_State *L);
