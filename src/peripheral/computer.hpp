@@ -5,7 +5,7 @@
  * This file defines the class for the computer peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2021 JackMacWindows. 
+ * Copyright (c) 2019-2022 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_COMPUTER_HPP

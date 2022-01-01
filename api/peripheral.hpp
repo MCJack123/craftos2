@@ -5,7 +5,7 @@
  * This file creates the base class for all peripherals to inherit.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_PERIPHERAL_HPP

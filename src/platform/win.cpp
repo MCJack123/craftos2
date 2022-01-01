@@ -5,7 +5,7 @@
  * This file implements functions specific to Windows.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifdef _WIN32

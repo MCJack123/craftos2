@@ -6,7 +6,7 @@
  * programs when run in CraftOS-PC.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 extern "C" {

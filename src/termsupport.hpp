@@ -5,7 +5,7 @@
  * This file defines some functions that interact with the terminal.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef TERMSUPPORT_HPP
