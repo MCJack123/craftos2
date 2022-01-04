@@ -378,7 +378,7 @@ enum ConfigEffect {
 #ifdef _WIN32
 #define DLLEXPORT __declspec(dllexport)
 #else
-#define DLLEXPORT 
+#define DLLEXPORT extern
 #endif
 
 extern "C" {
@@ -387,7 +387,7 @@ extern "C" {
 // terminal types that can't be added after initialization. It is recommended
 // that anything that does not explicitly need to be here should go in
 // `plugin_init`, as that function is much safer and can handle errors.
-DLLEXPORT extern void plugin_load(const PluginFunctions * func, path_t path);
+DLLEXPORT void plugin_load(const PluginFunctions * func, path_t path);
 
 // This function is called after basic initialization has completed, before any
 // computers have started up. It is used to initialize any global state required
@@ -399,19 +399,19 @@ DLLEXPORT extern void plugin_load(const PluginFunctions * func, path_t path);
 // `plugin_deinit` is called after this; however, if an exception is thrown,
 // `plugin_deinit` is *not* called, as it is assumed that `plugin_init` has
 // already handled cleanup.
-DLLEXPORT extern PluginInfo * plugin_init(const PluginFunctions * func, path_t path);
+DLLEXPORT PluginInfo * plugin_init(const PluginFunctions * func, path_t path);
 
 // This function is called when deinitializing the plugin while preparing to quit
 // CraftOS-PC, before terminals have been shut down. It gives the plugin a chance
 // to clean up any remaining resources, including deleting the `PluginInfo`
 // structure if it was dynamically allocated.
-DLLEXPORT extern void plugin_deinit(PluginInfo * info);
+DLLEXPORT void plugin_deinit(PluginInfo * info);
 
 // This function is called right before the plugin is unloaded, after CraftOS-PC
 // finishes deinitializing everything else. It is recommended to use
 // `plugin_deinit` instead, but this function may be necessary under some
 // circumstances.
-DLLEXPORT extern void plugin_unload();
+DLLEXPORT void plugin_unload();
 }
 
 #endif
