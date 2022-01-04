@@ -38,7 +38,9 @@ extern std::list<Terminal*> renderTargets;
 extern std::mutex renderTargetsLock;
 extern std::list<Terminal*>::iterator renderTarget;
 extern std::set<unsigned> currentWindowIDs;
+extern std::vector<TerminalFactory *> terminalFactories;
 
+extern Terminal * createTerminal(const std::string& title);
 extern std::string termGetEvent(lua_State *L);
 extern int convertX(SDLTerminal *term, int x);
 extern int convertY(SDLTerminal *term, int y);

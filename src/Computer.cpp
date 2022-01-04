@@ -22,11 +22,7 @@ extern "C" {
 #include "peripheral/computer.hpp"
 #include "platform.hpp"
 #include "runtime.hpp"
-#include "terminal/SDLTerminal.hpp"
-#include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
-#include "terminal/TRoRTerminal.hpp"
-#include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
 
 #ifdef __ANDROID__
@@ -86,14 +82,8 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     const computer_configuration _config = getComputerConfig(id);
     // Create the terminal
     const std::string term_title = _config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(_config.label);
-    if (selectedRenderer == 1) term = NULL;
-#ifndef NO_CLI
-    else if (selectedRenderer == 2) term = new CLITerminal(term_title);
-#endif
-    else if (selectedRenderer == 3) term = new RawTerminal(term_title, id + 1);
-    else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
-    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
-    else term = new SDLTerminal(term_title);
+    term = createTerminal(term_title);
+    if (selectedRenderer == 3) ((RawTerminal*)term)->computerID = id + 1;
     if (term) {
         term->grayscale = !_config.isColor;
         unsigned w = term->width, h = term->height;
@@ -108,11 +98,11 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     if (debug) addVirtualMount(this, standaloneDebug, "debug");
 #else
 #ifdef _WIN32
-    if (!addMount(this, getROMPath() + WS("\\rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else delete term; throw std::runtime_error("Could not mount ROM"); }
-    if (debug) if (!addMount(this, getROMPath() + WS("\\debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else delete term; throw std::runtime_error("Could not mount debugger ROM"); }
+    if (!addMount(this, getROMPath() + WS("\\rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, getROMPath() + WS("\\debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount debugger ROM"); }
 #else
-    if (!addMount(this, getROMPath() + WS("/rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount ROM"); }
-    if (debug) if (!addMount(this, getROMPath() + WS("/debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount debugger ROM"); }
+    if (!addMount(this, getROMPath() + WS("/rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, getROMPath() + WS("/debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount debugger ROM"); }
 #endif // _WIN32
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
@@ -135,7 +125,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif
     // Create the root directory
     if (createDirectory(dataDir) != 0) {
-        if (term) delete term;
+        if (term) term->factory->deleteTerminal(term);
         throw std::runtime_error("Could not create computer data directory");
     }
     config = new computer_configuration(_config);
@@ -148,7 +138,7 @@ Computer::~Computer() {
     // Destroy terminal
     if (term != NULL) {
         if (term->errorMode) orphanedTerminals.insert(term);
-        else delete term;
+        else term->factory->deleteTerminal(term);
     }
     // Save config
     setComputerConfig(id, *config);

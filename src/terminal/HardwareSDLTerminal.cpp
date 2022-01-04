@@ -486,24 +486,8 @@ bool HardwareSDLTerminal::pollEvents() {
                 break;
             }
         }
-        if (e.type == task_event_type) {
-            while (!taskQueue->empty()) {
-                TaskQueueItem * task = taskQueue->front();
-                bool async = task->async;
-                {
-                    std::unique_lock<std::mutex> lock(task->lock);
-                    try {
-                        task->data = task->func(task->data);
-                    } catch (...) {
-                        task->exception = std::current_exception();
-                    }
-                    task->ready = true;
-                    task->notify.notify_all();
-                }
-                if (async) delete task;
-                taskQueue->pop();
-            }
-        } else if (e.type == render_event_type) {
+        if (e.type == task_event_type) pumpTaskQueue();
+        else if (e.type == render_event_type) {
             if (singleWindowMode) {
                 HardwareSDLTerminal * sdlterm = dynamic_cast<HardwareSDLTerminal*>(*renderTarget);
                 if (sdlterm != NULL) {
@@ -611,7 +595,7 @@ bool HardwareSDLTerminal::pollEvents() {
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);
-                        delete t;
+                        t->factory->deleteTerminal(t);
                         break;
                     }
                 }

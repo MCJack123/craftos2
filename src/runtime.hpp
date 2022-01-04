@@ -38,6 +38,9 @@ extern path_t computerDir;
 extern std::unordered_set<Computer*> freedComputers;
 extern std::list<std::thread*> computerThreads;
 extern std::thread::id mainThreadID;
+extern bool listenerMode;
+extern std::mutex listenerModeMutex;
+extern std::condition_variable listenerModeNotify;
 
 extern int getNextEvent(lua_State* L, const std::string& filter);
 extern void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async = false);
@@ -51,10 +54,14 @@ extern bool addMount(Computer *comp, const path_t& real_path, const char * comp_
 extern bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path);
 extern void registerPeripheral(const std::string& name, const peripheral_init_fn& initializer);
 extern void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
+extern void pumpTaskQueue();
+extern void defaultPollEvents();
 extern void mainLoop();
+extern void preloadPlugins();
 extern std::unordered_map<path_t, std::string> initializePlugins();
 extern void loadPlugins(Computer * comp);
 extern void deinitializePlugins();
+extern void unloadPlugins();
 extern void stopWebsocket(void*);
 extern peripheral* attachPeripheral(Computer * computer, const std::string& side, const std::string& type, std::string * errorReturn, const char * format, ...);
 extern bool detachPeripheral(Computer * computer, const std::string& side);

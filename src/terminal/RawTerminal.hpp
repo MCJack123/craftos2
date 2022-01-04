@@ -13,6 +13,7 @@
 #include <set>
 #include <SDL2/SDL.h>
 #include <Terminal.hpp>
+#include "../runtime.hpp"
 
 enum {
     CCPC_RAW_TERMINAL_DATA = 0,
@@ -61,6 +62,7 @@ public:
     uint8_t computerID;
     static void init();
     static void quit();
+    static void pollEvents() {defaultPollEvents();}
     static void showGlobalMessage(uint32_t flags, const char * title, const char * message);
     static void initClient(uint16_t flags, uint32_t extflags = 0);
     RawTerminal(std::string title, uint8_t computerID = 0);

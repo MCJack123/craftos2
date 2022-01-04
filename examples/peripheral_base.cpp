@@ -44,9 +44,6 @@ static PluginInfo info;
 library_t myperipheral::methods = {"myperipheral", methods_reg, nullptr, nullptr};
 
 extern "C" {
-#ifdef _WIN32
-_declspec(dllexport)
-#endif
 PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
     // Replace myperipheral with the name of your peripheral
     func->registerPeripheral("myperipheral", &myperipheral::init);

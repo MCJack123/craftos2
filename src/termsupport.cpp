@@ -31,8 +31,11 @@
 #include "runtime.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/debugger.hpp"
-#include "terminal/SDLTerminal.hpp"
 #include "termsupport.hpp"
+#include "terminal/SDLTerminal.hpp"
+#include "terminal/HardwareSDLTerminal.hpp"
+#include "terminal/RawTerminal.hpp"
+#include "terminal/TRoRTerminal.hpp"
 #ifndef NO_CLI
 #include "terminal/CLITerminal.hpp"
 #endif
@@ -233,6 +236,37 @@ std::thread * renderThread;
     {1026, 56}
 };
 #endif
+
+template<class T>
+class TerminalFactoryImpl: public TerminalFactory {
+public:
+    virtual Terminal * createTerminal(const std::string& title) {T* retval = new T(title); retval->factory = this; return retval;}
+    virtual void deleteTerminal(Terminal * term) {delete (T*)term;}
+    virtual void init() {T::init();}
+    virtual void quit() {T::quit();}
+    virtual void pollEvents() {T::pollEvents();}
+};
+
+TerminalFactoryImpl<SDLTerminal> SDLTerminalFactory;
+TerminalFactoryImpl<HardwareSDLTerminal> HardwareSDLTerminalFactory;
+TerminalFactoryImpl<RawTerminal> RawTerminalFactory;
+TerminalFactoryImpl<TRoRTerminal> TRoRTerminalFactory;
+#ifndef NO_CLI
+TerminalFactoryImpl<CLITerminal> CLITerminalFactory;
+#endif
+
+std::vector<TerminalFactory *> terminalFactories = {
+    &SDLTerminalFactory,
+    NULL,
+#ifndef NO_CLI
+    &CLITerminalFactory,
+#else
+    NULL,
+#endif
+    &RawTerminalFactory,
+    &TRoRTerminalFactory,
+    &HardwareSDLTerminalFactory
+};
 
 Uint32 task_event_type;
 Uint32 render_event_type;
@@ -976,4 +1010,11 @@ void displayFailure(Terminal * term, const std::string& message, const std::stri
     term->canBlink = false;
     term->errorMode = true;
     term->changed = true;
+}
+
+Terminal * createTerminal(const std::string& title) {
+    if (selectedRenderer >= terminalFactories.size()) return NULL;
+    TerminalFactory * factory = terminalFactories[selectedRenderer];
+    if (factory == NULL) return NULL;
+    return factory->createTerminal(title);
 }

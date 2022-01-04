@@ -377,22 +377,7 @@ bool CLITerminal::pollEvents() {
             c->event_lock.notify_all();
         }
     }
-    while (taskQueue->size() > 0) {
-        TaskQueueItem * task = taskQueue->front();
-        bool async = task->async;
-        {
-            std::unique_lock<std::mutex> lock(task->lock);
-            try {
-                task->data = task->func(task->data);
-            } catch (...) {
-                task->exception = std::current_exception();
-            }
-            task->ready = true;
-            task->notify.notify_all();
-        }
-        if (async) delete task;
-        taskQueue->pop();
-    }
+    pumpTaskQueue();
     if (ch == KEY_SLEFT) { previousRenderTarget(); CLITerminal::renderNavbar(""); } 
     else if (ch == KEY_SRIGHT) { nextRenderTarget(); CLITerminal::renderNavbar(""); } 
     else if (ch == KEY_MOUSE) {
@@ -416,7 +401,7 @@ bool CLITerminal::pollEvents() {
                         for (Terminal * t : orphanedTerminals) {
                             if (t == *renderTarget) {
                                 orphanedTerminals.erase(t);
-                                delete t;
+                                t->factory->deleteTerminal(t);
                                 break;
                             }
                         }

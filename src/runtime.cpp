@@ -48,6 +48,7 @@ std::condition_variable taskQueueNotify;
 bool exiting = false;
 std::thread::id mainThreadID;
 std::atomic_bool taskQueueReady(false);
+bool listenerMode = false;
 static std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > globalEventHooks;
 
 monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string* sideReturn) {
@@ -119,38 +120,55 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
     }
 }
 
-void mainLoop() {
-#ifndef __EMSCRIPTEN__
-    while (rawClient ? !exiting : !computers->empty() || !orphanedTerminals.empty()) {
-#endif
-        //bool res = false; // I forgot what this is for
-        if (selectedRenderer == 0) /*res =*/ SDLTerminal::pollEvents();
-#ifndef NO_CLI
-        else if (selectedRenderer == 2) /*res =*/ CLITerminal::pollEvents();
-#endif
-        else if (selectedRenderer == 5) HardwareSDLTerminal::pollEvents();
-        else {
-            std::unique_lock<std::mutex> lock(taskQueue.getMutex());
-            while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
-            while (!taskQueue->empty()) {
-                TaskQueueItem * task = taskQueue->front();
-                bool async = task->async;
-                {
-                    std::unique_lock<std::mutex> lock(task->lock);
-                    try {
-                        task->data = task->func(task->data);
-                    } catch (...) {
-                        task->exception = std::current_exception();
-                    }
-                    task->ready = true;
-                    task->notify.notify_all();
-                }
-                if (async) delete task;
-                taskQueue->pop();
+void pumpTaskQueue() {
+    LockGuard lock2(taskQueue);
+    while (!taskQueue->empty()) {
+        TaskQueueItem * task = taskQueue->front();
+        bool async = task->async;
+        {
+            std::unique_lock<std::mutex> lock(task->lock);
+            try {
+                task->data = task->func(task->data);
+            } catch (...) {
+                task->exception = std::current_exception();
             }
-            taskQueueReady = false;
+            task->ready = true;
+            task->notify.notify_all();
         }
+        if (async) delete task;
+        taskQueue->pop();
+    }
+}
 
+void defaultPollEvents() {
+    std::unique_lock<std::mutex> lock(taskQueue.getMutex());
+    while (!taskQueueReady) taskQueueNotify.wait_for(lock, std::chrono::seconds(5));
+    while (!taskQueue->empty()) {
+        TaskQueueItem * task = taskQueue->front();
+        bool async = task->async;
+        {
+            std::unique_lock<std::mutex> lock(task->lock);
+            try {
+                task->data = task->func(task->data);
+            } catch (...) {
+                task->exception = std::current_exception();
+            }
+            task->ready = true;
+            task->notify.notify_all();
+        }
+        if (async) delete task;
+        taskQueue->pop();
+    }
+    taskQueueReady = false;
+}
+
+void mainLoop() {
+    TerminalFactory * factory = selectedRenderer >= terminalFactories.size() ? NULL : terminalFactories[selectedRenderer];
+#ifndef __EMSCRIPTEN__
+    while (!listenerMode && (rawClient ? !exiting : !computers->empty() || !orphanedTerminals.empty())) {
+#endif
+        if (factory) factory->pollEvents();
+        else defaultPollEvents();
         std::this_thread::yield();
 #ifdef __EMSCRIPTEN__
         if (!rawClient && computers->size() == 0) exiting = true;
