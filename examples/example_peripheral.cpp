@@ -44,7 +44,7 @@ static PluginInfo info;
 library_t example_peripheral::methods = {"example_peripheral", methods_reg, nullptr, nullptr};
 
 extern "C" {
-PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
+DLLEXPORT PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
     func->registerPeripheralFn("example_peripheral", &example_peripheral::init);
     return &info;
 }

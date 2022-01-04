@@ -249,13 +249,13 @@ static struct luaL_reg M[] = {
 static PluginInfo info("ccemux", 3);
 
 extern "C" {
-int luaopen_ccemux(lua_State *L) {
+DLLEXPORT int luaopen_ccemux(lua_State *L) {
     luaL_register(L, lua_tostring(L, 1), M);
     functions->addVirtualMount(get_comp(L), emuROM, "/rom");
     return 1;
 }
 
-PluginInfo * plugin_init(const PluginFunctions * func, const path_t& path) {
+DLLEXPORT PluginInfo * plugin_init(const PluginFunctions * func, const path_t& path) {
     functions = func;
     return &info;
 }

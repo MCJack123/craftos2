@@ -25,12 +25,12 @@ static PluginInfo info("myplugin");
 
 extern "C" {
 // replace "myplugin" with the plugin name
-int luaopen_myplugin(lua_State *L) {
+DLLEXPORT int luaopen_myplugin(lua_State *L) {
     luaL_register(L, "myplugin", M);
     return 1;
 }
 
-PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
+DLLEXPORT PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
     // configure any other information, or save the functions here...
     return &info;
 }
