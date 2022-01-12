@@ -115,7 +115,7 @@ void preloadPlugins() {
                 printf("Failed to load plugin at %s: %s\n", astr(plugin_path + dir->d_name).c_str(), SDL_GetError());
                 continue;
             }
-            const auto plugin_load = (void(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_load");
+            const auto plugin_load = (void(*)(const PluginFunctions*,const path_t&))SDL_LoadFunction(handle, "plugin_load");
             if (plugin_load != NULL) plugin_load(&function_map, path);
             loadedPlugins[path] = std::make_pair(handle, (PluginInfo*)NULL);
         }
@@ -129,7 +129,7 @@ void preloadPlugins() {
             printf("Failed to load plugin at %s: %s\n", astr(path).c_str(), SDL_GetError());
             continue;
         }
-        const auto plugin_load = (void(*)(const PluginFunctions*, path_t))SDL_LoadFunction(handle, "plugin_load");
+        const auto plugin_load = (void(*)(const PluginFunctions*, const path_t&))SDL_LoadFunction(handle, "plugin_load");
         if (plugin_load != NULL) plugin_load(&function_map, path);
         loadedPlugins[path] = std::make_pair(handle, (PluginInfo*)NULL);
     }

@@ -387,7 +387,7 @@ extern "C" {
 // terminal types that can't be added after initialization. It is recommended
 // that anything that does not explicitly need to be here should go in
 // `plugin_init`, as that function is much safer and can handle errors.
-DLLEXPORT void plugin_load(const PluginFunctions * func, path_t path);
+DLLEXPORT void plugin_load(const PluginFunctions * func, const path_t& path);
 
 // This function is called after basic initialization has completed, before any
 // computers have started up. It is used to initialize any global state required
@@ -399,7 +399,7 @@ DLLEXPORT void plugin_load(const PluginFunctions * func, path_t path);
 // `plugin_deinit` is called after this; however, if an exception is thrown,
 // `plugin_deinit` is *not* called, as it is assumed that `plugin_init` has
 // already handled cleanup.
-DLLEXPORT PluginInfo * plugin_init(const PluginFunctions * func, path_t path);
+DLLEXPORT PluginInfo * plugin_init(const PluginFunctions * func, const path_t& path);
 
 // This function is called when deinitializing the plugin while preparing to quit
 // CraftOS-PC, before terminals have been shut down. It gives the plugin a chance
