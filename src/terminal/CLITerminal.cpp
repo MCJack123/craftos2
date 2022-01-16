@@ -253,13 +253,6 @@ static void pressAlt(int sig) {
 
 void CLITerminal::init() {
     singleWindowMode = true;
-    if (config.defaultWidth == 51 && config.defaultHeight == 19) {
-        ::width = COLS;
-        ::height = LINES;
-    } else {
-        ::width = config.defaultWidth;
-        ::height = config.defaultHeight;
-    }
     SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER);
     initscr();
     keypad(stdscr, TRUE);
@@ -279,6 +272,13 @@ void CLITerminal::init() {
         }
     }
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
+    if (config.defaultWidth == 51 && config.defaultHeight == 19) {
+        ::width = COLS;
+        ::height = LINES;
+    } else {
+        ::width = config.defaultWidth;
+        ::height = config.defaultHeight;
+    }
     if (config.cliControlKeyMode == 0) {
         keymap_cli[KEY_SHOME] = 199;
         keymap_cli[KEY_SEND] = 207;
