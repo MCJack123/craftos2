@@ -60,6 +60,7 @@ public:
     bool useOrigFont = false;
     bool isOnTop = false;
     bool isRecordingWebP = false;
+    std::mutex mouseMoveLock;
 
     static void init();
     static void quit();

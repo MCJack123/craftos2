@@ -652,6 +652,7 @@ static std::string mouse_move(lua_State *L, void* param) {
 static Uint32 mouseDebounce(Uint32 interval, void* param) {
     comp_term_pair * data = (comp_term_pair*)param;
     if (freedComputers.find(data->comp) != freedComputers.end()) return 0;
+    std::lock_guard<std::mutex> lock(((SDLTerminal*)data->term)->mouseMoveLock);
     if (data->term->nextMouseMove.event) queueEvent(data->comp, mouse_move, data->term);
     else data->term->mouseMoveDebounceTimer = 0;
     delete data;
@@ -830,6 +831,7 @@ std::string termGetEvent(lua_State *L) {
             if ((term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == button && term->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
             term->lastMouse = {x, y, button, 2, ""};
             if (config.mouse_move_throttle > 0 && !e.motion.state) {
+                std::lock_guard<std::mutex> lock(term->mouseMoveLock);
                 if (term->mouseMoveDebounceTimer == 0) {
                     term->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, new comp_term_pair {computer, term});
                     term->nextMouseMove = {0, 0, 0, 0, std::string()};
