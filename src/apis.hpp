@@ -5,7 +5,7 @@
  * This file defines the library structures for all CraftOS APIs.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef APIS_HPP

@@ -5,7 +5,7 @@
  * This file defines the SDLTerminal class, which is the default renderer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef TERMINAL_SDLTERMINAL_HPP
@@ -60,6 +60,7 @@ public:
     bool useOrigFont = false;
     bool isOnTop = false;
     bool isRecordingWebP = false;
+    std::mutex mouseMoveLock;
 
     static void init();
     static void quit();

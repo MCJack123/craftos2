@@ -6,7 +6,7 @@
  * first computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #include "main.hpp"
@@ -264,16 +264,6 @@ static void update_thread() {
 }
 #endif
 
-inline Terminal * createTerminal(const std::string& title) {
-#ifndef NO_CLI
-    if (selectedRenderer == 2) return new CLITerminal(title);
-    else
-#endif
-    if (selectedRenderer == 3) return new RawTerminal(title);
-    else if (selectedRenderer == 5) return new HardwareSDLTerminal(title);
-    else return new SDLTerminal(title);
-}
-
 static int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write) {
     if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 5) HardwareSDLTerminal::init();
@@ -379,7 +369,7 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
                 if (quit == 1) {
                     queueTask([id](void*)->void*{
                         rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
-                        delete rawClientTerminals[id];
+                        rawClientTerminals[id]->factory->deleteTerminal(rawClientTerminals[id]);
                         rawClientTerminals.erase(id);
                         return NULL;
                     }, NULL);
@@ -431,7 +421,7 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
     RawTerminal::initClient(CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM | CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS);
     mainLoop();
     inputThread.join();
-    for (auto t : rawClientTerminals) delete t.second;
+    for (auto t : rawClientTerminals) t.second->factory->deleteTerminal(t.second);
     if (selectedRenderer) HardwareSDLTerminal::quit();
     else SDLTerminal::quit();
     return 0;
@@ -516,20 +506,16 @@ static void migrateData(bool forced) {
 #define checkTTY() 
 #endif
 
-int main(int argc, char*argv[]) {
-    lualib_debug_ccpc_functions(setcompmask_, db_debug, db_breakpoint, db_unsetbreakpoint);
-    lualib_io_ccpc_functions(mounter_fopen_, mounter_fclose_);
-#ifdef __EMSCRIPTEN__
-    while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
-#endif
-    int id = 0;
-    bool manualID = false;
-    bool forceMigrate = false;
-    std::string base_path_storage;
-    std::string rom_path_storage;
-    path_t customDataDir;
-    for (int i = 1; i < argc; i++) {
-        std::string arg(argv[i]);
+static int id = 0;
+static bool manualID = false;
+static bool forceMigrate = false;
+static std::string base_path_storage;
+static std::string rom_path_storage;
+static path_t customDataDir;
+
+int parseArguments(const std::vector<std::string>& argv) {
+    for (int i = 0; i < argv.size(); i++) {
+        std::string arg = argv[i];
         if (arg == "--headless") { selectedRenderer = 1; checkTTY(); }
         else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
         else if (arg == "--cli" || arg == "-c") { selectedRenderer = 2; checkTTY(); }
@@ -542,22 +528,22 @@ int main(int argc, char*argv[]) {
         else if (arg == "--single") singleWindowMode = true;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
-        else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
+        else if (arg == "--exec") script_file = "\x1b" + argv[++i];
         else if (arg == "--args") script_args = argv[++i];
         else if (arg == "--plugin") customPlugins.push_back(wstr(argv[++i]));
-        else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
+        else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i].c_str());
         else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
         else if (arg == "--computers-dir" || arg == "-C") computerDir = wstr(argv[++i]);
         else if (arg.substr(0, 3) == "-C=") computerDir = wstr(arg.substr(3));
         else if (arg == "--start-dir") customDataDir = wstr(argv[++i]);
         else if (arg.substr(0, 3) == "-c=") customDataDir = wstr(arg.substr(3));
-        else if (arg == "--rom") setROMPath(argv[++i]);
+        else if (arg == "--rom") setROMPath(argv[++i].c_str());
 #ifdef _WIN32
-        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "\\assets\\computercraft\\lua").c_str());
+        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = argv[++i] + "\\assets\\computercraft\\lua").c_str());
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "\\assets\\computercraft\\lua").c_str());
         else if (arg == "--mc-save") computerDir = getMCSavePath() + wstr(argv[++i]) + WS("\\computer");
 #else
-        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "/assets/computercraft/lua").c_str());
+        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = argv[++i] + "/assets/computercraft/lua").c_str());
         else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
         else if (arg == "--mc-save") computerDir = getMCSavePath() + argv[++i] + "/computer";
 #endif
@@ -571,7 +557,7 @@ int main(int argc, char*argv[]) {
             }
             customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
         } else if (arg == "--renderer" || arg == "-r") {
-            if (++i == argc) {
+            if (++i == argv.size()) {
                 checkTTY();
                 std::cout << "Available renderering methods:\n sdl\n headless\n "
 #ifndef NO_CLI
@@ -585,8 +571,8 @@ int main(int argc, char*argv[]) {
                 }
                 return 0;
             } else {
-                arg = std::string(argv[i]);
-                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return ::tolower(c); });
+                arg = argv[i];
+                std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c); });
                 if (arg == "sdl" || arg == "awt") selectedRenderer = 0;
                 else if (arg == "headless") selectedRenderer = 1;
 #ifndef NO_CLI
@@ -598,7 +584,8 @@ int main(int argc, char*argv[]) {
                 else if (arg == "direct3d" || arg == "direct3d11" || arg == "directfb" || arg == "metal" || arg == "opengl" || arg == "opengles" || arg == "opengles2" || arg == "software") {
                     selectedRenderer = 5;
                     overrideHardwareDriver = arg;
-                } else {
+                } else if (std::stoi(arg)) selectedRenderer = std::stoi(arg);
+                else {
                     std::cerr << "Unknown renderer type " << arg << "\n";
                     return 1;
                 }
@@ -632,7 +619,7 @@ int main(int argc, char*argv[]) {
 #else
             std::cout << " print_txt";
 #endif
-            std::cout << "\nCopyright (c) 2019-2021 JackMacWindows. Licensed under the MIT License.\n";
+            std::cout << "\nCopyright (c) 2019-2022 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             checkTTY();
@@ -673,6 +660,19 @@ int main(int argc, char*argv[]) {
             return 0;
         }
     }
+    return -1;
+}
+
+int main(int argc, char*argv[]) {
+    lualib_debug_ccpc_functions(setcompmask_, db_debug, db_breakpoint, db_unsetbreakpoint);
+    lualib_io_ccpc_functions(mounter_fopen_, mounter_fclose_);
+#ifdef __EMSCRIPTEN__
+    while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
+#endif
+    std::vector<std::string> args;
+    for (int i = 1; i < argc; i++) args.push_back(std::string(argv[i]));
+    int res = parseArguments(args);
+    if (res >= 0) return res;
 #ifdef NO_CLI
     if (selectedRenderer == 2) {
         std::cerr << "Warning: CraftOS-PC was not built with CLI support, but the --cli flag was specified anyway. Continuing in GUI mode.\n";
@@ -781,15 +781,10 @@ int main(int argc, char*argv[]) {
             std::cout.flush();
         });
     }
+    preloadPlugins();
+    TerminalFactory * factory = selectedRenderer >= terminalFactories.size() ? NULL : terminalFactories[selectedRenderer];
     try {
-#ifndef NO_CLI
-        if (selectedRenderer == 2) CLITerminal::init();
-        else 
-#endif
-        if (selectedRenderer == 3) RawTerminal::init();
-        else if (selectedRenderer == 0) SDLTerminal::init();
-        else if (selectedRenderer == 4) TRoRTerminal::init();
-        else if (selectedRenderer == 5) HardwareSDLTerminal::init();
+        if (factory) factory->init();
         else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
     } catch (std::exception &e) {
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to initialize renderer", ("An error occurred while initializing the renderer: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info. CraftOS-PC will now close").c_str(), NULL);
@@ -858,11 +853,6 @@ int main(int argc, char*argv[]) {
     awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     computerThreads.clear();
-    // Clear out a few lists that plugins may insert functions into
-    // We can't let these stay past the lifetime of plugins since C++ will try
-    // to access methods that were unloaded to destroy the objects
-    SDLTerminal::eventHandlers.clear();
-    clearPeripherals();
     deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();
@@ -874,15 +864,14 @@ int main(int argc, char*argv[]) {
         updateNow(updateAtQuit, &updateAtQuitRoot);
         awaitTasks();
     }
-#ifndef NO_CLI
-    if (selectedRenderer == 2) CLITerminal::quit();
-    else 
-#endif
-    if (selectedRenderer == 3) RawTerminal::quit();
-    else if (selectedRenderer == 0) SDLTerminal::quit();
-    else if (selectedRenderer == 4) TRoRTerminal::quit();
-    else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
+    if (factory) factory->quit();
     else SDL_Quit();
+    // Clear out a few lists that plugins may insert functions into
+    // We can't let these stay past the lifetime of plugins since C++ will try
+    // to access methods that were unloaded to destroy the objects
+    SDLTerminal::eventHandlers.clear();
+    clearPeripherals();
+    unloadPlugins();
     platformExit();
     return returnValue;
 }

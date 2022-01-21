@@ -6,7 +6,7 @@
  * renderer classes.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_TERMINAL_HPP
@@ -116,6 +116,8 @@ public:
     T* data() { return vec.data(); }
 };
 
+class TerminalFactory;
+
 // The Terminal class is the base class for all renderers. It stores the basic info about all terminal objects, as well as its contents.
 class Terminal {
 public:
@@ -158,6 +160,9 @@ public:
     mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()}; // Data about the last mouse event
     uint32_t mouseMoveDebounceTimer = 0; // A timer that fires when the next mouse movement event is ready
 
+    // The following fields are available in API version 10.8 and later.
+    TerminalFactory * factory = NULL; // Stores the factory that created this terminal. Factories must always set this.
+
 protected:
     // Initial constructor to fill the contents with their defaults for the specified width and height
     Terminal(unsigned w, unsigned h): width(w), height(h), screen(w, h, ' '), colors(w, h, 0xF0), pixels(w*fontWidth, h*fontHeight, 0x0F) {
@@ -177,6 +182,16 @@ public:
     virtual void setLabel(std::string label)=0; // Sets the title of the window
     virtual bool resize(unsigned w, unsigned h)=0; // Safely sets the size of the window
     virtual void onActivate()=0; // Called in single window mode when the window becomes active
+};
+
+// The TerminalFactory class defines a class that creates new terminal objects of a certain type.
+class TerminalFactory {
+public:
+    virtual Terminal * createTerminal(const std::string& title)=0; // Returns a new terminal with the specified title.
+    virtual void deleteTerminal(Terminal * term)=0; // Deletes a terminal previously created with this factory.
+    virtual void init()=0; // Initializes the global terminal type state.
+    virtual void quit()=0; // Deinitializes the global terminal type state.
+    virtual void pollEvents()=0; // Runs in the main loop and updates any events, information, etc.
 };
 
 #endif

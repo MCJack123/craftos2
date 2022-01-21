@@ -5,7 +5,7 @@
  * This file defines structures used for storing the configuration.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_CONFIGURATION_HPP
