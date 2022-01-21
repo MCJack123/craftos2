@@ -220,6 +220,20 @@ static const char * file_reader(lua_State *L, void * ud, size_t *size) {
     return file_read_tmp;
 }
 
+static const luaL_Reg lualibs[] = {
+  {"", luaopen_base},
+  {LUA_OSLIBNAME, luaopen_os},
+  {LUA_TABLIBNAME, luaopen_table},
+  {LUA_STRLIBNAME, luaopen_string},
+  {LUA_MATHLIBNAME, luaopen_math},
+  {LUA_DBLIBNAME, luaopen_debug},
+  {LUA_UTF8LIBNAME, luaopen_utf8},
+  {LUA_BITLIBNAME, luaopen_bit},
+  {NULL, NULL}
+};
+
+static int doNothing(lua_State *L) {return 0;}
+
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
     self->running = 1;
@@ -282,19 +296,27 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_setmetatable(L, -2);
         lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
 
+        // Disable luaL_register using package.loaded by making it a dummy table
+        lua_newtable(L);
+        lua_createtable(L, 0, 1);
+        lua_pushcfunction(L, doNothing);
+        lua_setfield(L, -2, "__newindex");
+        lua_setmetatable(L, -2);
+        lua_setfield(L, LUA_REGISTRYINDEX, "_LOADED");
+
         // Load libraries
-        luaL_openlibs(self->coro);
+        const luaL_Reg *lib = lualibs;
+        for (; lib->func; lib++) {
+            lua_pushcfunction(L, lib->func);
+            lua_pushstring(L, lib->name);
+            lua_call(L, 1, 0);
+        }
         lua_getglobal(L, "os");
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
         lua_pushnil(L);
         lua_setglobal(L, "os");
-        lua_getglobal(L, "package");
-        lua_getfield(L, -1, "loaded");
-        lua_pushnil(L);
-        lua_setfield(L, -2, "os");
-        lua_pop(L, 2);
         // TODO: Fix logErrors since error hooks are no longer enabled
         if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         //else if (!self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
@@ -347,12 +369,6 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_setglobal(L, "dofile");
         lua_pushnil(L);
         lua_setglobal(L, "loadfile");
-        lua_pushnil(L);
-        lua_setglobal(L, "module");
-        lua_pushnil(L);
-        lua_setglobal(L, "require");
-        lua_pushnil(L);
-        lua_setglobal(L, "package");
         lua_pushnil(L);
         lua_setglobal(L, "print");
         if (config.vanilla) {
