@@ -678,7 +678,7 @@ int speaker::playAudio(lua_State *L) {
         Mix_RegisterEffect(audioChannel, audioEffect, NULL, this);
         Mix_PlayChannel(audioChannel, empty_chunk, -1);
     }
-    lua_pushboolean(L, true);
+    lua_pushboolean(L, false);
     return 1;
 }
 
