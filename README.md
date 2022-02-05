@@ -109,8 +109,10 @@ You can get all of these dependencies with:
   * Ubuntu: `sudo apt install git build-essential libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev; git clone https://github.com/MCJack123/craftos2-rom`
   * Arch Linux: `sudo pacman -S sdl2 sdl2_mixer png++ libwebp libharu poco ncurses`
 
-### Windows Nightly Builds
-Nightly builds of CraftOS-PC are available [on the website](https://www.craftos-pc.cc/nightly/). These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. New builds are posted at midnight EST, unless there were no changes since the last build. Note that these files are just the raw executable. You must drop the file into a pre-existing CraftOS-PC install directory for it to work properly. Depending on changes made in the latest version, you may also have to download the latest [ROM](https://github.com/MCJack123/craftos2-rom).
+### Windows artifact builds
+Builds of each commit are automatically uploaded for Windows in the Actions tab. These builds are provided to allow Windows users to test new features without having to build the entire solution and dependencies. Note that these files are just the raw executable. You must drop the file into a pre-existing CraftOS-PC install directory for it to work properly. Depending on changes made in the latest version, you may also have to download the latest [ROM](https://github.com/MCJack123/craftos2-rom). You can download the latest file directly [here](https://nightly.link/MCJack123/craftos2/workflows/main/master/CraftOS-PC-Artifact.zip).
+
+Old nightly builds, as well as Android betas, are available [on the website](https://www.craftos-pc.cc/nightly/).
 
 ### Instructions
 #### Windows

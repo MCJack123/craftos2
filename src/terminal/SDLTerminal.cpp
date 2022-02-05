@@ -5,7 +5,7 @@
  * This file implements the SDLTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #include <fstream>
@@ -685,25 +685,8 @@ bool SDLTerminal::pollEvents() {
                 break;
             }
         }
-        if (e.type == task_event_type) {
-            LockGuard lock(taskQueue);
-            while (!taskQueue->empty()) {
-                TaskQueueItem * task = taskQueue->front();
-                bool async = task->async;
-                {
-                    std::unique_lock<std::mutex> lock(task->lock);
-                    try {
-                        task->data = task->func(task->data);
-                    } catch (...) {
-                        task->exception = std::current_exception();
-                    }
-                    task->ready = true;
-                    task->notify.notify_all();
-                }
-                if (async) delete task;
-                taskQueue->pop();
-            }
-        } else if (e.type == render_event_type) {
+        if (e.type == task_event_type) pumpTaskQueue();
+        else if (e.type == render_event_type) {
             if (singleWindowMode) {
                 SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(*renderTarget);
                 if (sdlterm != NULL) {
@@ -799,7 +782,7 @@ bool SDLTerminal::pollEvents() {
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
                         orphanedTerminals.erase(t);
-                        delete t;
+                        t->factory->deleteTerminal(t);
                         break;
                     }
                 }

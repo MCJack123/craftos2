@@ -5,35 +5,20 @@
  * This file implements the methods for the monitor peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #include "monitor.hpp"
 #include "../runtime.hpp"
-#include "../terminal/SDLTerminal.hpp"
-#include "../terminal/CLITerminal.hpp"
-#include "../terminal/RawTerminal.hpp"
-#include "../terminal/TRoRTerminal.hpp"
-#include "../terminal/HardwareSDLTerminal.hpp"
+#include "../termsupport.hpp"
 
 monitor::monitor(lua_State *L, const char * side) {
     if (SDL_GetCurrentVideoDriver() != NULL && (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY"))
         throw std::runtime_error("Monitors are not available when using the Linux framebuffer");
-#ifndef NO_CLI
-    if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
-    else
-#endif
-    if (selectedRenderer == 3) term = new RawTerminal("CraftOS Terminal: Monitor " + std::string(side));
-    else if (selectedRenderer == 4) term = new TRoRTerminal("CraftOS Terminal: Monitor " + std::string(side));
-    else if (selectedRenderer == 0) {
-        term = (SDLTerminal*)queueTask([ ](void* side)->void* {
-            return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
-        }, (void*)side);
-    } else if (selectedRenderer == 5) {
-        term = (HardwareSDLTerminal*)queueTask([ ](void* side)->void* {
-            return new HardwareSDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
-        }, (void*)side);
-    } else throw std::invalid_argument("Monitors are not available in headless mode");
+    term = (Terminal*)queueTask([](void*side)->void*{
+        return createTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
+    }, (void*)side);
+    if (term == NULL) throw std::runtime_error("Monitors are not available in this mode");
     term->canBlink = false;
     unsigned w = term->width, h = term->height;
     if (lua_isnumber(L, 3)) w = (unsigned)lua_tointeger(L, 3);
@@ -41,7 +26,7 @@ monitor::monitor(lua_State *L, const char * side) {
     if (w != term->width || h != term->height) term->resize(w, h);
 }
 
-monitor::~monitor() {delete term;}
+monitor::~monitor() {term->factory->deleteTerminal(term);}
 
 int monitor::write(lua_State *L) {
     lastCFunction = __func__;

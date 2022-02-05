@@ -5,7 +5,7 @@
  * This file implements the methods for the speaker peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef NO_MIXER
@@ -464,7 +464,7 @@ static void audioEffect(int chan, void *stream, int len, void *udata) {
         Mix_Volume(chan, vol / 3 * 128);
         if (!config.standardsMode && sp->audioQueue->size() == 1)
             if (freedComputers.find(sp->comp) == freedComputers.end())
-                queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side);
+                queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side.c_str());
         else if (sp->audioQueue->empty()) sp->audioQueueEnd = 0;
     }
 }
@@ -506,7 +506,7 @@ static Uint32 audioTimer(Uint32 interval, void* param) {
 static Uint32 speaker_audio_empty_timer(Uint32 interval, void* param) {
     speaker * sp = (speaker*)param;
     if (freedComputers.find(sp->comp) == freedComputers.end())
-        queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side);
+        queueEvent(sp->comp, speaker_audio_empty, (void*)sp->side.c_str());
     return 0;
 }
 
@@ -637,7 +637,7 @@ int speaker::playAudio(lua_State *L) {
         }
         int eventTime = ceil(-500.0 + (audioQueue->size() + 1) * (512.0 / 48.0) + (delayedBufferPos / sampleSize / 48.0));
         if (eventTime > 0) queueTask([eventTime](void*sp)->void*{SDL_AddTimer(eventTime, speaker_audio_empty_timer, sp); return NULL;}, this, true);
-        else queueEvent(comp, speaker_audio_empty, (void*)side);
+        else queueEvent(comp, speaker_audio_empty, (void*)side.c_str());
         if (delayedBufferPos > 0 && delayedBufferTimer == 0)
             delayedBufferTimer = (ptrdiff_t)queueTask([](void*sp)->void*{return (void*)(ptrdiff_t)SDL_AddTimer(500, audioTimer, sp);}, this);
     } else {
@@ -678,7 +678,7 @@ int speaker::playAudio(lua_State *L) {
         Mix_RegisterEffect(audioChannel, audioEffect, NULL, this);
         Mix_PlayChannel(audioChannel, empty_chunk, -1);
     }
-    lua_pushboolean(L, true);
+    lua_pushboolean(L, false);
     return 1;
 }
 

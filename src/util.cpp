@@ -5,7 +5,7 @@
  * This file implements some commonly-used functions.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #include <atomic>
@@ -53,7 +53,14 @@ void uncache_state(lua_State *L) {
 }
 
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {
-    luaL_register(L, lib.name, lib.functions);
+    lua_newtable(L);
+    luaL_Reg * l = lib.functions;
+    for (; l->name; l++) {
+        if (l->func == NULL) continue;
+        lua_pushcclosure(L, l->func, 0);
+        lua_setfield(L, -2, l->name);
+    }
+    lua_setglobal(L, lib.name);
     if (lib.init != NULL) lib.init(comp);
 }
 

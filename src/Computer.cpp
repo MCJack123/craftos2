@@ -5,7 +5,7 @@
  * This file implements the methods of the Computer class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 extern "C" {
@@ -22,11 +22,7 @@ extern "C" {
 #include "peripheral/computer.hpp"
 #include "platform.hpp"
 #include "runtime.hpp"
-#include "terminal/SDLTerminal.hpp"
-#include "terminal/CLITerminal.hpp"
 #include "terminal/RawTerminal.hpp"
-#include "terminal/TRoRTerminal.hpp"
-#include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
 
 #ifdef __ANDROID__
@@ -85,14 +81,8 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     const computer_configuration _config = getComputerConfig(id);
     // Create the terminal
     const std::string term_title = _config.label.empty() ? "CraftOS Terminal: " + std::string(debug ? "Debugger" : "Computer") + " " + std::to_string(id) : "CraftOS Terminal: " + asciify(_config.label);
-    if (selectedRenderer == 1) term = NULL;
-#ifndef NO_CLI
-    else if (selectedRenderer == 2) term = new CLITerminal(term_title);
-#endif
-    else if (selectedRenderer == 3) term = new RawTerminal(term_title, id + 1);
-    else if (selectedRenderer == 4) term = new TRoRTerminal(term_title);
-    else if (selectedRenderer == 5) term = new HardwareSDLTerminal(term_title);
-    else term = new SDLTerminal(term_title);
+    term = createTerminal(term_title);
+    if (selectedRenderer == 3) ((RawTerminal*)term)->computerID = id + 1;
     if (term) {
         term->grayscale = !_config.isColor;
         unsigned w = term->width, h = term->height;
@@ -107,11 +97,11 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     if (debug) addVirtualMount(this, standaloneDebug, "debug");
 #else
 #ifdef _WIN32
-    if (!addMount(this, getROMPath() + WS("\\rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else delete term; throw std::runtime_error("Could not mount ROM"); }
-    if (debug) if (!addMount(this, getROMPath() + WS("\\debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else delete term; throw std::runtime_error("Could not mount debugger ROM"); }
+    if (!addMount(this, getROMPath() + WS("\\rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, getROMPath() + WS("\\debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount debugger ROM"); }
 #else
-    if (!addMount(this, getROMPath() + WS("/rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount ROM"); }
-    if (debug) if (!addMount(this, getROMPath() + WS("/debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) delete term; throw std::runtime_error("Could not mount debugger ROM"); }
+    if (!addMount(this, getROMPath() + WS("/rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, getROMPath() + WS("/debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount debugger ROM"); }
 #endif // _WIN32
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
@@ -134,7 +124,7 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
 #endif
     // Create the root directory
     if (createDirectory(dataDir) != 0) {
-        if (term) delete term;
+        if (term) term->factory->deleteTerminal(term);
         throw std::runtime_error("Could not create computer data directory");
     }
     config = new computer_configuration(_config);
@@ -147,7 +137,7 @@ Computer::~Computer() {
     // Destroy terminal
     if (term != NULL) {
         if (term->errorMode) orphanedTerminals.insert(term);
-        else delete term;
+        else term->factory->deleteTerminal(term);
     }
     // Save config
     setComputerConfig(id, *config);
@@ -220,6 +210,20 @@ static const char * file_reader(lua_State *L, void * ud, size_t *size) {
     return file_read_tmp;
 }
 
+static const luaL_Reg lualibs[] = {
+  {"", luaopen_base},
+  {LUA_OSLIBNAME, luaopen_os},
+  {LUA_TABLIBNAME, luaopen_table},
+  {LUA_STRLIBNAME, luaopen_string},
+  {LUA_MATHLIBNAME, luaopen_math},
+  {LUA_DBLIBNAME, luaopen_debug},
+  {LUA_UTF8LIBNAME, luaopen_utf8},
+  {LUA_BITLIBNAME, luaopen_bit32},
+  {NULL, NULL}
+};
+
+static int doNothing(lua_State *L) {return 0;}
+
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name) {
     self->running = 1;
@@ -282,19 +286,27 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_setmetatable(L, -2);
         lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
 
+        // Disable luaL_register using package.loaded by making it a dummy table
+        lua_newtable(L);
+        lua_createtable(L, 0, 1);
+        lua_pushcfunction(L, doNothing);
+        lua_setfield(L, -2, "__newindex");
+        lua_setmetatable(L, -2);
+        lua_setfield(L, LUA_REGISTRYINDEX, "_LOADED");
+
         // Load libraries
-        luaL_openlibs(self->coro);
+        const luaL_Reg *lib = lualibs;
+        for (; lib->func; lib++) {
+            lua_pushcfunction(L, lib->func);
+            lua_pushstring(L, lib->name);
+            lua_call(L, 1, 0);
+        }
         lua_getglobal(L, "os");
         lua_getfield(L, -1, "date");
         lua_setglobal(L, "os_date");
         lua_pop(L, 1);
         lua_pushnil(L);
         lua_setglobal(L, "os");
-        lua_getglobal(L, "package");
-        lua_getfield(L, -1, "loaded");
-        lua_pushnil(L);
-        lua_setfield(L, -2, "os");
-        lua_pop(L, 2);
         // TODO: Fix logErrors since error hooks are no longer enabled
         if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         //else if (!self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
@@ -347,12 +359,6 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_setglobal(L, "dofile");
         lua_pushnil(L);
         lua_setglobal(L, "loadfile");
-        lua_pushnil(L);
-        lua_setglobal(L, "module");
-        lua_pushnil(L);
-        lua_setglobal(L, "require");
-        lua_pushnil(L);
-        lua_setglobal(L, "package");
         lua_pushnil(L);
         lua_setglobal(L, "print");
         if (config.vanilla) {

@@ -5,18 +5,20 @@
  * This file defines the TRoRTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef TERMINAL_TRORTERMINAL_HPP
 #define TERMINAL_TRORTERMINAL_HPP
 #include <set>
 #include <Terminal.hpp>
+#include "../runtime.hpp"
 
 class TRoRTerminal: public Terminal {
 public:
     static void init();
     static void quit();
+    static void pollEvents() {defaultPollEvents();}
     static void showGlobalMessage(uint32_t flags, const char * title, const char * message);
     TRoRTerminal(std::string title);
     ~TRoRTerminal() override;

@@ -5,7 +5,7 @@
  * This file implements the RawTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #include <algorithm>
@@ -582,7 +582,7 @@ static void rawInputLoop() {
                     for (Terminal * t : orphanedTerminals) {
                         if (t->id == id) {
                             orphanedTerminals.erase(t);
-                            delete t;
+                            t->factory->deleteTerminal(t);
                             break;
                         }
                     }

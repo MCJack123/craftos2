@@ -5,7 +5,7 @@
  * This file is the main header for plugins to import CraftOS-PC's API.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_HPP
@@ -285,6 +285,46 @@ struct PluginFunctions {
      * @see peripheral_init_fn The prototype for a peripheral initializer
      */
     void (*registerPeripheralFn)(const std::string& name, const peripheral_init_fn& initializer);
+
+    // The following fields are available in API version 10.8 and later.
+
+    /**
+     * Registers a factory object for a custom terminal type, and returns the ID
+     * of the new terminal type. Note that the terminal type will not be able
+     * to be used if this is not called in `plugin_load`.
+     * @param factory The factory to register
+     * @return The ID of the new terminal type
+     */
+    int (*registerTerminalFactory)(TerminalFactory * factory);
+
+    /**
+     * Adds a number of arguments to the command line. Note that some arguments
+     * will not be effective after `plugin_load`.
+     * @param args The arguments to add
+     * @return If negative, the arguments were parsed successfully;
+     *   if zero, the arguments resulted in a successful exit (e.g. `--help`);
+     *   if positive, an error occurred while parsing arguments
+     */
+    int (*commandLineArgs)(const std::vector<std::string>& args);
+
+    /**
+     * Sets the state of listener mode. Listener mode prevents any computers
+     * from starting initially (when called from `plugin_init`), and prevents
+     * CraftOS-PC from stopping until listener mode is disabled. Disabling
+     * listener mode while no computers are running will immediately tell
+     * CraftOS-PC to quit.
+     * @param mode Whether listener mode is enabled
+     */
+    void (*setListenerMode)(bool mode);
+
+    /**
+     * Pumps the main thread task queue. THIS MUST ONLY BE CALLED ON THE MAIN
+     * THREAD, AND SHOULD ONLY BE USED WITH CUSTOM TERMINALS. Do NOT use this
+     * anywhere except inside `TerminalFactory::pollEvents`. This MUST be called
+     * inside `pollEvents` - not calling it will cause important main thread
+     * tasks (such as creating computers) to not run!
+     */
+    void (*pumpTaskQueue)();
 };
 
 /**
@@ -331,5 +371,47 @@ enum ConfigEffect {
     CONFIG_EFFECT_REBOOT,
     CONFIG_EFFECT_REOPEN
 };
+
+// Forward definitions of the plugin initialization functions to declare types and DLL linkage.
+// (As of API 10.8, it is no longer necessary to add __declspec(dllexport) to your source anymore!)
+
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT extern
+#endif
+
+extern "C" {
+// This function is called when the plugin is loaded before initializing anything
+// else, and is meant to be used for pre-initialization setup, such as adding
+// terminal types that can't be added after initialization. It is recommended
+// that anything that does not explicitly need to be here should go in
+// `plugin_init`, as that function is much safer and can handle errors.
+DLLEXPORT void plugin_load(const PluginFunctions * func, const path_t& path);
+
+// This function is called after basic initialization has completed, before any
+// computers have started up. It is used to initialize any global state required
+// for the plugin before startup, and is only called once. It should return a
+// pointer to a `PluginInfo` object that contains information about the plugin,
+// including its minimum required API/structure version. Any errors that are
+// thrown here, including through `PluginInfo`, are handled automatically and
+// displayed to the user on boot. If an error is reported through `PluginInfo`,
+// `plugin_deinit` is called after this; however, if an exception is thrown,
+// `plugin_deinit` is *not* called, as it is assumed that `plugin_init` has
+// already handled cleanup.
+DLLEXPORT PluginInfo * plugin_init(const PluginFunctions * func, const path_t& path);
+
+// This function is called when deinitializing the plugin while preparing to quit
+// CraftOS-PC, before terminals have been shut down. It gives the plugin a chance
+// to clean up any remaining resources, including deleting the `PluginInfo`
+// structure if it was dynamically allocated.
+DLLEXPORT void plugin_deinit(PluginInfo * info);
+
+// This function is called right before the plugin is unloaded, after CraftOS-PC
+// finishes deinitializing everything else. It is recommended to use
+// `plugin_deinit` instead, but this function may be necessary under some
+// circumstances.
+DLLEXPORT void plugin_unload();
+}
 
 #endif

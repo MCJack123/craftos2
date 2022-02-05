@@ -5,7 +5,7 @@
  * This file implements the CLITerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2022 JackMacWindows.
  */
 
 #ifndef NO_CLI
@@ -253,13 +253,6 @@ static void pressAlt(int sig) {
 
 void CLITerminal::init() {
     singleWindowMode = true;
-    if (config.defaultWidth == 51 && config.defaultHeight == 19) {
-        ::width = COLS;
-        ::height = LINES;
-    } else {
-        ::width = config.defaultWidth;
-        ::height = config.defaultHeight;
-    }
     SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER);
     initscr();
     keypad(stdscr, TRUE);
@@ -279,6 +272,13 @@ void CLITerminal::init() {
         }
     }
     for (int i = 0; i < 256; i++) init_pair(i, 15 - (i & 0x0f), 15 - ((i >> 4) & 0xf));
+    if (config.defaultWidth == 51 && config.defaultHeight == 19) {
+        ::width = COLS;
+        ::height = LINES;
+    } else {
+        ::width = config.defaultWidth;
+        ::height = config.defaultHeight;
+    }
     if (config.cliControlKeyMode == 0) {
         keymap_cli[KEY_SHOME] = 199;
         keymap_cli[KEY_SEND] = 207;
@@ -377,22 +377,7 @@ bool CLITerminal::pollEvents() {
             c->event_lock.notify_all();
         }
     }
-    while (taskQueue->size() > 0) {
-        TaskQueueItem * task = taskQueue->front();
-        bool async = task->async;
-        {
-            std::unique_lock<std::mutex> lock(task->lock);
-            try {
-                task->data = task->func(task->data);
-            } catch (...) {
-                task->exception = std::current_exception();
-            }
-            task->ready = true;
-            task->notify.notify_all();
-        }
-        if (async) delete task;
-        taskQueue->pop();
-    }
+    pumpTaskQueue();
     if (ch == KEY_SLEFT) { previousRenderTarget(); CLITerminal::renderNavbar(""); } 
     else if (ch == KEY_SRIGHT) { nextRenderTarget(); CLITerminal::renderNavbar(""); } 
     else if (ch == KEY_MOUSE) {
@@ -416,7 +401,7 @@ bool CLITerminal::pollEvents() {
                         for (Terminal * t : orphanedTerminals) {
                             if (t == *renderTarget) {
                                 orphanedTerminals.erase(t);
-                                delete t;
+                                t->factory->deleteTerminal(t);
                                 break;
                             }
                         }
