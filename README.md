@@ -34,13 +34,25 @@ $ open /Applications/CraftOS-PC.app
 2. Drag and drop into Applications (or not)
 3. Double-click CraftOS-PC(.app)
 
-### Ubuntu (PPA)
+### Linux
+#### Ubuntu (PPA)
 ```bash
 $ sudo add-apt-repository ppa:jackmacwindows/ppa
 $ sudo apt update
 $ sudo apt install craftos-pc
 $ craftos
 ```
+
+#### Fedora (COPR)
+```sh
+sudo dnf copr enable lemoonstar/CraftOS-PC
+sudo dnf install craftos-pc
+```
+
+Fedora support is maintained by [LeMoonStar](https://github.com/LeMoonStar). For any issues with the Fedora package itself, please contact them [on their GitHub repo](https://github.com/LeMoonStar/craftos2-rpm).
+
+#### Arch Linux
+Install the `craftos-pc` package using your chosen AUR helper (e.g. `yay -S craftos-pc`).
 
 ### iOS
 [Visit the App Store](https://apps.apple.com/us/app/craftos-pc/id1565893014) to download CraftOS-PC. Or you can [join the TestFlight beta](https://testflight.apple.com/join/SiuXlijR) to get access to the latest versions before they're released.
@@ -49,9 +61,6 @@ $ craftos
 1. Download CraftOS-PC.apk from the latest release
 2. Open the file and tap "Install"
 3. Open CraftOS-PC from the app drawer or home screen
-
-### Arch Linux
-Install the `craftos-pc` package using your chosen AUR helper (e.g. `yay -S craftos-pc`).
 
 ### v2.2: Where are my files?
 CraftOS-PC v2.2 moves the save directory to be more appropriate for each platform. Your files are not gone; they're automatically moved over before launching if the old folder is still present. You can find the computer data files at these locations:
