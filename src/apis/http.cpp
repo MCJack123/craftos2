@@ -248,7 +248,8 @@ downloadThread_entry:
         }
         if (status.empty()) {
             size_t pos = param->url.find('/', param->url.find(uri.getHost()));
-            path = urlEncode(pos != std::string::npos ? param->url.substr(pos) : "/");
+            size_t hash = pos != std::string::npos ? param->url.find('#', pos) : std::string::npos;
+            path = urlEncode(pos != std::string::npos ? param->url.substr(pos, hash - pos) : "/");
             if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
             bool found = false;
             for (const std::string& wclass : config.http_whitelist) {
