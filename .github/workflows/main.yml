@@ -158,7 +158,7 @@ jobs:
 
         Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $tag = git rev-parse --short HEAD
-        set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
+        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT=\"$tag\"
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
         # Remove buildtrees that kill the cache
         Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
