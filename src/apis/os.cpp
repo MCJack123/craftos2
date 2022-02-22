@@ -247,6 +247,8 @@ static int os_epoch(lua_State *L) {
         lua_Integer epoch = (lua_Integer)(m_day * 86400000) + (lua_Integer)(m_time * 3600000.0);
         if (config.standardsMode) epoch = (lua_Integer)floor(epoch / 200) * 200;
         lua_pushinteger(L, epoch);
+    } else if (tmp == "nano") {
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
     } else luaL_error(L, "Unsupported operation");
     return 1;
 }
