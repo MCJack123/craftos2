@@ -576,7 +576,7 @@ int speaker::playAudio(lua_State *L) {
     size_t len = lua_objlen(L, 1);
     if (len > 131072) luaL_error(L, "Audio data is too large");
     else if (len == 0) luaL_error(L, "Cannot play empty audio");
-    if (config.standardsMode && audioQueue->size() > 47) {
+    if (audioQueue->size() > (config.standardsMode ? 47 : 187)) {
         lua_pushboolean(L, false);
         return 1;
     }
@@ -591,16 +591,11 @@ int speaker::playAudio(lua_State *L) {
     if (config.useDFPWM || config.standardsMode) {
         uint8_t * encdata = new uint8_t[len / 8 + (len % 8 != 0)];
         {
-            int q = 0;
-            int s = 0;
-            int lt = -128;
+            int q = 0, s = 0, lt = -128;
             au_compress(&q, &s, &lt, len / 8 + (len % 8 != 0), encdata, data + 44);
         }
         {
-            int fq = 0;
-            int q = 0;
-            int s = 0;
-            int lt = -128;
+            int fq = 0, q = 0, s = 0, lt = -128;
             au_decompress(&fq, &q, &s, &lt, 100, len / 8 + (len % 8 != 0), data + 44, encdata);
         }
         delete[] encdata;
@@ -678,7 +673,7 @@ int speaker::playAudio(lua_State *L) {
         Mix_RegisterEffect(audioChannel, audioEffect, NULL, this);
         Mix_PlayChannel(audioChannel, empty_chunk, -1);
     }
-    lua_pushboolean(L, false);
+    lua_pushboolean(L, true);
     return 1;
 }
 
