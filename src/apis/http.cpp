@@ -1124,7 +1124,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         return;
     }
     size_t pos = str.find('/', str.find(uri.getHost()));
-    size_t hash = pos != std::string::npos ? param->url.find('#', pos) : std::string::npos;
+    size_t hash = pos != std::string::npos ? str.find('#', pos) : std::string::npos;
     std::string path = urlEncode(pos != std::string::npos ? str.substr(pos, hash - pos) : "/");
     if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
