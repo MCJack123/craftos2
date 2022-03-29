@@ -63,9 +63,9 @@ static int term_scroll(lua_State *L) {
         memmove(term->colors.data(), term->colors.data() + lines * term->width, (term->height - lines) * term->width);
         memset(term->colors.data() + (term->height - lines) * term->width, computer->colors, lines * term->width);
     } else if (lines < 0) {
-        memmove(term->screen.data() - lines * term->width, term->screen.data(), (term->height + lines) * term->width);
+        memmove(term->screen.data() - lines * (int)term->width, term->screen.data(), ((int)term->height + lines) * term->width);
         memset(term->screen.data(), ' ', -lines * term->width);
-        memmove(term->colors.data() - lines * term->width, term->colors.data(), (term->height + lines) * term->width);
+        memmove(term->colors.data() - lines * (int)term->width, term->colors.data(), ((int)term->height + lines) * term->width);
         memset(term->colors.data(), computer->colors, -lines * term->width);
     }
     term->changed = true;
