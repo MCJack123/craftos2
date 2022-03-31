@@ -987,7 +987,10 @@ public:
         wsh->port = srv->port();
         wsh->clientID = &request;
         wsh->hasSwitched = false;
-        comp->openWebsockets.push_back(&wsh);
+        {
+            std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+            comp->openWebsockets.push_back(&wsh);
+        }
         queueEvent(comp, websocket_success, &wsh);
         char * buf = new char[config.http_max_websocket_message];
         while (wsh->ws) {
@@ -1028,15 +1031,21 @@ public:
             }
             std::this_thread::yield();
         }
-        auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
-        if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+        {
+            std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+            auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
+            if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+        }
         try {ws->shutdown();} catch (...) {}
         if (--(*retainCount) == 0 && srv != NULL) {
             try {srv->stop();}
             catch (...) {}
             delete srv;
             srv = NULL;
-            comp->openWebsocketServers.erase(wsh->port);
+            {
+                std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+                comp->openWebsocketServers.erase(wsh->port);
+            }
             queueEvent(comp, websocket_server_closed, (void*)(ptrdiff_t)wsh->port);
         }
         while (!wsh->hasSwitched) std::this_thread::yield();
@@ -1159,7 +1168,10 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     wsh->ws = ws;
     wsh->inUse = true;
     wsh->hasSwitched = false;
-    comp->openWebsockets.push_back(&wsh);
+    {
+        std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+        comp->openWebsockets.push_back(&wsh);
+    }
     queueEvent(comp, websocket_success, &wsh);
     char * buf = new char[config.http_max_websocket_message];
     while (wsh->ws) {
@@ -1214,8 +1226,11 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         std::this_thread::yield();
     }
     delete[] buf;
-    auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
-    if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+    {
+        std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+        auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
+        if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+    }
     wsh->url = "";
     try {ws->shutdown();} catch (...) {}
     while (!wsh->hasSwitched) std::this_thread::yield();
