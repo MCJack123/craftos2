@@ -117,7 +117,7 @@ std::unordered_map<std::string, std::pair<int, int> > configSettings = {
     {"useVsync", {2, 0}},
     {"http_websocket_enabled", {1, 0}},
     {"http_max_websockets", {0, 1}},
-    {"http_max_websocket_message", {1, 0}},
+    {"http_max_websocket_message", {0, 1}},
     {"http_max_requests", {0, 1}},
     {"http_max_upload", {0, 1}},
     {"http_max_download", {0, 1}},
