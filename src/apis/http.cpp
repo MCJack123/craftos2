@@ -268,7 +268,7 @@ downloadThread_entry:
             else if (uri.getScheme() == "http") {
                 session = new HTTPClientSession(uri.getHost(), uri.getPort());
             } else if (uri.getScheme() == "https") {
-                Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
 #if POCO_VERSION >= 0x010A0000
                 context->disableProtocols(Context::PROTO_TLSV1_3); // Some sites break under TLS 1.3 - disable it to maintain compatibility until fixed (pocoproject/poco#3395)
 #endif
@@ -410,7 +410,7 @@ void HTTPDownload(const std::string& url, const std::function<void(std::istream*
         callback(NULL, &e, NULL);
         return;
     }
-    Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
 #if POCO_VERSION >= 0x010A0000
     ctx->disableProtocols(Context::PROTO_TLSV1_3);
 #endif
@@ -1120,7 +1120,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     HTTPClientSession * cs;
     if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
     else if (uri.getScheme() == "wss") {
-        Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+        Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
 #if POCO_VERSION >= 0x010A0000
         ctx->disableProtocols(Context::PROTO_TLSV1_3);
 #endif

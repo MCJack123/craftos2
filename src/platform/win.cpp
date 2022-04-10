@@ -18,6 +18,7 @@
 #include <Poco/SHA2Engine.h>
 #include <Poco/URI.h>
 #include <Poco/Version.h>
+#include <Poco/Crypto/X509Certificate.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPSClientSession.h>
@@ -364,12 +365,36 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 #ifdef CRASHREPORT_API_KEY
 #include "../apikey.cpp" // if you get an error here, please go into Project Properties => C/C++ => Preprocessor => Preprocessor Defines and remove "CRASHREPORT_API_KEY" from the list
 
+const std::string amazon_certificate = "-----BEGIN CERTIFICATE-----\n\
+MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n\
+ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n\
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL\n\
+MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv\n\
+b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj\n\
+ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM\n\
+9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw\n\
+IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6\n\
+VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L\n\
+93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm\n\
+jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC\n\
+AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA\n\
+A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI\n\
+U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs\n\
+N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv\n\
+o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU\n\
+5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy\n\
+rqXRfboQnoZsG4q5WTP468SQvvG5\n\
+-----END CERTIFICATE-----";
+
 static bool pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
     Poco::URI uri(url);
-    Poco::Net::Context * ctx = new Poco::Net::Context(Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    Poco::Net::Context * ctx = new Poco::Net::Context(Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_STRICT, 9, false, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
 #if POCO_VERSION >= 0x010A0000
     ctx->disableProtocols(Poco::Net::Context::PROTO_TLSV1_3);
 #endif
+    std::stringstream certstream(amazon_certificate);
+    ctx->addCertificateAuthority(Poco::Crypto::X509Certificate(certstream));
+    ctx->enableExtendedCertificateVerification();
     Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), ctx);
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
     Poco::Net::HTTPRequest request(method, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);

@@ -153,7 +153,7 @@ static void showReleaseNotes() {
 
 static void update_thread() {
     try {
-        Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+        Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
         if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
         Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", Poco::Net::HTTPMessage::HTTP_1_1);
         Poco::Net::HTTPResponse response;
@@ -696,7 +696,7 @@ int main(int argc, char*argv[]) {
             if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
             Poco::Net::HTTPClientSession * cs;
             if (uri.getScheme() == "ws") cs = new Poco::Net::HTTPClientSession(uri.getHost(), uri.getPort());
-            else if (uri.getScheme() == "wss") cs = new Poco::Net::HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+            else if (uri.getScheme() == "wss") cs = new Poco::Net::HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
             else {
                 std::cerr << "Could not connect to WebSocket: Invalid scheme '" + uri.getScheme() + "'\n";
                 return 6;
