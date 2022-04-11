@@ -116,6 +116,11 @@ static std::string http_success(lua_State *L, void* data) {
         lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_readByte, 1);
         lua_settable(L, -3);
+
+        lua_pushstring(L, "seek");
+        lua_pushvalue(L, -3);
+        lua_pushcclosure(L, http_handle_seek, 1);
+        lua_settable(L, -3);
     }
 
     lua_pushstring(L, "getResponseCode");
@@ -174,6 +179,11 @@ static std::string http_failure(lua_State *L, void* data) {
             lua_pushstring(L, "read");
             lua_pushvalue(L, -3);
             lua_pushcclosure(L, http_handle_readByte, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "seek");
+            lua_pushvalue(L, -3);
+            lua_pushcclosure(L, http_handle_seek, 1);
             lua_settable(L, -3);
         }
 

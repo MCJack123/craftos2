@@ -196,6 +196,28 @@ int http_handle_getResponseHeaders(lua_State *L) {
     return 1;
 }
 
+int http_handle_seek(lua_State *L) {
+    lastCFunction = __func__;
+    http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
+    if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
+    std::istream * fp = handle->stream;
+    const char * whence = luaL_optstring(L, 1, "cur");
+    const size_t offset = luaL_optinteger(L, 2, 0);
+    std::ios::seekdir origin;
+    if (strcmp(whence, "set") == 0) origin = std::ios::beg;
+    else if (strcmp(whence, "cur") == 0) origin = std::ios::cur;
+    else if (strcmp(whence, "end") == 0) origin = std::ios::end;
+    else return luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
+    fp->seekg(offset, origin);
+    if (fp->bad()) {
+        lua_pushnil(L);
+        lua_pushstring(L, strerror(errno));
+        return 2;
+    }
+    lua_pushinteger(L, fp->tellg());
+    return 1;
+}
+
 int req_read(lua_State *L) {
     lastCFunction = __func__;
     HTTPServerRequest * req = (HTTPServerRequest*)lua_touserdata(L, lua_upvalueindex(1));
