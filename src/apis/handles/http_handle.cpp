@@ -295,21 +295,19 @@ int req_getRequestHeaders(lua_State *L) {
 
 int res_write(lua_State *L) {
     lastCFunction = __func__;
+    std::string str = checkstring(L, 1);
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
-    size_t len = 0;
-    const char * buf = luaL_checklstring(L, 1, &len);
-    res->body += std::string(buf, len);
+    res->body += str;
     return 0;
 }
 
 int res_writeLine(lua_State *L) {
     lastCFunction = __func__;
+    std::string str = checkstring(L, 1);
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
-    size_t len = 0;
-    const char * buf = luaL_checklstring(L, 1, &len);
-    res->body += std::string(buf, len);
+    res->body += str;
     res->body += "\n";
     return 0;
 }

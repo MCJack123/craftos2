@@ -806,10 +806,10 @@ void* computerThread(void* data) {
         }
         first = false;
     } while ((config.keepOpenOnShutdown || config.standardsMode) && !comp->requestedExit);
-    freedComputers.insert(comp);
-    queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp, true);
     {
         LockGuard lock(computers);
+        freedComputers.insert(comp);
+        queueTask([](void* arg)->void* {delete (Computer*)arg; return NULL;}, comp, true);
         for (auto it = computers->begin(); it != computers->end(); ++it) {
             if (*it == comp) {
                 it = computers->erase(it);
