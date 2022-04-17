@@ -47,6 +47,8 @@ extern "C" {
 #include <lualib.h>
 }
 
+using namespace Poco::Net;
+
 #ifdef __ANDROID__
 extern "C" {extern int Android_JNI_SetupThread(void);}
 #endif
@@ -153,10 +155,12 @@ static void showReleaseNotes() {
 
 static void update_thread() {
     try {
-        Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+        Context::Ptr ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+        addSystemCertificates(ctx);
+        HTTPSClientSession session("api.github.com", 443, ctx);
         if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
-        Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", Poco::Net::HTTPMessage::HTTP_1_1);
-        Poco::Net::HTTPResponse response;
+        HTTPRequest request(HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", HTTPMessage::HTTP_1_1);
+        HTTPResponse response;
         session.setTimeout(Poco::Timespan(5000000));
         request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
         session.sendRequest(request);
@@ -694,22 +698,25 @@ int main(int argc, char*argv[]) {
                 return 6;
             }
             if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
-            Poco::Net::HTTPClientSession * cs;
-            if (uri.getScheme() == "ws") cs = new Poco::Net::HTTPClientSession(uri.getHost(), uri.getPort());
-            else if (uri.getScheme() == "wss") cs = new Poco::Net::HTTPSClientSession(uri.getHost(), uri.getPort(), new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
-            else {
+            HTTPClientSession * cs;
+            if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
+            else if (uri.getScheme() == "wss") {
+                Context::Ptr ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                addSystemCertificates(ctx);
+                cs = new HTTPSClientSession(uri.getHost(), uri.getPort(), ctx);
+            } else {
                 std::cerr << "Could not connect to WebSocket: Invalid scheme '" + uri.getScheme() + "'\n";
                 return 6;
             }
             if (uri.getPathAndQuery().empty()) uri.setPath("/");
             if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
-            Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, uri.getPathAndQuery(), Poco::Net::HTTPMessage::HTTP_1_1);
+            HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
             request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
             request.add("Accept-Charset", "UTF-8");
-            Poco::Net::HTTPResponse response;
-            Poco::Net::WebSocket* ws;
+            HTTPResponse response;
+            WebSocket* ws;
             try {
-                ws = new Poco::Net::WebSocket(*cs, request, response);
+                ws = new WebSocket(*cs, request, response);
             } catch (Poco::Exception &e) {
                 std::cerr << "Could not connect to WebSocket: " << e.displayText() << "\n";
                 return 6;
@@ -735,11 +742,11 @@ int main(int argc, char*argv[]) {
                         }
                     } catch (Poco::TimeoutException &e) {
                         continue;
-                    } catch (Poco::Net::NetException &e) {
+                    } catch (NetException &e) {
                         open = false;
                         break;
                     }
-                    if (flags & Poco::Net::WebSocket::FRAME_OP_CLOSE) {
+                    if (flags & WebSocket::FRAME_OP_CLOSE) {
                         open = false;
                         break;
                     } else {

@@ -622,4 +622,6 @@ void platformExit() {
 #endif
 }
 
+void addSystemCertificates(Poco::Net::Context::Ptr context) {}
+
 #endif // __INTELLISENSE__

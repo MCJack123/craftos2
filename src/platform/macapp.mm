@@ -452,3 +452,5 @@ void setFloating(SDL_Window* win, bool state) {
 }
 
 void platformExit() {}
+
+void addSystemCertificates(Poco::Net::Context::Ptr context) {}

@@ -22,8 +22,10 @@
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPSClientSession.h>
+#include <Poco/Net/SSLException.h>
 #include <processenv.h>
 #include <Shlwapi.h>
+#include <wincrypt.h>
 #include <commctrl.h>
 #include <dirent.h>
 #include <SDL2/SDL_syswm.h>
@@ -365,7 +367,7 @@ void invalidParameterHandler(const wchar_t * expression, const wchar_t * functio
 #ifdef CRASHREPORT_API_KEY
 #include "../apikey.cpp" // if you get an error here, please go into Project Properties => C/C++ => Preprocessor => Preprocessor Defines and remove "CRASHREPORT_API_KEY" from the list
 
-const std::string amazon_certificate = "-----BEGIN CERTIFICATE-----\n\
+const std::string amazon_root_certificate = "-----BEGIN CERTIFICATE-----\n\
 MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n\
 ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n\
 b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL\n\
@@ -386,14 +388,44 @@ o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU\n\
 rqXRfboQnoZsG4q5WTP468SQvvG5\n\
 -----END CERTIFICATE-----";
 
-static bool pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://www.craftos-pc.cc/api/uploadCrashDump", const std::string& method = "POST") {
+const std::string amazon_certificate = "-----BEGIN CERTIFICATE-----\n\
+MIIESTCCAzGgAwIBAgITBntQXCplJ7wevi2i0ZmY7bibLDANBgkqhkiG9w0BAQsF\n\
+ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n\
+b24gUm9vdCBDQSAxMB4XDTE1MTAyMTIyMjQzNFoXDTQwMTAyMTIyMjQzNFowRjEL\n\
+MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEVMBMGA1UECxMMU2VydmVyIENB\n\
+IDFCMQ8wDQYDVQQDEwZBbWF6b24wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\n\
+AoIBAQDCThZn3c68asg3Wuw6MLAd5tES6BIoSMzoKcG5blPVo+sDORrMd4f2AbnZ\n\
+cMzPa43j4wNxhplty6aUKk4T1qe9BOwKFjwK6zmxxLVYo7bHViXsPlJ6qOMpFge5\n\
+blDP+18x+B26A0piiQOuPkfyDyeR4xQghfj66Yo19V+emU3nazfvpFA+ROz6WoVm\n\
+B5x+F2pV8xeKNR7u6azDdU5YVX1TawprmxRC1+WsAYmz6qP+z8ArDITC2FMVy2fw\n\
+0IjKOtEXc/VfmtTFch5+AfGYMGMqqvJ6LcXiAhqG5TI+Dr0RtM88k+8XUBCeQ8IG\n\
+KuANaL7TiItKZYxK1MMuTJtV9IblAgMBAAGjggE7MIIBNzASBgNVHRMBAf8ECDAG\n\
+AQH/AgEAMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUWaRmBlKge5WSPKOUByeW\n\
+dFv5PdAwHwYDVR0jBBgwFoAUhBjMhTTsvAyUlC4IWZzHshBOCggwewYIKwYBBQUH\n\
+AQEEbzBtMC8GCCsGAQUFBzABhiNodHRwOi8vb2NzcC5yb290Y2ExLmFtYXpvbnRy\n\
+dXN0LmNvbTA6BggrBgEFBQcwAoYuaHR0cDovL2NybC5yb290Y2ExLmFtYXpvbnRy\n\
+dXN0LmNvbS9yb290Y2ExLmNlcjA/BgNVHR8EODA2MDSgMqAwhi5odHRwOi8vY3Js\n\
+LnJvb3RjYTEuYW1hem9udHJ1c3QuY29tL3Jvb3RjYTEuY3JsMBMGA1UdIAQMMAow\n\
+CAYGZ4EMAQIBMA0GCSqGSIb3DQEBCwUAA4IBAQAfsaEKwn17DjAbi/Die0etn+PE\n\
+gfY/I6s8NLWkxGAOUfW2o+vVowNARRVjaIGdrhAfeWHkZI6q2pI0x/IJYmymmcWa\n\
+ZaW/2R7DvQDtxCkFkVaxUeHvENm6IyqVhf6Q5oN12kDSrJozzx7I7tHjhBK7V5Xo\n\
+TyS4NU4EhSyzGgj2x6axDd1hHRjblEpJ80LoiXlmUDzputBXyO5mkcrplcVvlIJi\n\
+WmKjrDn2zzKxDX5nwvkskpIjYlJcrQu4iCX1/YwZ1yNqF9LryjlilphHCACiHbhI\n\
+RnGfN8j8KLDVmWyTYMk8V+6j0LI4+4zFh2upqGMQHL3VFVFWBek6vCDWhB/b\n\
+-----END CERTIFICATE-----";
+
+static bool pushCrashDump(const char * data, const size_t size, const path_t& path, const std::string& url = "https://kkppoknwel.execute-api.us-east-2.amazonaws.com/dev/uploadCrashDump", const std::string& method = "POST") {
     Poco::URI uri(url);
-    Poco::Net::Context * ctx = new Poco::Net::Context(Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_STRICT, 9, false, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    Poco::Net::Context::Ptr ctx = new Poco::Net::Context(Poco::Net::Context::TLS_CLIENT_USE, "", Poco::Net::Context::VERIFY_STRICT, 9, false, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
 #if POCO_VERSION >= 0x010A0000
     ctx->disableProtocols(Poco::Net::Context::PROTO_TLSV1_3);
 #endif
+    std::stringstream rootcertstream(amazon_root_certificate);
+    Poco::Crypto::X509Certificate rootcert(rootcertstream);
+    ctx->addCertificateAuthority(rootcert);
     std::stringstream certstream(amazon_certificate);
-    ctx->addCertificateAuthority(Poco::Crypto::X509Certificate(certstream));
+    Poco::Crypto::X509Certificate cert(certstream);
+    ctx->addCertificateAuthority(cert);
     ctx->enableExtendedCertificateVerification();
     Poco::Net::HTTPSClientSession session(uri.getHost(), uri.getPort(), ctx);
     if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
@@ -424,6 +456,9 @@ static bool pushCrashDump(const char * data, const size_t size, const path_t& pa
                 return false;
             }
         }
+    } catch (Poco::Net::SSLException &e) {
+        fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), e.message().c_str());
+        return false;
     } catch (Poco::Exception &e) {
         fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), e.displayText().c_str());
         return false;
@@ -516,6 +551,16 @@ void setFloating(SDL_Window* win, bool state) {
 
 void platformExit() {
     if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
+}
+
+void addSystemCertificates(Poco::Net::Context::Ptr context) {
+    HCERTSTORE store = CertOpenSystemStore(NULL, "ROOT");
+    if (store == NULL) return;
+    for (PCCERT_CONTEXT c = CertEnumCertificatesInStore(store, NULL); c != NULL; c = CertEnumCertificatesInStore(store, c)) {
+        X509 * cert = d2i_X509(NULL, (const unsigned char**)&c->pbCertEncoded, c->cbCertEncoded);
+        context->addCertificateAuthority(Poco::Crypto::X509Certificate(cert));
+    }
+    CertCloseStore(store, 0);
 }
 
 #endif
