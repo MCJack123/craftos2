@@ -181,6 +181,7 @@ void mainLoop() {
 extern library_t * libraries[8];
 Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
     Computer * computer = (Computer*)param;
+    LockGuard lock(computers);
     if (freedComputers.find(computer) != freedComputers.end()) return 0;
     if (!computer->L || computer->getting_event || !computer->eventTimeout) return 0;
     if (++computer->timeoutCheckCount >= 5) {
