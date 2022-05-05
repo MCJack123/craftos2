@@ -33,6 +33,7 @@ int drive::getDiskLabel(lua_State *L) {
 
 int drive::setDiskLabel(lua_State *L) {
     // unimplemented
+    if (diskType == disk_type::DISK_TYPE_AUDIO) luaL_error(L, "Disk label cannot be changed");
     return 0;
 }
 
@@ -58,7 +59,8 @@ int drive::hasAudio(lua_State *L) {
 int drive::getAudioTitle(lua_State *L) {
     lastCFunction = __func__;
     if (diskType != disk_type::DISK_TYPE_AUDIO) {
-        lua_pushnil(L);
+        if (diskType == disk_type::DISK_TYPE_NONE) lua_pushboolean(L, false);
+        else lua_pushnil(L);
         return 1;
     }
     const int lastdot = (int)path.find_last_of('.');

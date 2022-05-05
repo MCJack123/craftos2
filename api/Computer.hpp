@@ -128,6 +128,8 @@ struct Computer {
     // The following fields are available in API version 10.7 and later.
     bool shouldDeleteDebugger = true;
 
+    std::mutex openWebsocketsMutex;
+
 private:
     // The constructor is marked private to avoid having to implement it in this file.
     // It isn't necessary to construct a Computer directly; just use the startComputer function instead.

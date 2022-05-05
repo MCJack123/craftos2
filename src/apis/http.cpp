@@ -116,6 +116,11 @@ static std::string http_success(lua_State *L, void* data) {
         lua_pushvalue(L, -3);
         lua_pushcclosure(L, http_handle_readByte, 1);
         lua_settable(L, -3);
+
+        lua_pushstring(L, "seek");
+        lua_pushvalue(L, -3);
+        lua_pushcclosure(L, http_handle_seek, 1);
+        lua_settable(L, -3);
     }
 
     lua_pushstring(L, "getResponseCode");
@@ -174,6 +179,11 @@ static std::string http_failure(lua_State *L, void* data) {
             lua_pushstring(L, "read");
             lua_pushvalue(L, -3);
             lua_pushcclosure(L, http_handle_readByte, 1);
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "seek");
+            lua_pushvalue(L, -3);
+            lua_pushcclosure(L, http_handle_seek, 1);
             lua_settable(L, -3);
         }
 
@@ -268,7 +278,8 @@ downloadThread_entry:
             else if (uri.getScheme() == "http") {
                 session = new HTTPClientSession(uri.getHost(), uri.getPort());
             } else if (uri.getScheme() == "https") {
-                Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                addSystemCertificates(context);
 #if POCO_VERSION >= 0x010A0000
                 context->disableProtocols(Context::PROTO_TLSV1_3); // Some sites break under TLS 1.3 - disable it to maintain compatibility until fixed (pocoproject/poco#3395)
 #endif
@@ -410,7 +421,8 @@ void HTTPDownload(const std::string& url, const std::function<void(std::istream*
         callback(NULL, &e, NULL);
         return;
     }
-    Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    Context::Ptr ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    addSystemCertificates(ctx);
 #if POCO_VERSION >= 0x010A0000
     ctx->disableProtocols(Context::PROTO_TLSV1_3);
 #endif
@@ -830,19 +842,17 @@ static int websocket_close(lua_State *L) {
 
 static int websocket_send(lua_State *L) {
     lastCFunction = __func__;
-    size_t len = 0;
-    const char * str = luaL_checklstring(L, 1, &len);
-    if (config.http_max_websocket_message > 0 && lua_strlen(L, 1) > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
+    std::string str = checkstring(L, 1);
+    if (config.http_max_websocket_message > 0 && str.size() > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
     ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
     if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
     std::string buf;
     if (!lua_toboolean(L, 2)) {
-        std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
         std::wstring wstr;
         for (unsigned char c : str) wstr += (wchar_t)c;
         std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
         buf = converter.to_bytes(wstr);
-    } else buf = std::string(str, len);
+    } else buf = str;
     if (ws->ws->sendFrame(buf.c_str(), buf.size(), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
         websocket_close(L);
     return 0;
@@ -957,7 +967,10 @@ public:
         wsh->port = srv->port();
         wsh->clientID = &request;
         wsh->hasSwitched = false;
-        comp->openWebsockets.push_back(&wsh);
+        {
+            std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+            comp->openWebsockets.push_back(&wsh);
+        }
         queueEvent(comp, websocket_success, &wsh);
         char * buf = new char[config.http_max_websocket_message];
         while (wsh->ws) {
@@ -998,15 +1011,21 @@ public:
             }
             std::this_thread::yield();
         }
-        auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
-        if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+        {
+            std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+            auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
+            if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+        }
         try {ws->shutdown();} catch (...) {}
         if (--(*retainCount) == 0 && srv != NULL) {
             try {srv->stop();}
             catch (...) {}
             delete srv;
             srv = NULL;
-            comp->openWebsocketServers.erase(wsh->port);
+            {
+                std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+                comp->openWebsocketServers.erase(wsh->port);
+            }
             queueEvent(comp, websocket_server_closed, (void*)(ptrdiff_t)wsh->port);
         }
         while (!wsh->hasSwitched) std::this_thread::yield();
@@ -1081,7 +1100,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     HTTPClientSession * cs;
     if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
     else if (uri.getScheme() == "wss") {
-        Context * ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+        Context::Ptr ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+        addSystemCertificates(ctx);
 #if POCO_VERSION >= 0x010A0000
         ctx->disableProtocols(Context::PROTO_TLSV1_3);
 #endif
@@ -1094,7 +1114,8 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         return;
     }
     size_t pos = str.find('/', str.find(uri.getHost()));
-    std::string path = urlEncode(pos != std::string::npos ? str.substr(pos) : "/");
+    size_t hash = pos != std::string::npos ? str.find('#', pos) : std::string::npos;
+    std::string path = urlEncode(pos != std::string::npos ? str.substr(pos, hash - pos) : "/");
     if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
     HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
     for (std::pair<std::string, std::string> h : headers) request.set(h.first, h.second);
@@ -1128,7 +1149,10 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     wsh->ws = ws;
     wsh->inUse = true;
     wsh->hasSwitched = false;
-    comp->openWebsockets.push_back(&wsh);
+    {
+        std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+        comp->openWebsockets.push_back(&wsh);
+    }
     queueEvent(comp, websocket_success, &wsh);
     char * buf = new char[config.http_max_websocket_message];
     while (wsh->ws) {
@@ -1183,8 +1207,11 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         std::this_thread::yield();
     }
     delete[] buf;
-    auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
-    if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+    {
+        std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
+        auto it = std::find(comp->openWebsockets.begin(), comp->openWebsockets.end(), (void*)&wsh);
+        if (it != comp->openWebsockets.end()) comp->openWebsockets.erase(it);
+    }
     wsh->url = "";
     try {ws->shutdown();} catch (...) {}
     while (!wsh->hasSwitched) std::this_thread::yield();

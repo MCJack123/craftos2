@@ -117,7 +117,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 709e9ec32e27319636c047a38744e1ce0e229ae4
+        vcpkgGitCommitId: bd1ef2df46303989eeb048eb7aa9b816aa46365e
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
@@ -146,7 +146,7 @@ jobs:
 
         Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $tag = git rev-parse --short HEAD
-        set ExternalCompilerOptions=/DCRAFTOSPC_COMMIT=\"$tag\"
+        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT=\"$tag\"
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
         # Remove buildtrees that kill the cache
         Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue

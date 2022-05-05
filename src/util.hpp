@@ -25,8 +25,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.6.5.1-luajit"
-#define CRAFTOSPC_CC_VERSION "1.100.2"
+#define CRAFTOSPC_VERSION    "v2.6.6-luajit"
+#define CRAFTOSPC_CC_VERSION "1.100.5"
 #define CRAFTOSPC_INDEV      false
 
 // for some reason Clang complains if this isn't present
@@ -141,34 +141,34 @@ typedef struct lua_TValue {
 } TValue;
 
 struct lua_State {
-	void *next;
+  void *next;
   unsigned char tt;
   unsigned char marked;
-	unsigned char status;
-	void* top;  /* first free slot in the stack */
-	void* base;  /* base of current function */
-	void *l_G;
-	void *ci;  /* call info for current function */
-	void* ctx;  /* `savedpc' of current function, or context */
-	void* stack_last;  /* last free slot in the stack */
-	void* stack;  /* stack base */
-	void *end_ci;  /* points after end of ci array*/
-	void *base_ci;  /* array of CallInfo's */
-	int stacksize;
-	int size_ci;  /* size of array `base_ci' */
-	unsigned short nCcalls;  /* number of nested C calls */
-	unsigned short baseCcalls;  /* nested C calls when resuming coroutine */
-	unsigned char hookmask;
-	unsigned char allowhook;
-	int basehookcount;
-	int hookcount;
-	lua_Hook hook;
-	TValue l_gt;  /* table of globals */
-	TValue env;  /* temporary place for environments */
-	void *openupval;  /* list of open upvalues in this stack */
-	void *gclist;
-	struct lua_longjmp *errorJmp;  /* current error recover point */
-	ptrdiff_t errfunc;  /* current error handling function (stack index) */
+  unsigned char status;
+  void* top;  /* first free slot in the stack */
+  void* base;  /* base of current function */
+  void *l_G;
+  void *ci;  /* call info for current function */
+  void* ctx;  /* `savedpc' of current function, or context */
+  void* stack_last;  /* last free slot in the stack */
+  void* stack;  /* stack base */
+  void *end_ci;  /* points after end of ci array*/
+  void *base_ci;  /* array of CallInfo's */
+  int stacksize;
+  int size_ci;  /* size of array `base_ci' */
+  unsigned short nCcalls;  /* number of nested C calls */
+  unsigned short baseCcalls;  /* nested C calls when resuming coroutine */
+  unsigned char hookmask;
+  unsigned char allowhook;
+  int basehookcount;
+  int hookcount;
+  lua_Hook hook;
+  TValue l_gt;  /* table of globals */
+  TValue env;  /* temporary place for environments */
+  void *openupval;  /* list of open upvalues in this stack */
+  void *gclist;
+  struct lua_longjmp *errorJmp;  /* current error recover point */
+  ptrdiff_t errfunc;  /* current error handling function (stack index) */
 };
 
 inline int log2i(int num) {

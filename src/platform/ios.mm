@@ -673,6 +673,8 @@ void setupCrashHandler() {
 
 void platformExit() {}
 
+void addSystemCertificates(Poco::Net::Context::Ptr context) {}
+
 #ifdef __INTELLISENSE__
 #region Mobile API
 #endif

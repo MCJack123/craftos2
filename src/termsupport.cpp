@@ -655,7 +655,9 @@ std::string termGetEvent(lua_State *L) {
             computer->running = 0;
             return "terminate";
         } else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.sym) != keymap.end())) {
-            Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, NULL)->term;
+            monitor * mon = findMonitorFromWindowID(computer, e.key.windowID, NULL);
+            if (e.key.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * term = e.key.windowID == computer->term->id ? computer->term : mon->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.sym == SDLK_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
             else if (e.key.keysym.sym == SDLK_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
@@ -717,7 +719,9 @@ std::string termGetEvent(lua_State *L) {
             }
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config->isColor || computer->isDebugger)) {
             std::string side;
-            Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, &side)->term;
+            monitor * mon = findMonitorFromWindowID(computer, e.button.windowID, &side);
+            if (e.button.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * term = e.button.windowID == computer->term->id ? computer->term : mon->term;
             int x = 1, y = 1;
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {
                 x = e.button.x; y = e.button.y;
@@ -744,7 +748,9 @@ std::string termGetEvent(lua_State *L) {
             return (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) ? "mouse_click" : "monitor_touch";
         } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config->isColor || computer->isDebugger)) {
             std::string side;
-            Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, &side)->term;
+            monitor * mon = findMonitorFromWindowID(computer, e.button.windowID, &side);
+            if (e.button.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * term = e.button.windowID == computer->term->id ? computer->term : mon->term;
             int x = 1, y = 1;
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {
                 x = e.button.x; y = e.button.y;
@@ -773,7 +779,10 @@ std::string termGetEvent(lua_State *L) {
             return "mouse_up";
         } else if (e.type == SDL_MOUSEWHEEL && (computer->config->isColor || computer->isDebugger) && (e.wheel.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             std::string side;
-            SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.wheel.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.wheel.windowID, &side)->term);
+            monitor * mon = findMonitorFromWindowID(computer, e.wheel.windowID, &side);
+            if (e.wheel.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * tterm = e.wheel.windowID == computer->term->id ? computer->term : mon->term;
+            SDLTerminal * term = dynamic_cast<SDLTerminal*>(tterm);
             if (term == NULL) {
                 return "";
             } else {
@@ -787,7 +796,10 @@ std::string termGetEvent(lua_State *L) {
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && (config.mouse_move_throttle >= 0 || e.motion.state) && (computer->config->isColor || computer->isDebugger) && (e.motion.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             std::string side;
-            SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.motion.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.motion.windowID, &side)->term);
+            monitor * mon = findMonitorFromWindowID(computer, e.motion.windowID, &side);
+            if (e.motion.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * tterm = e.motion.windowID == computer->term->id ? computer->term : mon->term;
+            SDLTerminal * term = dynamic_cast<SDLTerminal*>(tterm);
             if (term == NULL) return "";
             int x = 1, y = 1;
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {

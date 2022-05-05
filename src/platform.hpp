@@ -16,6 +16,7 @@
 #include <lib.hpp>
 #include <SDL2/SDL.h>
 #include <Poco/JSON/Object.h>
+#include <Poco/Net/Context.h>
 
 // Filesystem definitions (UTF-16 vs. not Windows)
 #ifdef WIN32
@@ -85,4 +86,5 @@ extern void copyImage(SDL_Surface* surf, SDL_Window* win);
 extern void setupCrashHandler();
 extern void setFloating(SDL_Window* win, bool state);
 extern void platformExit();
+extern void addSystemCertificates(Poco::Net::Context::Ptr context);
 #endif

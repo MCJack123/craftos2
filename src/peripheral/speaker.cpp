@@ -229,9 +229,6 @@ void setupForNextPlayback(float& speed, Mix_Chunk* chunk, int channel, bool loop
 #ifndef CONST_PREC
 #define CONST_PREC 10
 #endif
-#ifndef CONST_POSTFILT
-#define CONST_POSTFILT 140
-#endif
 
 // note, len denotes how many compressed bytes there are (uncompressed bytes / 8).
 static void au_compress(int *q, int *s, int *lt, int len, uint8_t *outbuf, int8_t *inbuf)
@@ -262,7 +259,7 @@ static void au_compress(int *q, int *s, int *lt, int len, uint8_t *outbuf, int8_
 			if(ns != st)
 				ns += (st != 0 ? 1 : -1);
 #if CONST_PREC > 8
-			if(ns < 1+(1<<(CONST_PREC-8))) ns = 1+(1<<(CONST_PREC-8));
+			if(ns < (2<<(CONST_PREC-8))) ns = (2<<(CONST_PREC-8));
 #endif
 			*s = ns;
 
@@ -304,7 +301,7 @@ static void au_decompress(int *fq, int *q, int *s, int *lt, int fs, int len, int
 			if(ns != st)
 				ns += (st != 0 ? 1 : -1);
 #if CONST_PREC > 8
-			if(ns < 1+(1<<(CONST_PREC-8))) ns = 1+(1<<(CONST_PREC-8));
+			if(ns < (2<<(CONST_PREC-8))) ns = (2<<(CONST_PREC-8));
 #endif
 			*s = ns;
 
@@ -596,7 +593,7 @@ int speaker::playAudio(lua_State *L) {
         }
         {
             int fq = 0, q = 0, s = 0, lt = -128;
-            au_decompress(&fq, &q, &s, &lt, 100, len / 8 + (len % 8 != 0), data + 44, encdata);
+            au_decompress(&fq, &q, &s, &lt, 140, len / 8 + (len % 8 != 0), data + 44, encdata);
         }
         delete[] encdata;
     }
