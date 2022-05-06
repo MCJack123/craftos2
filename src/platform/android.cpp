@@ -32,6 +32,7 @@ extern "C" {
 #include <unistd.h>
 #include "../platform.hpp"
 #include "../runtime.hpp"
+#include "../termsupport.hpp"
 #include "../util.hpp"
 #include "../terminal/SDLTerminal.hpp"
 
@@ -78,7 +79,6 @@ std::string getMCSavePath() {
 
 void setThreadName(std::thread &t, const std::string& name) {
     pthread_setname_np(t.native_handle(), name.c_str());
-    printf("Set name of thread %lx to '%s'\n", t.native_handle(), name.c_str());
 }
 
 int createDirectory(const std::string& path) {
@@ -168,15 +168,37 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
     fprintf(stderr, "Warning: Android does not support taking screenshots to the clipboard.\n");
 }
 
-void setupCrashHandler() {
+static std::vector<Poco::Crypto::X509Certificate> certificateStore;
 
+void setupCrashHandler() {
+    DIR *d = opendir("/system/etc/security/cacerts_google");
+    if (d) {
+        struct dirent *p;
+        while ((p=readdir(d))) {
+            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+            certificateStore.push_back(Poco::Crypto::X509Certificate("/system/etc/security/cacerts_google/" + std::string(p->d_name)));
+        }
+        closedir(d);
+    }
+    d = opendir("/system/etc/security/cacerts");
+    if (d) {
+        struct dirent *p;
+        while ((p=readdir(d))) {
+            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+            certificateStore.push_back(Poco::Crypto::X509Certificate("/system/etc/security/cacerts/" + std::string(p->d_name)));
+        }
+        closedir(d);
+    }
+    // TODO: add user certs
 }
 
 void setFloating(SDL_Window* win, bool state) {}
 
 void platformExit() {}
 
-void addSystemCertificates(Poco::Net::Context::Ptr context) {}
+void addSystemCertificates(Poco::Net::Context::Ptr context) {
+    for (Poco::Crypto::X509Certificate& cert : certificateStore) context->addCertificateAuthority(cert);
+}
 
 #ifdef __INTELLISENSE__
 #region Mobile API
@@ -195,6 +217,18 @@ extern "C" {
 JNIEXPORT void JNICALL Java_cc_craftospc_CraftOSPC_MainActivity_sendKeyboardUpdate(JNIEnv *env, jclass klass, int size) {
     LockGuard lock(computers);
     if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)(ptrdiff_t)size);
+}
+
+JNIEXPORT void JNICALL Java_cc_craftospc_CraftOSPC_MainActivity_sendCloseEvent(JNIEnv *env, jclass klass) {
+    if (renderTargets.size() < 2) return;
+    SDL_Event e;
+    e.type = SDL_WINDOWEVENT;
+    e.window.timestamp = time(0);
+    e.window.windowID = SDL_GetWindowID(((SDLTerminal*)computers->front()->term)->win);
+    e.window.event = SDL_WINDOWEVENT_CLOSE;
+    e.window.data1 = 0;
+    e.window.data2 = 0;
+    SDL_PushEvent(&e);
 }
 }
 

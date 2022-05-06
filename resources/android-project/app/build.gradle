@@ -8,19 +8,19 @@ else {
 }
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 30
     defaultConfig {
         if (buildAsApplication) {
             applicationId "cc.craftospc.CraftOSPC"
         }
-        minSdkVersion 16
-        targetSdkVersion 26
-        versionCode 1
-        versionName "2.5.5"
+        minSdkVersion 24
+        targetSdkVersion 30
+        versionCode 22
+        versionName "2.6.6"
         externalNativeBuild {
             ndkBuild {
                 arguments "APP_PLATFORM=android-26"
-                abiFilters 'arm64-v8a'
+                abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
             }
             // cmake {
             //     arguments "-DANDROID_APP_PLATFORM=android-16", "-DANDROID_STL=c++_static"
@@ -64,8 +64,19 @@ android {
             }
         }
     }
+
+    compileOptions {
+        sourceCompatibility 1.8
+        targetCompatibility 1.8
+    }
+    ndkVersion '24.0.8215888'
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'androidx.core:core:1.1.0'
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'com.google.android.material:material:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-gestures:0.7.0'
 }

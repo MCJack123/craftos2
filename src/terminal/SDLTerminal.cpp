@@ -319,14 +319,14 @@ void SDLTerminal::render() {
     SDL_Rect rect;
     if (gotResizeEvent || SDL_FillRect(surf, NULL, newmode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
     if (newmode != 0) {
-        for (unsigned y = 0; y < newheight * newcharHeight; y+=newcharScale) {
-            for (unsigned x = 0; x < newwidth * newcharWidth; x+=newcharScale) {
-                unsigned char c = (*newpixels)[y / newcharScale][x / newcharScale];
+        for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=newcharScale * dpiScale) {
+            for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=newcharScale * dpiScale) {
+                unsigned char c = (*newpixels)[y / newcharScale / dpiScale][x / newcharScale / dpiScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, (int)(x + 2 * newcharScale),
-                                               (int)(y + 2 * newcharScale),
-                                               (int)newcharScale,
-                                               (int)newcharScale),
+                if (SDL_FillRect(surf, setRect(&rect, (int)(x + 2 * newcharScale * dpiScale),
+                                               (int)(y + 2 * newcharScale * dpiScale),
+                                               (int)newcharScale * dpiScale,
+                                               (int)newcharScale * dpiScale),
                                  rgb(newpalette[(int)c])) != 0) return;
             }
         }
@@ -796,10 +796,10 @@ bool SDLTerminal::pollEvents() {
 #ifdef __IPHONEOS__
                 else if (e.type == SDL_FINGERUP || e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION) touchDevice = e.tfinger.touchId;
 #else
-                else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) {
+                /*else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) {
                     if (e.mgesture.dDist < -0.001 && !SDL_IsTextInputActive()) SDL_StartTextInput();
                     else if (e.mgesture.dDist > 0.001 && SDL_IsTextInputActive()) SDL_StopTextInput();
-                }
+                }*/
 #endif
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {
