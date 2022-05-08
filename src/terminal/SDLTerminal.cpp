@@ -463,7 +463,9 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
         std::lock_guard<std::mutex> lock2(locked);
         newWidth = w;
         newHeight = h;
+#ifndef __IPHONEOS__
         if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
+#endif
         SDL_GetWindowSize(win, &realWidth, &realHeight);
         gotResizeEvent = (newWidth != width || newHeight != height);
         if (!gotResizeEvent) return false;

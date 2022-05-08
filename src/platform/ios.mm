@@ -263,13 +263,13 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     BOOL isCtrlDown;
     BOOL isAltDown;
 }
-@property (strong, nonatomic) IBOutlet UIToolbar *hotkeyToolbar;
-@property (strong, nonatomic) UIViewController * oldvc;
-@property (strong, nonatomic) IBOutlet UIBarButtonItem *ctrlButton;
-@property (strong, nonatomic) IBOutlet UIBarButtonItem *altButton;
-@property (strong, nonatomic) IBOutlet UIBarButtonItem *closeButton;
-@property (strong, nonatomic) IBOutlet UIBarButtonItem *nextButton;
-@property (strong, nonatomic) IBOutlet UIBarButtonItem *previousButton;
+@property (retain, nonatomic) IBOutlet UIToolbar *hotkeyToolbar;
+@property (retain, nonatomic) UIViewController * oldvc;
+@property (retain, nonatomic) IBOutlet UIBarButtonItem *ctrlButton;
+@property (retain, nonatomic) IBOutlet UIBarButtonItem *altButton;
+@property (retain, nonatomic) IBOutlet UIBarButtonItem *closeButton;
+@property (retain, nonatomic) IBOutlet UIBarButtonItem *nextButton;
+@property (retain, nonatomic) IBOutlet UIBarButtonItem *previousButton;
 @property (assign) SDL_Window * sdlWindow;
 @end
 
@@ -308,6 +308,45 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     isAltDown = NO;
     holdTimer = 0;
     hold.winid = SDL_GetWindowID(self.sdlWindow);
+    // Set up gesture recognizers here, as adding them to the storyboard apparently causes memory corruption
+    UITapGestureRecognizer * tapRec = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(toggleNavbar:)];
+    tapRec.delegate = self;
+    tapRec.numberOfTapsRequired = 1;
+    tapRec.numberOfTouchesRequired = 2;
+    if (@available(iOS 13.4, *)) tapRec.buttonMaskRequired = UIEventButtonMaskPrimary | UIEventButtonMaskSecondary;
+    [self.view addGestureRecognizer:tapRec];
+    
+    UISwipeGestureRecognizer * upRec = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    upRec.delegate = self;
+    upRec.direction = UISwipeGestureRecognizerDirectionUp;
+    upRec.numberOfTouchesRequired = 2;
+    [self.view addGestureRecognizer:upRec];
+    
+    UISwipeGestureRecognizer * downRec = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    downRec.delegate = self;
+    downRec.direction = UISwipeGestureRecognizerDirectionDown;
+    downRec.numberOfTouchesRequired = 2;
+    [self.view addGestureRecognizer:downRec];
+    
+    UISwipeGestureRecognizer * leftRec = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    leftRec.delegate = self;
+    leftRec.direction = UISwipeGestureRecognizerDirectionLeft;
+    leftRec.numberOfTouchesRequired = 2;
+    [self.view addGestureRecognizer:leftRec];
+    
+    UISwipeGestureRecognizer * rightRec = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    rightRec.delegate = self;
+    upRec.direction = UISwipeGestureRecognizerDirectionRight;
+    rightRec.numberOfTouchesRequired = 2;
+    [self.view addGestureRecognizer:rightRec];
+    
+    UILongPressGestureRecognizer * holdRec = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleHold:)];
+    holdRec.delegate = self;
+    holdRec.minimumPressDuration = 0.5;
+    holdRec.numberOfTapsRequired = 0;
+    holdRec.numberOfTouchesRequired = 2;
+    holdRec.allowableMovement = 10.0;
+    [self.view addGestureRecognizer:holdRec];
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -606,6 +645,7 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
         vc.sdlWindow = term->win;
         // Start setting up the new view controller in the view hierarchy (we'll finish this once the VC is loaded)
         [oldvc.view removeFromSuperview];
+        window_info.info.uikit.window.rootViewController = nil;
         window_info.info.uikit.window.rootViewController = rootvc;
         sdlView = oldvc.view;
         viewController = vc;
