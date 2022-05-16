@@ -1190,7 +1190,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         int res;
         try {
             res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
-            if (res == 0) {
+            if (res <= 0) {
                 wsh->ws = NULL;
                 wsh->url = "";
                 char * sptr = new char[str.length()+1];
