@@ -247,6 +247,7 @@ static void downloadThread(void* arg) {
     std::string path;
     param->comp->requests_open++;
 downloadThread_entry:
+    bool isLocalhost = false;
     {
         if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
         else if (param->url.find("://") == std::string::npos) status = "URL malformed";
@@ -260,7 +261,7 @@ downloadThread_entry:
             size_t pos = param->url.find('/', param->url.find(uri.getHost()));
             size_t hash = pos != std::string::npos ? param->url.find('#', pos) : std::string::npos;
             path = urlEncode(pos != std::string::npos ? param->url.substr(pos, hash - pos) : "/");
-            if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+            if (uri.getHost() == "localhost") {isLocalhost = true; uri.setHost("127.0.0.1");}
             bool found = false;
             for (const std::string& wclass : config.http_whitelist) {
                 if (matchIPClass(uri.getHost(), wclass)) {
@@ -300,6 +301,7 @@ downloadThread_entry:
         if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
         size_t requestSize = param->postData.size();
         for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
+        if (isLocalhost) request.add("Host", "localhost");
         if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
         if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
         if (!param->postData.empty()) {
