@@ -851,6 +851,7 @@ int main(int argc, char*argv[]) {
         awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     }
 #endif
+    std::cin.unget(); // unblock input threads
     awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
     computerThreads.clear();

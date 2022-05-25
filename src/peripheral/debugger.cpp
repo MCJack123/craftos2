@@ -2,7 +2,7 @@
  * peripheral/debugger.cpp
  * CraftOS-PC 2
  * 
- * This file defines the methods for the debugger peripheral.
+ * This file implements the methods for the debugger peripheral.
  * 
  * This code is licensed under the MIT License.
  * Copyright (c) 2019-2022 JackMacWindows.
@@ -14,6 +14,7 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side);
 #include "../runtime.hpp"
 static int debugger_lib_getInfo(lua_State *L);
 #include "debugger.hpp"
+#include "debug_adapter.hpp"
 #include <FileEntry.hpp>
 #include "../platform.hpp"
 #include "../terminal/CLITerminal.hpp"
@@ -160,7 +161,7 @@ static int debugger_lib_getInfo(lua_State *L) {
     lua_Debug ar;
     if (!lua_getstack(dbg->thread, lua_isnumber(L, 1) ? (int)lua_tointeger(L, 1) : 0, &ar)) lua_pushnil(L);
     else {
-        lua_getinfo(dbg->thread, "nSl", &ar);
+        lua_getinfo(dbg->thread, "nSli", &ar);
         lua_createtable(L, 0, 2);
         settabss(L, "source", ar.source);
         settabss(L, "short_src", ar.short_src);
@@ -170,6 +171,7 @@ static int debugger_lib_getInfo(lua_State *L) {
         settabsi(L, "currentline", ar.currentline);
         settabss(L, "name", ar.name);
         settabss(L, "namewhat", ar.namewhat);
+        settabsi(L, "instruction", ar.instruction);
     }
     return 1;
 }
@@ -440,6 +442,41 @@ static int debugger_lib_uncatch(lua_State *L) {
     return 0;
 }
 
+static int debugger_lib_useDAP(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_pushboolean(L, dynamic_cast<debug_adapter*>(dbg) != NULL);
+    return 1;
+}
+
+static int debugger_lib_sendDAPData(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debug_adapter * dbg = dynamic_cast<debug_adapter*>((debugger*)lua_touserdata(L, -1));
+    if (dbg == NULL) return 0;
+    dbg->sendData(checkstring(L, 1));
+    return 0;
+}
+
+static int debugger_startupCode(lua_State *L) {
+    lastCFunction = __func__;
+    std::string * str = (std::string*)lua_touserdata(L, 1);
+    lua_pushlstring(L, str->c_str(), str->size());
+    lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
+    delete str;
+    lua_pushboolean(L, true);
+    return 1;
+}
+
+static int debugger_lib_setStartupCode(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    dbg->computer->startupCallbacks.push_back(std::make_pair(debugger_startupCode, new std::string(checkstring(L, 1))));
+    return 0;
+}
+
 static luaL_Reg debugger_lib_reg[] = {
     {"waitForBreak", debugger_lib_waitForBreak},
     {"confirmBreak", debugger_lib_confirmBreak},
@@ -460,6 +497,8 @@ static luaL_Reg debugger_lib_reg[] = {
     {"getLocals", debugger_lib_getLocals},
     {"catch", debugger_lib_catch},
     {"uncatch", debugger_lib_uncatch},
+    {"useDAP", debugger_lib_useDAP},
+    {"sendDAPData", debugger_lib_sendDAPData},
     {NULL, NULL}
 };
 
@@ -537,8 +576,10 @@ int debugger::print(lua_State *L) {
         lua_call(L, 1, 1);
         luaL_checkstring(L, -1);
     }
-    std::string * str = new std::string(lua_tostring(L, -1), lua_strlen(L, -1));
-    queueEvent(monitor, debugger_print, str);
+    if (monitor != NULL) {
+        std::string * str = new std::string(tostring(L, -1));
+        queueEvent(monitor, debugger_print, str);
+    }
     return 0;
 }
 
@@ -594,7 +635,7 @@ debugger::~debugger() {
     deleteThis = true;
     breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
     didBreak = false;
-    if (freedComputers.find(monitor) == freedComputers.end()) {
+    if (monitor != NULL && freedComputers.find(monitor) == freedComputers.end()) {
         monitor->running = 0;
         monitor->event_lock.notify_all();
         compThread->join();
@@ -607,7 +648,7 @@ debugger::~debugger() {
         confirmBreak = true;
         std::this_thread::yield();
     }
-    if (compThread->joinable()) compThread->join();
+    if (compThread != NULL && compThread->joinable()) compThread->join();
     computer->shouldDeleteDebugger = false;
     computer->shouldDeinitDebugger = true;
 }
