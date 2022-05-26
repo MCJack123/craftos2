@@ -626,6 +626,7 @@
     <ClInclude Include="src\runtime.hpp" />
     <ClInclude Include="src\peripheral\computer.hpp" />
     <ClInclude Include="src\peripheral\debugger.hpp" />
+    <ClInclude Include="src\peripheral\debug_adapter.hpp" />
     <ClInclude Include="src\peripheral\drive.hpp" />
     <ClInclude Include="src\peripheral\modem.hpp" />
     <ClInclude Include="src\peripheral\monitor.hpp" />
@@ -680,6 +681,7 @@
     <ClCompile Include="src\runtime.cpp" />
     <ClCompile Include="src\peripheral\computer_p.cpp" />
     <ClCompile Include="src\peripheral\debugger.cpp" />
+    <ClCompile Include="src\peripheral\debug_adapter.cpp" />
     <ClCompile Include="src\peripheral\drive.cpp" />
     <ClCompile Include="src\peripheral\modem.cpp" />
     <ClCompile Include="src\peripheral\monitor.cpp" />
