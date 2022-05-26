@@ -200,7 +200,7 @@ SDLTerminal::~SDLTerminal() {
     }
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
-        if (!singleWindowMode || renderTargets.size() == 0) {SDL_DestroyWindow(win); singleWin = NULL;}
+        if ((!singleWindowMode || renderTargets.size() == 0) && win != NULL) {SDL_DestroyWindow(win); singleWin = NULL;}
     }
 #ifdef __IPHONEOS__
     updateCloseButton();

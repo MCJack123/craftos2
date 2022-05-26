@@ -11,7 +11,9 @@
 static void forwardInput();
 #include "debug_adapter.hpp"
 #include "../runtime.hpp"
-#include "../util.hpp"
+#include "../terminal/SDLTerminal.hpp"
+#include "../terminal/HardwareSDLTerminal.hpp"
+#include "../termsupport.hpp"
 #include <curses.h>
 #include <Poco/Net/TCPServerConnection.h>
 #include <Poco/Net/TCPServerConnectionFactory.h>
@@ -85,6 +87,29 @@ debug_adapter::debug_adapter(lua_State *L, const char * side): debugger(L, side)
     if (inputThread == NULL) inputThread = new std::thread(forwardInput);
     if (stdio_debugger == NULL) stdio_debugger = this;
     server.start();
+    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    if (singleWindowMode) {
+        const auto pos = currentWindowIDs.find(monitor->term->id);
+        if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
+    }
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
+        if (*it == monitor->term)
+            it = renderTargets.erase(it);
+        if (it == renderTargets.end()) break;
+    }
+    HardwareSDLTerminal * hwterm = dynamic_cast<HardwareSDLTerminal*>(monitor->term);
+    SDLTerminal * term = dynamic_cast<SDLTerminal*>(monitor->term);
+    if (hwterm) {
+        SDL_DestroyTexture(hwterm->pixtex);
+        SDL_DestroyTexture(hwterm->font);
+        SDL_DestroyRenderer(hwterm->ren);
+        hwterm->pixtex = hwterm->font = NULL;
+        hwterm->ren = NULL;
+    }
+    if (term) {
+        SDL_DestroyWindow(term->win);
+        term->win = NULL;
+    }
 }
 
 debug_adapter::~debug_adapter() {

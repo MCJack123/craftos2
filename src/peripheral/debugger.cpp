@@ -191,6 +191,17 @@ static int debugger_lib_setBreakpoint(lua_State *L) {
     return 1;
 }
 
+static int debugger_lib_setFunctionBreakpoint(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    const int id = !dbg->computer->breakpoints.empty() ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
+    dbg->computer->breakpoints[id] = std::make_pair(tostring(L, 1), -1);
+    dbg->computer->hasBreakpoints = true;
+    lua_pushinteger(L, id);
+    return 1;
+}
+
 static int debugger_lib_unsetBreakpoint(lua_State *L) {
     lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
@@ -651,6 +662,37 @@ static int debugger_lib_getPath(lua_State *L) {
     return 1;
 }
 
+static int debugger_lib_getInternalPath(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    path_t path = wstr(checkstring(L, 1));
+    std::tuple<std::list<std::string>, path_t, bool> maxPath = std::make_tuple(std::list<std::string>(), dbg->computer->dataDir, false);
+    for (const auto& mount : dbg->computer->mounts) {
+        const path_t& p = std::get<1>(mount);
+        if (path.substr(0, p.size()) == p && p.size() > std::get<1>(maxPath).size()) maxPath = mount;
+    }
+    if (std::get<1>(maxPath).empty()) lua_pushnil(L);
+    else {
+        bool begin = true;
+        for (const std::string& p : std::get<0>(maxPath)) {
+            if (begin) {
+                begin = false;
+                lua_pushlstring(L, p.c_str(), p.size());
+            } else {
+                lua_pushliteral(L, "/");
+                lua_pushlstring(L, p.c_str(), p.size());
+                lua_concat(L, 3);
+            }
+        }
+        std::string rest = astr(path.substr(std::get<1>(maxPath).size()));
+        for (int i = 0; i < rest.size(); i++) if (rest[i] == '\\') rest[i] = '/';
+        lua_pushlstring(L, rest.c_str(), rest.size());
+        if (!begin) lua_concat(L, 2);
+    }
+    return 1;
+}
+
 static luaL_Reg debugger_lib_reg[] = {
     {"waitForBreak", debugger_lib_waitForBreak},
     {"confirmBreak", debugger_lib_confirmBreak},
@@ -659,6 +701,7 @@ static luaL_Reg debugger_lib_reg[] = {
     {"stepOut", debugger_lib_stepOut},
     {"getInfo", debugger_lib_getInfo},
     {"setBreakpoint", debugger_lib_setBreakpoint},
+    {"setFunctionBreakpoint", debugger_lib_setFunctionBreakpoint},
     {"unsetBreakpoint", debugger_lib_unsetBreakpoint},
     {"listBreakpoints", debugger_lib_listBreakpoints},
     {"run", debugger_lib_run},
@@ -674,7 +717,9 @@ static luaL_Reg debugger_lib_reg[] = {
     {"uncatch", debugger_lib_uncatch},
     {"useDAP", debugger_lib_useDAP},
     {"sendDAPData", debugger_lib_sendDAPData},
+    {"setStartupCode", debugger_lib_setStartupCode},
     {"getPath", debugger_lib_getPath},
+    {"getInternalPath", debugger_lib_getInternalPath},
     {NULL, NULL}
 };
 
