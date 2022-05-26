@@ -646,7 +646,7 @@ static int debugger_lib_setStartupCode(lua_State *L) {
 
 static int debugger_lib_getPath(lua_State *L) {
     lastCFunction = __func__;
-    std::string path = fixpath(get_comp(L), checkstring(L, 1), true);
+    std::string path = astr(fixpath(get_comp(L), checkstring(L, 1), true));
     lua_pushlstring(L, path.c_str(), path.size());
     return 1;
 }
