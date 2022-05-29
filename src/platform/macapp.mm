@@ -42,6 +42,7 @@ extern "C" {
 #include "../runtime.hpp"
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
+#import <Security/Security.h>
 
 extern bool exiting;
 std::string rom_path_expanded;
@@ -453,4 +454,28 @@ void setFloating(SDL_Window* win, bool state) {
 
 void platformExit() {}
 
-void addSystemCertificates(Poco::Net::Context::Ptr context) {}
+void addSystemCertificates(Poco::Net::Context::Ptr context) {
+    SecKeychainRef keychain = NULL;
+    if (SecKeychainOpen("/System/Library/Keychains/SystemRootCertificates.keychain", &keychain) != errSecSuccess || keychain == NULL) return;
+    NSArray * kcl = @[(id)keychain];
+    NSDictionary * query = @{
+        (id)kSecClass: (id)kSecClassCertificate,
+        (id)kSecMatchSearchList: (id)(__bridge CFArrayRef)kcl,
+        (id)kSecMatchLimit: (id)kSecMatchLimitAll,
+        (id)kSecReturnRef: @YES
+    };
+    CFArrayRef res = NULL;
+    if (SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef*)&res) != errSecSuccess || res == NULL) {
+        CFRelease(keychain);
+        return;
+    }
+    CFIndex sz = CFArrayGetCount(res);
+    for (int i = 0; i < sz; i++) {
+        NSData * certdata = (NSData*)CFBridgingRelease(SecCertificateCopyData((SecCertificateRef)CFArrayGetValueAtIndex(res, i)));
+        const void * d = certdata.bytes;
+        X509 * cert = d2i_X509(NULL, (const unsigned char**)&d, certdata.length);
+        context->addCertificateAuthority(Poco::Crypto::X509Certificate(cert));
+    }
+    CFRelease(res);
+    CFRelease(keychain);
+}
