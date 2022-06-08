@@ -84,7 +84,7 @@ public:
 };
 
 debug_adapter::debug_adapter(lua_State *L, const char * side): debugger(L, side), server(new DAPConnection::Factory(this), 12100 + get_comp(L)->id) {
-    if (inputThread == NULL) inputThread = new std::thread(forwardInput);
+    if (inputThread == NULL && (selectedRenderer == 0 || selectedRenderer == 5)) inputThread = new std::thread(forwardInput);
     if (stdio_debugger == NULL) stdio_debugger = this;
     server.start();
     std::lock_guard<std::mutex> lock(renderTargetsLock);
