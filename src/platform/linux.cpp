@@ -331,8 +331,6 @@ static struct wl_seat *seat = NULL;
 static bool addedListener = false;
 
 static void registry_handle_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
-	printf("interface: '%s', version: %d, name: %d\n",
-			interface, version, name);
     if (strcmp(interface, _wl_data_device_manager_interface->name) == 0) {
 		data_device_manager = (struct wl_data_device_manager*)_wl_proxy_marshal_constructor_versioned((struct wl_proxy *)registry, 0, _wl_data_device_manager_interface, 3, name, interface, 3, NULL);
     } else if (strcmp(interface, _wl_seat_interface->name) == 0 && seat == NULL) {

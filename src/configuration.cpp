@@ -40,7 +40,25 @@ struct computer_configuration getComputerConfig(int id) {
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        else fprintf(stderr, "%s\n", message.c_str());
+        in.close();
+        return cfg;
+    } catch (std::exception &e) {
+        cfg.loadFailure = true;
+        const std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.what() + ". The current session's config will be reset to default, and any changes made will not be saved.";
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else fprintf(stderr, "%s\n", message.c_str());
+        in.close();
+        return cfg;
+    } catch (...) {
+        cfg.loadFailure = true;
+        const std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": unknown. The current session's config will be reset to default, and any changes made will not be saved.";
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+        else fprintf(stderr, "%s\n", message.c_str());
         in.close();
         return cfg;
     }
@@ -225,7 +243,7 @@ void config_init() {
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        else fprintf(stderr, "%s\n", message.c_str());
         in.close();
         return;
     } catch (std::exception &e) {
@@ -234,7 +252,7 @@ void config_init() {
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        else fprintf(stderr, "%s\n", message.c_str());
         in.close();
         return;
     } catch (...) {
@@ -243,7 +261,7 @@ void config_init() {
         if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
         else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
         else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        else fprintf(stderr, "%s\n", message.c_str());
         in.close();
         return;
     }

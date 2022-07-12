@@ -60,7 +60,6 @@ std::string getROMPath() {
     if (rom_path.empty()) {
         rom_path = std::string(SDL_AndroidGetInternalStoragePath());
         rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
-        printf("%s\n", rom_path.c_str());
     }
     return rom_path;
 }
@@ -68,7 +67,6 @@ std::string getPlugInPath() {
     if (rom_path.empty()) {
         rom_path = std::string(SDL_AndroidGetInternalStoragePath());
         rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
-        printf("%s\n", rom_path.c_str());
     }
     return rom_path + "/plugins/";
 }

@@ -548,10 +548,12 @@ void runComputer(Computer * self, const path_t& bios_name) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_CCPC_FIRST_RUN");
             onboardingMode = 0;
+            config_save();
         } else if (onboardingMode == 2) {
             lua_pushboolean(L, true);
             lua_setglobal(L, "_CCPC_UPDATED_VERSION");
             onboardingMode = 0;
+            config_save();
         }
         if (!script_file.empty()) {
             std::string script;
