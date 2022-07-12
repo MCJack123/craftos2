@@ -102,6 +102,18 @@ std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * 
     return retval;
 }
 
+std::vector<path_t> split(const path_t& strToSplit, const path_t::value_type * delims) {
+    std::vector<path_t> retval;
+    path_t::string_type str = strToSplit.native();
+    size_t pos = str.find_first_not_of(delims);
+    while (pos != std::string::npos) {
+        const size_t end = str.find_first_of(delims, pos);
+        retval.push_back(str.substr(pos, end - pos));
+        pos = str.find_first_not_of(delims, end);
+    }
+    return retval;
+}
+
 static std::string concat(const std::list<std::string> &c, char sep) {
     std::stringstream ss;
     bool started = false;
@@ -139,7 +151,10 @@ path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md, std::str
         maxPath = fixpath(comp, concat(components, '/'), false, true, mountPath);
     }
     if (!md) return maxPath;
-    if (createDirectory(maxPath + PATH_SEP + wstr(concat(append, PATH_SEPC))) != 0) return path_t();
+    for (const std::string& s : append) maxPath /= s;
+    std::error_code e;
+    fs::create_directories(maxPath, e);
+    if (e) return path_t();
     return fixpath(comp, path, false, true, mountPath);
 }
 
@@ -147,15 +162,15 @@ static bool _nothrow(std::function<void()> f) { try { f(); return true; } catch 
 #define nothrow(expr) _nothrow([&](){ expr ;})
 
 inline bool isVFSPath(path_t path) {
-    if (!std::isdigit(path[0])) return false;
-    for (const auto& c : path) {
+    if (!std::isdigit(path.native()[0])) return false;
+    for (const path_t::value_type& c : path.native()) {
         if (c == ':') return true;
         else if (!std::isdigit(c)) return false;
     }
     return false;
 }
 
-path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt, std::string * mountPath, bool getAllResults, bool * isRoot) {
+path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt, std::string * mountPath, bool * isRoot) {
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (std::string s : elems) {
@@ -171,19 +186,19 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua")
 #ifdef STANDALONE_ROM
-        return WS(":bios.lua");
+        return path_t(":bios.lua", path::format::generic_format);
 #else
-        return getROMPath() + PATH_SEP + WS("bios.lua");
+        return getROMPath()/"bios.lua";
 #endif
-    pathstream_t ss;
+    path_t ss;
     if (addExt) {
-        std::pair<size_t, std::vector<path_t> > max_path = std::make_pair(0, std::vector<path_t>(1, comp->dataDir));
+        std::pair<size_t, std::vector<_path_t> > max_path = std::make_pair(0, std::vector<_path_t>(1, comp->dataDir));
         std::list<std::string> * mount_list = NULL;
         for (auto& m : comp->mounts) {
             std::list<std::string> &pathlist = std::get<0>(m);
             if (pathc.size() >= pathlist.size() && std::equal(pathlist.begin(), pathlist.end(), pathc.begin())) {
                 if (pathlist.size() > max_path.first) {
-                    max_path = std::make_pair(pathlist.size(), std::vector<path_t>(1, std::get<1>(m)));
+                    max_path = std::make_pair(pathlist.size(), std::vector<_path_t>(1, std::get<1>(m)));
                     mount_list = &pathlist;
                 } else if (pathlist.size() == max_path.first) {
                     max_path.second.push_back(std::get<1>(m));
@@ -194,18 +209,15 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
         if (isRoot != NULL) *isRoot = pathc.empty();
         if (exists) {
             bool found = false;
-            for (const path_t& p : max_path.second) {
-                pathstream_t sstmp;
-                struct_stat st;
-                sstmp << p;
-                for (const std::string& s : pathc) sstmp << PATH_SEP << wstr(s);
+            for (const _path_t& p : max_path.second) {
+                path_t sstmp = p;
+                for (const std::string& s : pathc) sstmp /= s;
                 if (
-                    (isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str()))) ||
-                    (platform_stat(sstmp.str().c_str(), &st) == 0)) {
-                    if (getAllResults && found) ss << "\n";
-                    ss << sstmp.str();
+                    (isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.string()))) ||
+                    (fs::exists(sstmp))) {
+                    ss /= sstmp;
                     found = true;
-                    if (!getAllResults) break;
+                    break;
                 }
             }
             if (!found) return path_t();
@@ -213,25 +225,23 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             bool found = false;
             std::string back = pathc.back();
             pathc.pop_back();
-            for (const path_t& p : max_path.second) {
-                pathstream_t sstmp;
-                struct_stat st;
-                sstmp << p;
-                for (const std::string& s : pathc) sstmp << PATH_SEP << wstr(s);
+            for (const _path_t& p : max_path.second) {
+                path_t sstmp = p;
+                for (const std::string& s : pathc) sstmp /= s;
                 if (
-                    (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str() + WS("/") + wstr(back))) || (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str())) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.str()).isDir))) ||
-                    (platform_stat((sstmp.str() + PATH_SEP + wstr(back)).c_str(), &st) == 0) || (platform_stat(sstmp.str().c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+                    (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(ss/back)) ||
+                    (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp)) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp).isDir))) ||
+                    (fs::exists(sstmp/back)) || (fs::is_directory(sstmp))
                     ) {
-                    if (getAllResults && found) ss << "\n";
-                    ss << sstmp.str() << PATH_SEP << wstr(back);
+                    ss /= sstmp/back;
                     found = true;
-                    if (!getAllResults) break;
+                    break;
                 }
             }
             if (!found) return path_t();
         } else {
-            ss << max_path.second.front();
-            for (const std::string& s : pathc) ss << PATH_SEP << wstr(s);
+            ss /= max_path.second.front();
+            for (const std::string& s : pathc) ss /= s;
         }
         if (mountPath != NULL) {
             if (mount_list == NULL) *mountPath = "hdd";
@@ -244,8 +254,8 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
                 *mountPath = ss2.str();
             }
         }
-    } else for (const std::string& s : pathc) ss << (ss.tellp() == 0 ? WS("") : WS("/")) << wstr(s);
-    return ss.str();
+    } else for (const std::string& s : pathc) ss /= s;
+    return ss;
 }
 
 bool fixpath_ro(Computer *comp, const std::string& path) {

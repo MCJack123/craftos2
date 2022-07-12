@@ -32,7 +32,7 @@ static int mounter_mount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     bool read_only = config.mount_mode != MOUNT_MODE_RW;
     if (lua_isboolean(L, 3) && config.mount_mode != MOUNT_MODE_RO_STRICT) read_only = lua_toboolean(L, 3);
-    lua_pushboolean(L, addMount(get_comp(L), wstr(luaL_checkstring(L, 2)), luaL_checkstring(L, 1), read_only));
+    lua_pushboolean(L, addMount(get_comp(L), luaL_checkstring(L, 2), luaL_checkstring(L, 1), read_only));
     return 1;
 }
 
@@ -41,7 +41,7 @@ static int mounter_unmount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
-    std::vector<std::string> elems = split(comp_path, "/\\");
+    std::vector<std::string> elems = split(std::string(comp_path), "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { 
@@ -80,8 +80,8 @@ static int mounter_list(lua_State *L) {
             lua_createtable(L, 1, 0); // table, entries
         }
         lua_pushinteger(L, lua_objlen(L, -1) + 1); // table, entries, index
-        if (std::regex_match(std::get<1>(m), pathregex(WS("\\d+:")))) lua_pushfstring(L, "(virtual mount:%s)", std::get<1>(m).substr(0, std::get<1>(m).size()-1).c_str());
-        else lua_pushstring(L, astr(std::get<1>(m)).c_str()); // table, entries, index, value
+        if (std::regex_match(std::get<1>(m), std::basic_regex<path_t::value_type>("\\d+:"))) lua_pushfstring(L, "(virtual mount:%s)", std::get<1>(m).substr(0, std::get<1>(m).size()-1).c_str());
+        else lua_pushstring(L, path_t(std::get<1>(m)).string().c_str()); // table, entries, index, value
         lua_settable(L, -3); // table, entries
         lua_pushstring(L, ss.str().c_str()); // table, entries, key
         lua_pushvalue(L, -2); // table, entries, key, entries
@@ -95,7 +95,7 @@ static int mounter_isReadOnly(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
-    std::vector<std::string> elems = split(comp_path, "/\\");
+    std::vector<std::string> elems = split(std::string(comp_path), "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") {

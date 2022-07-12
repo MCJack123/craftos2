@@ -11,10 +11,6 @@
             "features": [ "netssl" ]
         },
         {
-            "name": "dirent",
-            "platform": "windows"
-        },
-        {
             "name": "zlib",
             "platform": "windows"
         }

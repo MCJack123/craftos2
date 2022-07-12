@@ -13,6 +13,7 @@
 #define CRAFTOS_PC_FILEENTRY_HPP
 #include <algorithm>
 #include <codecvt>
+#include <filesystem>
 #include <locale>
 #include <map>
 #include <regex>
@@ -60,29 +61,27 @@ struct FileEntry {
      * @throw std::runtime_error If one of the non-final nodes is a file
      * @throw std::out_of_range If one of the nodes doesn't exist
      */
-    FileEntry& path(std::string path) noexcept(false) {
-        std::replace(path.begin(), path.end(), '\\', '/');
-        std::stringstream ss(path);
-        std::string item;
+    FileEntry& path(std::filesystem::path path) noexcept(false) {
         FileEntry * retval = this;
-        while (std::getline(ss, item, '/')) if (!item.empty() && !std::regex_match(path, std::regex("\\d+:"))) retval = &(*retval)[item];
+        for (const auto& item : path) if (!std::regex_match(item.native(), std::basic_regex<std::filesystem::path::value_type>("\\d+:"))) retval = &(*retval)[item];
         return *retval;
+    }
+    FileEntry& path(std::string path) noexcept(false) {
+        return this->path(std::filesystem::path(path));
     }
     FileEntry& path(std::wstring path) noexcept(false) {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        return this->path(converter.to_bytes(path));
+        return this->path(std::filesystem::path(path));
     }
-    const FileEntry& path(std::string path) const noexcept(false) {
-        std::replace(path.begin(), path.end(), '\\', '/');
-        std::stringstream ss(path);
-        std::string item;
+    const FileEntry& path(std::filesystem::path path) const noexcept(false) {
         const FileEntry * retval = this;
-        while (std::getline(ss, item, '/')) if (!item.empty() && !std::regex_match(item, std::regex("\\d+:"))) retval = &(*retval)[item];
+        for (const auto& item : path) if (!std::regex_match(item.native(), std::basic_regex<std::filesystem::path::value_type>("\\d+:"))) retval = &(*retval)[item];
         return *retval;
     }
+    const FileEntry& path(std::string path) const noexcept(false) {
+        return this->path(std::filesystem::path(path));
+    }
     const FileEntry& path(std::wstring path) const noexcept(false) {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        return this->path(converter.to_bytes(path));
+        return this->path(std::filesystem::path(path));
     }
 };
 

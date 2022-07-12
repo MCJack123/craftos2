@@ -37,12 +37,16 @@ extern "C" {
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
-std::string rom_path_expanded;
+path_t rom_path_expanded;
 #else
-const char * rom_path = "/usr/local/share/craftos";
+const char * rom_path = "/usr/share/craftos";
 #endif
-const char * base_path = "$HOME/Library/Application\\ Support/CraftOS-PC";
-std::string base_path_expanded;
+#ifdef FS_ROOT
+const char * base_path = "";
+#else
+const char * base_path = "$XDG_DATA_HOME/craftos-pc";
+#endif
+path_t base_path_expanded;
 
 void setBasePath(const char * path) {
     base_path = path;
@@ -56,34 +60,40 @@ void setROMPath(const char * path) {
 #endif
 }
 
-std::string getBasePath() {
+path_t getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     wordexp_t p;
     wordexp(base_path, &p, 0);
     base_path_expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
+    for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
     wordfree(&p);
+    if (base_path_expanded == "/craftos-pc") {
+        wordexp("$HOME/.local/share/craftos-pc", &p, 0);
+        base_path_expanded = p.we_wordv[0];
+        for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
+        wordfree(&p);
+    }
     return base_path_expanded;
 }
 
 #ifdef CUSTOM_ROM_DIR
-std::string getROMPath() {
+path_t getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
     wordexp_t p;
     wordexp(rom_path, &p, 0);
     rom_path_expanded = p.we_wordv[0];
-    for (int i = 1; i < p.we_wordc; i++) rom_path_expanded += p.we_wordv[i];
+    for (unsigned i = 1; i < p.we_wordc; i++) rom_path_expanded += p.we_wordv[i];
     wordfree(&p);
     return rom_path_expanded;
 }
 
-std::string getPlugInPath() { return std::string(getROMPath()) + "/plugins/"; }
+path_t getPlugInPath() { return getROMPath() / "plugins"; }
 #else
-std::string getROMPath() { return rom_path; }
-std::string getPlugInPath() { return std::string(rom_path) + "/plugins/"; }
+path_t getROMPath() { return rom_path; }
+path_t getPlugInPath() { return path_t(rom_path) / "plugins"; }
 #endif
 
-std::string getMCSavePath() {
+path_t getMCSavePath() {
     wordexp_t p;
     wordexp("$HOME/Library/Application\\ Support/minecraft/saves/", &p, 0);
     std::string expanded = p.we_wordv[0];
@@ -94,58 +104,6 @@ std::string getMCSavePath() {
 
 void setThreadName(std::thread &t, const std::string& name) {}
 
-int createDirectory(const std::string& path) {
-    struct stat st;
-    if (stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
-    if (mkdir(path.c_str(), 0777) != 0) {
-        if (errno == ENOENT && path != "/" && !path.empty()) {
-            if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
-            mkdir(path.c_str(), 0777);
-        } else if (errno != EEXIST) return 1;
-    }
-    return 0;
-}
-
-int removeDirectory(const std::string& path) {
-    struct stat statbuf;
-    if (!stat(path.c_str(), &statbuf)) {
-        if (S_ISDIR(statbuf.st_mode)) {
-            DIR *d = opendir(path.c_str());
-            int r = -1;
-            if (d) {
-                struct dirent *p;
-                r = 0;
-                while (!r && (p=readdir(d))) {
-                    /* Skip the names "." and ".." as we don't want to recurse on them. */
-                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-                    r = removeDirectory(path + "/" + std::string(p->d_name));
-                }
-                closedir(d);
-            }
-            if (!r) r = rmdir(path.c_str());
-            return r;
-        } else return unlink(path.c_str());
-    } else return -1;
-}
-
-unsigned long long getFreeSpace(const std::string& path) {
-    struct statvfs st;
-    if (statvfs(path.c_str(), &st) != 0) {
-        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
-        else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
-    }
-    return st.f_bavail * st.f_frsize;
-}
-
-unsigned long long getCapacity(const std::string& path) {
-    struct statvfs st;
-    if (statvfs(path.c_str(), &st) != 0) {
-        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
-        else return getCapacity(path.substr(0, path.find_last_of("/")-1));
-    }
-    return st.f_blocks * st.f_frsize;
-}
-
 void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) {
     fprintf(stderr, "Updating is not available on Mac terminal builds.\n");
 }
@@ -154,7 +112,7 @@ static int recursiveMove(const std::string& fromDir, const std::string& toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
-            createDirectory(toDir);
+            fs::create_directories(toDir);
             DIR *d = opendir(fromDir.c_str());
             int r = -1;
             if (d) {

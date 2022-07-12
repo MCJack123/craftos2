@@ -13,6 +13,7 @@
 
 #include "Computer.hpp"
 #include "FileEntry.hpp"
+#define path_t _path_t
 
 #if (defined(_WIN32) && (!defined(_MSC_VER) || _MSC_VER < 1900)) || (defined(__APPLE__) && !defined(__clang__))
 #warning An incompatible C++ library may be in use. This plugin may fail to work properly.

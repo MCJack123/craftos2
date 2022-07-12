@@ -15,6 +15,7 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
+#include <filesystem>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -28,6 +29,9 @@ extern "C" {
 #define CRAFTOSPC_VERSION    "v2.6.7"
 #define CRAFTOSPC_CC_VERSION "1.100.8"
 #define CRAFTOSPC_INDEV      true
+
+using path_t = std::filesystem::path;
+namespace fs = std::filesystem;
 
 // for some reason Clang complains if this isn't present
 #ifdef __clang__
@@ -191,14 +195,6 @@ inline std::string asciify(std::string str) {
     return retval;
 }
 
-#ifdef WIN32
-#define PATH_SEP L"\\"
-#define PATH_SEPC '\\'
-#else
-#define PATH_SEP "/"
-#define PATH_SEPC '/'
-#endif
-
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
 extern std::unordered_map<std::string, std::tuple<int, std::function<int(const std::string&, void*)>, void*> > userConfig;
@@ -216,9 +212,10 @@ extern std::string b64encode(const std::string& orig);
 extern std::string b64decode(const std::string& orig);
 extern std::vector<std::string> split(const std::string& strToSplit, const char * delimeter);
 extern std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * delimeter);
+extern std::vector<path_t> split(const path_t& strToSplit, const path_t::value_type * delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
 extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*, Poco::Net::HTTPResponse*)>& callback);
-extern path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
+extern path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool * isRoot = NULL);
 extern bool fixpath_ro(Computer *comp, const std::string& path);
 extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);
 extern std::set<std::string> getMounts(Computer * computer, const std::string& comp_path);
@@ -228,7 +225,6 @@ extern void setComputerConfig(int id, const computer_configuration& cfg);
 extern void config_init();
 extern void config_save();
 extern void xcopy(lua_State *from, lua_State *to, int n);
-extern std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures = NULL);
 extern std::string makeASCIISafe(const char * retval, size_t len);
 extern bool matchIPClass(const std::string& address, const std::string& pattern);
 inline std::string checkstring(lua_State *L, int idx) {
@@ -242,5 +238,6 @@ inline std::string tostring(lua_State *L, int idx, const std::string& def = "") 
     if (str == NULL) return def;
     return std::string(str, sz);
 }
+inline void pushstring(lua_State *L, const std::string& str) {pushstring(L, str);}
 
 #endif

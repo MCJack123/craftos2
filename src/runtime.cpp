@@ -310,15 +310,14 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     return count + 1;
 }
 
-bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only) {
+bool addMount(Computer *comp, const path_t& real_path, const std::string& comp_path, bool read_only) {
 #ifdef __ANDROID__
     if (!comp->mounter_initializing) {
         if (!SDL_AndroidRequestPermission("android.permission.READ_EXTERNAL_STORAGE")) return false;
         if (!read_only && !SDL_AndroidRequestPermission("android.permission.WRITE_EXTERNAL_STORAGE")) return false;
     }
 #endif
-    struct_stat st;
-    if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
+    if (!fs::is_directory(real_path) || access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
@@ -334,7 +333,7 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
         data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
         data.title = "Mount requested";
         // see apis/config.cpp:101 for why this is a pointer (TL;DR Windows is dumb)
-        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(astr(real_path)) + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
+        std::string * message = new std::string("A script is attempting to mount the REAL path " + real_path.string() + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
         data.message = message->c_str();
         data.numbuttons = 2;
         SDL_MessageBoxButtonData buttons[2];
@@ -363,7 +362,7 @@ bool operator==(const FileEntry& lhs, const FileEntry& rhs) {
     }
 }
 
-bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path) {
+bool addVirtualMount(Computer * comp, const FileEntry& vfs, const std::string& comp_path) {
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
@@ -374,17 +373,17 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_pa
     for (idx = 0; comp->virtualMounts.find(idx) != comp->virtualMounts.end() && idx < UINT_MAX; idx++) {}
     for (const auto& v : comp->mounts) {
         const path_t& path = std::get<1>(v);
-        if (!std::isdigit(path[0])) continue;
+        if (!std::isdigit(path.native()[0])) continue;
         int end = 0;
-        for (const auto& c : path) {
+        for (const auto& c : path.native()) {
             if (c == ':') break;
             else if (!std::isdigit(c)) {end = -1; break;}
             end++;
         }
-        if (end > 0 && std::get<0>(v) == pathc && *comp->virtualMounts[std::stoi(path.substr(0, end))] == vfs) return false;
+        if (end > 0 && std::get<0>(v) == pathc && *comp->virtualMounts[std::stoi(path.native().substr(0, end))] == vfs) return false;
     }
     comp->virtualMounts[idx] = &vfs;
-    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), to_path_t(idx) + WS(":"), true));
+    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), path_t(std::to_string(idx) + ":", path_t::generic_format), true));
     return true;
 }
 
@@ -397,34 +396,4 @@ void addEventHook(const std::string& event, Computer * computer, const event_hoo
     std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > >& eventHooks = computer == NULL ? globalEventHooks : computer->eventHooks;
     if (eventHooks.find(event) == eventHooks.end()) eventHooks[event] = std::list<std::pair<const event_hook&, void*> >();
     eventHooks[event].push_back(std::make_pair(hook, userdata));
-}
-
-extern "C" {
-    FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode) {
-        lastCFunction = __func__;
-        if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0')))
-            luaL_error(L, "Unsupported mode");
-        if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
-        struct_stat st;
-        const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
-        if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename))
-            { errno = EACCES; return NULL; }
-        if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
-        FILE* retval;
-        if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
-        else if (mode[1] == '+') {
-            std::string mstr = mode;
-            mstr.erase(mstr.begin() + 1);
-            retval = platform_fopen(newpath.c_str(), mstr.c_str());
-        } else retval = platform_fopen(newpath.c_str(), mode);
-        if (retval != NULL) get_comp(L)->files_open++;
-        return retval;
-    }
-
-    int mounter_fclose_(lua_State *L, FILE * stream) {
-        lastCFunction = __func__;
-        const int retval = fclose(stream);
-        if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
-        return retval;
-    }
 }

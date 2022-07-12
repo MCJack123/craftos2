@@ -259,7 +259,7 @@ void HardwareSDLTerminal::render() {
         int w, h;
         if (gotResizeEvent) return;
         if (SDL_GetRendererOutputSize(ren, &w, &h) != 0) return;
-        if (screenshotPath == WS("clipboard")) {
+        if (screenshotPath == "clipboard") {
             SDL_Surface * temp = SDL_CreateRGBSurfaceWithFormat(0, w, h, 24, SDL_PIXELFORMAT_RGB24);
             if (SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_RGB24, temp->pixels, temp->pitch) != 0) return;
             copyImage(temp, win);
@@ -338,7 +338,11 @@ void HardwareSDLTerminal::render() {
 #endif
                 if (recorderHandle == NULL) {
                     GifWriter * g = new GifWriter;
-                    g->f = platform_fopen(recordingPath.c_str(), "wb");
+#ifdef _WIN32
+                    g->f = _wfopen(recordingPath.native().c_str(), L"wb");
+#else
+                    g->f = fopen(recordingPath.native().c_str(), "wb");
+#endif
                     GifBegin(g, NULL, surf->w, surf->h, 100 / config.recordingFPS);
                     recorderHandle = g;
                 }
@@ -426,7 +430,7 @@ void HardwareSDLTerminal::init() {
     std::string bmp_path = "built-in file";
 #ifndef STANDALONE_ROM
     if (config.customFontPath == "hdfont") {
-        bmp_path = astr(getROMPath() + WS("/hdfont.bmp"));
+        bmp_path = getROMPath() / "hdfont.bmp";
         fontScale = 1;
     } else 
 #endif

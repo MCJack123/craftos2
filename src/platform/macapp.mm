@@ -45,7 +45,7 @@ extern "C" {
 #import <Security/Security.h>
 
 extern bool exiting;
-std::string rom_path_expanded;
+path_t rom_path_expanded;
 const char * customBasePath = NULL;
 
 void setBasePath(const char * path) {
@@ -56,18 +56,18 @@ void setROMPath(const char * path) {
     rom_path_expanded = path;
 }
 
-std::string getBasePath() {
+path_t getBasePath() {
     if (customBasePath != NULL) return customBasePath;
-    return std::string([[[NSFileManager defaultManager] 
+    return path_t([[[NSFileManager defaultManager] 
                          URLForDirectory:NSApplicationSupportDirectory 
                          inDomain:NSUserDomainMask 
                          appropriateForURL:[NSURL fileURLWithPath:@"/"] 
                          create:NO 
                          error:nil
-                        ] fileSystemRepresentation]) + "/CraftOS-PC";
+                        ] fileSystemRepresentation]) / "CraftOS-PC";
 }
 
-std::string getROMPath() {
+path_t getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
     NSString * path = [NSBundle mainBundle].resourcePath;
     char * retval = new char[path.length + 1];
@@ -77,7 +77,7 @@ std::string getROMPath() {
     return rom_path_expanded;
 }
 
-std::string getPlugInPath() {
+path_t getPlugInPath() {
     NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
     char * retval = new char[path.length + 1];
     [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
@@ -86,68 +86,18 @@ std::string getPlugInPath() {
     return s + "/";
 }
 
-std::string getMCSavePath() {
+path_t getMCSavePath() {
     if (customBasePath != NULL) return customBasePath;
-    return std::string([[[NSFileManager defaultManager] 
+    return path_t([[[NSFileManager defaultManager] 
                          URLForDirectory:NSApplicationSupportDirectory 
                          inDomain:NSUserDomainMask 
                          appropriateForURL:[NSURL fileURLWithPath:@"/"] 
                          create:NO 
                          error:nil
-                        ] fileSystemRepresentation]) + "/minecraft/saves/";
+                        ] fileSystemRepresentation]) / "minecraft"/"saves";
 }
 
 void setThreadName(std::thread &t, const std::string& name) {}
-
-int createDirectory(const std::string& path) {
-    if (mkdir(path.c_str(), 0777) != 0) {
-        if (errno == ENOENT && path != "/" && !path.empty()) {
-            if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
-            mkdir(path.c_str(), 0777);
-        } else if (errno != EEXIST) return 1;
-    }
-    return 0;
-}
-
-int removeDirectory(const std::string& path) {
-    struct stat statbuf;
-    if (!stat(path.c_str(), &statbuf)) {
-        if (S_ISDIR(statbuf.st_mode)) {
-            DIR *d = opendir(path.c_str());
-            int r = -1;
-            if (d) {
-                struct dirent *p;
-                r = 0;
-                while (!r && (p=readdir(d))) {
-                    /* Skip the names "." and ".." as we don't want to recurse on them. */
-                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-                    r = removeDirectory(path + "/" + std::string(p->d_name));
-                }
-                closedir(d);
-            }
-            if (!r) r = rmdir(path.c_str());
-            return r;
-        } else return unlink(path.c_str());
-    } else return -1;
-}
-
-unsigned long long getFreeSpace(const std::string& path) {
-    NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
-    if (dict == nil) {
-        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
-        else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
-    }
-    return [(NSNumber*)dict[NSFileSystemFreeSize] unsignedLongLongValue];
-}
-
-unsigned long long getCapacity(const std::string& path) {
-    NSDictionary * dict = [[NSFileManager defaultManager] attributesOfFileSystemForPath:[NSString stringWithCString:path.c_str() encoding:NSASCIIStringEncoding] error:nil];
-    if (dict == nil) {
-        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
-        else return getCapacity(path.substr(0, path.find_last_of("/")-1));
-    }
-    return [(NSNumber*)dict[NSFileSystemSize] unsignedLongLongValue];
-}
 
 CGRect CGRectCreate(CGFloat x, CGFloat y, CGFloat width, CGFloat height) {
     CGRect retval;

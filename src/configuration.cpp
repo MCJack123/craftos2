@@ -29,7 +29,7 @@ extern "C" {extern void syncfs(); }
 
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false, 0, 0};
-    std::ifstream in(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
+    std::ifstream in(getBasePath() / "config" / (std::to_string(id) + ".json"));
     if (!in.is_open()) return cfg;
     if (in.peek() == std::ifstream::traits_type::eof()) { in.close(); return cfg; } // treat an empty file as if it didn't exist in the first place
     Value root;
@@ -85,7 +85,7 @@ void setComputerConfig(int id, const computer_configuration& cfg) {
     root["startFullscreen"] = cfg.startFullscreen;
     root["computerWidth"] = cfg.computerWidth;
     root["computerHeight"] = cfg.computerHeight;
-    std::ofstream out(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
+    std::ofstream out(getBasePath() / "config" / (std::to_string(id) + ".json"));
     out << root;
     out.close();
 #ifdef __EMSCRIPTEN__
@@ -156,7 +156,7 @@ const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "custo
 std::unordered_map<std::string, Poco::Dynamic::Var> unknownOptions;
 
 void config_init() {
-    createDirectory(getBasePath() + WS("/config"));
+    fs::create_directories(getBasePath() / "config");
     config = {
         true,
         true,
@@ -231,7 +231,7 @@ void config_init() {
         false,
         false
     };
-    std::ifstream in(getBasePath() + WS("/config/global.json"));
+    std::ifstream in(getBasePath() / "config" / "global.json");
     if (!in.is_open()) { onboardingMode = 1; return; }
     Value root;
     Poco::JSON::Object::Ptr p;
@@ -420,7 +420,7 @@ void config_save() {
     for (const auto& e : config.pluginData) pluginRoot[e.first] = e.second;
     root["pluginData"] = pluginRoot;
     for (const auto& opt : unknownOptions) root[opt.first] = opt.second;
-    std::ofstream out(getBasePath() + WS("/config/global.json"));
+    std::ofstream out(getBasePath() / "config"/"global.json");
     out << root;
     out.close();
 #ifdef __EMSCRIPTEN__

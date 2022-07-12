@@ -349,7 +349,7 @@ void SDLTerminal::render() {
         shouldScreenshot = false;
         if (gotResizeEvent) return;
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
-        if (screenshotPath == WS("clipboard")) {
+        if (screenshotPath == "clipboard") {
             copyImage(temp, win);
         } else {
 #ifndef NO_WEBP
@@ -413,7 +413,11 @@ void SDLTerminal::render() {
 #endif
                 if (recorderHandle == NULL) {
                     GifWriter * g = new GifWriter;
-                    g->f = platform_fopen(recordingPath.c_str(), "wb");
+#ifdef _WIN32
+                    g->f = _wfopen(recordingPath.native().c_str(), L"wb");
+#else
+                    g->f = fopen(recordingPath.native().c_str(), "wb");
+#endif
                     GifBegin(g, NULL, surf->w, surf->h, 100 / config.recordingFPS);
                     recorderHandle = g;
                 }
@@ -488,27 +492,22 @@ bool SDLTerminal::resizeWholeWindow(int w, int h) {
 }
 
 void SDLTerminal::screenshot(std::string path) {
-    if (!path.empty()) screenshotPath = wstr(path);
+    if (!path.empty()) screenshotPath = path_t(path, path == "clipboard" ? path_t::generic_format : path_t::auto_format);
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        screenshotPath = getBasePath();
-#ifdef WIN32
-        screenshotPath += WS("\\screenshots\\");
-#else
-        screenshotPath += WS("/screenshots/");
-#endif
-        createDirectory(screenshotPath);
+        screenshotPath = getBasePath() / "screenshots";
+        fs::create_directories(screenshotPath);
         char tstr[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
         tstr[23] = '\0';
 #ifndef NO_WEBP
-        if (config.useWebP) screenshotPath += wstr(std::string(tstr)) + WS(".webp"); else
+        if (config.useWebP) screenshotPath /= std::string(tstr) + ".webp"; else
 #endif
 #ifdef NO_PNG
-        screenshotPath += wstr(std::string(tstr)) + WS(".bmp");
+        screenshotPath /= std::string(tstr) + ".bmp";
 #else
-        screenshotPath += wstr(std::string(tstr)) + WS(".png");
+        screenshotPath /= std::string(tstr) + ".png";
 #endif
     }
     shouldScreenshot = true;
@@ -518,24 +517,19 @@ void SDLTerminal::record(std::string path) {
     shouldRecord = true;
     recordedFrames = 0;
     frameWait = 0;
-    if (!path.empty()) recordingPath = wstr(path);
+    if (!path.empty()) recordingPath = path;
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        recordingPath = getBasePath();
-#ifdef WIN32
-        recordingPath += WS("\\screenshots\\");
-#else
-        recordingPath += WS("/screenshots/");
-#endif
-        createDirectory(recordingPath);
+        recordingPath = getBasePath() / "screenshots";
+        fs::create_directories(recordingPath);
         char tstr[20];
         strftime(tstr, 20, "%F_%H.%M.%S", nowt);
         isRecordingWebP = config.useWebP;
 #ifndef NO_WEBP
-        if (isRecordingWebP) recordingPath += wstr(std::string(tstr)) + WS(".webp"); else
+        if (isRecordingWebP) recordingPath /= std::string(tstr) + ".webp"; else
 #endif
-        recordingPath += wstr(std::string(tstr)) + WS(".gif");
+        recordingPath /= std::string(tstr) + ".gif";
     }
     recorderHandle = NULL;
     changed = true;
@@ -621,7 +615,7 @@ void SDLTerminal::init() {
     std::string bmp_path = "built-in file";
 #ifndef STANDALONE_ROM
     if (config.customFontPath == "hdfont") {
-        bmp_path = astr(getROMPath() + WS("/hdfont.bmp"));
+        bmp_path = getROMPath() / "hdfont.bmp";
         fontScale = 1;
     } else 
 #endif
