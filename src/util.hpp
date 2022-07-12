@@ -38,6 +38,12 @@ namespace fs = std::filesystem;
 template<> class std::hash<SDL_EventType>: public std::hash<unsigned short> {};
 #endif
 
+// for old compilers (see C++ LWG 3657)
+// NOTE: The libc++ and MSVC checks will *definitely* fail in the future! Check this once libc++/MSVC resolve the issue.
+#if (defined(__GLIBCXX__) && __GLIBCXX__ < 20220426) || (defined(_LIBCPP_VERSION) /*&& _LIBCPP_VERSION < 16000*/) || (defined(_MSC_FULL_VER) /*&& _MSC_FULL_VER < 193200000*/)
+template<> struct std::hash<path_t> {size_t operator()(const path_t& path) const noexcept {return fs::hash_value(path);}};
+#endif
+
 template<typename T>
 class ProtectedObject {
     friend class LockGuard;
