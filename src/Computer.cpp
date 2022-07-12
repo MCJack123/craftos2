@@ -578,6 +578,17 @@ void runComputer(Computer * self, const path_t& bios_name) {
         lua_pushcfunction(L, term_benchmark);
         lua_setfield(L, LUA_REGISTRYINDEX, "benchmark");
 
+        for (auto it = self->startupCallbacks.begin(); it != self->startupCallbacks.end(); it++) {
+            lua_pushcfunction(L, it->first);
+            lua_pushlightuserdata(L, it->second);
+            lua_call(L, 1, 1);
+            if (lua_toboolean(L, -1)) {
+                it = self->startupCallbacks.erase(it);
+                if (it == self->startupCallbacks.end()) {lua_pop(L, 1); break;}
+            }
+            lua_pop(L, 1);
+        }
+
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
         status = luaL_loadstring(self->coro, astr(bios_name).c_str());

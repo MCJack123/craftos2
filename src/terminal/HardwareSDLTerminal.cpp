@@ -120,9 +120,9 @@ HardwareSDLTerminal::HardwareSDLTerminal(std::string title): SDLTerminal(title) 
 
 HardwareSDLTerminal::~HardwareSDLTerminal() {
     if (!singleWindowMode || renderTargets.size() == 1) {
-        SDL_DestroyTexture(pixtex);
-        SDL_DestroyTexture(font);
-        SDL_DestroyRenderer(ren);
+        if (pixtex != NULL) SDL_DestroyTexture(pixtex);
+        if (font != NULL) SDL_DestroyTexture(font);
+        if (ren != NULL) SDL_DestroyRenderer(ren);
         singlePixtex = NULL;
         singleFont = NULL;
         singleRen = NULL;

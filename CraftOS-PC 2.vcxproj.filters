@@ -139,6 +139,9 @@
     <ClInclude Include="src\peripheral\debugger.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
+    <ClInclude Include="src\peripheral\debug_adapter.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
     <ClInclude Include="src\peripheral\drive.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
@@ -250,6 +253,9 @@
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\debugger.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\debug_adapter.cpp">
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\drive.cpp">

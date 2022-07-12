@@ -200,6 +200,8 @@ void addSystemCertificates(Poco::Net::Context::Ptr context) {
     for (Poco::Crypto::X509Certificate& cert : certificateStore) context->addCertificateAuthority(cert);
 }
 
+void unblockInput() {}
+
 #ifdef __INTELLISENSE__
 #region Mobile API
 #endif

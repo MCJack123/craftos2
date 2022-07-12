@@ -479,3 +479,7 @@ void addSystemCertificates(Poco::Net::Context::Ptr context) {
     CFRelease(res);
     CFRelease(keychain);
 }
+
+void unblockInput() {
+    close(STDIN_FILENO);
+}

@@ -128,7 +128,9 @@ struct Computer {
     // The following fields are available in API version 10.7 and later.
     bool shouldDeleteDebugger = true;
 
+    // The following fields are available in API version 10.8 and later.
     std::mutex openWebsocketsMutex;
+    std::vector<std::pair<lua_CFunction, void*>> startupCallbacks; // List of functions to call when starting up + a userdata to pass as the first argument
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

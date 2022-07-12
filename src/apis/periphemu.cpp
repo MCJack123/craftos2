@@ -13,6 +13,7 @@
 #include <Terminal.hpp>
 #include "../peripheral/computer.hpp"
 #include "../peripheral/debugger.hpp"
+#include "../peripheral/debug_adapter.hpp"
 #include "../peripheral/drive.hpp"
 #include "../peripheral/modem.hpp"
 #include "../peripheral/monitor.hpp"
@@ -25,6 +26,7 @@ static std::unordered_map<std::string, peripheral_init_fn> initializers = {
     {"monitor", peripheral_init_fn(monitor::init)},
     {"computer", peripheral_init_fn(computer::init)},
     {"debugger", peripheral_init_fn(debugger::_init)},
+    {"debug_adapter", peripheral_init_fn(debug_adapter::_init)},
     {"printer", peripheral_init_fn(printer::init)},
     {"modem", peripheral_init_fn(modem::init)},
     {"drive", peripheral_init_fn(drive::init)},
