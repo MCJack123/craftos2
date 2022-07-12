@@ -143,7 +143,8 @@ int fs_handle_readByte(lua_State *L) {
             return 1;
         }
         char* retval = new char[s];
-        const size_t actual = fp->readsome(retval, s);
+        fp->read(retval, s);
+        const size_t actual = fp->gcount();
         if (actual == 0) {delete[] retval; return 0;}
         lua_pushlstring(L, retval, actual);
         delete[] retval;
@@ -164,7 +165,8 @@ int fs_handle_readAllByte(lua_State *L) {
     char * str = (char*)malloc(512);
     if (str == NULL) return luaL_error(L, "failed to allocate memory");
     while (!fp->eof()) {
-        size += fp->readsome(&str[size], 512);
+        fp->read(&str[size], 512);
+        size += fp->gcount();
         if (size % 512 != 0) break;
         char * strn = (char*)realloc(str, size + 512);
         if (strn == NULL) {

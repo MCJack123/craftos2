@@ -63,7 +63,7 @@ struct FileEntry {
      */
     FileEntry& path(std::filesystem::path path) noexcept(false) {
         FileEntry * retval = this;
-        for (const auto& item : path) if (!std::regex_match(item.native(), std::basic_regex<std::filesystem::path::value_type>("\\d+:"))) retval = &(*retval)[item];
+        for (const auto& item : path) if (item.string() != "." && !std::regex_match(item.native(), std::basic_regex<std::filesystem::path::value_type>(std::filesystem::path("\\d+:").native()))) retval = &(*retval)[item.string()];
         return *retval;
     }
     FileEntry& path(std::string path) noexcept(false) {
@@ -74,7 +74,7 @@ struct FileEntry {
     }
     const FileEntry& path(std::filesystem::path path) const noexcept(false) {
         const FileEntry * retval = this;
-        for (const auto& item : path) if (!std::regex_match(item.native(), std::basic_regex<std::filesystem::path::value_type>("\\d+:"))) retval = &(*retval)[item];
+        for (const auto& item : path) if (item.string() != "." && !std::regex_match(item.native(), std::basic_regex<std::filesystem::path::value_type>(std::filesystem::path("\\d+:").native()))) retval = &(*retval)[item.string()];
         return *retval;
     }
     const FileEntry& path(std::string path) const noexcept(false) {

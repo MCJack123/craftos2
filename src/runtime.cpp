@@ -31,6 +31,7 @@
 #ifdef WIN32
 #define R_OK 0x04
 #define W_OK 0x02
+#define access(p, m) _waccess(p, m)
 #endif
 #ifndef NO_CLI
 #include <csignal>

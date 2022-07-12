@@ -51,11 +51,11 @@ path_t rom_path_expanded;
 static SDL_SysWMinfo window_info;
 static UIView * sdlView;
 
-void setBasePath(const char * path) {
+void setBasePath(path_t path) {
     base_path_expanded = path;
 }
 
-void setROMPath(const char * path) {
+void setROMPath(path_t path) {
     rom_path_expanded = path;
 }
 

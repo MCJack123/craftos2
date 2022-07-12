@@ -615,7 +615,7 @@ void SDLTerminal::init() {
     std::string bmp_path = "built-in file";
 #ifndef STANDALONE_ROM
     if (config.customFontPath == "hdfont") {
-        bmp_path = getROMPath() / "hdfont.bmp";
+        bmp_path = (getROMPath() / "hdfont.bmp").string();
         fontScale = 1;
     } else 
 #endif

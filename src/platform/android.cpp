@@ -36,39 +36,37 @@ extern "C" {
 #include "../util.hpp"
 #include "../terminal/SDLTerminal.hpp"
 
-std::string base_path;
-std::string rom_path;
+path_t base_path;
+path_t rom_path;
 
-void setBasePath(const char * path) {
+void setBasePath(path_t path) {
     base_path = path;
 }
 
-void setROMPath(const char * path) {
+void setROMPath(path_t path) {
     rom_path = path;
 }
 
 path_t getBasePath() {
     if (base_path.empty()) {
         if (SDL_AndroidGetExternalStorageState() & (SDL_ANDROID_EXTERNAL_STORAGE_READ | SDL_ANDROID_EXTERNAL_STORAGE_WRITE))
-            base_path = std::string(SDL_AndroidGetExternalStoragePath());
-        else base_path = std::string(SDL_AndroidGetInternalStoragePath());
+            base_path = path_t(SDL_AndroidGetExternalStoragePath());
+        else base_path = path_t(SDL_AndroidGetInternalStoragePath());
     }
     return base_path;
 }
 
 path_t getROMPath() {
     if (rom_path.empty()) {
-        rom_path = std::string(SDL_AndroidGetInternalStoragePath());
-        rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
+        rom_path = path_t(SDL_AndroidGetInternalStoragePath()).parent_path() / "cache";
     }
     return rom_path;
 }
 path_t getPlugInPath() {
     if (rom_path.empty()) {
-        rom_path = std::string(SDL_AndroidGetInternalStoragePath());
-        rom_path = rom_path.substr(0, rom_path.find_last_of('/') + 1) + "cache";
+        rom_path = path_t(SDL_AndroidGetInternalStoragePath()).parent_path() / "cache";
     }
-    return rom_path + "/plugins/";
+    return rom_path / "plugins";
 }
 
 path_t getMCSavePath() {

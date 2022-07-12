@@ -202,7 +202,8 @@ static const char * file_reader(lua_State *L, void * ud, size_t *size) {
     static char file_read_tmp[4096];
     std::ifstream * file = (std::ifstream*)ud;
     if (file->eof()) return NULL;
-    *size = file->readsome(file_read_tmp, 4096);
+    file->read(file_read_tmp, 4096);
+    *size = file->gcount();
     return file_read_tmp;
 }
 
@@ -587,7 +588,7 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
         status = luaL_loadstring(self->coro, bios_data.c_str());
-        path_t bios_path_expanded = "standalone ROM";
+        path_t bios_path_expanded("standalone ROM");
 #else
         path_t bios_path_expanded = getROMPath() / bios_name;
         std::ifstream bios_file(bios_path_expanded);

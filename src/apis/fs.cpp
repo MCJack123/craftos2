@@ -28,6 +28,7 @@
 #ifdef WIN32
 #include <io.h>
 #define W_OK 0x02
+#define access(p, m) _waccess(p, m)
 #else
 #include <libgen.h>
 #include <unistd.h>
@@ -38,7 +39,7 @@
 #endif
 
 using namespace std::filesystem;
-typedef std::basic_regex<path_t::value_type> pathregex;
+static std::basic_regex<path_t::value_type> pathregex(const std::string& str) {return std::basic_regex<path_t::value_type>(path_t(str).native());};
 
 #define err(L, idx, err) luaL_error(L, "/%s: %s", fixpath(get_comp(L), lua_tostring(L, idx), false, false).string().c_str(), err)
 
@@ -108,6 +109,11 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& p
         if (
             (isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.string()))) ||
             (fs::exists(sstmp))) {
+            if (path_t::preferred_separator != (path_t::value_type)'/' && isVFSPath(sstmp)) {
+                path_t::string_type str = sstmp.native();
+                std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
+                sstmp = path_t(str);
+            }
             retval.push_back(sstmp);
         }
     }
@@ -201,7 +207,7 @@ static int fs_isReadOnly(lua_State *L) {
         const path_t file = path / "a";
         const bool didexist = fs::exists(file);
         std::ofstream fp(file, std::ios::app);
-        lua_pushboolean(L, fp.is_open());
+        lua_pushboolean(L, !fp.is_open());
         fp.close();
         if (!didexist && fs::exists(file)) fs::remove(file);
     }
@@ -212,9 +218,7 @@ static int fs_isReadOnly(lua_State *L) {
 
 static int fs_getName(lua_State *L) {
     lastCFunction = __func__;
-    std::string retval = path_t(checkstring(L, 1), path_t::generic_format).filename().string();
-    lua_pushlstring(L, retval.c_str(), retval.size());
-    //pushstring(L, retval);
+    pushstring(L, path_t(checkstring(L, 1), path_t::generic_format).filename().string());
     return 1;
 }
 
@@ -370,12 +374,17 @@ static int fs_delete(lua_State *L) {
 static int fs_combine(lua_State *L) {
     lastCFunction = __func__;
     path_t basePath = path_t(checkstring(L, 1), path_t::generic_format);
-    for (int i = 2; i <= lua_gettop(L); i++) if (!checkstring(L, i).empty()) basePath += "/" + tostring(L, i);
+    for (int i = 2; i <= lua_gettop(L); i++) if (!checkstring(L, i).empty()) basePath /= tostring(L, i);
     if (basePath.is_absolute()) basePath = basePath.lexically_relative("/");
     else basePath = basePath.lexically_normal();
-    std::string str = basePath.string();
-    lua_pushlstring(L, str.c_str(), str.size());
-    //pushstring(L, str);
+    if (path_t::preferred_separator != (path_t::value_type)'/') {
+        path_t::string_type str = basePath.native();
+        std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
+        basePath = path_t(str);
+    }
+    std::string retval = basePath.string();
+    if (retval[0] == '/') retval = retval.substr(1);
+    pushstring(L, retval);
     return 1;
 }
 
@@ -676,13 +685,17 @@ static int fs_find(lua_State *L) {
 
 static int fs_getDir(lua_State *L) {
     lastCFunction = __func__;
-    path_t path = path_t(checkstring(L, 1));
-    path = path.parent_path();
+    path_t path = path_t(checkstring(L, 1)).parent_path();
     if (path.is_absolute()) path = path.lexically_relative("/");
     else path = path.lexically_normal();
-    std::string str = path.string();
-    lua_pushlstring(L, str.c_str(), str.size());
-    //pushstring(L, path.string());
+    if (path_t::preferred_separator != (path_t::value_type)'/') {
+        path_t::string_type str = path.native();
+        std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
+        path = path_t(str);
+    }
+    std::string retval = path.string();
+    if (retval[0] == '/') retval = retval.substr(1);
+    pushstring(L, retval);
     return 1;
 }
 
@@ -721,7 +734,7 @@ static int fs_attributes(lua_State *L) {
         }
     } else {
 #ifdef _WIN32
-        struct wstat st;
+        struct _stat st;
         if (_wstat(path.c_str(), &st) != 0) {
             lua_pushnil(L);
             return 1;
@@ -757,7 +770,7 @@ static int fs_attributes(lua_State *L) {
                 if (!didexist && fs::exists(file)) fs::remove(file);
             }
 #endif
-            else lua_pushboolean(L, access(path.native().c_str(), W_OK) != 0);
+            else lua_pushboolean(L, access(path.c_str(), W_OK) != 0);
         }
         lua_setfield(L, -2, "isReadOnly");
     }

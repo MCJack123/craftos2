@@ -212,9 +212,7 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             for (const _path_t& p : max_path.second) {
                 path_t sstmp = p;
                 for (const std::string& s : pathc) sstmp /= s;
-                if (
-                    (isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.string()))) ||
-                    (fs::exists(sstmp))) {
+                if ((isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp))) || (fs::exists(sstmp))) {
                     ss /= sstmp;
                     found = true;
                     break;
@@ -231,8 +229,7 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
                 if (
                     (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(ss/back)) ||
                     (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp)) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp).isDir))) ||
-                    (fs::exists(sstmp/back)) || (fs::is_directory(sstmp))
-                    ) {
+                    (fs::exists(sstmp/back)) || (fs::is_directory(sstmp))) {
                     ss /= sstmp/back;
                     found = true;
                     break;
@@ -255,6 +252,11 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             }
         }
     } else for (const std::string& s : pathc) ss /= s;
+    if (path_t::preferred_separator != (path_t::value_type)'/' && (!addExt || isVFSPath(ss))) {
+        path_t::string_type str = ss.native();
+        std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
+        ss = path_t(str);
+    }
     return ss;
 }
 

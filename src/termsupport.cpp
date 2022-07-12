@@ -872,7 +872,7 @@ std::string termGetEvent(lua_State *L) {
             if (config.dropFilePath) {
                 // Simply paste the file path
                 // Look for a path relative to a mount; if not then just give it the whole thing
-                path_t::string_type path = e.drop.file;
+                path_t::string_type path = path_t(e.drop.file).native();
                 std::string path_final = e.drop.file;
                 path_t::string_type::iterator largestMatch = path.begin();
                 {
@@ -896,7 +896,7 @@ std::string termGetEvent(lua_State *L) {
                 return "paste";
             } else {
                 // Copy the file into the computer
-                path_t path = fixpath(computer, basename(e.drop.file), false);
+                path_t path(e.drop.file);
                 if (fs::is_regular_file(path)) {
                     SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
                     if (term != NULL) {
@@ -941,9 +941,9 @@ std::string termGetEvent(lua_State *L) {
                 }
                 char buf[4096];
                 while (!infile.eof()) {
-                    size_t sz = infile.readsome(buf, 4096);
-                    outfile.write(buf, sz);
-                    if (sz < 4096) break;
+                    infile.read(buf, 4096);
+                    outfile.write(buf, infile.gcount());
+                    if (infile.gcount() < 4096) break;
                 }
                 infile.close();
                 outfile.close();

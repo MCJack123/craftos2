@@ -53,6 +53,10 @@ using namespace Poco::Net;
 extern "C" {extern int Android_JNI_SetupThread(void);}
 #endif
 
+#ifdef _WIN32
+extern void uploadCrashDumps();
+#endif
+
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
 extern void clearPeripherals();
@@ -506,8 +510,6 @@ static void migrateData(bool forced) {
 static int id = 0;
 static bool manualID = false;
 static bool forceMigrate = false;
-static std::string base_path_storage;
-static std::string rom_path_storage;
 static path_t customDataDir;
 
 int parseArguments(const std::vector<std::string>& argv) {
@@ -528,15 +530,15 @@ int parseArguments(const std::vector<std::string>& argv) {
         else if (arg == "--exec") script_file = "\x1b" + argv[++i];
         else if (arg == "--args") script_args = argv[++i];
         else if (arg == "--plugin") customPlugins.push_back(argv[++i]);
-        else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i].c_str());
-        else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
+        else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
+        else if (arg.substr(0, 3) == "-d=") setBasePath(arg.substr(3));
         else if (arg == "--computers-dir" || arg == "-C") computerDir = argv[++i];
         else if (arg.substr(0, 3) == "-C=") computerDir = arg.substr(3);
         else if (arg == "--start-dir") customDataDir = argv[++i];
         else if (arg.substr(0, 3) == "-c=") customDataDir = arg.substr(3);
         else if (arg == "--rom") setROMPath(argv[++i].c_str());
-        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = path_t(argv[++i])/"assets"/"computercraft"/"lua").c_str());
-        else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = path_t(arg.substr(3))/"assets"/"computercraft"/"lua").c_str());
+        else if (arg == "--assets-dir" || arg == "-a") setROMPath(path_t(argv[++i])/"assets"/"computercraft"/"lua");
+        else if (arg.substr(0, 3) == "-a=") setROMPath(path_t(arg.substr(3))/"assets"/"computercraft"/"lua");
         else if (arg == "--mc-save") computerDir = getMCSavePath() / argv[++i] / "computer";
         else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
         else if (arg == "--migrate") forceMigrate = true;

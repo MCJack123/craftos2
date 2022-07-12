@@ -21,18 +21,14 @@
 
 using path_t = std::filesystem::path;
 
-#ifdef _WIN32
-#define access _waccess
-#endif
-
 #ifdef __IPHONEOS__
 extern void iOS_SetWindowTitle(SDL_Window * win, const char * title);
 #define SDL_SetWindowTitle iOS_SetWindowTitle
 #endif
 
 extern void setThreadName(std::thread &t, const std::string& name);
-extern void setBasePath(const char * path);
-extern void setROMPath(const char * path);
+extern void setBasePath(path_t path);
+extern void setROMPath(path_t path);
 extern path_t getBasePath();
 extern path_t getROMPath();
 extern path_t getPlugInPath();

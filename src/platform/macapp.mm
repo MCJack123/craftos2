@@ -46,18 +46,18 @@ extern "C" {
 
 extern bool exiting;
 path_t rom_path_expanded;
-const char * customBasePath = NULL;
+path_t customBasePath;
 
-void setBasePath(const char * path) {
+void setBasePath(path_t path) {
     customBasePath = path;
 }
 
-void setROMPath(const char * path) {
+void setROMPath(path_t path) {
     rom_path_expanded = path;
 }
 
 path_t getBasePath() {
-    if (customBasePath != NULL) return customBasePath;
+    if (!customBasePath.empty()) return customBasePath;
     return path_t([[[NSFileManager defaultManager] 
                          URLForDirectory:NSApplicationSupportDirectory 
                          inDomain:NSUserDomainMask 

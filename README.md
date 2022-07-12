@@ -74,7 +74,7 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 * Compiler supporting C++17
   * Linux: G++ 8.0+, make
   * Mac: Xcode 10.2+ CLI tools (xcode-select --install)
-  * Windows: Visual Studio 2019
+  * Windows: Visual Studio 2022
 * SDL 2.0.8+ (may work on older versions on non-Linux)
 * OpenSSL 1.1.1/3.x (for POCO)
 * POCO 1.5.0+: NetSSL & JSON libraries + dependencies

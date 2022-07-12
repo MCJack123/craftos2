@@ -39,11 +39,11 @@ path_t base_path_expanded;
 path_t rom_path_expanded;
 wchar_t expand_tmp[32768];
 
-void setBasePath(const char * path) {
+void setBasePath(path_t path) {
     base_path_expanded = path;
 }
 
-void setROMPath(const char * path) {
+void setROMPath(path_t path) {
     rom_path_expanded = path;
 }
 
@@ -237,8 +237,8 @@ static int recursiveMove(const std::wstring& path, const std::wstring& toPath) {
 void migrateOldData() {
     ExpandEnvironmentStringsW(L"%USERPROFILE%\\.craftos", expand_tmp, 32767);
     const std::wstring oldpath = expand_tmp;
-    struct_stat st;
-    if (platform_stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && platform_stat(getBasePath().c_str(), &st) != 0)
+    struct _stat st;
+    if (_wstat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && _wstat(getBasePath().c_str(), &st) != 0)
         recursiveMove(oldpath, getBasePath());
     if (!failedCopy.empty())
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
@@ -391,7 +391,7 @@ void uploadCrashDumps() {
             do {
                 std::wstring newpath = std::wstring(path) + find.cFileName;
                 std::stringstream ss;
-                FILE * source = platform_fopen(newpath.c_str(), "rb");
+                FILE * source = _wfopen(newpath.c_str(), L"rb");
 
                 int ret, flush;
                 unsigned have;

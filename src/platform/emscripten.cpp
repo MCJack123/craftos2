@@ -17,9 +17,9 @@
 
 void setThreadName(std::thread &t, const std::string& name) {}
 
-void setBasePath(const char * path) {}
+void setBasePath(path_t path) {}
 
-void setROMPath(const char * path) {}
+void setROMPath(path_t path) {}
 
 path_t getBasePath() {
     return "/user-data";
