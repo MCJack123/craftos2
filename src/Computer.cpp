@@ -765,7 +765,7 @@ void* computerThread(void* data) {
         }
         try {
 #ifdef STANDALONE_ROM
-            runComputer(comp, "standalone BIOS", standaloneBIOS));
+            runComputer(comp, "standalone BIOS", standaloneBIOS);
 #else
             runComputer(comp, "bios.lua");
 #endif
