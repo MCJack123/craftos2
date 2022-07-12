@@ -715,6 +715,8 @@ void platformExit() {}
 
 void addSystemCertificates(Poco::Net::Context::Ptr context) {}
 
+void unblockInput() {}
+
 #ifdef __INTELLISENSE__
 #region Mobile API
 #endif

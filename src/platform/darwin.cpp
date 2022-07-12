@@ -278,4 +278,8 @@ void platformExit() {}
 
 void addSystemCertificates(Poco::Net::Context::Ptr context) {}
 
+void unblockInput() {
+    close(STDIN_FILENO);
+}
+
 #endif // __INTELLISENSE__

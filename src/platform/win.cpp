@@ -563,4 +563,19 @@ void addSystemCertificates(Poco::Net::Context::Ptr context) {
     CertCloseStore(store, 0);
 }
 
+void unblockInput() {
+    DWORD tmp;
+    INPUT_RECORD ir[2];
+    ir[0].EventType = KEY_EVENT;
+    ir[0].Event.KeyEvent.bKeyDown = TRUE;
+    ir[0].Event.KeyEvent.dwControlKeyState = 0;
+    ir[0].Event.KeyEvent.uChar.UnicodeChar = VK_RETURN;
+    ir[0].Event.KeyEvent.wRepeatCount = 1;
+    ir[0].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
+    ir[0].Event.KeyEvent.wVirtualScanCode = MapVirtualKey(VK_RETURN, MAPVK_VK_TO_VSC);
+    ir[1] = ir[0];
+    ir[1].Event.KeyEvent.bKeyDown = FALSE;
+    WriteConsoleInput(GetStdHandle(STD_INPUT_HANDLE), ir, 2, &tmp);
+}
+
 #endif

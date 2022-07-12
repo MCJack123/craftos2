@@ -87,4 +87,5 @@ extern void setupCrashHandler();
 extern void setFloating(SDL_Window* win, bool state);
 extern void platformExit();
 extern void addSystemCertificates(Poco::Net::Context::Ptr context);
+extern void unblockInput();
 #endif
