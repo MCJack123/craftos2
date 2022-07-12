@@ -318,20 +318,15 @@ testStart "help"
 testEnd()
 
 testStart "http"
-	local handle = call("get", "https://pastebin.com/raw/yY9StxvU")
+	local handle = call("get", "https://httpbin.org/base64/SGVsbG8gV29ybGQhCkFub3RoZXIgbGluZS4KVGhpcyBkYXRhIHdvcmtzIHByb3Blcmx5LgoocmVzdCBvZiBkYXRhKQ==")
 	if testLocal("handle", type(handle), "table") then
 		testLocal("handle.getResponseCode", callLocal("handle.getResponseCode", handle.getResponseCode), 200)
-		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'print("Downloading latest installer...")')
-		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'local file = http.get("https://raw.githubusercontent.com/MCJack123/CCKernel2/master/CCKernel2Installer.lua")')
-		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'local out = fs.open("install.lua", "w")')
-		testLocal("handle.readAll", callLocal("handle.readAll", handle.readAll), [[out.write(file.readAll())
-file.close()
-out.close()
-shell.run("/install.lua")
-fs.delete("/install.lua")]])
+		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'Hello World!')
+		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine, true), 'Another line.\n')
+		testLocal("handle.readAll", callLocal("handle.readAll", handle.readAll), 'This data works properly.\n(rest of data)')
 		callLocal("handle.close", handle.close)
 	end
-	test("checkURL", {true, nil}, "https://pastebin.com/raw/yY9StxvU")
+	test("checkURL", {true, nil}, "https://httpbin.org/base64")
 	test("checkURL", {false, "Must specify http or https"}, "qwertyuiop")
 	test("checkURL", {false, "URL malformed"}, "http:qwertyuiop")
 	test("checkURL", {false, "Invalid protocol 'ftp'"}, "ftp://example.com")
