@@ -18,8 +18,6 @@ static void forwardInput();
 #include <Poco/Net/TCPServerConnection.h>
 #include <Poco/Net/TCPServerConnectionFactory.h>
 
-#define literal(s) s, sizeof(s)
-
 static debug_adapter * stdio_debugger = NULL;
 static std::thread * inputThread = NULL;
 
@@ -31,14 +29,14 @@ static std::string dap_input(lua_State *L, void* arg) {
 }
 
 static void forwardInput() {
-    //raw();
     std::this_thread::sleep_for(std::chrono::seconds(1));
     while (!exiting) {
         std::string data, line;
         do {
             std::getline(std::cin, line);
             data += line + "\n";
-        } while (line != "" && line != "\r");
+        } while (!exiting && line != "" && line != "\r");
+        if (exiting) break;
         size_t sz = 0;
         bool state = false;
         for (int i = 0; i < data.size(); i++) {
