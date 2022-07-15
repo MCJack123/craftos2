@@ -14,7 +14,6 @@ static void forwardInput();
 #include "../terminal/SDLTerminal.hpp"
 #include "../terminal/HardwareSDLTerminal.hpp"
 #include "../termsupport.hpp"
-#include <curses.h>
 #include <Poco/Net/TCPServerConnection.h>
 #include <Poco/Net/TCPServerConnectionFactory.h>
 
