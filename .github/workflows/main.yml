@@ -129,7 +129,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 20907dc8bfd4a3baf555467727755fbba708ad84
+        vcpkgGitCommitId: 8b62d95a81afcb9efe74bebeb62f04c1e0e2a003
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
