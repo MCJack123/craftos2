@@ -60,7 +60,7 @@ int fs_handle_readAll(lua_State *L) {
     int i;
     for (i = 0; !fp->eof() && i < size; i++) {
         int c = fp->get();
-        if (c == EOF && fp->eof()) break;
+        if (c == EOF && fp->eof()) continue;
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = (char)c;
     }
