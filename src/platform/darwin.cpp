@@ -39,13 +39,9 @@ extern "C" {
 const char * rom_path = CUSTOM_ROM_DIR;
 path_t rom_path_expanded;
 #else
-path_t rom_path = "/usr/share/craftos";
+path_t rom_path = "/usr/local/share/craftos";
 #endif
-#ifdef FS_ROOT
-const char * base_path = "";
-#else
-const char * base_path = "$XDG_DATA_HOME/craftos-pc";
-#endif
+const char * base_path = "$HOME/Library/Application\\ Support/CraftOS-PC";
 path_t base_path_expanded;
 
 void setBasePath(path_t path) {
@@ -67,12 +63,6 @@ path_t getBasePath() {
     base_path_expanded = p.we_wordv[0];
     for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
     wordfree(&p);
-    if (base_path_expanded == "/craftos-pc") {
-        wordexp("$HOME/.local/share/craftos-pc", &p, 0);
-        base_path_expanded = p.we_wordv[0];
-        for (unsigned i = 1; i < p.we_wordc; i++) base_path_expanded += p.we_wordv[i];
-        wordfree(&p);
-    }
     return base_path_expanded;
 }
 
