@@ -53,14 +53,14 @@ int fs_handle_readAll(lua_State *L) {
     if (fp->eof()) return 0;
     const long pos = (long)fp->tellg();
     fp->seekg(0, std::ios::end);
-    const long size = (long)fp->tellg() - pos;
+    long size = (long)fp->tellg() - pos;
     char * retval = new char[size + 1];
     memset(retval, 0, size + 1);
     fp->seekg(pos);
     int i;
     for (i = 0; !fp->eof() && i < size; i++) {
         int c = fp->get();
-        if (c == EOF && fp->eof()) continue;
+        if (c == EOF && fp->eof()) { size = i; break; }
         if (c == '\n' && (i > 0 && retval[i-1] == '\r')) retval[--i] = '\n';
         else retval[i] = (char)c;
     }
