@@ -117,7 +117,7 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
             taskQueue->pop();
         }
         SDL_PumpEvents();
-        std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 

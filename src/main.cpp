@@ -495,7 +495,7 @@ static void migrateData(bool forced) {
             }
         } else msg += "Could not find " + (getBasePath().parent_path() / "ccemux" / "ccemux.json").string() + "\n";
         if (!msg.empty()) {
-            fprintf(stderr, "Some errors occurred while copying CCEmuX data:\n%s", msg);
+            fprintf(stderr, "Some errors occurred while copying CCEmuX data:\n%s", msg.c_str());
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files failed to be copied while migrating from CCEmuX. Check the console to see what failed.\n", NULL);
         } else if (forced) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Migration Success", "The migration of CCEmuX data to CraftOS-PC has completed successfully.", NULL);
     }
