@@ -243,7 +243,7 @@ int monitor::setGraphicsMode(lua_State *L) {
     lastCFunction = __func__;
     if (!lua_isnumber(L, 1) && !lua_isboolean(L, 1)) luaL_typerror(L, 1, "number");
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
-    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument %1 (invalid mode %d)", lua_tointeger(L, 1));
+    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument #1 (invalid mode %d)", lua_tointeger(L, 1));
     std::lock_guard<std::mutex> lock(term->locked);
     term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : (int)lua_tointeger(L, 1);
     term->changed = true;
