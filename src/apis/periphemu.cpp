@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <Computer.hpp>
 #include <Terminal.hpp>
+#include "../peripheral/chest.hpp"
 #include "../peripheral/computer.hpp"
 #include "../peripheral/debugger.hpp"
 #include "../peripheral/debug_adapter.hpp"
@@ -30,6 +31,8 @@ static std::unordered_map<std::string, peripheral_init_fn> initializers = {
     {"printer", peripheral_init_fn(printer::init)},
     {"modem", peripheral_init_fn(modem::init)},
     {"drive", peripheral_init_fn(drive::init)},
+    {"chest", peripheral_init_fn(chest::init)},
+    {"minecraft:chest", peripheral_init_fn(chest::init)},
 #ifndef NO_MIXER
     {"speaker", peripheral_init_fn(speaker::init)}
 #endif
