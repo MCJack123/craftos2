@@ -2,7 +2,7 @@
  * peripheral/chest.cpp
  * CraftOS-PC 2
  * 
- * This file defines the methods for the chests peripheral.
+ * This file defines the methods for the chest peripheral.
  * 
  * This code is licensed under the MIT License.
  * Copyright (c) 2019-2022 JackMacWindows.
@@ -85,4 +85,4 @@ static luaL_Reg chest_reg[] = {
 };
 
 library_t chest::methods = {"!!MULTITYPE", chest_reg, nullptr, nullptr};
-std::vector<std::string> chest::types = {"inventory", "chest", "minecraft:chest"};
+std::vector<std::string> chest::types = {"minecraft:chest", "inventory", "chest"};

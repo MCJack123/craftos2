@@ -14,14 +14,15 @@
 #include "../peripheral.hpp"
 
 class energy_storage : public peripheral {
+protected:
     virtual int getEnergy() = 0; // Returns the current energy of the peripheral.
     virtual int getEnergyCapacity() = 0; // Returns the total energy capacity of the peripheral.
 public:
-    int call(lua_State *L, const char * method) override {
+    virtual int call(lua_State *L, const char * method) override {
         const std::string m(method);
         if (m == "getEnergy") lua_pushinteger(L, getEnergy());
         else if (m == "getEnergyCapacity") lua_pushinteger(L, getEnergyCapacity());
-        else return 0;
+        else return luaL_error(L, "No such method");
         return 1;
     }
     void update() override {}

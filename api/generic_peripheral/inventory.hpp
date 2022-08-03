@@ -81,7 +81,7 @@ public:
 
             lua_pushinteger(L, added);
             return 1;
-        } else return 0;
+        } else return luaL_error(L, "No such method");
     }
     void update() override {}
     virtual library_t getMethods() const override {
