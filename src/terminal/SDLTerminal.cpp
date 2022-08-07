@@ -497,7 +497,9 @@ void SDLTerminal::screenshot(std::string path) {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
         screenshotPath = getBasePath() / "screenshots";
-        fs::create_directories(screenshotPath);
+        std::error_code e;
+        fs::create_directories(screenshotPath, e);
+        if (e) return;
         char tstr[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
         tstr[23] = '\0';
@@ -522,7 +524,9 @@ void SDLTerminal::record(std::string path) {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
         recordingPath = getBasePath() / "screenshots";
-        fs::create_directories(recordingPath);
+        std::error_code e;
+        fs::create_directories(recordingPath, e);
+        if (e) return;
         char tstr[20];
         strftime(tstr, 20, "%F_%H.%M.%S", nowt);
         isRecordingWebP = config.useWebP;

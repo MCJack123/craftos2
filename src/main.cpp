@@ -640,6 +640,7 @@ int parseArguments(const std::vector<std::string>& argv) {
                       << "  --headless                       Outputs only text straight to stdout\n"
                       << "  --raw                            Outputs terminal contents using a binary format\n"
                       << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
+                      << "  --raw-websocket <url>            Like --raw-client, but connects to a WebSocket server\n"
                       << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n"
                       << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n"
                       << "  --single                         Forces all screen output to a single window\n\n"

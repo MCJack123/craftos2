@@ -77,36 +77,9 @@ void setThreadName(std::thread &t, const std::string& name) {
     pthread_setname_np(t.native_handle(), name.c_str());
 }
 
-void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) {
-    
-}
+void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) {}
 
-int recursiveCopyPlatform(const std::string& fromDir, const std::string& toDir) {
-    struct stat statbuf;
-    if (!stat(fromDir.c_str(), &statbuf)) {
-        if (S_ISDIR(statbuf.st_mode)) {
-            fs::create_directories(toDir);
-            DIR *d = opendir(fromDir.c_str());
-            int r = -1;
-            if (d) {
-                struct dirent *p;
-                r = 0;
-                while (!r && (p=readdir(d))) {
-                    /* Skip the names "." and ".." as we don't want to recurse on them. */
-                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-                    r = recursiveCopyPlatform(fromDir + "/" + std::string(p->d_name), toDir + "/" + std::string(p->d_name));
-                }
-                closedir(d);
-            }
-            if (!r) r = rmdir(fromDir.c_str());
-            return r;
-        } else return rename(fromDir.c_str(), toDir.c_str());
-    } else return -1;
-}
-
-void migrateOldData() {
-    
-}
+void migrateOldData() {}
 
 void copyImage(SDL_Surface* surf, SDL_Window* win) {
     fprintf(stderr, "Warning: Android does not support taking screenshots to the clipboard.\n");

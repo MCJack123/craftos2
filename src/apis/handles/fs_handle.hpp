@@ -14,6 +14,7 @@ extern "C" {
 #include <lua.h>
 }
 extern int fs_handle_close(lua_State *L);
+extern int fs_handle_gc(lua_State *L);
 extern int fs_handle_readAll(lua_State *L);
 extern int fs_handle_readLine(lua_State *L);
 extern int fs_handle_readChar(lua_State *L);

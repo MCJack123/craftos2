@@ -152,7 +152,7 @@ printer::printer(lua_State *L, const char * side) {
         throw;
     }
 #else
-    fs::create_directories(outPath);
+    fs::create_directories(outPath); // throw
 #endif
 }
 

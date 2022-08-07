@@ -46,6 +46,19 @@ int fs_handle_close(lua_State *L) {
     return 0;
 }
 
+int fs_handle_gc(lua_State *L) {
+    lastCFunction = __func__;
+    if (*(std::iostream**)lua_touserdata(L, lua_upvalueindex(1)) == NULL)
+        return 0;
+    delete *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
+    *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1)) = NULL;
+    get_comp(L)->files_open--;
+#ifdef __EMSCRIPTEN__
+    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+#endif
+    return 0;
+}
+
 int fs_handle_readAll(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));

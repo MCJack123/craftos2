@@ -27,6 +27,13 @@ int onboardingMode = 0;
 extern "C" {extern void syncfs(); }
 #endif
 
+static void showMessage(const std::string& message) {
+    if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+    else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+    else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+    else fprintf(stderr, "%s\n", message.c_str());
+}
+
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false, 0, 0};
     std::ifstream in(getBasePath() / "config" / (std::to_string(id) + ".json"));
@@ -36,29 +43,17 @@ struct computer_configuration getComputerConfig(int id) {
     Poco::JSON::Object::Ptr p;
     try { p = root.parse(in); } catch (Poco::JSON::JSONException &e) {
         cfg.loadFailure = true;
-        const std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else fprintf(stderr, "%s\n", message.c_str());
+        showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return cfg;
     } catch (std::exception &e) {
         cfg.loadFailure = true;
-        const std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.what() + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else fprintf(stderr, "%s\n", message.c_str());
+        showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.what() + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return cfg;
     } catch (...) {
         cfg.loadFailure = true;
-        const std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": unknown. The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else fprintf(stderr, "%s\n", message.c_str());
+        showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": unknown. The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return cfg;
     }
@@ -156,7 +151,8 @@ const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "custo
 std::unordered_map<std::string, Poco::Dynamic::Var> unknownOptions;
 
 void config_init() {
-    fs::create_directories(getBasePath() / "config");
+    std::error_code e;
+    fs::create_directories(getBasePath() / "config", e);
     config = {
         true,
         true,
@@ -231,6 +227,11 @@ void config_init() {
         false,
         false
     };
+    if (e) {
+        configLoadError = true;
+        showMessage("An error occurred while parsing the global configuration file: Could not create config directory: " + std::string(e.message()) + ". The current session's config will be reset to default, and any changes made will not be saved.");
+        return;
+    }
     std::ifstream in(getBasePath() / "config" / "global.json");
     if (!in.is_open()) { onboardingMode = 1; return; }
     Value root;
@@ -239,29 +240,17 @@ void config_init() {
         p = root.parse(in);
     } catch (Poco::JSON::JSONException &e) {
         configLoadError = true;
-        const std::string message = "An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else fprintf(stderr, "%s\n", message.c_str());
+        showMessage("An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return;
     } catch (std::exception &e) {
         configLoadError = true;
-        const std::string message = "An error occurred while parsing the global configuration file: " + std::string(e.what()) + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else fprintf(stderr, "%s\n", message.c_str());
+        showMessage("An error occurred while parsing the global configuration file: " + std::string(e.what()) + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return;
     } catch (...) {
         configLoadError = true;
-        const std::string message = "An error occurred while parsing the global configuration file: unknown. The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else fprintf(stderr, "%s\n", message.c_str());
+        showMessage("An error occurred while parsing the global configuration file: unknown. The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return;
     }

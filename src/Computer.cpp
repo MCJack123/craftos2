@@ -587,7 +587,7 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
-        status = luaL_loadstring(self->coro, bios_data.c_str());
+        status = luaL_loadbuffer(self->coro, bios_data.c_str(), bios_data.size(), "@bios.lua");
         path_t bios_path_expanded("standalone ROM");
 #else
         path_t bios_path_expanded = getROMPath() / bios_name;

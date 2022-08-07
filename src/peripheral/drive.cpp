@@ -137,8 +137,14 @@ int drive::insertDisk(lua_State *L, bool init) {
         comp->usedDriveMounts.insert(i);
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
         comp->mounter_initializing = true;
-        fs::create_directories(computerDir / "disk" / std::to_string(id));
-        addMount(comp, computerDir / "disk" / std::to_string(id), mount_path.c_str(), false);
+        std::error_code e;
+        fs::create_directories(computerDir / "disk" / std::to_string(id), e);
+        if (e || !addMount(comp, computerDir / "disk" / std::to_string(id), mount_path.c_str(), false)) {
+            diskType = disk_type::DISK_TYPE_NONE;
+            comp->mounter_initializing = false;
+            error = "Could not mount";
+            goto throwError;
+        }
         comp->mounter_initializing = false;
     } else if (lua_isstring(L, arg)) {
         std::string str = lua_tostring(L, arg);

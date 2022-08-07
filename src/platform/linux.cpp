@@ -120,7 +120,9 @@ static int recursiveMove(const std::string& fromDir, const std::string& toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
-            fs::create_directories(toDir);
+            std::error_code e;
+            fs::create_directories(toDir, e);
+            if (e) return e.value();
             DIR *d = opendir(fromDir.c_str());
             int r = -1;
             if (d) {
