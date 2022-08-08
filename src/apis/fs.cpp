@@ -119,6 +119,17 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& p
     return retval;
 }
 
+static fs::space_info getSpace(const path_t& path) {
+    std::error_code e;
+    fs::space_info retval;
+    path_t p = path;
+    do {
+        retval = fs::space(p, e);
+        p = p.parent_path();
+    } while (e && e.value() == ENOENT && p.has_parent_path());
+    return retval;
+}
+
 static int fs_list(lua_State *L) {
     lastCFunction = __func__;
     std::string str = checkstring(L, 1);
@@ -267,7 +278,7 @@ static int fs_getFreeSpace(lua_State *L) {
     const path_t path = fixpath(get_comp(L), str, false, true, &mountPath);
     if (path.empty()) err(L, 1, "No such path");
     if (fixpath_ro(get_comp(L), str)) lua_pushinteger(L, 0);
-    else if (!config.standardsMode || mountPath != "hdd") lua_pushinteger(L, fs::space(path).free);
+    else if (!config.standardsMode || mountPath != "hdd") lua_pushinteger(L, getSpace(path).free);
     else lua_pushinteger(L, config.computerSpaceLimit - calculateDirectorySize(fixpath(get_comp(L), "", true)));
     return 1;
 }
@@ -753,7 +764,7 @@ static int fs_getCapacity(lua_State *L) {
         return 1;
     }
     if (path.empty()) luaL_error(L, "%s: Invalid path", str.c_str());
-    lua_pushinteger(L, fs::space(path).capacity);
+    lua_pushinteger(L, getSpace(path).capacity);
     return 1;
 }
 
