@@ -399,7 +399,7 @@ static int fs_open(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * mode = luaL_checkstring(L, 2);
-    if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (mode[1] != 'b' && mode[1] != '\0')) luaL_error(L, "%s: Unsupported mode", mode);
+    if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (!(mode[1] == 'b' && mode[2] == '\0') && mode[1] != '\0')) luaL_error(L, "%s: Unsupported mode", mode);
     std::string str = checkstring(L, 1);
     const path_t path = mode[0] == 'r' ? fixpath(get_comp(L), str, true) : fixpath_mkdir(get_comp(L), str);
     if (path.empty()) {
@@ -566,14 +566,6 @@ static int fs_open(lua_State *L) {
         lua_pushvalue(L, fpid);
         lua_pushcclosure(L, fs_handle_seek, 1);
         lua_settable(L, -3);
-    } else {
-        // This should now be unreachable, but we'll keep it here for safety
-        if (fp) {
-            (*fp)->close();
-            delete *fp;
-        } else if (sfp) delete *sfp;
-        lua_remove(L, fpid);
-        luaL_error(L, "%s: Unsupported mode", mode);
     }
     computer->files_open++;
     return 1;
