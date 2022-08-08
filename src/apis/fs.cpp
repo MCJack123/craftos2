@@ -84,7 +84,7 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& p
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
     if (comp->isDebugger && pathc.size() == 1 && pathc.front() == "bios.lua")
 #ifdef STANDALONE_ROM
-        return {path_t(":bios.lua", path::format::generic_format)};
+        return {path_t(":bios.lua", path_t::format::generic_format)};
 #else
         return {getROMPath()/"bios.lua"};
 #endif

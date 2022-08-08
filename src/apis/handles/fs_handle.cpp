@@ -13,6 +13,8 @@
 #include <cstring>
 #include <codecvt>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <locale>
 #include <string>
 #include "fs_handle.hpp"
@@ -35,10 +37,13 @@ EM_JS(void, syncfs, (), {
 
 int fs_handle_close(lua_State *L) {
     lastCFunction = __func__;
-    if (*(std::iostream**)lua_touserdata(L, lua_upvalueindex(1)) == NULL)
+    std::iostream ** fp = (std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
+    if (*fp == NULL)
         return luaL_error(L, "attempt to use a closed file");
-    delete *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
-    *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1)) = NULL;
+    if (dynamic_cast<std::fstream*>(*fp) != NULL) delete (std::fstream*)*fp;
+    else if (dynamic_cast<std::stringstream*>(*fp) != NULL) delete (std::stringstream*)*fp;
+    else delete *fp;
+    *fp = NULL;
     get_comp(L)->files_open--;
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
@@ -48,10 +53,13 @@ int fs_handle_close(lua_State *L) {
 
 int fs_handle_gc(lua_State *L) {
     lastCFunction = __func__;
-    if (*(std::iostream**)lua_touserdata(L, lua_upvalueindex(1)) == NULL)
+    std::iostream ** fp = (std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
+    if (*fp == NULL)
         return 0;
-    delete *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
-    *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1)) = NULL;
+    if (dynamic_cast<std::fstream*>(*fp) != NULL) delete (std::fstream*)*fp;
+    else if (dynamic_cast<std::stringstream*>(*fp) != NULL) delete (std::stringstream*)*fp;
+    else delete *fp;
+    *fp = NULL;
     get_comp(L)->files_open--;
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
