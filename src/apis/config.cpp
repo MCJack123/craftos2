@@ -105,7 +105,7 @@ static int config_get(lua_State *L) {
             switch (std::get<0>(userConfig[name])) {
                 case 0: lua_pushboolean(L, config.pluginData[name] == "true"); break;
                 case 1: lua_pushinteger(L, std::stoi(config.pluginData[name])); break;
-                case 2: lua_pushlstring(L, config.pluginData[name].c_str(), config.pluginData[name].size()); break;
+                case 2: pushstring(L, config.pluginData[name]); break;
                 case 3: return luaL_error(L, "Invalid type"); // maybe fix this later?
                 default: lua_pushnil(L); break;
             }

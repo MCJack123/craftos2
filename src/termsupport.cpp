@@ -13,6 +13,7 @@
 #include <cstring>
 #include <chrono>
 #include <codecvt>
+#include <fstream>
 #include <locale>
 #include <queue>
 #include <unordered_map>
@@ -28,6 +29,7 @@
 #include <sys/stat.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
+#include "main.hpp"
 #include "runtime.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/debugger.hpp"
@@ -337,6 +339,7 @@ int termPanic(lua_State *L) {
         lua_close(comp->rawFileStack);
         comp->rawFileStack = NULL;
     }
+    if (selectedRenderer == 1) returnValue = 1;
     longjmp(comp->on_panic, 0);
 }
 
@@ -726,7 +729,7 @@ std::string termGetEvent(lua_State *L) {
                 try {str = utf8_to_string(text, std::locale("C"));}
                 catch (std::exception &e) {return "";}
                 str = str.substr(0, min(str.find_first_of("\r\n"), (std::string::size_type)512));
-                lua_pushlstring(L, str.c_str(), str.size());
+                pushstring(L, str);
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
@@ -871,13 +874,13 @@ std::string termGetEvent(lua_State *L) {
             if (config.dropFilePath) {
                 // Simply paste the file path
                 // Look for a path relative to a mount; if not then just give it the whole thing
-                path_t path = wstr(e.drop.file);
+                path_t::string_type path = path_t(e.drop.file).native();
                 std::string path_final = e.drop.file;
-                path_t::iterator largestMatch = path.begin();
+                path_t::string_type::iterator largestMatch = path.begin();
                 {
                     auto match = std::mismatch(path.begin(), path.end(), computer->dataDir.begin());
                     if (match.first > largestMatch) {
-                        path_final = astr(path_t(match.first + 1, path.end()));
+                        path_final = path_t(match.first + 1, path.end()).string();
                         largestMatch = match.first;
                     }
                 }
@@ -886,44 +889,41 @@ std::string termGetEvent(lua_State *L) {
                     if (match.first > largestMatch) {
                         path_final = "";
                         for (const std::string& c : std::get<0>(m)) path_final += c + "/";
-                        path_final += astr(path_t(match.first + 1, path.end()));
+                        path_final += path_t(match.first + 1, path.end()).string();
                         largestMatch = match.first;
                     }
                 }
-                lua_pushfstring(L, "%s ", astr(fixpath(computer, path_final, false, false)).c_str());
+                lua_pushfstring(L, "%s ", fixpath(computer, path_final, false, false).string().c_str());
                 SDL_free(e.drop.file);
                 return "paste";
             } else {
                 // Copy the file into the computer
-                path_t path = fixpath(computer, basename(e.drop.file), false);
-                struct_stat st;
-                if (platform_stat(path.c_str(), &st) == 0) {
-                    if (S_ISREG(st.st_mode)) {
-                        SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
-                        if (term != NULL) {
-                            SDL_MessageBoxButtonData buttons[] = {
-                                {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No"},
-                                {0, 1, "Yes"}
-                            };
-                            std::string text = std::string("A file named ") + basename(e.drop.file) + " already exists on this computer. Would you like to overwrite it?";
-                            SDL_MessageBoxData msg = {
-                                SDL_MESSAGEBOX_WARNING,
-                                term->win,
-                                "File already exists",
-                                text.c_str(),
-                                2,
-                                buttons,
-                                NULL
-                            };
-                            if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)(ptrdiff_t)b;}, &msg)) {
-                                SDL_free(e.drop.file);
-                                return "";
-                            }
+                path_t path(e.drop.file);
+                if (fs::is_regular_file(path)) {
+                    SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
+                    if (term != NULL) {
+                        SDL_MessageBoxButtonData buttons[] = {
+                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No"},
+                            {0, 1, "Yes"}
+                        };
+                        std::string text = std::string("A file named ") + path.filename().string() + " already exists on this computer. Would you like to overwrite it?";
+                        SDL_MessageBoxData msg = {
+                            SDL_MESSAGEBOX_WARNING,
+                            term->win,
+                            "File already exists",
+                            text.c_str(),
+                            2,
+                            buttons,
+                            NULL
+                        };
+                        if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)(ptrdiff_t)b;}, &msg)) {
+                            SDL_free(e.drop.file);
+                            return "";
                         }
                     }
                 }
-                FILE * infile = fopen(e.drop.file, "rb");
-                if (infile == NULL) {
+                std::ifstream infile(e.drop.file, std::ios::binary);
+                if (!infile.is_open()) {
                     char * err = strerror(errno);
                     char * msg = new char[strlen(err)+1];
                     strcpy(msg, err);
@@ -931,24 +931,24 @@ std::string termGetEvent(lua_State *L) {
                     SDL_free(e.drop.file);
                     return "";
                 }
-                FILE * outfile = platform_fopen(path.c_str(), "wb");
-                if (outfile == NULL) {
+                std::ofstream outfile(path, std::ios::binary);
+                if (!outfile.is_open()) {
                     char * err = strerror(errno);
                     char * msg = new char[strlen(err)+1];
                     strcpy(msg, err);
                     queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The output file could not be written: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
-                    fclose(infile);
+                    infile.close();
                     SDL_free(e.drop.file);
                     return "";
                 }
                 char buf[4096];
-                while (!feof(infile)) {
-                    size_t sz = fread(buf, 1, 4096, infile);
-                    fwrite(buf, 1, sz, outfile);
-                    if (sz < 4096) break;
+                while (!infile.eof()) {
+                    infile.read(buf, 4096);
+                    outfile.write(buf, infile.gcount());
+                    if (infile.gcount() < 4096) break;
                 }
-                fclose(infile);
-                fclose(outfile);
+                infile.close();
+                outfile.close();
                 computer->fileUploadCount++;
                 SDL_free(e.drop.file);
                 return "";

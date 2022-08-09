@@ -256,7 +256,7 @@ int http_request(lua_State *L) {
 
 std::string http_check(lua_State *L, void* data) {
     http_check_t * res = (http_check_t*)data;
-    lua_pushlstring(L, res->url.c_str(), res->url.size());
+    pushstring(L, res->url);
     lua_pushboolean(L, res->status.empty());
     if (res->status.empty()) lua_pushnil(L);
     else lua_pushstring(L, res->status.c_str());

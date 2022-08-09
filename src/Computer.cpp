@@ -11,7 +11,7 @@
 extern "C" {
 #include <lualib.h>
 }
-#include <dirent.h>
+#include <fstream>
 #include <thread>
 #include <unordered_set>
 #include <configuration.hpp>
@@ -97,36 +97,29 @@ Computer::Computer(int i, bool debug): isDebugger(debug) {
     addVirtualMount(this, standaloneROM, "rom");
     if (debug) addVirtualMount(this, standaloneDebug, "debug");
 #else
-#ifdef _WIN32
-    if (!addMount(this, getROMPath() + WS("\\rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount ROM"); }
-    if (debug) if (!addMount(this, getROMPath() + WS("\\debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount debugger ROM"); }
-#else
-    if (!addMount(this, getROMPath() + WS("/rom"), "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount ROM"); }
-    if (debug) if (!addMount(this, getROMPath() + WS("/debug"), "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount debugger ROM"); }
-#endif // _WIN32
+    if (!addMount(this, getROMPath() / "rom", "rom", ::config.romReadOnly)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount ROM"); }
+    if (debug) if (!addMount(this, getROMPath() / "debug", "debug", true)) { if (::config.standardsMode && term) { displayFailure(term, "Cannot mount ROM"); orphanedTerminals.insert(term); } else if (term) term->factory->deleteTerminal(term); throw std::runtime_error("Could not mount debugger ROM"); }
 #endif // STANDALONE_ROM
     // Mount custom directories from the command line
     for (auto m : customMounts) {
         bool ok = false;
         switch (std::get<2>(m)) {
-            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
-            case 0: ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), true); break; // force RO
-            default: ok = addMount(this, wstr(std::get<1>(m)), std::get<0>(m).c_str(), false); break; // force RW
+            case -1: if (::config.mount_mode != MOUNT_MODE_NONE) ok = addMount(this, std::get<1>(m), std::get<0>(m).c_str(), ::config.mount_mode != MOUNT_MODE_RW); break; // use default mode
+            case 0: ok = addMount(this, std::get<1>(m), std::get<0>(m).c_str(), true); break; // force RO
+            default: ok = addMount(this, std::get<1>(m), std::get<0>(m).c_str(), false); break; // force RW
         }
         if (!ok) fprintf(stderr, "Could not mount custom mount path at %s\n", std::get<1>(m).c_str());
     }
     mounter_initializing = false;
     // Get the computer's data directory
     if (customDataDirs.find(id) != customDataDirs.end()) dataDir = customDataDirs[id];
-#ifdef _WIN32
-    else dataDir = computerDir + WS("\\") + to_path_t(id);
-#else
-    else dataDir = computerDir + WS("/") + to_path_t(id);
-#endif
+    else dataDir = computerDir / std::to_string(id);
     // Create the root directory
-    if (createDirectory(dataDir) != 0) {
+    std::error_code e;
+    fs::create_directories(dataDir, e);
+    if (e) {
         if (term) term->factory->deleteTerminal(term);
-        throw std::runtime_error("Could not create computer data directory");
+        throw std::runtime_error("Could not create computer data directory: " + e.message());
     }
     config = new computer_configuration(_config);
 }
@@ -173,7 +166,7 @@ extern "C" {
     /* export */ int db_breakpoint(lua_State *L) {
         Computer * computer = get_comp(L);
         const int id = !computer->breakpoints.empty() ? computer->breakpoints.rbegin()->first + 1 : 1;
-        computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, luaL_checkstring(L, 1), false, false)), luaL_checkinteger(L, 2));
+        computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, luaL_checkstring(L, 1), false, false).string(), luaL_checkinteger(L, 2));
         if (!computer->hasBreakpoints) computer->forceCheckTimeout = true;
         computer->hasBreakpoints = true;
         lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
@@ -207,8 +200,10 @@ extern "C" {
 
 static const char * file_reader(lua_State *L, void * ud, size_t *size) {
     static char file_read_tmp[4096];
-    if (feof((FILE*)ud)) return NULL;
-    *size = fread(file_read_tmp, 1, 4096, (FILE*)ud);
+    std::ifstream * file = (std::ifstream*)ud;
+    if (file->eof()) return NULL;
+    file->read(file_read_tmp, 4096);
+    *size = file->gcount();
     return file_read_tmp;
 }
 
@@ -343,7 +338,7 @@ static const luaL_Reg lualibs[] = {
 static int doNothing(lua_State *L) {return 0;}
 
 // Main computer loop
-void runComputer(Computer * self, const path_t& bios_name) {
+void runComputer(Computer * self, const path_t& bios_name, const std::string& bios_data) {
     self->running = 1;
     if (self->L != NULL) lua_close(self->L);
     setjmp(self->on_panic);
@@ -454,8 +449,7 @@ void runComputer(Computer * self, const path_t& bios_name) {
                     lua_setglobal(L, "_CCPC_PLUGIN_ERRORS");
                 }
                 for (const auto& err : globalPluginErrors) {
-                    path_t bname = err.first.substr(err.first.find_last_of(PATH_SEPC) + 1);
-                    lua_pushstring(L, astr(bname.substr(0, bname.find_first_of('.'))).c_str());
+                    lua_pushstring(L, err.first.stem().string().c_str());
                     lua_pushstring(L, err.second.c_str());
                     lua_settable(L, -3);
                 }
@@ -570,11 +564,11 @@ void runComputer(Computer * self, const path_t& bios_name) {
                     fclose(in);
                 } else script = "printError('Could not load startup script: " + std::string(strerror(errno)) + "')";
             }
-            lua_pushlstring(L, script.c_str(), script.size());
+            pushstring(L, script);
             lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
         }
         if (!script_args.empty()) {
-            lua_pushlstring(L, script_args.c_str(), script_args.length());
+            pushstring(L, script_args);
             lua_setglobal(L, "_CCPC_STARTUP_ARGS");
         }
         lua_pushcfunction(L, term_benchmark);
@@ -593,18 +587,14 @@ void runComputer(Computer * self, const path_t& bios_name) {
 
         /* Load the file containing the script we are going to run */
 #ifdef STANDALONE_ROM
-        status = luaL_loadstring(self->coro, astr(bios_name).c_str());
-        path_t bios_path_expanded = WS("standalone ROM");
+        status = luaL_loadbuffer(self->coro, bios_data.c_str(), bios_data.size(), "@bios.lua");
+        path_t bios_path_expanded("standalone ROM");
 #else
-#ifdef WIN32
-        path_t bios_path_expanded = getROMPath() + WS("\\") + bios_name;
-#else
-        path_t bios_path_expanded = getROMPath() + WS("/") + bios_name;
-#endif
-        FILE * bios_file = platform_fopen(bios_path_expanded.c_str(), "r");
-        if (bios_file != NULL) {
-            status = lua_load(self->coro, file_reader, bios_file, "@bios.lua");
-            fclose(bios_file);
+        path_t bios_path_expanded = getROMPath() / bios_name;
+        std::ifstream bios_file(bios_path_expanded);
+        if (bios_file.is_open()) {
+            status = lua_load(self->coro, file_reader, &bios_file, "@bios.lua");
+            bios_file.close();
         } else {
             status = LUA_ERRFILE;
             lua_pushstring(L, strerror(errno));
@@ -613,13 +603,13 @@ void runComputer(Computer * self, const path_t& bios_name) {
         if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", astr(bios_path_expanded).c_str(), lua_tostring(L, -1));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.string().c_str(), lua_tostring(L, -1));
             if (::config.standardsMode) displayFailure(self->term, "Error loading bios.lua");
             else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
                     SDL_MESSAGEBOX_ERROR, "Couldn't load BIOS", 
                     std::string(
-                        "Couldn't load BIOS from " + astr(bios_path_expanded) + ". Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)"
+                        "Couldn't load BIOS from " + bios_path_expanded.string() + ". Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)"
                     ).c_str()
                 ); 
                 return NULL;
@@ -775,11 +765,11 @@ void* computerThread(void* data) {
 #endif
         }
         try {
-    #ifdef STANDALONE_ROM
-            runComputer(comp, wstr(standaloneBIOS));
-    #else
-            runComputer(comp, WS("bios.lua"));
-    #endif
+#ifdef STANDALONE_ROM
+            runComputer(comp, "standalone BIOS", standaloneBIOS);
+#else
+            runComputer(comp, "bios.lua");
+#endif
         } catch (Poco::Exception &e) {
             fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.displayText().c_str());
             queueTask([e](void*t)->void* {const std::string m = "Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Poco exception on computer thread: " + e.displayText() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
@@ -798,6 +788,7 @@ void* computerThread(void* data) {
                     comp->rawFileStack = NULL;
                 }
             }
+            if (selectedRenderer == 1) returnValue = 1;
         } catch (std::exception &e) {
             fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
             queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
@@ -816,6 +807,7 @@ void* computerThread(void* data) {
                     comp->rawFileStack = NULL;
                 }
             }
+            if (selectedRenderer == 1) returnValue = 1;
         }
         first = false;
     } while ((config.keepOpenOnShutdown || config.standardsMode) && !comp->requestedExit);

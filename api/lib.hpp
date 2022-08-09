@@ -33,12 +33,13 @@ struct Computer;
 /// To abstract this difference in implementation, a path_t type is used to allow the correct
 /// string type to be used on each platform. Since the type only changes when the platform changes,
 /// this should not have a negative impact on ABI stability.
+/// @deprecated This is retained for ABI compatibility - the next API will use std::filesystem::path instead.
 #ifdef _WIN32
-typedef std::wstring path_t;
-#define to_path_t std::to_wstring
+typedef std::wstring _path_t;
+#define _to_path_t std::to_wstring
 #else
-typedef std::string path_t;
-#define to_path_t std::to_string
+typedef std::string _path_t;
+#define _to_path_t std::to_string
 #endif
 
 // The library_t structure is used to hold information about an API.

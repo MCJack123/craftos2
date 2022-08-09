@@ -410,7 +410,7 @@ static std::string rawMouseProvider(lua_State *L, void* data) {
             delete d;
             return "";
         }
-        lua_pushlstring(L, side.c_str(), side.size());
+        pushstring(L, side);
     }
     lua_pushinteger(L, d->x);
     lua_pushinteger(L, d->y);

@@ -53,6 +53,10 @@ using namespace Poco::Net;
 extern "C" {extern int Android_JNI_SetupThread(void);}
 #endif
 
+#ifdef _WIN32
+extern void uploadCrashDumps();
+#endif
+
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
 extern void clearPeripherals();
@@ -73,12 +77,12 @@ std::unordered_map<unsigned, uint8_t> rawClientTerminalIDs;
 std::string script_file;
 std::string script_args;
 std::string updateAtQuit;
-Poco::JSON::Object updateAtQuitRoot;
 int returnValue = 0;
 std::unordered_map<path_t, std::string> globalPluginErrors;
 static std::string rawWebSocketURL;
 
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+Poco::JSON::Object updateAtQuitRoot;
 static void* releaseNotesThread(void* data) {
     Computer * comp = (Computer*)data;
 #ifdef __APPLE__
@@ -94,9 +98,9 @@ static void* releaseNotesThread(void* data) {
         freedComputers.erase(comp);
     try {
 #ifdef STANDALONE_ROM
-        runComputer(comp, wstr(standaloneDebug["bios.lua"].data));
+        runComputer(comp, "debug/bios.lua", standaloneDebug["bios.lua"].data);
 #else
-        runComputer(comp, WS("debug/bios.lua"));
+        runComputer(comp, "debug/bios.lua");
 #endif
     } catch (std::exception &e) {
         fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
@@ -429,8 +433,7 @@ static int runRenderer(const std::function<std::string()>& read, const std::func
 
 static void migrateData(bool forced) {
     migrateOldData();
-    struct_stat st;
-    if ((forced || platform_stat(getBasePath().c_str(), &st) != 0) && platform_stat((getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux")).c_str(), &st) == 0) {
+    if ((forced || !fs::exists(getBasePath())) && fs::exists(getBasePath().parent_path() / "ccemux")) {
         if (!forced) {
             SDL_MessageBoxData data;
             data.title = "Migrate Data";
@@ -449,11 +452,12 @@ static void migrateData(bool forced) {
             if (!retval) return;
         }
         // Copy computer data
-        std::list<path_t> failures;
-        const auto retval = recursiveCopy(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("computer"), getBasePath() + PATH_SEP "computer", &failures);
-        if (retval.first != 0) failures.push_back(retval.first == 1 ? getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("computer") : getBasePath() + PATH_SEP "computer");
+        std::error_code copy_error;
+        std::string msg;
+        fs::copy(getBasePath().parent_path() / "ccemux" / "computer", getBasePath() / "computer", fs::copy_options::recursive | fs::copy_options::update_existing, copy_error);
+        if (copy_error) msg += "Could not copy files: " + copy_error.message() + "\n";
         // Copy config file
-        std::ifstream in(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
+        std::ifstream in(getBasePath().parent_path() / "ccemux" / "ccemux.json");
         if (in.is_open()) {
             Value oldroot;
             Poco::JSON::Object::Ptr p;
@@ -487,12 +491,11 @@ static void migrateData(bool forced) {
                 config_save();
             } catch (Poco::JSON::JSONException &e) {
                 fprintf(stderr, "Could not read CCEmuX config file: %s\n", e.displayText().c_str());
-                failures.push_back(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
+                msg += "Could not parse " + (getBasePath().parent_path() / "ccemux" / "ccemux.json").string() + "\n";
             }
-        } else failures.push_back(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
-        if (!failures.empty()) {
-            fprintf(stderr, "Failed to copy the following files while migrating CCEmuX data:\n");
-            for (const path_t& p : failures) fprintf(stderr, "%s\n", astr(p).c_str());
+        } else msg += "Could not find " + (getBasePath().parent_path() / "ccemux" / "ccemux.json").string() + "\n";
+        if (!msg.empty()) {
+            fprintf(stderr, "Some errors occurred while copying CCEmuX data:\n%s", msg.c_str());
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files failed to be copied while migrating from CCEmuX. Check the console to see what failed.\n", NULL);
         } else if (forced) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Migration Success", "The migration of CCEmuX data to CraftOS-PC has completed successfully.", NULL);
     }
@@ -507,8 +510,6 @@ static void migrateData(bool forced) {
 static int id = 0;
 static bool manualID = false;
 static bool forceMigrate = false;
-static std::string base_path_storage;
-static std::string rom_path_storage;
 static path_t customDataDir;
 
 int parseArguments(const std::vector<std::string>& argv) {
@@ -528,23 +529,17 @@ int parseArguments(const std::vector<std::string>& argv) {
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + argv[++i];
         else if (arg == "--args") script_args = argv[++i];
-        else if (arg == "--plugin") customPlugins.push_back(wstr(argv[++i]));
-        else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i].c_str());
-        else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
-        else if (arg == "--computers-dir" || arg == "-C") computerDir = wstr(argv[++i]);
-        else if (arg.substr(0, 3) == "-C=") computerDir = wstr(arg.substr(3));
-        else if (arg == "--start-dir") customDataDir = wstr(argv[++i]);
-        else if (arg.substr(0, 3) == "-c=") customDataDir = wstr(arg.substr(3));
+        else if (arg == "--plugin") customPlugins.push_back(argv[++i]);
+        else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
+        else if (arg.substr(0, 3) == "-d=") setBasePath(arg.substr(3));
+        else if (arg == "--computers-dir" || arg == "-C") computerDir = argv[++i];
+        else if (arg.substr(0, 3) == "-C=") computerDir = arg.substr(3);
+        else if (arg == "--start-dir") customDataDir = argv[++i];
+        else if (arg.substr(0, 3) == "-c=") customDataDir = arg.substr(3);
         else if (arg == "--rom") setROMPath(argv[++i].c_str());
-#ifdef _WIN32
-        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = argv[++i] + "\\assets\\computercraft\\lua").c_str());
-        else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "\\assets\\computercraft\\lua").c_str());
-        else if (arg == "--mc-save") computerDir = getMCSavePath() + wstr(argv[++i]) + WS("\\computer");
-#else
-        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = argv[++i] + "/assets/computercraft/lua").c_str());
-        else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
-        else if (arg == "--mc-save") computerDir = getMCSavePath() + argv[++i] + "/computer";
-#endif
+        else if (arg == "--assets-dir" || arg == "-a") setROMPath(path_t(argv[++i])/"assets"/"computercraft"/"lua");
+        else if (arg.substr(0, 3) == "-a=") setROMPath(path_t(arg.substr(3))/"assets"/"computercraft"/"lua");
+        else if (arg == "--mc-save") computerDir = getMCSavePath() / argv[++i] / "computer";
         else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
         else if (arg == "--migrate") forceMigrate = true;
         else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
@@ -645,6 +640,7 @@ int parseArguments(const std::vector<std::string>& argv) {
                       << "  --headless                       Outputs only text straight to stdout\n"
                       << "  --raw                            Outputs terminal contents using a binary format\n"
                       << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
+                      << "  --raw-websocket <url>            Like --raw-client, but connects to a WebSocket server\n"
                       << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n"
                       << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n"
                       << "  --single                         Forces all screen output to a single window\n\n"
@@ -663,7 +659,6 @@ int parseArguments(const std::vector<std::string>& argv) {
 
 int main(int argc, char*argv[]) {
     lualib_debug_ccpc_functions(setcompmask_, db_debug, db_breakpoint, db_unsetbreakpoint);
-    lualib_io_ccpc_functions(mounter_fopen_, mounter_fclose_);
 #ifdef __EMSCRIPTEN__
     while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
 #endif
@@ -677,11 +672,7 @@ int main(int argc, char*argv[]) {
         selectedRenderer = 0;
     }
 #endif
-#ifdef _WIN32
-    if (computerDir.empty()) computerDir = getBasePath() + WS("\\computer");
-#else
-    if (computerDir.empty()) computerDir = getBasePath() + WS("/computer");
-#endif
+    if (computerDir.empty()) computerDir = getBasePath() / "computer";
     if (!customDataDir.empty()) customDataDirs[id] = customDataDir;
     mainThreadID = std::this_thread::get_id();
     setupCrashHandler();
@@ -862,10 +853,12 @@ int main(int argc, char*argv[]) {
     driveQuit();
     http_server_stop();
     config_save();
+#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
     if (!updateAtQuit.empty()) {
         updateNow(updateAtQuit, &updateAtQuitRoot);
         awaitTasks();
     }
+#endif
     if (factory) factory->quit();
     else SDL_Quit();
     // Clear out a few lists that plugins may insert functions into
