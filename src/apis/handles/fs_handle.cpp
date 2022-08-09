@@ -99,9 +99,9 @@ int fs_handle_readLine(lua_State *L) {
     std::string retval;
     std::getline(*fp, retval);
     if (retval.empty() && fp->eof()) return 0;
-    size_t len = retval.length() - (retval[retval.length()-1] == '\n' && !lua_toboolean(L, 1));
-    if (len > 0 && retval[len-1] == '\r') {if (lua_toboolean(L, 1)) {retval[len] = '\0'; retval[--len] = '\n';} else retval[--len] = '\0';}
-    const std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? std::string(retval, 0, len) : makeASCIISafe(retval.c_str(), len);
+    if (*retval.rbegin() == '\r' && !lua_toboolean(L, lua_upvalueindex(2))) retval = retval.substr(0, retval.size()-1);
+    if (lua_toboolean(L, 1) && fp->good()) retval += '\n';
+    const std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? retval : makeASCIISafe(retval.c_str(), retval.size());
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }

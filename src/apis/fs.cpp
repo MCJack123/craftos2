@@ -292,7 +292,10 @@ static int fs_makeDir(lua_State *L) {
     if (std::regex_search((*path.begin()).native(), pathregex("^\\d+:"))) err(L, 1, "Permission denied");
     std::error_code e;
     fs::create_directories(path, e);
-    if (e) err(L, 1, e.message().c_str());
+    if (e) {
+        if (e.value() == ENOTDIR) e.assign(EEXIST, std::generic_category());
+        err(L, 1, e.message().c_str());
+    }
     return 0;
 }
 
@@ -659,7 +662,13 @@ static int fs_find(lua_State *L) {
 
 static int fs_getDir(lua_State *L) {
     lastCFunction = __func__;
-    path_t path = path_t(checkstring(L, 1)).parent_path();
+    path_t path = path_t(checkstring(L, 1));
+    if (path.empty() || path.string() == "/") {
+        lua_pushliteral(L, "..");
+        return 1;
+    }
+    if (!path.has_filename()) path = path.parent_path();
+    path = path.parent_path();
     if (path.is_absolute()) path = path.lexically_relative("/");
     else path = path.lexically_normal();
     if (path_t::preferred_separator != (path_t::value_type)'/') {
@@ -668,6 +677,7 @@ static int fs_getDir(lua_State *L) {
         path = path_t(str);
     }
     std::string retval = path.string();
+    if (retval == ".") retval = "";
     if (retval[0] == '/') retval = retval.substr(1);
     pushstring(L, retval);
     return 1;
