@@ -97,7 +97,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.16.5-1.100.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.16.5-1.100.9 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -121,7 +121,7 @@ jobs:
       
   build-windows:
 
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
@@ -129,7 +129,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 8b62d95a81afcb9efe74bebeb62f04c1e0e2a003
+        vcpkgGitCommitId: 68b7fec22eb5fd9c0236b1e42b3c0deb8e771b37
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
@@ -156,7 +156,7 @@ jobs:
 
         }
 
-        Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        Invoke-Environment "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $tag = git rev-parse --short HEAD
         Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\"'
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC

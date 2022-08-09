@@ -35,50 +35,37 @@
 #include "../util.hpp"
 
 const wchar_t * base_path = L"%appdata%\\CraftOS-PC";
-std::wstring base_path_expanded;
-std::wstring rom_path_expanded;
-wchar_t expand_tmp[32767];
-static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+path_t base_path_expanded;
+path_t rom_path_expanded;
+wchar_t expand_tmp[32768];
 
-path_t wstr(std::string str) {
-    try {return converter.from_bytes(str);}
-    catch (std::exception &e) {return L"";}
+void setBasePath(path_t path) {
+    base_path_expanded = path;
 }
 
-std::string astr(path_t str) {
-    return converter.to_bytes(str);
+void setROMPath(path_t path) {
+    rom_path_expanded = path;
 }
 
-FILE* platform_fopen(const wchar_t* path, const char * mode) { return _wfopen(path, wstr(mode).c_str()); }
-
-void setBasePath(const char * path) {
-    base_path_expanded = wstr(path);
-}
-
-void setROMPath(const char * path) {
-    rom_path_expanded = wstr(path);
-}
-
-std::wstring getBasePath() {
+path_t getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
-    ExpandEnvironmentStringsW(base_path, expand_tmp, 32767);
-    base_path_expanded = expand_tmp;
+    ExpandEnvironmentStringsW(base_path, expand_tmp, 32768);
+    base_path_expanded = path_t(expand_tmp, expand_tmp + wcsnlen(expand_tmp, 32768));
     return base_path_expanded;
 }
 
-std::wstring getROMPath() {
+path_t getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
-    GetModuleFileNameW(NULL, expand_tmp, 32767);
-    rom_path_expanded = expand_tmp;
-    rom_path_expanded = rom_path_expanded.substr(0, rom_path_expanded.find_last_of('\\'));
+    GetModuleFileNameW(NULL, expand_tmp, 32768);
+    rom_path_expanded = path_t(expand_tmp, expand_tmp + wcsnlen(expand_tmp, 32768)).parent_path();
     return rom_path_expanded;
 }
 
-std::wstring getPlugInPath() { return getROMPath() + L"\\plugins\\"; }
+path_t getPlugInPath() { return getROMPath() / "plugins"; }
 
-std::wstring getMCSavePath() {
-    ExpandEnvironmentStringsW(L"%appdata%\\.minecraft\\saves\\", expand_tmp, 32767);
-    return std::wstring(expand_tmp);
+path_t getMCSavePath() {
+    ExpandEnvironmentStringsW(L"%appdata%\\.minecraft\\saves\\", expand_tmp, 32768);
+    return path_t(expand_tmp);
 }
 
 void* kernel32handle = NULL;
@@ -90,88 +77,6 @@ void setThreadName(std::thread &t, const std::string& name) {
         _SetThreadDescription = (HRESULT(*)(HANDLE, PCWSTR))SDL_LoadFunction(kernel32handle, "SetThreadDescription");
     }
     if (_SetThreadDescription != NULL) _SetThreadDescription((HANDLE)t.native_handle(), std::wstring(name.begin(), name.end()).c_str());
-}
-
-int createDirectory(const std::wstring& path) {
-    struct_stat st;
-    if (platform_stat(path.c_str(), &st) == 0) return !S_ISDIR(st.st_mode);
-    if (CreateDirectoryExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL) == 0) {
-        if ((GetLastError() == ERROR_PATH_NOT_FOUND || GetLastError() == ERROR_FILE_NOT_FOUND) && path != L"\\" && !path.empty()) {
-            if (createDirectory(path.substr(0, path.find_last_of('\\', path.size() - 2)))) return 1;
-            CreateDirectoryExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), path.c_str(), NULL);
-        }
-        else if (GetLastError() != ERROR_ALREADY_EXISTS) return 1;
-    }
-    return 0;
-}
-
-char* basename(char* path) {
-    char* filename = strrchr(path, '/');
-    if (filename == NULL) {
-        filename = strrchr(path, '\\');
-        if (filename == NULL)
-            filename = path;
-        else
-            filename++;
-    } else
-        filename++;
-    return filename;
-}
-
-char* dirname(char* path) {
-    if (path[0] == '/') strcpy(path, &path[1]);
-    char tch;
-    if (strrchr(path, '/') != NULL) tch = '/';
-    else if (strrchr(path, '\\') != NULL) tch = '\\';
-    else return path;
-    path[strrchr(path, tch) - path] = '\0';
-    return path;
-}
-
-unsigned long long getFreeSpace(const std::wstring& path) {
-    ULARGE_INTEGER retval;
-    if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), &retval, NULL, NULL) == 0) {
-        if (path.find_last_of('\\') == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
-        else return getFreeSpace(path.substr(0, path.find_last_of('\\')-1));
-    }
-    return retval.QuadPart;
-}
-
-unsigned long long getCapacity(const std::wstring& path) {
-    ULARGE_INTEGER retval;
-    if (GetDiskFreeSpaceExW(path.substr(0, path.find_last_of('\\', path.size() - 2)).c_str(), NULL, &retval, NULL) == 0) {
-        if (path.find_last_of('\\') == std::string::npos || path.substr(0, path.find_last_of('\\')-1).empty()) return 0;
-        else return getCapacity(path.substr(0, path.find_last_of('\\')-1));
-    }
-    return retval.QuadPart;
-}
-
-int removeDirectory(const std::wstring& path) {
-    const DWORD attr = GetFileAttributesW(path.c_str());
-    if (attr == INVALID_FILE_ATTRIBUTES) return GetLastError();
-    if (attr & FILE_ATTRIBUTE_DIRECTORY) {
-        WIN32_FIND_DATAW find;
-        std::wstring s = path;
-        if (path[path.size() - 1] != '\\') s += L"\\";
-        s += L"*";
-        const HANDLE h = FindFirstFileW(s.c_str(), &find);
-        if (h != INVALID_HANDLE_VALUE) {
-            do {
-                if (!(find.cFileName[0] == '.' && (wcslen(find.cFileName) == 1 || (find.cFileName[1] == '.' && wcslen(find.cFileName) == 2)))) {
-                    std::wstring newpath = path;
-                    if (path[path.size() - 1] != '\\') newpath += L"\\";
-                    newpath += find.cFileName;
-                    const int res = removeDirectory(newpath);
-                    if (res) {
-                        FindClose(h);
-                        return res;
-                    }
-                }
-            } while (FindNextFileW(h, &find));
-            FindClose(h);
-        }
-        return RemoveDirectoryW(path.c_str()) ? 0 : (int)GetLastError();
-    } else return DeleteFileW(path.c_str()) ? 0 : (int)GetLastError();
 }
 
 static std::string makeSize(double n) {
@@ -332,8 +237,8 @@ static int recursiveMove(const std::wstring& path, const std::wstring& toPath) {
 void migrateOldData() {
     ExpandEnvironmentStringsW(L"%USERPROFILE%\\.craftos", expand_tmp, 32767);
     const std::wstring oldpath = expand_tmp;
-    struct_stat st;
-    if (platform_stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && platform_stat(getBasePath().c_str(), &st) != 0)
+    struct _stat st;
+    if (_wstat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && _wstat(getBasePath().c_str(), &st) != 0)
         recursiveMove(oldpath, getBasePath());
     if (!failedCopy.empty())
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files were unable to be moved while migrating the user data directory. These files have been left in place, and they will not appear inside the computer. You can copy them over from the old directory manually.", NULL);
@@ -449,18 +354,18 @@ static bool pushCrashDump(const char * data, const size_t size, const path_t& pa
             if (root.isMember("uploadURL")) {
                 return pushCrashDump(data, size, path, root["uploadURL"].asString(), "PUT");
             } else if (root.isMember("error")) {
-                fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), root["error"].asString().c_str());
+                fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", path.string().c_str(), root["error"].asString().c_str());
                 return false;
             } else if (root.isMember("message")) {
-                fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), root["message"].asString().c_str());
+                fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", path.string().c_str(), root["message"].asString().c_str());
                 return false;
             }
         }
     } catch (Poco::Net::SSLException &e) {
-        fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), e.message().c_str());
+        fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", path.string().c_str(), e.message().c_str());
         return false;
     } catch (Poco::Exception &e) {
-        fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", astr(path).c_str(), e.displayText().c_str());
+        fprintf(stderr, "Warning: Couldn't upload crash dump at %s: %s\n", path.string().c_str(), e.displayText().c_str());
         return false;
     }
     return true;
@@ -486,7 +391,7 @@ void uploadCrashDumps() {
             do {
                 std::wstring newpath = std::wstring(path) + find.cFileName;
                 std::stringstream ss;
-                FILE * source = platform_fopen(newpath.c_str(), "rb");
+                FILE * source = _wfopen(newpath.c_str(), L"rb");
 
                 int ret, flush;
                 unsigned have;

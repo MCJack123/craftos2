@@ -76,7 +76,7 @@ struct http_check_t {
 static std::string http_success(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
-    lua_pushlstring(L, handle->url.c_str(), handle->url.size());
+    pushstring(L, handle->url);
 
     *(http_handle_t**)lua_newuserdata(L, sizeof(http_handle_t*)) = handle;
     lua_createtable(L, 0, 1);
@@ -139,7 +139,7 @@ static std::string http_success(lua_State *L, void* data) {
 static std::string http_failure(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
-    lua_pushlstring(L, handle->url.c_str(), handle->url.size());
+    pushstring(L, handle->url);
     if (!handle->failureReason.empty()) lua_pushstring(L, handle->failureReason.c_str());
     if (handle->stream != NULL) {
         *(http_handle_t**)lua_newuserdata(L, sizeof(http_handle_t*)) = handle;
@@ -205,7 +205,7 @@ static std::string http_failure(lua_State *L, void* data) {
 
 static std::string http_check(lua_State *L, void* data) {
     http_check_t * res = (http_check_t*)data;
-    lua_pushlstring(L, res->url.c_str(), res->url.size());
+    pushstring(L, res->url);
     lua_pushboolean(L, res->status.empty());
     if (res->status.empty()) lua_pushnil(L);
     else lua_pushstring(L, res->status.c_str());
@@ -958,7 +958,7 @@ static std::string websocket_message(lua_State *L, void* userp) {
     ws_message * message = (ws_message*)userp;
     if (message->url.empty()) lua_pushinteger(L, message->port);
     else lua_pushstring(L, message->url.c_str());
-    lua_pushlstring(L, message->data.c_str(), message->data.size());
+    pushstring(L, message->data);
     lua_pushboolean(L, message->binary);
     if (message->clientID) lua_pushlightuserdata(L, message->clientID);
     delete message;

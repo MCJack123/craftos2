@@ -50,16 +50,16 @@ struct Computer {
     // The following fields are available in API version 10.0. No structure version check is required to use these.
 
     // These properties are the most likely to be useful for reading data about a computer.
-    int id;                                                                 // The computer's ID
-    int running = 0;                                                        // The current run state for the computer (0 = off, 1 = on, 2 = restarting)
-    lua_State *L = NULL;                                                    // The global Lua state for the computer
-    Terminal * term;                                                        // A pointer to the terminal object for the computer (warning: may be NULL in headless mode!)
-    struct computer_configuration * config;                                 // The configuration structure for this computer
-    path_t dataDir;                                                         // The path to the computer's data directory
-    std::vector< std::tuple<std::list<std::string>, path_t, bool> > mounts; // A list of all current mounts on the computer. Each entry is stored as a tuple with 1) a list of internal path components, 2) the real path that's mounted, and 3) whether the mount is read-only
-    std::unordered_map<std::string, peripheral*> peripherals;               // A dictionary holding information about what peripherals are attached on each side
-    std::mutex peripherals_mutex;                                           // A mutex locking access to the peripheral dictionary (lock this before modifying the peripheral list!)
-    unsigned char colors = 0xF0;                                            // The current foreground/background color pair for drawing text to the terminal
+    int id;                                                                  // The computer's ID
+    int running = 0;                                                         // The current run state for the computer (0 = off, 1 = on, 2 = restarting)
+    lua_State *L = NULL;                                                     // The global Lua state for the computer
+    Terminal * term;                                                         // A pointer to the terminal object for the computer (warning: may be NULL in headless mode!)
+    struct computer_configuration * config;                                  // The configuration structure for this computer
+    _path_t dataDir;                                                         // The path to the computer's data directory
+    std::vector< std::tuple<std::list<std::string>, _path_t, bool> > mounts; // A list of all current mounts on the computer. Each entry is stored as a tuple with 1) a list of internal path components, 2) the real path that's mounted, and 3) whether the mount is read-only
+    std::unordered_map<std::string, peripheral*> peripherals;                // A dictionary holding information about what peripherals are attached on each side
+    std::mutex peripherals_mutex;                                            // A mutex locking access to the peripheral dictionary (lock this before modifying the peripheral list!)
+    unsigned char colors = 0xF0;                                             // The current foreground/background color pair for drawing text to the terminal
     
     // These properties are provided explicitly for the use of plugin developers.
     std::unordered_map<int, void *> userdata;                                                  // A free dictionary for use by plugins to store any data that is linked to a single computer
