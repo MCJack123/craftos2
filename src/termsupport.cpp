@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
+#include "main.hpp"
 #include "runtime.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/debugger.hpp"
@@ -338,6 +339,7 @@ int termPanic(lua_State *L) {
         lua_close(comp->rawFileStack);
         comp->rawFileStack = NULL;
     }
+    if (selectedRenderer == 1) returnValue = 1;
     longjmp(comp->on_panic, 0);
 }
 

@@ -427,13 +427,10 @@ static int fs_open(lua_State *L) {
             return 2;
         }
     }
-    std::fstream ** fp = NULL;
-    std::stringstream ** sfp = NULL;
     int fpid;
     if (std::regex_search((*path.begin()).native(), pathregex("^\\d+:")) || path == ":bios.lua") {
         if (computer->files_open >= config.maximumFilesOpen) err(L, 1, "Too many files already open");
         std::stringstream ** fp = (std::stringstream**)lua_newuserdata(L, sizeof(std::stringstream**));
-        sfp = fp;
         fpid = lua_gettop(L);
 #ifdef STANDALONE_ROM
         if (path == ":bios.lua") {
@@ -474,7 +471,7 @@ static int fs_open(lua_State *L) {
             }
             fs::create_directories(path.parent_path());
         }
-        fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
+        std::fstream ** fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
         fpid = lua_gettop(L);
         std::ios::openmode flags;
         if (strchr(mode, 'r')) flags = std::ios::in;
