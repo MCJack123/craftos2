@@ -49,6 +49,8 @@ private:
     int screenshot(lua_State *L);
     int setFrozen(lua_State *L);
     int getFrozen(lua_State *L);
+    int setSize(lua_State *L);
+    int setBlockSize(lua_State *L);
 public:
     Terminal * term;
     static library_t methods;
