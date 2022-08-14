@@ -160,11 +160,12 @@ void config_init() {
         {"*"},
         {},
         {
+            "C:\\Users\\*",
             "/Users/*",
             "/home/*"
         },
         {
-            "/"
+            "*"
         },
         {},
         false,

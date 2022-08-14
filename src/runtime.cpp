@@ -328,29 +328,68 @@ bool addMount(Computer *comp, const path_t& real_path, const std::string& comp_p
     }
     for (const auto& m : comp->mounts)
         if (std::get<0>(m) == pathc && std::get<1>(m) == real_path) return false;
-    int selected = 1;
-    if (!comp->mounter_initializing && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
-        SDL_MessageBoxData data;
-        data.flags = SDL_MESSAGEBOX_WARNING;
-        data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
-        data.title = "Mount requested";
-        // see apis/config.cpp:101 for why this is a pointer (TL;DR Windows is dumb)
-        std::string * message = new std::string("A script is attempting to mount the REAL path " + real_path.string() + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
-        data.message = message->c_str();
-        data.numbuttons = 2;
-        SDL_MessageBoxButtonData buttons[2];
-        buttons[0].flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
-        buttons[0].buttonid = 0;
-        buttons[0].text = "Deny";
-        buttons[1].flags = 0;
-        buttons[1].buttonid = 1;
-        buttons[1].text = "Allow";
-        data.buttons = buttons;
-        data.colorScheme = NULL;
-        queueTask([data](void*selected_)->void* {SDL_ShowMessageBox(&data, (int*)selected_); return NULL; }, &selected);
-        delete message;
+    if (!comp->mounter_initializing) {
+        path_t absolute = fs::absolute(real_path.lexically_normal());
+        path_t max_allowed;
+        int max_allowed_count = 0;
+        bool allow_unmatched = true;
+        for (const std::string& ps : config.mounter_whitelist) {
+            path_t p = path_t(ps).lexically_normal();
+            if (!p.is_absolute()) p = fs::current_path().root_path() / p;
+            if (p.root_path() != absolute.root_path()) continue;
+            path_t matched = absolute.root_path();
+            int num = 0;
+            for (path_t::iterator a = absolute.begin(), b = p.begin(); a != absolute.end() && b != p.end() && (*a == *b || *b == "*"); a++, b++, num++) matched /= *a;
+            if (num > max_allowed_count) {
+                max_allowed = matched;
+                max_allowed_count = num;
+            }
+        }
+        for (const std::string& ps : config.mounter_blacklist) {
+            if (ps == "*") {
+                allow_unmatched = false;
+                continue;
+            }
+            path_t p = path_t(ps).lexically_normal();
+            if (!p.is_absolute()) p = fs::current_path().root_path() / p;
+            if (p.root_path() != absolute.root_path()) continue;
+            int num = 0;
+            for (path_t::iterator a = absolute.begin(), b = p.begin(); a != absolute.end() && (*a == *b || *b == "*"); a++, b++, num++) ;
+            if (num > max_allowed_count) return false;
+        }
+        if (max_allowed_count == 0 && !allow_unmatched) return false;
+        bool noAsk = false;
+        for (const std::string& p : config.mounter_no_ask) {
+            std::error_code e;
+            if (fs::equivalent(path_t(p).lexically_normal(), real_path, e)) {
+                noAsk = true;
+                break;
+            }
+        }
+        int selected = 1;
+        if (!noAsk && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
+            SDL_MessageBoxData data;
+            data.flags = SDL_MESSAGEBOX_WARNING;
+            data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
+            data.title = "Mount requested";
+            // see apis/config.cpp:101 for why this is a pointer (TL;DR Windows is dumb)
+            std::string * message = new std::string("A script is attempting to mount the REAL path " + real_path.string() + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
+            data.message = message->c_str();
+            data.numbuttons = 2;
+            SDL_MessageBoxButtonData buttons[2];
+            buttons[0].flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
+            buttons[0].buttonid = 0;
+            buttons[0].text = "Deny";
+            buttons[1].flags = 0;
+            buttons[1].buttonid = 1;
+            buttons[1].text = "Allow";
+            data.buttons = buttons;
+            data.colorScheme = NULL;
+            queueTask([data](void*selected_)->void* {SDL_ShowMessageBox(&data, (int*)selected_); return NULL; }, &selected);
+            delete message;
+        }
+        if (!selected) return false;
     }
-    if (!selected) return false;
     comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), real_path, read_only));
     return true;
 }
