@@ -256,94 +256,111 @@ void config_init() {
         return;
     }
     in.close();
-    readConfigSetting(http_enable, Bool);
-    readConfigSetting(mount_mode, Int);
-    if (root.isMember("http_whitelist")) {
-        config.http_whitelist.clear();
-        for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
-            config.http_whitelist.push_back(it->toString());
-    }
-    if (root.isMember("http_blacklist")) {
-        config.http_blacklist.clear();
-        for (auto it = root["http_blacklist"].arrayBegin(); it != root["http_blacklist"].arrayEnd(); ++it)
-            config.http_blacklist.push_back(it->toString());
-    }
-    if (root.isMember("mounter_whitelist")) {
-        config.mounter_whitelist.clear();
-        for (auto it = root["mounter_whitelist"].arrayBegin(); it != root["mounter_whitelist"].arrayEnd(); ++it)
-            config.mounter_whitelist.push_back(it->toString());
-    }
-    if (root.isMember("mounter_blacklist")) {
-        config.mounter_blacklist.clear();
-        for (auto it = root["mounter_blacklist"].arrayBegin(); it != root["mounter_blacklist"].arrayEnd(); ++it)
-            config.mounter_blacklist.push_back(it->toString());
-    }
-    if (root.isMember("mounter_no_ask")) {
-        config.mounter_no_ask.clear();
-        for (auto it = root["mounter_no_ask"].arrayBegin(); it != root["mounter_no_ask"].arrayEnd(); ++it)
-            config.mounter_no_ask.push_back(it->toString());
-    }
-    readConfigSetting(disable_lua51_features, Bool);
-    readConfigSetting(default_computer_settings, String);
-    readConfigSetting(logErrors, Bool);
-    readConfigSetting(showFPS, Bool);
-    readConfigSetting(computerSpaceLimit, Int);
-    readConfigSetting(maximumFilesOpen, Int);
-    readConfigSetting(abortTimeout, Int);
-    readConfigSetting(maxNotesPerTick, Int);
-    readConfigSetting(clockSpeed, Int);
-    readConfigSetting(ignoreHotkeys, Bool);
-    readConfigSetting(checkUpdates, Bool);
-    readConfigSetting(romReadOnly, Bool);
-    readConfigSetting(customFontPath, String);
-    readConfigSetting(customFontScale, Int);
-    readConfigSetting(customCharScale, Int);
-    readConfigSetting(skipUpdate, String);
-    readConfigSetting(configReadOnly, Bool);
-    readConfigSetting(vanilla, Bool);
-    readConfigSetting(initialComputer, Int);
-    readConfigSetting(maxRecordingTime, Int);
-    readConfigSetting(recordingFPS, Int);
-    readConfigSetting(cliControlKeyMode, Int);
-    readConfigSetting(showMountPrompt, Bool);
-    readConfigSetting(maxOpenPorts, Int);
-    readConfigSetting(mouse_move_throttle, Int);
-    readConfigSetting(monitorsUseMouseEvents, Bool);
-    readConfigSetting(defaultWidth, Int);
-    readConfigSetting(defaultHeight, Int);
-    readConfigSetting(standardsMode, Bool);
+    try {
+        readConfigSetting(http_enable, Bool);
+        readConfigSetting(mount_mode, Int);
+        if (root.isMember("http_whitelist")) {
+            config.http_whitelist.clear();
+            for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
+                config.http_whitelist.push_back(it->toString());
+        }
+        if (root.isMember("http_blacklist")) {
+            config.http_blacklist.clear();
+            for (auto it = root["http_blacklist"].arrayBegin(); it != root["http_blacklist"].arrayEnd(); ++it)
+                config.http_blacklist.push_back(it->toString());
+        }
+        if (root.isMember("mounter_whitelist")) {
+            config.mounter_whitelist.clear();
+            for (auto it = root["mounter_whitelist"].arrayBegin(); it != root["mounter_whitelist"].arrayEnd(); ++it)
+                config.mounter_whitelist.push_back(it->toString());
+        }
+        if (root.isMember("mounter_blacklist")) {
+            config.mounter_blacklist.clear();
+            for (auto it = root["mounter_blacklist"].arrayBegin(); it != root["mounter_blacklist"].arrayEnd(); ++it)
+                config.mounter_blacklist.push_back(it->toString());
+        }
+        if (root.isMember("mounter_no_ask")) {
+            config.mounter_no_ask.clear();
+            for (auto it = root["mounter_no_ask"].arrayBegin(); it != root["mounter_no_ask"].arrayEnd(); ++it)
+                config.mounter_no_ask.push_back(it->toString());
+        }
+        readConfigSetting(disable_lua51_features, Bool);
+        readConfigSetting(default_computer_settings, String);
+        readConfigSetting(logErrors, Bool);
+        readConfigSetting(showFPS, Bool);
+        readConfigSetting(computerSpaceLimit, Int);
+        readConfigSetting(maximumFilesOpen, Int);
+        readConfigSetting(abortTimeout, Int);
+        readConfigSetting(maxNotesPerTick, Int);
+        readConfigSetting(clockSpeed, Int);
+        readConfigSetting(ignoreHotkeys, Bool);
+        readConfigSetting(checkUpdates, Bool);
+        readConfigSetting(romReadOnly, Bool);
+        readConfigSetting(customFontPath, String);
+        readConfigSetting(customFontScale, Int);
+        readConfigSetting(customCharScale, Int);
+        readConfigSetting(skipUpdate, String);
+        readConfigSetting(configReadOnly, Bool);
+        readConfigSetting(vanilla, Bool);
+        readConfigSetting(initialComputer, Int);
+        readConfigSetting(maxRecordingTime, Int);
+        readConfigSetting(recordingFPS, Int);
+        readConfigSetting(cliControlKeyMode, Int);
+        readConfigSetting(showMountPrompt, Bool);
+        readConfigSetting(maxOpenPorts, Int);
+        readConfigSetting(mouse_move_throttle, Int);
+        readConfigSetting(monitorsUseMouseEvents, Bool);
+        readConfigSetting(defaultWidth, Int);
+        readConfigSetting(defaultHeight, Int);
+        readConfigSetting(standardsMode, Bool);
 #if !(defined(__IPHONEOS__) || defined(__ANDROID__))
-    readConfigSetting(useHardwareRenderer, Bool);
+        readConfigSetting(useHardwareRenderer, Bool);
 #endif
-    readConfigSetting(preferredHardwareDriver, String);
-    readConfigSetting(useVsync, Bool);
-    readConfigSetting(serverMode, Bool);
-    readConfigSetting(http_websocket_enabled, Bool);
-    readConfigSetting(http_max_websockets, Int);
-    readConfigSetting(http_max_websocket_message, Int);
-    readConfigSetting(http_max_requests, Int);
-    readConfigSetting(http_max_upload, Int);
-    readConfigSetting(http_max_download, Int);
-    readConfigSetting(http_timeout, Int);
-    readConfigSetting(http_proxy_server, String);
-    readConfigSetting(http_proxy_port, Int);
-    readConfigSetting(extendMargins, Bool);
-    readConfigSetting(snapToSize, Bool);
-    readConfigSetting(snooperEnabled, Bool);
+        readConfigSetting(preferredHardwareDriver, String);
+        readConfigSetting(useVsync, Bool);
+        readConfigSetting(serverMode, Bool);
+        readConfigSetting(http_websocket_enabled, Bool);
+        readConfigSetting(http_max_websockets, Int);
+        readConfigSetting(http_max_websocket_message, Int);
+        readConfigSetting(http_max_requests, Int);
+        readConfigSetting(http_max_upload, Int);
+        readConfigSetting(http_max_download, Int);
+        readConfigSetting(http_timeout, Int);
+        readConfigSetting(http_proxy_server, String);
+        readConfigSetting(http_proxy_port, Int);
+        readConfigSetting(extendMargins, Bool);
+        readConfigSetting(snapToSize, Bool);
+        readConfigSetting(snooperEnabled, Bool);
 #if !(defined(__IPHONEOS__) || defined(__ANDROID__))
-    readConfigSetting(keepOpenOnShutdown, Bool);
+        readConfigSetting(keepOpenOnShutdown, Bool);
 #endif
-    readConfigSetting(useWebP, Bool);
-    readConfigSetting(dropFilePath, Bool);
-    readConfigSetting(useDFPWM, Bool);
-    // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
-    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
+        readConfigSetting(useWebP, Bool);
+        readConfigSetting(dropFilePath, Bool);
+        readConfigSetting(useDFPWM, Bool);
+        // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
+        if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, sizeof(CRAFTOSPC_VERSION) - 1) != CRAFTOSPC_VERSION)) { onboardingMode = 2; config_save(); }
 #ifndef __EMSCRIPTEN__
-    if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
-    for (const auto& e : root)
-        if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
-            unknownOptions.insert(e);
+        if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
+        for (const auto& e : root)
+            if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
+                unknownOptions.insert(e);
 #endif
+    } catch (Poco::Exception &e) {
+        configLoadError = true;
+        showMessage("An error occurred while reading the global configuration file: " + e.message() + ". The current session's config will be partially loaded, and any changes made will not be saved.");
+        in.close();
+        return;
+    } catch (std::exception &e) {
+        configLoadError = true;
+        showMessage("An error occurred while reading the global configuration file: " + std::string(e.what()) + ". The current session's config will be partially loaded, and any changes made will not be saved.");
+        in.close();
+        return;
+    } catch (...) {
+        configLoadError = true;
+        showMessage("An error occurred while reading the global configuration file: unknown. The current session's config will be partially loaded, and any changes made will not be saved.");
+        in.close();
+        return;
+    }
 }
 
 void config_save() {
