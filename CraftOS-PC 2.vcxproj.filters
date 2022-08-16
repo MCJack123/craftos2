@@ -102,6 +102,9 @@
     <None Include="src\platform\ios.mm">
       <Filter>Source Files\platform</Filter>
     </None>
+    <None Include=".github\workflows\release.yml">
+      <Filter>Other Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp">

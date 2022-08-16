@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
 
   build:
-
+    name: Build & test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -32,7 +32,7 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
     
   build-basic:
-
+    name: Build & test (no optional features)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -59,7 +59,7 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-standalone:
-
+    name: Build & test (standalone)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -90,7 +90,7 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-cct-test:
-
+    name: Run CC:T tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -120,7 +120,7 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
       
   build-windows:
-
+    name: Build Windows
     runs-on: windows-2022
     steps:
     - uses: actions/checkout@v1
@@ -160,6 +160,9 @@ jobs:
         $tag = git rev-parse --short HEAD
         Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\"'
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release
+        copy x64\ReleaseC\CraftOS-PC.exe x64\ReleaseC\CraftOS-PC_console.exe
+        copy x64\ReleaseC\CraftOS-PC.pdb x64\ReleaseC\CraftOS-PC_console.pdb
         # Remove buildtrees that kill the cache
         Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
     - name: Run CraftOSTest
@@ -177,5 +180,14 @@ jobs:
       with:
         name: CraftOS-PC-Artifact
         path: |
-          x64\ReleaseC\CraftOS-PC.exe
-          x64\ReleaseC\lua51.dll
+          x64\Release\CraftOS-PC.exe
+          x64\ReleaseC\CraftOS-PC_console.exe
+          craftos2-lua\src\lua51.dll
+    - name: Upload artifact symbols
+      uses: actions/upload-artifact@v2
+      with:
+        name: CraftOS-PC-Artifact-Symbols
+        path: |
+          x64\Release\CraftOS-PC.pdb
+          x64\ReleaseC\CraftOS-PC_console.pdb
+          craftos2-lua\src\lua51.pdb
