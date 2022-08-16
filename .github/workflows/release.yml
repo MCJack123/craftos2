@@ -24,6 +24,7 @@ jobs:
 
   release-windows:
     runs-on: windows-2022
+    environment: production
     steps:
     - name: Wait for build to complete
       uses: lewagon/wait-on-check-action@v1.1.2
@@ -98,6 +99,7 @@ jobs:
 
   release-mac:
     runs-on: macos-latest
+    environment: production
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
@@ -110,28 +112,40 @@ jobs:
         MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         NOTARIZATION_CERTIFICATE: ${{ secrets.NOTARIZATION_CERTIFICATE }}
       run: |
-        echo $MACOS_CERTIFICATE | base64 —decode > certificate.p12
+        echo $MACOS_CERTIFICATE | base64 -d > certificate.p12
         security create-keychain -p actionrunner build.keychain
         security default-keychain -s build.keychain
         security unlock-keychain -p actionrunner build.keychain
         security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actionrunner build.keychain
-        echo $NOTARIZATION_CERTIFICATE | base64 -decode > APIKey.p8
+        echo $NOTARIZATION_CERTIFICATE | base64 -d > APIKey.p8
     - name: Build CraftOS-PC
       run: |
-        cp -Rp $GITHUB_WORKSPACE/craftos2-release-resources/mac/Makefile $GITHUB_WORKSPACE/craftos2-release-resources/mac/codesign $GITHUB_WORKSPACE/craftos2-release-resources/mac/CraftOS-PC.app .
-        make -C craftos2-lua macosx -j3
+        cp -Rp $GITHUB_WORKSPACE/craftos2-release-resources/mac/codesign $GITHUB_WORKSPACE/craftos2-release-resources/mac/deprebuild $GITHUB_WORKSPACE/craftos2-release-resources/mac/include_arm .
         if [[ $GITHUB_REF =~ luajit ]]; then
+          cp -Rp $GITHUB_WORKSPACE/craftos2-release-resources/mac/Makefile-Accelerated $GITHUB_WORKSPACE/craftos2-release-resources/mac/CraftOS-PC-Accelerated.app .
+          mv CraftOS-PC-Accelerated.app CraftOS-PC.app
+          export MACOSX_DEPLOYMENT_TARGET=10.9
+        else
+          cp -Rp $GITHUB_WORKSPACE/craftos2-release-resources/mac/Makefile $GITHUB_WORKSPACE/craftos2-release-resources/mac/CraftOS-PC.app .
+          make -C craftos2-lua macosx -j3
           rm craftos2-lua/src/*.o
           make -C craftos2-lua macosx-arm -j3
         fi
         make macapp -j3
         make mac-plugin
-        codesign -fs <identity-id> --timestamp --options runtime --deep ccemux.bundle
+        codesign -fs "Developer ID Application: Jack Bruienne (396R3XAD4M)" --timestamp --options runtime --deep ccemux.bundle
     - name: Build and notarize disk image
       run: |
-        cp -Rp ${{ env.GITHUB_WORKSPACE }}/craftos2-release-resources/mac/CraftOS-PC CraftOS-PC
+        if [[ $GITHUB_REF =~ luajit ]]; then
+          cp -Rp ${{ env.GITHUB_WORKSPACE }}/craftos2-release-resources/mac/CraftOS-PC-Accelerated CraftOS-PC
+        else
+          cp -Rp ${{ env.GITHUB_WORKSPACE }}/craftos2-release-resources/mac/CraftOS-PC CraftOS-PC
+        fi
         cp -Rp CraftOS-PC.app ccemux.bundle CraftOS-PC
+        if [[ $GITHUB_REF =~ luajit ]]; then
+          mv CraftOS-PC/CraftOS-PC.app CraftOS-PC/CraftOS-PC\ Accelerated.app
+        fi
         $GITHUB_WORKSPACE/craftos2-release-resources/mac/dropdmg --layout-folder $GITHUB_WORKSPACE/craftos2-release-resources/mac/layout -f bzip2 -n CraftOS-PC
         xcrun notarytool submit -k APIKey.p8 -d C3VGHY9QZ3 -i 88c37dac-bd0f-4adc-9e79-a24745e2e292 --wait CraftOS-PC.dmg
         xcrun stapler staple CraftOS-PC.dmg
@@ -147,6 +161,7 @@ jobs:
 
   release-ubuntu:
     runs-on: ubuntu-latest
+    environment: production
     steps:
     - uses: actions/checkout@v1
     - name: Download resources
@@ -154,21 +169,21 @@ jobs:
     - name: Install dependencies
       env:
         GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-        GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
       run: |
         sudo add-apt-repository -y ppa:jackmacwindows/ppa
         sudo apt install -y devscripts dput lintian debhelper unzip libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev craftos-pc-data craftos-pc
-        echo $GPG_SIGNING_KEY > signing.key
-        gpg --batch --import signing.key --passphrase $GPG_KEY_PASSWORD
+        echo $GPG_SIGNING_KEY > signing.asc
+        gpg --import signing.asc
     - name: Build and upload package
       env:
-        GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
         RELEASE_BODY: ${{ github.event.release.body }}
+        RELEASE_TAR_URL: ${{ github.event.release.tarball_url }}
       run: |
         LUAJIT=
-        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-luajit; fi
-        cp $GITHUB_WORKSPACE/craftos2-release-resources/ubuntu/debian_craftos-pc$LUAJIT debian
+        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
         VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
+        curl -o ../craftos-pc${LUAJIT}_$VERSION.orig.tar.gz $RELEASE_TAR_URL
+        cp $GITHUB_WORKSPACE/craftos2-release-resources/ubuntu/debian_craftos-pc$LUAJIT debian
         if [ "a$LUAJIT" == "a" ]; then VERSION=1:$VERSION; fi
         echo "craftos-pc$LUAJIT ($VERSION-bionic1) bionic; urgency=medium" > debian/changelog
         echo "    " >> debian/changelog
@@ -182,6 +197,7 @@ jobs:
 
   release-arch:
     runs-on: ubuntu-latest
+    environment: production
     steps:
     - name: Download resources
       run: git clone https://github.com/MCJack123/craftos2-release-resources ${{ env.GITHUB_WORKSPACE }}/craftos2-release-resources
@@ -190,7 +206,7 @@ jobs:
         AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
       run: |
         LUAJIT=
-        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-luajit; fi
+        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
         VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
         echo $AUR_SSH_KEY > ~/.ssh/aur
         printf "Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur\n  User aur\n" >> ~/.ssh/config
@@ -199,7 +215,8 @@ jobs:
         sed -i 's/^pkgver=.*$/pkgver='$VERSION'/' PKGBUILD
         sed -i 's/^pkgrel=[0-9]*/pkgrel=1/' PKGBUILD
         sed -i 's/^sha256sums=.*$/sha256sums=("'$(curl -sL https://github.com/MCJack123/craftos2/archive/v$VERSION.tar.gz | shasum -a 256)'" "'$(curl -sL https://github.com/MCJack123/craftos2-lua/archive/v$VERSION.tar.gz | shasum -a 256)'")/' PKGBUILD
-        source ../srcinfo.sh
+        export LIBRARY=${{ env.GITHUB_WORKSPACE }}/craftos2-release-resources/arch
+        source $LIBRARY/srcinfo.sh
         write_srcinfo_content > .SRCINFO
         git add PKGBUILD .SRCINFO
         git commit -m "v$VERSION"
