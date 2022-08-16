@@ -401,6 +401,7 @@ downloadThread_entry:
         }
     }
 downloadThread_finish:
+    if (freedComputers.find(param->comp) != freedComputers.end()) return;
     param->comp->httpRequestQueueMutex.lock();
     if (!param->comp->httpRequestQueue.empty()) {
         http_param_t * p = (http_param_t*)param->comp->httpRequestQueue.front();
