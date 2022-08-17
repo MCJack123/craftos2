@@ -243,9 +243,6 @@ jobs:
       env:
         AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
       run: |
-        LUAJIT=
-        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
-        VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
         mkdir ~/.ssh
         echo "$AUR_SSH_KEY" > ~/.ssh/aur
         echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDgQDY289yNsiosJ7Q3SSpSDd27TCzodId0SifsDuryyLSpDpLW6ZvwBZaItnPbEluXx2RsIxw9IdP6HdObHIj7Wvhn3EoAHuVP0EFJpbDnWqw4lZ5UkYHp58vmjSdcv8xJYsCzgvWOG1ZORCQW0GpAQzR8uLSXO6iWd6nAmPSqT8TYMS9Dra9Lf+xl69ctxrGaCbhq1/s6189wEdUEkfNxV7IhMcAyaOmZVieEl/aEko2/Ko+mzBjDvIJ+aKhfHBShpqOA1bf3cwyePuVl8sXqheLQB01Ky+0WdS95D1FMmkIYa9XHO17M12KGl0V6J+UFg5olnEPAstwqsj/ZXeuRruG31vdpeWZ57Bekzji0Q5J1RA1JBG+nVWLT6k4XOY3RwCfPRASyrAcc5iciAb0EaMfuXEBgegyiwdPh8iHIk4rt2PboSGdxeguN0hIsb3OKJW9/l7xToLBzMqvC46EE0Hef/4+NNzhkvUtOYC5RORkJYtmF10fTRD5pWFvhxKU= aur@aur.archlinux.org" > ~/.ssh/aur.pub
@@ -257,13 +254,19 @@ jobs:
         sudo apt install -y lua5.3
     - name: Upload package
       run: |
+        LUAJIT=
+        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
         VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
         git clone ssh://aur@aur.archlinux.org/craftos-pc$LUAJIT.git
         cd craftos-pc$LUAJIT
-        lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/v$VERSION.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2-lua/archive/v$VERSION.tar.gz | shasum -a 256 | awk '{print $1;}')
+        if [[ $GITHUB_REF =~ luajit ]]; then
+          lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') d65736d71a54bdf393f657ae0ecd7d333a07143b9842f759f09749ca5b7b6003
+        else
+          lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2-lua/archive/v$VERSION.tar.gz | shasum -a 256 | awk '{print $1;}')
+        fi
         cat PKGBUILD .SRCINFO
         git add PKGBUILD .SRCINFO
-        git commit -a -m "v$VERSION"
+        git commit -a -m "$GITHUB_REF"
         git push
 
   hashes:
