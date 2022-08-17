@@ -161,8 +161,12 @@ jobs:
         Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\"'
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
         msbuild "CraftOS-PC 2.sln" /p:Configuration=Release
-        copy x64\ReleaseC\CraftOS-PC.exe x64\ReleaseC\CraftOS-PC_console.exe
-        copy x64\ReleaseC\CraftOS-PC.pdb x64\ReleaseC\CraftOS-PC_console.pdb
+        copy x64\Release\CraftOS-PC.exe CraftOS-PC.exe
+        copy x64\Release\CraftOS-PC.pdb CraftOS-PC.pdb
+        copy x64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
+        copy x64\ReleaseC\CraftOS-PC.pdb CraftOS-PC_console.pdb
+        copy craftos2-lua\src\lua51.dll lua51.dll
+        copy craftos2-lua\src\lua51.pdb lua51.pdb
         # Remove buildtrees that kill the cache
         Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
     - name: Run CraftOSTest
@@ -180,14 +184,14 @@ jobs:
       with:
         name: CraftOS-PC-Artifact
         path: |
-          x64\Release\CraftOS-PC.exe
-          x64\ReleaseC\CraftOS-PC_console.exe
-          craftos2-lua\src\lua51.dll
+          CraftOS-PC.exe
+          CraftOS-PC_console.exe
+          lua51.dll
     - name: Upload artifact symbols
       uses: actions/upload-artifact@v2
       with:
         name: CraftOS-PC-Artifact-Symbols
         path: |
-          x64\Release\CraftOS-PC.pdb
-          x64\ReleaseC\CraftOS-PC_console.pdb
-          craftos2-lua\src\lua51.pdb
+          CraftOS-PC.pdb
+          CraftOS-PC_console.pdb
+          lua51.pdb
