@@ -228,7 +228,7 @@ static int fs_isReadOnly(lua_State *L) {
 
 static int fs_getName(lua_State *L) {
     lastCFunction = __func__;
-    pushstring(L, path_t(checkstring(L, 1), path_t::generic_format).filename().string());
+    pushstring(L, path_t(checkstring(L, 1), path_t::format::generic_format).filename().string());
     return 1;
 }
 
@@ -390,7 +390,7 @@ static int fs_delete(lua_State *L) {
 
 static int fs_combine(lua_State *L) {
     lastCFunction = __func__;
-    path_t basePath = path_t(checkstring(L, 1), path_t::generic_format);
+    path_t basePath = path_t(checkstring(L, 1), path_t::format::generic_format);
     for (int i = 2; i <= lua_gettop(L); i++) if (!checkstring(L, i).empty()) {
         std::string str = tostring(L, i);
         if (str[0] == '/' || str[0] == '\\') str = str.substr(1);

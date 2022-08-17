@@ -87,7 +87,6 @@ path_t getPlugInPath() {
 }
 
 path_t getMCSavePath() {
-    if (customBasePath != NULL) return customBasePath;
     return path_t([[[NSFileManager defaultManager] 
                          URLForDirectory:NSApplicationSupportDirectory 
                          inDomain:NSUserDomainMask 

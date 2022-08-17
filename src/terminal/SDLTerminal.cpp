@@ -492,7 +492,7 @@ bool SDLTerminal::resizeWholeWindow(int w, int h) {
 }
 
 void SDLTerminal::screenshot(std::string path) {
-    if (!path.empty()) screenshotPath = path_t(path, path == "clipboard" ? path_t::generic_format : path_t::auto_format);
+    if (!path.empty()) screenshotPath = path_t(path, path == "clipboard" ? path_t::format::generic_format : path_t::format::auto_format);
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);

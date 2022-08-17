@@ -424,7 +424,7 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const std::string& c
         if (end > 0 && std::get<0>(v) == pathc && *comp->virtualMounts[std::stoi(path.native().substr(0, end))] == vfs) return false;
     }
     comp->virtualMounts[idx] = &vfs;
-    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), path_t(std::to_string(idx) + ":", path_t::generic_format), true));
+    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), path_t(std::to_string(idx) + ":", path_t::format::generic_format), true));
     return true;
 }
 
