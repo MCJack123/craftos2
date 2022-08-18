@@ -162,6 +162,9 @@ static int (*_XChangeProperty)(Display*, Window, Atom, Atom, int, int, _Xconst u
 static Status (*_XSendEvent)(Display*, Window, Bool, long, XEvent*);
 static Atom (*_XInternAtom)(Display*, _Xconst char*, Bool);
 static int (*_XSetSelectionOwner)(Display*, Atom, Window, Time);
+static int (*_XGetErrorText)(Display*, int, char*, int);
+static int (*_XGetErrorDatabaseText)(Display*, const char*, const char*, const char*, char*, int);
+static int (*_XSetErrorHandler)(int (*)(Display *, XErrorEvent *));
 
 static int eventFilter(void* userdata, SDL_Event* e) {
     if (e->type == SDL_SYSWMEVENT) {
@@ -239,6 +242,94 @@ static int eventFilter(void* userdata, SDL_Event* e) {
         } else return 0;
     }
     return 1;
+}
+
+// _XPrintDefaultError borrowed from Xlib sources: https://github.com/mirror/libX11/blob/master/src/XlibInt.c
+// Copyright 1985, 1986, 1987, 1998  The Open Group
+// Licensed under MIT license (bundled)
+// Except as contained in this notice, the name of The Open Group shall
+// not be used in advertising or otherwise to promote the sale, use or
+// other dealings in this Software without prior written authorization
+// from The Open Group.
+static int _XPrintDefaultError(Display *dpy, XErrorEvent *event, FILE *fp) {
+    char buffer[BUFSIZ];
+    char mesg[BUFSIZ];
+    char number[32];
+    const char *mtype = "XlibMessage";
+    _XGetErrorText(dpy, event->error_code, buffer, BUFSIZ);
+    _XGetErrorDatabaseText(dpy, mtype, "XError", "X Error", mesg, BUFSIZ);
+    (void)fprintf(fp, "%s:  %s\n  ", mesg, buffer);
+    _XGetErrorDatabaseText(dpy, mtype, "MajorCode", "Request Major code %d", mesg, BUFSIZ);
+    (void)fprintf(fp, mesg, event->request_code);
+    if (event->request_code < 128) {
+        snprintf(number, sizeof(number), "%d", event->request_code);
+        _XGetErrorDatabaseText(dpy, "XRequest", number, "", buffer, BUFSIZ);
+    } else {
+        buffer[0] = '\0';
+    }
+    (void)fprintf(fp, " (%s)\n", buffer);
+    if (event->request_code >= 128) {
+        _XGetErrorDatabaseText(dpy, mtype, "MinorCode", "Request Minor code %d", mesg, BUFSIZ);
+        fputs("  ", fp);
+        (void)fprintf(fp, mesg, event->minor_code);
+        fputs("\n", fp);
+    }
+    if (event->error_code >= 128) {
+        /* kludge, try to find the extension that caused it */
+        buffer[0] = '\0';
+        strcpy(buffer, "Value");
+        _XGetErrorDatabaseText(dpy, mtype, buffer, "", mesg, BUFSIZ);
+        if (mesg[0]) {
+            fputs("  ", fp);
+            (void)fprintf(fp, mesg, event->resourceid);
+            fputs("\n", fp);
+        }
+    } else if ((event->error_code == BadWindow) || (event->error_code == BadPixmap) || (event->error_code == BadCursor) || (event->error_code == BadFont) || (event->error_code == BadDrawable) || (event->error_code == BadColor) || (event->error_code == BadGC) || (event->error_code == BadIDChoice) || (event->error_code == BadValue) || (event->error_code == BadAtom)) {
+        if (event->error_code == BadValue) _XGetErrorDatabaseText(dpy, mtype, "Value", "Value 0x%x", mesg, BUFSIZ);
+        else if (event->error_code == BadAtom)
+            _XGetErrorDatabaseText(dpy, mtype, "AtomID", "AtomID 0x%x", mesg, BUFSIZ);
+        else
+            _XGetErrorDatabaseText(dpy, mtype, "ResourceID", "ResourceID 0x%x", mesg, BUFSIZ);
+        fputs("  ", fp);
+        (void)fprintf(fp, mesg, event->resourceid);
+        fputs("\n", fp);
+    }
+    _XGetErrorDatabaseText(dpy, mtype, "ErrorSerial", "Error Serial #%d", mesg, BUFSIZ);
+    fputs("  ", fp);
+    (void)fprintf(fp, mesg, event->serial);
+    _XGetErrorDatabaseText(dpy, mtype, "CurrentSerial", "Current Serial #%lld", mesg, BUFSIZ);
+    fputs("\n  ", fp);
+    (void)fprintf(fp, mesg, (unsigned long long)(event->request_code));
+    fputs("\n", fp);
+    if (event->error_code == BadImplementation) return 0;
+    return 1;
+}
+
+static int x11_error_handler(Display * display, XErrorEvent * err) {
+    _XPrintDefaultError(display, err, stderr);
+    return 0;
+}
+
+static bool loadX11() {
+    if (x11_handle == NULL) {
+#ifdef SDL_VIDEO_DRIVER_X11_DYNAMIC
+        x11_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_X11_DYNAMIC);
+#else
+        x11_handle = SDL_LoadObject("libX11.so");
+#endif
+        if (x11_handle == NULL) {
+            fprintf(stderr, "Could not load X11 library: %s. Copying is not available.\n", SDL_GetError());
+            return false;
+        }
+        _XChangeProperty = (int (*)(Display*, Window, Atom, Atom, int, int, _Xconst unsigned char*, int))SDL_LoadFunction(x11_handle, "XChangeProperty");
+        _XSendEvent = (Status (*)(Display*, Window, Bool, long, XEvent*))SDL_LoadFunction(x11_handle, "XSendEvent");
+        _XInternAtom = (Atom (*)(Display*, _Xconst char*, Bool))SDL_LoadFunction(x11_handle, "XInternAtom");
+        _XSetSelectionOwner = (int (*)(Display*, Atom, Window, Time))SDL_LoadFunction(x11_handle, "XSetSelectionOwner");
+        _XGetErrorText = (int (*)(Display*, int, char*, int))SDL_LoadFunction(x11_handle, "XGetErrorText");
+        _XGetErrorDatabaseText = (int (*)(Display*, const char*, const char*, const char*, char*, int))SDL_LoadFunction(x11_handle, "XGetErrorDatabaseText");
+        _XSetErrorHandler = (int (*)(int (*)(Display *, XErrorEvent *)))SDL_LoadFunction(x11_handle, "XSetErrorHandler");
+    }
+    return true;
 }
 #endif
 
@@ -364,21 +455,7 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
     SDL_GetWindowWMInfo(win, &info);
     if (info.subsystem == SDL_SYSWM_X11) {
 #ifdef _X11_XLIB_H_
-        if (x11_handle == NULL) {
-#ifdef SDL_VIDEO_DRIVER_X11_DYNAMIC
-            x11_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_X11_DYNAMIC);
-#else
-            x11_handle = SDL_LoadObject("libX11.so");
-#endif
-            if (x11_handle == NULL) {
-                fprintf(stderr, "Could not load X11 library: %s. Copying is not available.\n", SDL_GetError());
-                return;
-            }
-            _XChangeProperty = (int (*)(Display*, Window, Atom, Atom, int, int, _Xconst unsigned char*, int))SDL_LoadFunction(x11_handle, "XChangeProperty");
-            _XSendEvent = (Status (*)(Display*, Window, Bool, long, XEvent*))SDL_LoadFunction(x11_handle, "XSendEvent");
-            _XInternAtom = (Atom (*)(Display*, _Xconst char*, Bool))SDL_LoadFunction(x11_handle, "XInternAtom");
-            _XSetSelectionOwner = (int (*)(Display*, Atom, Window, Time))SDL_LoadFunction(x11_handle, "XSetSelectionOwner");
-        }
+        if (!loadX11()) return;
         LockGuard lock(copiedSurface);
         Display* d = info.info.x11.display;
         if (!didInitAtoms) {
@@ -507,6 +584,9 @@ void setupCrashHandler() {
     setSignalHandler(SIGBUS);
     setSignalHandler(SIGTRAP);
     setSignalHandler(SIGABRT);
+#ifdef _X11_XLIB_H_
+    if (loadX11()) _XSetErrorHandler(x11_error_handler);
+#endif
 }
 
 #else

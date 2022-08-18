@@ -76,6 +76,7 @@ static int debugger_lib_waitForBreak(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     Computer * comp = get_comp(L);
+    if (dbg->waitingForBreak) return 0;
     std::thread th([dbg](Computer*comp){
         dbg->didBreak = false;
         dbg->waitingForBreak = true;
