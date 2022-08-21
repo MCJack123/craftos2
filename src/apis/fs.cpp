@@ -119,6 +119,24 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& p
     return retval;
 }
 
+static std::string normalizePath(const path_t& basePath) {
+    path_t cleanPath;
+    for (const auto& p : basePath) {
+        if (std::regex_match(p.native(), pathregex("^\\.\\.\\.+$"))) cleanPath /= ".";
+        else cleanPath /= p;
+    }
+    cleanPath = cleanPath.lexically_normal();
+    if (path_t::preferred_separator != (path_t::value_type)'/') {
+        path_t::string_type str = cleanPath.native();
+        std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
+        cleanPath = path_t(str);
+    }
+    std::string retval = cleanPath.string();
+    if (retval[0] == '/' || retval[0] == '.') retval = retval.substr(1);
+    if (retval[retval.size()-1] == '/') retval = retval.substr(0, retval.size()-1);
+    return retval;
+}
+
 static fs::space_info getSpace(const path_t& path) {
     std::error_code e;
     fs::space_info retval;
@@ -396,16 +414,7 @@ static int fs_combine(lua_State *L) {
         if (str[0] == '/' || str[0] == '\\') str = str.substr(1);
         basePath /= str;
     }
-    if (basePath.is_absolute()) basePath = basePath.lexically_relative("/");
-    else basePath = basePath.lexically_normal();
-    if (path_t::preferred_separator != (path_t::value_type)'/') {
-        path_t::string_type str = basePath.native();
-        std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
-        basePath = path_t(str);
-    }
-    std::string retval = basePath.string();
-    if (retval[0] == '/') retval = retval.substr(1);
-    pushstring(L, retval);
+    pushstring(L, normalizePath(basePath));
     return 1;
 }
 
@@ -659,24 +668,13 @@ static int fs_find(lua_State *L) {
 
 static int fs_getDir(lua_State *L) {
     lastCFunction = __func__;
-    path_t path = path_t(checkstring(L, 1));
+    path_t path = path_t(normalizePath(checkstring(L, 1)));
     if (path.empty() || path.string() == "/") {
         lua_pushliteral(L, "..");
         return 1;
     }
     if (!path.has_filename()) path = path.parent_path();
-    path = path.parent_path();
-    if (path.is_absolute()) path = path.lexically_relative("/");
-    else path = path.lexically_normal();
-    if (path_t::preferred_separator != (path_t::value_type)'/') {
-        path_t::string_type str = path.native();
-        std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
-        path = path_t(str);
-    }
-    std::string retval = path.string();
-    if (retval == ".") retval = "";
-    if (retval[0] == '/') retval = retval.substr(1);
-    pushstring(L, retval);
+    pushstring(L, path.parent_path().string());
     return 1;
 }
 
