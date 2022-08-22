@@ -132,7 +132,8 @@ static std::string normalizePath(const path_t& basePath) {
         cleanPath = path_t(str);
     }
     std::string retval = cleanPath.string();
-    if (!retval.empty() && (retval[0] == '/' || retval[0] == '.')) retval = retval.substr(1);
+    if (retval == ".") retval = "";
+    if (!retval.empty() && retval[0] == '/') retval = retval.substr(1);
     if (!retval.empty() && retval[retval.size()-1] == '/') retval = retval.substr(0, retval.size()-1);
     return retval;
 }
