@@ -73,13 +73,12 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
 ## Building
 ### Requirements
 * [CraftOS ROM package](https://github.com/MCJack123/craftos2-rom)
-* Compiler supporting C++14
-  * Linux: G++ 4.9+, make
-  * Mac: Xcode CLI tools (xcode-select --install)
-  * Windows: Visual Studio 2019
-* LuaJIT 2.0
+* Compiler supporting C++17
+  * Linux: G++ 8.0+, make
+  * Mac: Xcode 10.2+ CLI tools (xcode-select --install)
+  * Windows: Visual Studio 2022
 * SDL 2.0.8+ (may work on older versions on non-Linux)
-* OpenSSL 1.1.1 (for POCO)
+* OpenSSL 1.1.1/3.x (for POCO)
 * POCO 1.5.0+: NetSSL & JSON libraries + dependencies
   * Foundation
   * Util
@@ -89,7 +88,6 @@ CraftOS-PC v2.2 moves the save directory to be more appropriate for each platfor
   * Net
   * NetSSL
     * On Windows, you'll need to modify the `poco` port to use OpenSSL. Simply open `vcpkg\ports\poco\portfile.cmake`, find `ENABLE_NETSSL_WIN`, and replace it with `FORCE_OPENSSL`. Then install as normal.
-* Windows: dirent.h (install with NuGet OR vcpkg)
 * Windows: [vcpkg](https://github.com/microsoft/vcpkg)
 
 #### Optional

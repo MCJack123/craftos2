@@ -4,8 +4,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="cc.craftospc.CraftOSPC"
-    android:versionCode="1"
-    android:versionName="2.5.5"
+    android:versionCode="22"
+    android:versionName="2.6.6"
     android:installLocation="auto">
 
     <!-- OpenGL ES 2.0 -->
@@ -39,7 +39,9 @@
         android:required="false" /> -->
 
     <!-- Allow writing to external storage -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -57,7 +59,7 @@
     <application android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:theme="@style/Theme.CraftOSPC"
         android:hardwareAccelerated="true"
         >
 

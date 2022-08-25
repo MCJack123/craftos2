@@ -2666,7 +2666,7 @@ ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
-CXXFLAGS="$CXXFLAGS -std=c++14"
+CXXFLAGS="$CXXFLAGS -std=c++17"
 CPPFLAGS="$CPPFLAGS -Icraftos2-luajit/include -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -Lcraftos2-luajit/src -L/usr/local/opt/openssl/lib"
 ac_ext=c
@@ -4031,15 +4031,15 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether C++ compiler accepts -std=c++14" >&5
-printf %s "checking whether C++ compiler accepts -std=c++14... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether C++ compiler accepts -std=c++17" >&5
+printf %s "checking whether C++ compiler accepts -std=c++17... " >&6; }
 if test ${ax_cv_check_cxxflags___std_cpp14+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
 
   ax_check_save_flags=$CXXFLAGS
-  CXXFLAGS="$CXXFLAGS  -std=c++14"
+  CXXFLAGS="$CXXFLAGS  -std=c++17"
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -4066,7 +4066,7 @@ if test "x$ax_cv_check_cxxflags___std_cpp14" = xyes
 then :
   :
 else $as_nop
-  as_fn_error $? "C++ compiler does not support -std=c++14." "$LINENO" 5
+  as_fn_error $? "C++ compiler does not support -std=c++17." "$LINENO" 5
 fi
 
 

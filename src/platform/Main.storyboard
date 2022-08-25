@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="19162" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="ro5-es-Qe9">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="ro5-es-Qe9">
     <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19144"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="20020"/>
         <capability name="Image references" minToolsVersion="12.0"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
@@ -39,14 +39,6 @@
                         <viewLayoutGuide key="safeArea" id="A6c-fb-uBC"/>
                         <color key="backgroundColor" name="BackgroundColor"/>
                         <gestureRecognizers/>
-                        <connections>
-                            <outletCollection property="gestureRecognizers" destination="bvK-HX-iCX" appends="YES" id="fdB-8B-PpT"/>
-                            <outletCollection property="gestureRecognizers" destination="epO-8w-07y" appends="YES" id="jbP-z2-k4y"/>
-                            <outletCollection property="gestureRecognizers" destination="pZe-my-Gno" appends="YES" id="bl0-pJ-atB"/>
-                            <outletCollection property="gestureRecognizers" destination="3Sz-sc-hfZ" appends="YES" id="HpH-zQ-UaN"/>
-                            <outletCollection property="gestureRecognizers" destination="xJi-3f-Unw" appends="YES" id="ApZ-Bt-2Ka"/>
-                            <outletCollection property="gestureRecognizers" destination="eXV-Xt-2pA" appends="YES" id="KfO-Cy-ZQ2"/>
-                        </connections>
                     </view>
                     <toolbarItems/>
                     <navigationItem key="navigationItem" title="CraftOS Terminal" id="GmD-yA-A3Q">
@@ -86,43 +78,6 @@
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="wzY-RT-v2q" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
-                <tapGestureRecognizer numberOfTouchesRequired="2" id="bvK-HX-iCX">
-                    <eventButtonMask key="buttonMaskRequired" primary="YES" secondary="YES"/>
-                    <connections>
-                        <action selector="toggleNavbar:" destination="Q4U-DV-xIG" id="0Jv-sV-XNY"/>
-                        <outlet property="delegate" destination="Q4U-DV-xIG" id="kga-eQ-dc8"/>
-                    </connections>
-                </tapGestureRecognizer>
-                <swipeGestureRecognizer direction="up" numberOfTouchesRequired="2" id="epO-8w-07y">
-                    <connections>
-                        <action selector="handleSwipe:" destination="Q4U-DV-xIG" id="WIR-p4-2Ke"/>
-                        <outlet property="delegate" destination="Q4U-DV-xIG" id="fYB-RV-JEo"/>
-                    </connections>
-                </swipeGestureRecognizer>
-                <swipeGestureRecognizer direction="down" numberOfTouchesRequired="2" id="pZe-my-Gno">
-                    <connections>
-                        <action selector="handleSwipe:" destination="Q4U-DV-xIG" id="OMP-qD-sgl"/>
-                        <outlet property="delegate" destination="Q4U-DV-xIG" id="Inc-uG-Ow2"/>
-                    </connections>
-                </swipeGestureRecognizer>
-                <swipeGestureRecognizer direction="left" numberOfTouchesRequired="2" id="3Sz-sc-hfZ">
-                    <connections>
-                        <action selector="handleSwipe:" destination="Q4U-DV-xIG" id="MO9-9T-ggt"/>
-                        <outlet property="delegate" destination="Q4U-DV-xIG" id="Ji5-vP-TkO"/>
-                    </connections>
-                </swipeGestureRecognizer>
-                <swipeGestureRecognizer direction="right" numberOfTouchesRequired="2" id="xJi-3f-Unw">
-                    <connections>
-                        <action selector="handleSwipe:" destination="Q4U-DV-xIG" id="HZv-XB-lIA"/>
-                        <outlet property="delegate" destination="Q4U-DV-xIG" id="JsW-wK-daq"/>
-                    </connections>
-                </swipeGestureRecognizer>
-                <pongPressGestureRecognizer allowableMovement="10" minimumPressDuration="0.5" numberOfTouchesRequired="2" id="eXV-Xt-2pA">
-                    <connections>
-                        <action selector="handleHold:" destination="Q4U-DV-xIG" id="y66-XE-tQ4"/>
-                        <outlet property="delegate" destination="Q4U-DV-xIG" id="8dY-wo-tSB"/>
-                    </connections>
-                </pongPressGestureRecognizer>
                 <toolbar opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" id="oo2-wD-jTu">
                     <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>

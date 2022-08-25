@@ -324,7 +324,7 @@ static int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "boolean or number");
     Computer * computer = get_comp(L);
     if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config->isColor || computer->isDebugger)) return 0;
-    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument %1 (invalid mode %d)", lua_tointeger(L, 1));
+    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument #1 (invalid mode %d)", lua_tointeger(L, 1));
     std::lock_guard<std::mutex> lock(computer->term->locked);
     computer->term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : (int)lua_tointeger(L, 1);
     computer->term->changed = true;

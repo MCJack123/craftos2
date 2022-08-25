@@ -54,14 +54,18 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import java.util.Hashtable;
 import java.util.Locale;
+
+import cc.craftospc.CraftOSPC.MainActivity;
 
 
 /**
     SDL Activity
 */
-public class SDLActivity extends Activity implements View.OnSystemUiVisibilityChangeListener {
+public class SDLActivity extends AppCompatActivity implements View.OnSystemUiVisibilityChangeListener {
     private static final String TAG = "SDL";
 
     public static boolean mIsResumedCalled, mHasFocus;
@@ -604,7 +608,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     // Messages from the SDLMain thread
     static final int COMMAND_CHANGE_TITLE = 1;
     static final int COMMAND_CHANGE_WINDOW_STYLE = 2;
-    static final int COMMAND_TEXTEDIT_HIDE = 3;
+    public static final int COMMAND_TEXTEDIT_HIDE = 3;
     static final int COMMAND_CHANGE_SURFACEVIEW_FORMAT = 4;
     static final int COMMAND_SET_KEEP_SCREEN_ON = 5;
 
@@ -1937,6 +1941,8 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
         int i = -1;
         float x,y,p;
 
+        if (MainActivity.instance.gesturesManager.onTouchEvent(event)) return true;
+
         /*
          * Prevent id to be -1, since it's used in SDL internal for synthetic events
          * Appears when using Android emulator, eg:
@@ -2175,7 +2181,7 @@ class DummyEdit extends View implements View.OnKeyListener {
         return false;
     }
 
-    //
+    /*
     @Override
     public boolean onKeyPreIme (int keyCode, KeyEvent event) {
         // As seen on StackOverflow: http://stackoverflow.com/questions/7634346/keyboard-hide-event
@@ -2185,12 +2191,13 @@ class DummyEdit extends View implements View.OnKeyListener {
         // FIXME: And determine the keyboard presence doing this: http://stackoverflow.com/questions/2150078/how-to-check-visibility-of-software-keyboard-in-android
         // FIXME: An even more effective way would be if Android provided this out of the box, but where would the fun be in that :)
         if (event.getAction()==KeyEvent.ACTION_UP && keyCode == KeyEvent.KEYCODE_BACK) {
-            if (SDLActivity.mTextEdit != null && SDLActivity.mTextEdit.getVisibility() == View.VISIBLE) {
+            if (SDLActivity.mTextEdit != null && SDLActivity.mTextEdit.getVisibility() != View.VISIBLE) {
                 SDLActivity.onNativeKeyboardFocusLost();
             }
         }
         return super.onKeyPreIme(keyCode, event);
     }
+    */
 
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {

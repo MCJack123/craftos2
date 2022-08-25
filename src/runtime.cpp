@@ -31,6 +31,7 @@
 #ifdef WIN32
 #define R_OK 0x04
 #define W_OK 0x02
+#define access(p, m) _waccess(p, m)
 #endif
 #ifndef NO_CLI
 #include <csignal>
@@ -116,7 +117,7 @@ void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;
             taskQueue->pop();
         }
         SDL_PumpEvents();
-        std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -258,15 +259,15 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     return count + 1;
 }
 
-bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only) {
+bool addMount(Computer *comp, const path_t& real_path, const std::string& comp_path, bool read_only) {
 #ifdef __ANDROID__
     if (!comp->mounter_initializing) {
         if (!SDL_AndroidRequestPermission("android.permission.READ_EXTERNAL_STORAGE")) return false;
         if (!read_only && !SDL_AndroidRequestPermission("android.permission.WRITE_EXTERNAL_STORAGE")) return false;
     }
 #endif
-    struct_stat st;
-    if (platform_stat(real_path.c_str(), &st) != 0 || platform_access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
+    if (std::regex_search((*real_path.begin()).native(), std::basic_regex<path_t::value_type>(path_t("^\\d+:").native()))) return false;
+    if (!fs::is_directory(real_path) || access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
@@ -275,29 +276,68 @@ bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, b
     }
     for (const auto& m : comp->mounts)
         if (std::get<0>(m) == pathc && std::get<1>(m) == real_path) return false;
-    int selected = 1;
-    if (!comp->mounter_initializing && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
-        SDL_MessageBoxData data;
-        data.flags = SDL_MESSAGEBOX_WARNING;
-        data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
-        data.title = "Mount requested";
-        // see apis/config.cpp:101 for why this is a pointer (TL;DR Windows is dumb)
-        std::string * message = new std::string("A script is attempting to mount the REAL path " + std::string(astr(real_path)) + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
-        data.message = message->c_str();
-        data.numbuttons = 2;
-        SDL_MessageBoxButtonData buttons[2];
-        buttons[0].flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
-        buttons[0].buttonid = 0;
-        buttons[0].text = "Deny";
-        buttons[1].flags = 0;
-        buttons[1].buttonid = 1;
-        buttons[1].text = "Allow";
-        data.buttons = buttons;
-        data.colorScheme = NULL;
-        queueTask([data](void*selected_)->void* {SDL_ShowMessageBox(&data, (int*)selected_); return NULL; }, &selected);
-        delete message;
+    if (!comp->mounter_initializing) {
+        path_t absolute = fs::absolute(real_path.lexically_normal());
+        path_t max_allowed;
+        int max_allowed_count = 0;
+        bool allow_unmatched = true;
+        for (const std::string& ps : config.mounter_whitelist) {
+            path_t p = path_t(ps).lexically_normal();
+            if (!p.is_absolute()) p = fs::current_path().root_path() / p;
+            if (p.root_path() != absolute.root_path()) continue;
+            path_t matched = absolute.root_path();
+            int num = 0;
+            for (path_t::iterator a = absolute.begin(), b = p.begin(); a != absolute.end() && b != p.end() && (*a == *b || *b == "*"); a++, b++, num++) matched /= *a;
+            if (num > max_allowed_count) {
+                max_allowed = matched;
+                max_allowed_count = num;
+            }
+        }
+        for (const std::string& ps : config.mounter_blacklist) {
+            if (ps == "*") {
+                allow_unmatched = false;
+                continue;
+            }
+            path_t p = path_t(ps).lexically_normal();
+            if (!p.is_absolute()) p = fs::current_path().root_path() / p;
+            if (p.root_path() != absolute.root_path()) continue;
+            int num = 0;
+            for (path_t::iterator a = absolute.begin(), b = p.begin(); a != absolute.end() && (*a == *b || *b == "*"); a++, b++, num++) ;
+            if (num > max_allowed_count) return false;
+        }
+        if (max_allowed_count == 0 && !allow_unmatched) return false;
+        bool noAsk = false;
+        for (const std::string& p : config.mounter_no_ask) {
+            std::error_code e;
+            if (fs::equivalent(path_t(p).lexically_normal(), real_path, e)) {
+                noAsk = true;
+                break;
+            }
+        }
+        int selected = 1;
+        if (!noAsk && config.showMountPrompt && dynamic_cast<SDLTerminal*>(comp->term) != NULL) {
+            SDL_MessageBoxData data;
+            data.flags = SDL_MESSAGEBOX_WARNING;
+            data.window = dynamic_cast<SDLTerminal*>(comp->term)->win;
+            data.title = "Mount requested";
+            // see apis/config.cpp:101 for why this is a pointer (TL;DR Windows is dumb)
+            std::string * message = new std::string("A script is attempting to mount the REAL path " + real_path.string() + ". Any script will be able to read" + (read_only ? " " : " AND WRITE ") + "any files in this directory. Do you want to allow mounting this path?");
+            data.message = message->c_str();
+            data.numbuttons = 2;
+            SDL_MessageBoxButtonData buttons[2];
+            buttons[0].flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
+            buttons[0].buttonid = 0;
+            buttons[0].text = "Deny";
+            buttons[1].flags = 0;
+            buttons[1].buttonid = 1;
+            buttons[1].text = "Allow";
+            data.buttons = buttons;
+            data.colorScheme = NULL;
+            queueTask([data](void*selected_)->void* {SDL_ShowMessageBox(&data, (int*)selected_); return NULL; }, &selected);
+            delete message;
+        }
+        if (!selected) return false;
     }
-    if (!selected) return false;
     comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), real_path, read_only));
     return true;
 }
@@ -311,7 +351,7 @@ bool operator==(const FileEntry& lhs, const FileEntry& rhs) {
     }
 }
 
-bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path) {
+bool addVirtualMount(Computer * comp, const FileEntry& vfs, const std::string& comp_path) {
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
@@ -322,17 +362,17 @@ bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_pa
     for (idx = 0; comp->virtualMounts.find(idx) != comp->virtualMounts.end() && idx < UINT_MAX; idx++) {}
     for (const auto& v : comp->mounts) {
         const path_t& path = std::get<1>(v);
-        if (!std::isdigit(path[0])) continue;
+        if (!std::isdigit(path.native()[0])) continue;
         int end = 0;
-        for (const auto& c : path) {
+        for (const auto& c : path.native()) {
             if (c == ':') break;
             else if (!std::isdigit(c)) {end = -1; break;}
             end++;
         }
-        if (end > 0 && std::get<0>(v) == pathc && *comp->virtualMounts[std::stoi(path.substr(0, end))] == vfs) return false;
+        if (end > 0 && std::get<0>(v) == pathc && *comp->virtualMounts[std::stoi(path.native().substr(0, end))] == vfs) return false;
     }
     comp->virtualMounts[idx] = &vfs;
-    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), to_path_t(idx) + WS(":"), true));
+    comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), path_t(std::to_string(idx) + ":", path_t::format::generic_format), true));
     return true;
 }
 
@@ -345,34 +385,4 @@ void addEventHook(const std::string& event, Computer * computer, const event_hoo
     std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > >& eventHooks = computer == NULL ? globalEventHooks : computer->eventHooks;
     if (eventHooks.find(event) == eventHooks.end()) eventHooks[event] = std::list<std::pair<const event_hook&, void*> >();
     eventHooks[event].push_back(std::make_pair(hook, userdata));
-}
-
-extern "C" {
-    FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode) {
-        lastCFunction = __func__;
-        if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0')))
-            luaL_error(L, "Unsupported mode");
-        if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
-        struct_stat st;
-        const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
-        if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename))
-            { errno = EACCES; return NULL; }
-        if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
-        FILE* retval;
-        if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
-        else if (mode[1] == '+') {
-            std::string mstr = mode;
-            mstr.erase(mstr.begin() + 1);
-            retval = platform_fopen(newpath.c_str(), mstr.c_str());
-        } else retval = platform_fopen(newpath.c_str(), mode);
-        if (retval != NULL) get_comp(L)->files_open++;
-        return retval;
-    }
-
-    int mounter_fclose_(lua_State *L, FILE * stream) {
-        lastCFunction = __func__;
-        const int retval = fclose(stream);
-        if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
-        return retval;
-    }
 }

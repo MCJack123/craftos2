@@ -200,7 +200,7 @@ SDLTerminal::~SDLTerminal() {
     }
     if (!overridden) {
         if (surf != NULL) SDL_FreeSurface(surf);
-        if (!singleWindowMode || renderTargets.size() == 0) {SDL_DestroyWindow(win); singleWin = NULL;}
+        if ((!singleWindowMode || renderTargets.size() == 0) && win != NULL) {SDL_DestroyWindow(win); singleWin = NULL;}
     }
 #ifdef __IPHONEOS__
     updateCloseButton();
@@ -319,14 +319,14 @@ void SDLTerminal::render() {
     SDL_Rect rect;
     if (gotResizeEvent || SDL_FillRect(surf, NULL, newmode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
     if (newmode != 0) {
-        for (unsigned y = 0; y < newheight * newcharHeight; y+=newcharScale) {
-            for (unsigned x = 0; x < newwidth * newcharWidth; x+=newcharScale) {
-                unsigned char c = (*newpixels)[y / newcharScale][x / newcharScale];
+        for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=newcharScale * dpiScale) {
+            for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=newcharScale * dpiScale) {
+                unsigned char c = (*newpixels)[y / newcharScale / dpiScale][x / newcharScale / dpiScale];
                 if (gotResizeEvent) return;
-                if (SDL_FillRect(surf, setRect(&rect, (int)(x + 2 * newcharScale),
-                                               (int)(y + 2 * newcharScale),
-                                               (int)newcharScale,
-                                               (int)newcharScale),
+                if (SDL_FillRect(surf, setRect(&rect, (int)(x + 2 * newcharScale * dpiScale),
+                                               (int)(y + 2 * newcharScale * dpiScale),
+                                               (int)newcharScale * dpiScale,
+                                               (int)newcharScale * dpiScale),
                                  rgb(newpalette[(int)c])) != 0) return;
             }
         }
@@ -349,7 +349,7 @@ void SDLTerminal::render() {
         shouldScreenshot = false;
         if (gotResizeEvent) return;
         SDL_Surface * temp = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB24, 0);
-        if (screenshotPath == WS("clipboard")) {
+        if (screenshotPath == "clipboard") {
             copyImage(temp, win);
         } else {
 #ifndef NO_WEBP
@@ -413,7 +413,11 @@ void SDLTerminal::render() {
 #endif
                 if (recorderHandle == NULL) {
                     GifWriter * g = new GifWriter;
-                    g->f = platform_fopen(recordingPath.c_str(), "wb");
+#ifdef _WIN32
+                    g->f = _wfopen(recordingPath.native().c_str(), L"wb");
+#else
+                    g->f = fopen(recordingPath.native().c_str(), "wb");
+#endif
                     GifBegin(g, NULL, surf->w, surf->h, 100 / config.recordingFPS);
                     recorderHandle = g;
                 }
@@ -463,7 +467,9 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
         std::lock_guard<std::mutex> lock2(locked);
         newWidth = w;
         newHeight = h;
+#ifndef __IPHONEOS__
         if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
+#endif
         SDL_GetWindowSize(win, &realWidth, &realHeight);
         gotResizeEvent = (newWidth != width || newHeight != height);
         if (!gotResizeEvent) return false;
@@ -486,27 +492,24 @@ bool SDLTerminal::resizeWholeWindow(int w, int h) {
 }
 
 void SDLTerminal::screenshot(std::string path) {
-    if (!path.empty()) screenshotPath = wstr(path);
+    if (!path.empty()) screenshotPath = path_t(path, path == "clipboard" ? path_t::format::generic_format : path_t::format::auto_format);
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        screenshotPath = getBasePath();
-#ifdef WIN32
-        screenshotPath += WS("\\screenshots\\");
-#else
-        screenshotPath += WS("/screenshots/");
-#endif
-        createDirectory(screenshotPath);
+        screenshotPath = getBasePath() / "screenshots";
+        std::error_code e;
+        fs::create_directories(screenshotPath, e);
+        if (e) return;
         char tstr[24];
         strftime(tstr, 24, "%F_%H.%M.%S", nowt);
         tstr[23] = '\0';
 #ifndef NO_WEBP
-        if (config.useWebP) screenshotPath += wstr(std::string(tstr)) + WS(".webp"); else
+        if (config.useWebP) screenshotPath /= std::string(tstr) + ".webp"; else
 #endif
 #ifdef NO_PNG
-        screenshotPath += wstr(std::string(tstr)) + WS(".bmp");
+        screenshotPath /= std::string(tstr) + ".bmp";
 #else
-        screenshotPath += wstr(std::string(tstr)) + WS(".png");
+        screenshotPath /= std::string(tstr) + ".png";
 #endif
     }
     shouldScreenshot = true;
@@ -516,24 +519,21 @@ void SDLTerminal::record(std::string path) {
     shouldRecord = true;
     recordedFrames = 0;
     frameWait = 0;
-    if (!path.empty()) recordingPath = wstr(path);
+    if (!path.empty()) recordingPath = path;
     else {
         time_t now = time(0);
         struct tm * nowt = localtime(&now);
-        recordingPath = getBasePath();
-#ifdef WIN32
-        recordingPath += WS("\\screenshots\\");
-#else
-        recordingPath += WS("/screenshots/");
-#endif
-        createDirectory(recordingPath);
+        recordingPath = getBasePath() / "screenshots";
+        std::error_code e;
+        fs::create_directories(recordingPath, e);
+        if (e) return;
         char tstr[20];
         strftime(tstr, 20, "%F_%H.%M.%S", nowt);
         isRecordingWebP = config.useWebP;
 #ifndef NO_WEBP
-        if (isRecordingWebP) recordingPath += wstr(std::string(tstr)) + WS(".webp"); else
+        if (isRecordingWebP) recordingPath /= std::string(tstr) + ".webp"; else
 #endif
-        recordingPath += wstr(std::string(tstr)) + WS(".gif");
+        recordingPath /= std::string(tstr) + ".gif";
     }
     recorderHandle = NULL;
     changed = true;
@@ -619,7 +619,7 @@ void SDLTerminal::init() {
     std::string bmp_path = "built-in file";
 #ifndef STANDALONE_ROM
     if (config.customFontPath == "hdfont") {
-        bmp_path = astr(getROMPath() + WS("/hdfont.bmp"));
+        bmp_path = (getROMPath() / "hdfont.bmp").string();
         fontScale = 1;
     } else 
 #endif
@@ -774,10 +774,10 @@ bool SDLTerminal::pollEvents() {
 #ifdef __IPHONEOS__
                 else if (e.type == SDL_FINGERUP || e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION) touchDevice = e.tfinger.touchId;
 #else
-                else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) {
+                /*else if (e.type == SDL_MULTIGESTURE && e.mgesture.numFingers == 2) {
                     if (e.mgesture.dDist < -0.001 && !SDL_IsTextInputActive()) SDL_StartTextInput();
                     else if (e.mgesture.dDist > 0.001 && SDL_IsTextInputActive()) SDL_StopTextInput();
-                }
+                }*/
 #endif
                 for (Terminal * t : orphanedTerminals) {
                     if ((e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && e.window.windowID == t->id) || e.type == SDL_QUIT) {

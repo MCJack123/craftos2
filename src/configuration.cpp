@@ -27,20 +27,33 @@ int onboardingMode = 0;
 extern "C" {extern void syncfs(); }
 #endif
 
+static void showMessage(const std::string& message) {
+    if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
+    else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+    else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
+    else fprintf(stderr, "%s\n", message.c_str());
+}
+
 struct computer_configuration getComputerConfig(int id) {
     struct computer_configuration cfg = {"", true, false, false, 0, 0};
-    std::ifstream in(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
+    std::ifstream in(getBasePath() / "config" / (std::to_string(id) + ".json"));
     if (!in.is_open()) return cfg;
     if (in.peek() == std::ifstream::traits_type::eof()) { in.close(); return cfg; } // treat an empty file as if it didn't exist in the first place
     Value root;
     Poco::JSON::Object::Ptr p;
     try { p = root.parse(in); } catch (Poco::JSON::JSONException &e) {
         cfg.loadFailure = true;
-        const std::string message = "An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
+        in.close();
+        return cfg;
+    } catch (std::exception &e) {
+        cfg.loadFailure = true;
+        showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.what() + ". The current session's config will be reset to default, and any changes made will not be saved.");
+        in.close();
+        return cfg;
+    } catch (...) {
+        cfg.loadFailure = true;
+        showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": unknown. The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return cfg;
     }
@@ -67,7 +80,7 @@ void setComputerConfig(int id, const computer_configuration& cfg) {
     root["startFullscreen"] = cfg.startFullscreen;
     root["computerWidth"] = cfg.computerWidth;
     root["computerHeight"] = cfg.computerHeight;
-    std::ofstream out(getBasePath() + WS("/config/") + to_path_t(id) + WS(".json"));
+    std::ofstream out(getBasePath() / "config" / (std::to_string(id) + ".json"));
     out << root;
     out.close();
 #ifdef __EMSCRIPTEN__
@@ -138,7 +151,8 @@ const std::string hiddenOptions[] = {"customFontPath", "customFontScale", "custo
 std::unordered_map<std::string, Poco::Dynamic::Var> unknownOptions;
 
 void config_init() {
-    createDirectory(getBasePath() + WS("/config"));
+    std::error_code e;
+    fs::create_directories(getBasePath() / "config", e);
     config = {
         true,
         true,
@@ -146,11 +160,12 @@ void config_init() {
         {"*"},
         {},
         {
+            "C:\\Users\\*",
             "/Users/*",
             "/home/*"
         },
         {
-            "/"
+            "*"
         },
         {},
         false,
@@ -213,7 +228,12 @@ void config_init() {
         false,
         false
     };
-    std::ifstream in(getBasePath() + WS("/config/global.json"));
+    if (e) {
+        configLoadError = true;
+        showMessage("An error occurred while parsing the global configuration file: Could not create config directory: " + std::string(e.message()) + ". The current session's config will be reset to default, and any changes made will not be saved.");
+        return;
+    }
+    std::ifstream in(getBasePath() / "config" / "global.json");
     if (!in.is_open()) { onboardingMode = 1; return; }
     Value root;
     Poco::JSON::Object::Ptr p;
@@ -221,122 +241,127 @@ void config_init() {
         p = root.parse(in);
     } catch (Poco::JSON::JSONException &e) {
         configLoadError = true;
-        const std::string message = "An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        showMessage("An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return;
     } catch (std::exception &e) {
         configLoadError = true;
-        const std::string message = "An error occurred while parsing the global configuration file: " + std::string(e.what()) + ". The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        showMessage("An error occurred while parsing the global configuration file: " + std::string(e.what()) + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return;
     } catch (...) {
         configLoadError = true;
-        const std::string message = "An error occurred while parsing the global configuration file: unknown. The current session's config will be reset to default, and any changes made will not be saved.";
-        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str(), NULL);
-        else if (selectedRenderer == 3) RawTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else if (selectedRenderer == 4) TRoRTerminal::showGlobalMessage(SDL_MESSAGEBOX_WARNING, "Error parsing JSON", message.c_str());
-        else printf("%s\n", message.c_str());
+        showMessage("An error occurred while parsing the global configuration file: unknown. The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return;
     }
     in.close();
-    readConfigSetting(http_enable, Bool);
-    readConfigSetting(mount_mode, Int);
-    if (root.isMember("http_whitelist")) {
-        config.http_whitelist.clear();
-        for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
-            config.http_whitelist.push_back(it->toString());
-    }
-    if (root.isMember("http_blacklist")) {
-        config.http_blacklist.clear();
-        for (auto it = root["http_blacklist"].arrayBegin(); it != root["http_blacklist"].arrayEnd(); ++it)
-            config.http_blacklist.push_back(it->toString());
-    }
-    if (root.isMember("mounter_whitelist")) {
-        config.mounter_whitelist.clear();
-        for (auto it = root["mounter_whitelist"].arrayBegin(); it != root["mounter_whitelist"].arrayEnd(); ++it)
-            config.mounter_whitelist.push_back(it->toString());
-    }
-    if (root.isMember("mounter_blacklist")) {
-        config.mounter_blacklist.clear();
-        for (auto it = root["mounter_blacklist"].arrayBegin(); it != root["mounter_blacklist"].arrayEnd(); ++it)
-            config.mounter_blacklist.push_back(it->toString());
-    }
-    if (root.isMember("mounter_no_ask")) {
-        config.mounter_no_ask.clear();
-        for (auto it = root["mounter_no_ask"].arrayBegin(); it != root["mounter_no_ask"].arrayEnd(); ++it)
-            config.mounter_no_ask.push_back(it->toString());
-    }
-    readConfigSetting(disable_lua51_features, Bool);
-    readConfigSetting(default_computer_settings, String);
-    readConfigSetting(logErrors, Bool);
-    readConfigSetting(showFPS, Bool);
-    readConfigSetting(computerSpaceLimit, Int);
-    readConfigSetting(maximumFilesOpen, Int);
-    readConfigSetting(abortTimeout, Int);
-    readConfigSetting(maxNotesPerTick, Int);
-    readConfigSetting(clockSpeed, Int);
-    readConfigSetting(ignoreHotkeys, Bool);
-    readConfigSetting(checkUpdates, Bool);
-    readConfigSetting(romReadOnly, Bool);
-    readConfigSetting(customFontPath, String);
-    readConfigSetting(customFontScale, Int);
-    readConfigSetting(customCharScale, Int);
-    readConfigSetting(skipUpdate, String);
-    readConfigSetting(configReadOnly, Bool);
-    readConfigSetting(vanilla, Bool);
-    readConfigSetting(initialComputer, Int);
-    readConfigSetting(maxRecordingTime, Int);
-    readConfigSetting(recordingFPS, Int);
-    readConfigSetting(cliControlKeyMode, Int);
-    readConfigSetting(showMountPrompt, Bool);
-    readConfigSetting(maxOpenPorts, Int);
-    readConfigSetting(mouse_move_throttle, Int);
-    readConfigSetting(monitorsUseMouseEvents, Bool);
-    readConfigSetting(defaultWidth, Int);
-    readConfigSetting(defaultHeight, Int);
-    readConfigSetting(standardsMode, Bool);
+    try {
+        readConfigSetting(http_enable, Bool);
+        readConfigSetting(mount_mode, Int);
+        if (root.isMember("http_whitelist")) {
+            config.http_whitelist.clear();
+            for (auto it = root["http_whitelist"].arrayBegin(); it != root["http_whitelist"].arrayEnd(); ++it)
+                config.http_whitelist.push_back(it->toString());
+        }
+        if (root.isMember("http_blacklist")) {
+            config.http_blacklist.clear();
+            for (auto it = root["http_blacklist"].arrayBegin(); it != root["http_blacklist"].arrayEnd(); ++it)
+                config.http_blacklist.push_back(it->toString());
+        }
+        if (root.isMember("mounter_whitelist")) {
+            config.mounter_whitelist.clear();
+            for (auto it = root["mounter_whitelist"].arrayBegin(); it != root["mounter_whitelist"].arrayEnd(); ++it)
+                config.mounter_whitelist.push_back(it->toString());
+        }
+        if (root.isMember("mounter_blacklist")) {
+            config.mounter_blacklist.clear();
+            for (auto it = root["mounter_blacklist"].arrayBegin(); it != root["mounter_blacklist"].arrayEnd(); ++it)
+                config.mounter_blacklist.push_back(it->toString());
+        }
+        if (root.isMember("mounter_no_ask")) {
+            config.mounter_no_ask.clear();
+            for (auto it = root["mounter_no_ask"].arrayBegin(); it != root["mounter_no_ask"].arrayEnd(); ++it)
+                config.mounter_no_ask.push_back(it->toString());
+        }
+        readConfigSetting(disable_lua51_features, Bool);
+        readConfigSetting(default_computer_settings, String);
+        readConfigSetting(logErrors, Bool);
+        readConfigSetting(showFPS, Bool);
+        readConfigSetting(computerSpaceLimit, Int);
+        readConfigSetting(maximumFilesOpen, Int);
+        readConfigSetting(abortTimeout, Int);
+        readConfigSetting(maxNotesPerTick, Int);
+        readConfigSetting(clockSpeed, Int);
+        readConfigSetting(ignoreHotkeys, Bool);
+        readConfigSetting(checkUpdates, Bool);
+        readConfigSetting(romReadOnly, Bool);
+        readConfigSetting(customFontPath, String);
+        readConfigSetting(customFontScale, Int);
+        readConfigSetting(customCharScale, Int);
+        readConfigSetting(skipUpdate, String);
+        readConfigSetting(configReadOnly, Bool);
+        readConfigSetting(vanilla, Bool);
+        readConfigSetting(initialComputer, Int);
+        readConfigSetting(maxRecordingTime, Int);
+        readConfigSetting(recordingFPS, Int);
+        readConfigSetting(cliControlKeyMode, Int);
+        readConfigSetting(showMountPrompt, Bool);
+        readConfigSetting(maxOpenPorts, Int);
+        readConfigSetting(mouse_move_throttle, Int);
+        readConfigSetting(monitorsUseMouseEvents, Bool);
+        readConfigSetting(defaultWidth, Int);
+        readConfigSetting(defaultHeight, Int);
+        readConfigSetting(standardsMode, Bool);
 #if !(defined(__IPHONEOS__) || defined(__ANDROID__))
-    readConfigSetting(useHardwareRenderer, Bool);
+        readConfigSetting(useHardwareRenderer, Bool);
 #endif
-    readConfigSetting(preferredHardwareDriver, String);
-    readConfigSetting(useVsync, Bool);
-    readConfigSetting(serverMode, Bool);
-    readConfigSetting(http_websocket_enabled, Bool);
-    readConfigSetting(http_max_websockets, Int);
-    readConfigSetting(http_max_websocket_message, Int);
-    readConfigSetting(http_max_requests, Int);
-    readConfigSetting(http_max_upload, Int);
-    readConfigSetting(http_max_download, Int);
-    readConfigSetting(http_timeout, Int);
-    readConfigSetting(http_proxy_server, String);
-    readConfigSetting(http_proxy_port, Int);
-    readConfigSetting(extendMargins, Bool);
-    readConfigSetting(snapToSize, Bool);
-    readConfigSetting(snooperEnabled, Bool);
+        readConfigSetting(preferredHardwareDriver, String);
+        readConfigSetting(useVsync, Bool);
+        readConfigSetting(serverMode, Bool);
+        readConfigSetting(http_websocket_enabled, Bool);
+        readConfigSetting(http_max_websockets, Int);
+        readConfigSetting(http_max_websocket_message, Int);
+        readConfigSetting(http_max_requests, Int);
+        readConfigSetting(http_max_upload, Int);
+        readConfigSetting(http_max_download, Int);
+        readConfigSetting(http_timeout, Int);
+        readConfigSetting(http_proxy_server, String);
+        readConfigSetting(http_proxy_port, Int);
+        readConfigSetting(extendMargins, Bool);
+        readConfigSetting(snapToSize, Bool);
+        readConfigSetting(snooperEnabled, Bool);
 #if !(defined(__IPHONEOS__) || defined(__ANDROID__))
-    readConfigSetting(keepOpenOnShutdown, Bool);
+        readConfigSetting(keepOpenOnShutdown, Bool);
 #endif
-    readConfigSetting(useWebP, Bool);
-    readConfigSetting(dropFilePath, Bool);
-    readConfigSetting(useDFPWM, Bool);
-    readConfigSetting(jit_ffi_enable, Bool);
-    // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
+        readConfigSetting(useWebP, Bool);
+        readConfigSetting(dropFilePath, Bool);
+        readConfigSetting(useDFPWM, Bool);
+        readConfigSetting(jit_ffi_enable, Bool);
+        // for JIT: substr until the position of the first '-' in CRAFTOSPC_VERSION (todo: find a static way to determine this)
 #ifndef __EMSCRIPTEN__
-    if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')) != std::string(CRAFTOSPC_VERSION).substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')))) { onboardingMode = 2; config_save(); }
-    if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
-    for (const auto& e : root)
-        if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
-            unknownOptions.insert(e);
+        if (onboardingMode == 0 && (!root.isMember("lastVersion") || root["lastVersion"].asString().substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')) != std::string(CRAFTOSPC_VERSION).substr(0, std::string(CRAFTOSPC_VERSION).find_first_of('-')))) { onboardingMode = 2; config_save(); }
+        if (root.isMember("pluginData")) for (const auto& e : root["pluginData"]) config.pluginData[e.first] = e.second.extract<std::string>();
+        for (const auto& e : root)
+            if (configSettings.find(e.first) == configSettings.end() && std::find(hiddenOptions, hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)), e.first) == hiddenOptions + (sizeof(hiddenOptions) / sizeof(std::string)))
+                unknownOptions.insert(e);
 #endif
+    } catch (Poco::Exception &e) {
+        configLoadError = true;
+        showMessage("An error occurred while reading the global configuration file: " + e.message() + ". The current session's config will be partially loaded, and any changes made will not be saved.");
+        in.close();
+        return;
+    } catch (std::exception &e) {
+        configLoadError = true;
+        showMessage("An error occurred while reading the global configuration file: " + std::string(e.what()) + ". The current session's config will be partially loaded, and any changes made will not be saved.");
+        in.close();
+        return;
+    } catch (...) {
+        configLoadError = true;
+        showMessage("An error occurred while reading the global configuration file: unknown. The current session's config will be partially loaded, and any changes made will not be saved.");
+        in.close();
+        return;
+    }
 }
 
 void config_save() {
@@ -404,7 +429,7 @@ void config_save() {
     for (const auto& e : config.pluginData) pluginRoot[e.first] = e.second;
     root["pluginData"] = pluginRoot;
     for (const auto& opt : unknownOptions) root[opt.first] = opt.second;
-    std::ofstream out(getBasePath() + WS("/config/global.json"));
+    std::ofstream out(getBasePath() / "config"/"global.json");
     out << root;
     out.close();
 #ifdef __EMSCRIPTEN__

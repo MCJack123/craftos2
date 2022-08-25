@@ -76,7 +76,7 @@ struct http_check_t {
 static std::string http_success(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
-    lua_pushlstring(L, handle->url.c_str(), handle->url.size());
+    pushstring(L, handle->url);
 
     *(http_handle_t**)lua_newuserdata(L, sizeof(http_handle_t*)) = handle;
     lua_createtable(L, 0, 1);
@@ -139,7 +139,7 @@ static std::string http_success(lua_State *L, void* data) {
 static std::string http_failure(lua_State *L, void* data) {
     http_handle_t * handle = (http_handle_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
-    lua_pushlstring(L, handle->url.c_str(), handle->url.size());
+    pushstring(L, handle->url);
     if (!handle->failureReason.empty()) lua_pushstring(L, handle->failureReason.c_str());
     if (handle->stream != NULL) {
         *(http_handle_t**)lua_newuserdata(L, sizeof(http_handle_t*)) = handle;
@@ -205,7 +205,7 @@ static std::string http_failure(lua_State *L, void* data) {
 
 static std::string http_check(lua_State *L, void* data) {
     http_check_t * res = (http_check_t*)data;
-    lua_pushlstring(L, res->url.c_str(), res->url.size());
+    pushstring(L, res->url);
     lua_pushboolean(L, res->status.empty());
     if (res->status.empty()) lua_pushnil(L);
     else lua_pushstring(L, res->status.c_str());
@@ -247,6 +247,7 @@ static void downloadThread(void* arg) {
     std::string path;
     param->comp->requests_open++;
 downloadThread_entry:
+    bool isLocalhost = false;
     {
         if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
         else if (param->url.find("://") == std::string::npos) status = "URL malformed";
@@ -260,7 +261,7 @@ downloadThread_entry:
             size_t pos = param->url.find('/', param->url.find(uri.getHost()));
             size_t hash = pos != std::string::npos ? param->url.find('#', pos) : std::string::npos;
             path = urlEncode(pos != std::string::npos ? param->url.substr(pos, hash - pos) : "/");
-            if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+            if (uri.getHost() == "localhost") {isLocalhost = true; uri.setHost("127.0.0.1");}
             bool found = false;
             for (const std::string& wclass : config.http_whitelist) {
                 if (matchIPClass(uri.getHost(), wclass)) {
@@ -300,6 +301,7 @@ downloadThread_entry:
         if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
         size_t requestSize = param->postData.size();
         for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
+        if (isLocalhost) request.add("Host", "localhost");
         if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
         if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
         if (!param->postData.empty()) {
@@ -399,6 +401,7 @@ downloadThread_entry:
         }
     }
 downloadThread_finish:
+    if (freedComputers.find(param->comp) != freedComputers.end()) return;
     param->comp->httpRequestQueueMutex.lock();
     if (!param->comp->httpRequestQueue.empty()) {
         http_param_t * p = (http_param_t*)param->comp->httpRequestQueue.front();
@@ -926,7 +929,7 @@ static std::string websocket_message(lua_State *L, void* userp) {
     ws_message * message = (ws_message*)userp;
     if (message->url.empty()) lua_pushinteger(L, message->port);
     else lua_pushstring(L, message->url.c_str());
-    lua_pushlstring(L, message->data.c_str(), message->data.size());
+    pushstring(L, message->data);
     lua_pushboolean(L, message->binary);
     if (message->clientID) lua_pushlightuserdata(L, message->clientID);
     delete message;
@@ -1160,7 +1163,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         int res;
         try {
             res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
-            if (res == 0) {
+            if (res <= 0) {
                 wsh->ws = NULL;
                 wsh->url = "";
                 char * sptr = new char[str.length()+1];

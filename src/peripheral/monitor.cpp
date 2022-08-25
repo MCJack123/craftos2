@@ -243,7 +243,7 @@ int monitor::setGraphicsMode(lua_State *L) {
     lastCFunction = __func__;
     if (!lua_isnumber(L, 1) && !lua_isboolean(L, 1)) luaL_typerror(L, 1, "number");
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
-    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument %1 (invalid mode %d)", lua_tointeger(L, 1));
+    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument #1 (invalid mode %d)", lua_tointeger(L, 1));
     std::lock_guard<std::mutex> lock(term->locked);
     term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : (int)lua_tointeger(L, 1);
     term->changed = true;
@@ -539,6 +539,34 @@ int monitor::getFrozen(lua_State *L) {
     return 1;
 }
 
+int monitor::setSize(lua_State *L) {
+    lastCFunction = __func__;
+    if (term == NULL) return 0;
+    lua_Integer w = luaL_checkinteger(L, 1);
+    lua_Integer h = luaL_checkinteger(L, 2);
+    if (w < 1) luaL_error(L, "bad argument #1 (value out of range)");
+    if (h < 1) luaL_error(L, "bad argument #2 (value out of range)");
+    SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+    if (sdlterm != NULL) sdlterm->resizeWholeWindow(w, h);
+    else term->resize(w, h);
+    return 0;
+}
+
+int monitor::setBlockSize(lua_State *L) {
+    lastCFunction = __func__;
+    if (term == NULL) return 0;
+    lua_Integer w = luaL_checkinteger(L, 1);
+    lua_Integer h = luaL_checkinteger(L, 2);
+    if (w < 1) luaL_error(L, "bad argument #1 (value out of range)");
+    if (h < 1) luaL_error(L, "bad argument #2 (value out of range)");
+    SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+    w = round((64*w - 20) / (Terminal::fontWidth * (sdlterm ? sdlterm->charScale / 2.0 : 1.0)));
+    h = round((64*h - 20) / (Terminal::fontHeight * (sdlterm ? sdlterm->charScale / 2.0 : 1.0)));
+    if (sdlterm != NULL) sdlterm->resizeWholeWindow(w, h);
+    else term->resize(w, h);
+    return 0;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
@@ -576,6 +604,8 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "screenshot") return screenshot(L);
     else if (m == "setFrozen") return setFrozen(L);
     else if (m == "getFrozen") return getFrozen(L);
+    else if (m == "setSize") return setSize(L);
+    else if (m == "setBlockSize") return setBlockSize(L);
     else return luaL_error(L, "No such method");
 }
 
@@ -612,6 +642,8 @@ static luaL_Reg monitor_reg[] = {
     {"getTextScale", NULL},
     {"drawPixels", NULL},
     {"getPixels", NULL},
+    {"setSize", NULL},
+    {"setBlockSize", NULL},
     {NULL, NULL}
 };
 

@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
 
   build:
-
+    name: Build & test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -29,7 +29,7 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
     
   build-basic:
-
+    name: Build & test (no optional features)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -53,7 +53,7 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-standalone:
-
+    name: Build & test (standalone)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -81,14 +81,14 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-cct-test:
-
+    name: Run CC:T tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.16.5-1.100.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.16.5-1.100.9 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -108,8 +108,8 @@ jobs:
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
       
   build-windows:
-
-    runs-on: windows-2019
+    name: Build Windows
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
@@ -117,7 +117,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: bd1ef2df46303989eeb048eb7aa9b816aa46365e
+        vcpkgGitCommitId: 68b7fec22eb5fd9c0236b1e42b3c0deb8e771b37
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
@@ -144,10 +144,17 @@ jobs:
 
         }
 
-        Invoke-Environment "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        Invoke-Environment "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $tag = git rev-parse --short HEAD
-        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT=\"$tag\"
+        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\"'
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release
+        copy x64\Release\CraftOS-PC.exe CraftOS-PC.exe
+        copy x64\Release\CraftOS-PC.pdb CraftOS-PC.pdb
+        copy x64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
+        copy x64\ReleaseC\CraftOS-PC.pdb CraftOS-PC_console.pdb
+        copy craftos2-lua\src\lua51.dll lua51.dll
+        copy craftos2-lua\src\lua51.pdb lua51.pdb
         # Remove buildtrees that kill the cache
         Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
     - name: Run CraftOSTest
@@ -165,5 +172,14 @@ jobs:
       with:
         name: CraftOS-PC-Artifact
         path: |
-          x64\ReleaseC\CraftOS-PC.exe
-          x64\ReleaseC\lua51.dll
+          CraftOS-PC.exe
+          CraftOS-PC_console.exe
+          lua51.dll
+    - name: Upload artifact symbols
+      uses: actions/upload-artifact@v2
+      with:
+        name: CraftOS-PC-Artifact-Symbols
+        path: |
+          CraftOS-PC.pdb
+          CraftOS-PC_console.pdb
+          lua51.pdb

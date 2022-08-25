@@ -234,13 +234,21 @@ static int os_epoch(lua_State *L) {
     std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     if (tmp == "utc") {
+#if PTRDIFF_MAX <= 0xFFFFFFFFFFFFLL
+        lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+#else
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+#endif
     } else if (tmp == "local") {
         time_t t = time(NULL);
         const time_t utime = mktime(gmtime(&t));
         tm * ltime = localtime(&t);
         const long long off = (long long)mktime(ltime) - utime + (ltime->tm_isdst ? 3600LL : 0LL);
+#if PTRDIFF_MAX <= 0xFFFFFFFFFFFFLL
+        lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000LL));
+#else
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000LL));
+#endif
     } else if (tmp == "ingame") {
         const double m_time = (double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
         const double m_day = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1;
@@ -248,7 +256,11 @@ static int os_epoch(lua_State *L) {
         if (config.standardsMode) epoch = (lua_Integer)floor(epoch / 200) * 200;
         lua_pushinteger(L, epoch);
     } else if (tmp == "nano") {
+#if PTRDIFF_MAX <= 0xFFFFFFFFFFFFLL
+        lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
+#else
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
+#endif
     } else luaL_error(L, "Unsupported operation");
     return 1;
 }

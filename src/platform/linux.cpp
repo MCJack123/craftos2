@@ -43,30 +43,30 @@ extern "C" {
 
 #ifdef CUSTOM_ROM_DIR
 const char * rom_path = CUSTOM_ROM_DIR;
-std::string rom_path_expanded;
+path_t rom_path_expanded;
 #else
-const char * rom_path = "/usr/share/craftos";
+path_t rom_path = "/usr/share/craftos";
 #endif
 #ifdef FS_ROOT
 const char * base_path = "";
 #else
 const char * base_path = "$XDG_DATA_HOME/craftos-pc";
 #endif
-std::string base_path_expanded;
+path_t base_path_expanded;
 
-void setBasePath(const char * path) {
-    base_path = path;
+void setBasePath(path_t path) {
     base_path_expanded = path;
 }
 
-void setROMPath(const char * path) {
-    rom_path = path;
+void setROMPath(path_t path) {
 #ifdef CUSTOM_ROM_DIR
     rom_path_expanded = path;
+#else
+    rom_path = path;
 #endif
 }
 
-std::string getBasePath() {
+path_t getBasePath() {
     if (!base_path_expanded.empty()) return base_path_expanded;
     wordexp_t p;
     wordexp(base_path, &p, 0);
@@ -83,7 +83,7 @@ std::string getBasePath() {
 }
 
 #ifdef CUSTOM_ROM_DIR
-std::string getROMPath() {
+path_t getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
     wordexp_t p;
     wordexp(rom_path, &p, 0);
@@ -93,13 +93,13 @@ std::string getROMPath() {
     return rom_path_expanded;
 }
 
-std::string getPlugInPath() { return getROMPath() + "/plugins-luajit/"; }
+path_t getPlugInPath() { return getROMPath() / "plugins-luajit"; }
 #else
-std::string getROMPath() { return rom_path; }
-std::string getPlugInPath() { return std::string(rom_path) + "/plugins-luajit/"; }
+path_t getROMPath() { return rom_path; }
+path_t getPlugInPath() { return path_t(rom_path) / "plugins-luajit"; }
 #endif
 
-std::string getMCSavePath() {
+path_t getMCSavePath() {
     wordexp_t p;
     wordexp("$HOME/.minecraft/saves/", &p, 0);
     std::string expanded = p.we_wordv[0];
@@ -112,58 +112,6 @@ void setThreadName(std::thread &t, const std::string& name) {
     pthread_setname_np(t.native_handle(), name.c_str());
 }
 
-int createDirectory(const std::string& path) {
-    struct stat st;
-    if (stat(path.c_str(), &st) == 0 ) return !S_ISDIR(st.st_mode);
-    if (mkdir(path.c_str(), 0777) != 0) {
-        if (errno == ENOENT && path != "/" && !path.empty()) {
-            if (createDirectory(path.substr(0, path.find_last_of('/')).c_str())) return 1;
-            mkdir(path.c_str(), 0777);
-        } else if (errno != EEXIST) return 1;
-    }
-    return 0;
-}
-
-int removeDirectory(const std::string& path) {
-    struct stat statbuf;
-    if (!stat(path.c_str(), &statbuf)) {
-        if (S_ISDIR(statbuf.st_mode)) {
-            DIR *d = opendir(path.c_str());
-            int r = -1;
-            if (d) {
-                struct dirent *p;
-                r = 0;
-                while (!r && (p=readdir(d))) {
-                    /* Skip the names "." and ".." as we don't want to recurse on them. */
-                    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-                    r = removeDirectory(path + "/" + std::string(p->d_name));
-                }
-                closedir(d);
-            }
-            if (!r) r = rmdir(path.c_str());
-            return r;
-        } else return unlink(path.c_str());
-    } else return -1;
-}
-
-unsigned long long getFreeSpace(const std::string& path) {
-    struct statvfs st;
-    if (statvfs(path.c_str(), &st) != 0) {
-        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
-        else return getFreeSpace(path.substr(0, path.find_last_of("/")-1));
-    }
-    return st.f_bavail * st.f_bsize;
-}
-
-unsigned long long getCapacity(const std::string& path) {
-    struct statvfs st;
-    if (statvfs(path.c_str(), &st) != 0) {
-        if (path.find_last_of("/") == std::string::npos || path.substr(0, path.find_last_of("/")-1).empty()) return 0;
-        else return getCapacity(path.substr(0, path.find_last_of("/")-1));
-    }
-    return st.f_blocks * st.f_frsize;
-}
-
 void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) {
     
 }
@@ -172,7 +120,9 @@ static int recursiveMove(const std::string& fromDir, const std::string& toDir) {
     struct stat statbuf;
     if (!stat(fromDir.c_str(), &statbuf)) {
         if (S_ISDIR(statbuf.st_mode)) {
-            createDirectory(toDir);
+            std::error_code e;
+            fs::create_directories(toDir, e);
+            if (e) return e.value();
             DIR *d = opendir(fromDir.c_str());
             int r = -1;
             if (d) {
@@ -212,6 +162,9 @@ static int (*_XChangeProperty)(Display*, Window, Atom, Atom, int, int, _Xconst u
 static Status (*_XSendEvent)(Display*, Window, Bool, long, XEvent*);
 static Atom (*_XInternAtom)(Display*, _Xconst char*, Bool);
 static int (*_XSetSelectionOwner)(Display*, Atom, Window, Time);
+static int (*_XGetErrorText)(Display*, int, char*, int);
+static int (*_XGetErrorDatabaseText)(Display*, const char*, const char*, const char*, char*, int);
+static int (*_XSetErrorHandler)(int (*)(Display *, XErrorEvent *));
 
 static int eventFilter(void* userdata, SDL_Event* e) {
     if (e->type == SDL_SYSWMEVENT) {
@@ -290,6 +243,94 @@ static int eventFilter(void* userdata, SDL_Event* e) {
     }
     return 1;
 }
+
+// _XPrintDefaultError borrowed from Xlib sources: https://github.com/mirror/libX11/blob/master/src/XlibInt.c
+// Copyright 1985, 1986, 1987, 1998  The Open Group
+// Licensed under MIT license (bundled)
+// Except as contained in this notice, the name of The Open Group shall
+// not be used in advertising or otherwise to promote the sale, use or
+// other dealings in this Software without prior written authorization
+// from The Open Group.
+static int _XPrintDefaultError(Display *dpy, XErrorEvent *event, FILE *fp) {
+    char buffer[BUFSIZ];
+    char mesg[BUFSIZ];
+    char number[32];
+    const char *mtype = "XlibMessage";
+    _XGetErrorText(dpy, event->error_code, buffer, BUFSIZ);
+    _XGetErrorDatabaseText(dpy, mtype, "XError", "X Error", mesg, BUFSIZ);
+    (void)fprintf(fp, "%s:  %s\n  ", mesg, buffer);
+    _XGetErrorDatabaseText(dpy, mtype, "MajorCode", "Request Major code %d", mesg, BUFSIZ);
+    (void)fprintf(fp, mesg, event->request_code);
+    if (event->request_code < 128) {
+        snprintf(number, sizeof(number), "%d", event->request_code);
+        _XGetErrorDatabaseText(dpy, "XRequest", number, "", buffer, BUFSIZ);
+    } else {
+        buffer[0] = '\0';
+    }
+    (void)fprintf(fp, " (%s)\n", buffer);
+    if (event->request_code >= 128) {
+        _XGetErrorDatabaseText(dpy, mtype, "MinorCode", "Request Minor code %d", mesg, BUFSIZ);
+        fputs("  ", fp);
+        (void)fprintf(fp, mesg, event->minor_code);
+        fputs("\n", fp);
+    }
+    if (event->error_code >= 128) {
+        /* kludge, try to find the extension that caused it */
+        buffer[0] = '\0';
+        strcpy(buffer, "Value");
+        _XGetErrorDatabaseText(dpy, mtype, buffer, "", mesg, BUFSIZ);
+        if (mesg[0]) {
+            fputs("  ", fp);
+            (void)fprintf(fp, mesg, event->resourceid);
+            fputs("\n", fp);
+        }
+    } else if ((event->error_code == BadWindow) || (event->error_code == BadPixmap) || (event->error_code == BadCursor) || (event->error_code == BadFont) || (event->error_code == BadDrawable) || (event->error_code == BadColor) || (event->error_code == BadGC) || (event->error_code == BadIDChoice) || (event->error_code == BadValue) || (event->error_code == BadAtom)) {
+        if (event->error_code == BadValue) _XGetErrorDatabaseText(dpy, mtype, "Value", "Value 0x%x", mesg, BUFSIZ);
+        else if (event->error_code == BadAtom)
+            _XGetErrorDatabaseText(dpy, mtype, "AtomID", "AtomID 0x%x", mesg, BUFSIZ);
+        else
+            _XGetErrorDatabaseText(dpy, mtype, "ResourceID", "ResourceID 0x%x", mesg, BUFSIZ);
+        fputs("  ", fp);
+        (void)fprintf(fp, mesg, event->resourceid);
+        fputs("\n", fp);
+    }
+    _XGetErrorDatabaseText(dpy, mtype, "ErrorSerial", "Error Serial #%d", mesg, BUFSIZ);
+    fputs("  ", fp);
+    (void)fprintf(fp, mesg, event->serial);
+    _XGetErrorDatabaseText(dpy, mtype, "CurrentSerial", "Current Serial #%lld", mesg, BUFSIZ);
+    fputs("\n  ", fp);
+    (void)fprintf(fp, mesg, (unsigned long long)(event->request_code));
+    fputs("\n", fp);
+    if (event->error_code == BadImplementation) return 0;
+    return 1;
+}
+
+static int x11_error_handler(Display * display, XErrorEvent * err) {
+    _XPrintDefaultError(display, err, stderr);
+    return 0;
+}
+
+static bool loadX11() {
+    if (x11_handle == NULL) {
+#ifdef SDL_VIDEO_DRIVER_X11_DYNAMIC
+        x11_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_X11_DYNAMIC);
+#else
+        x11_handle = SDL_LoadObject("libX11.so");
+#endif
+        if (x11_handle == NULL) {
+            fprintf(stderr, "Could not load X11 library: %s. Copying is not available.\n", SDL_GetError());
+            return false;
+        }
+        _XChangeProperty = (int (*)(Display*, Window, Atom, Atom, int, int, _Xconst unsigned char*, int))SDL_LoadFunction(x11_handle, "XChangeProperty");
+        _XSendEvent = (Status (*)(Display*, Window, Bool, long, XEvent*))SDL_LoadFunction(x11_handle, "XSendEvent");
+        _XInternAtom = (Atom (*)(Display*, _Xconst char*, Bool))SDL_LoadFunction(x11_handle, "XInternAtom");
+        _XSetSelectionOwner = (int (*)(Display*, Atom, Window, Time))SDL_LoadFunction(x11_handle, "XSetSelectionOwner");
+        _XGetErrorText = (int (*)(Display*, int, char*, int))SDL_LoadFunction(x11_handle, "XGetErrorText");
+        _XGetErrorDatabaseText = (int (*)(Display*, const char*, const char*, const char*, char*, int))SDL_LoadFunction(x11_handle, "XGetErrorDatabaseText");
+        _XSetErrorHandler = (int (*)(int (*)(Display *, XErrorEvent *)))SDL_LoadFunction(x11_handle, "XSetErrorHandler");
+    }
+    return true;
+}
 #endif
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND
@@ -331,8 +372,6 @@ static struct wl_seat *seat = NULL;
 static bool addedListener = false;
 
 static void registry_handle_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
-	printf("interface: '%s', version: %d, name: %d\n",
-			interface, version, name);
     if (strcmp(interface, _wl_data_device_manager_interface->name) == 0) {
 		data_device_manager = (struct wl_data_device_manager*)_wl_proxy_marshal_constructor_versioned((struct wl_proxy *)registry, 0, _wl_data_device_manager_interface, 3, name, interface, 3, NULL);
     } else if (strcmp(interface, _wl_seat_interface->name) == 0 && seat == NULL) {
@@ -416,21 +455,7 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
     SDL_GetWindowWMInfo(win, &info);
     if (info.subsystem == SDL_SYSWM_X11) {
 #ifdef _X11_XLIB_H_
-        if (x11_handle == NULL) {
-#ifdef SDL_VIDEO_DRIVER_X11_DYNAMIC
-            x11_handle = SDL_LoadObject(SDL_VIDEO_DRIVER_X11_DYNAMIC);
-#else
-            x11_handle = SDL_LoadObject("libX11.so");
-#endif
-            if (x11_handle == NULL) {
-                fprintf(stderr, "Could not load X11 library: %s. Copying is not available.\n", SDL_GetError());
-                return;
-            }
-            _XChangeProperty = (int (*)(Display*, Window, Atom, Atom, int, int, _Xconst unsigned char*, int))SDL_LoadFunction(x11_handle, "XChangeProperty");
-            _XSendEvent = (Status (*)(Display*, Window, Bool, long, XEvent*))SDL_LoadFunction(x11_handle, "XSendEvent");
-            _XInternAtom = (Atom (*)(Display*, _Xconst char*, Bool))SDL_LoadFunction(x11_handle, "XInternAtom");
-            _XSetSelectionOwner = (int (*)(Display*, Atom, Window, Time))SDL_LoadFunction(x11_handle, "XSetSelectionOwner");
-        }
+        if (!loadX11()) return;
         LockGuard lock(copiedSurface);
         Display* d = info.info.x11.display;
         if (!didInitAtoms) {
@@ -559,6 +584,9 @@ void setupCrashHandler() {
     setSignalHandler(SIGBUS);
     setSignalHandler(SIGTRAP);
     setSignalHandler(SIGABRT);
+#ifdef _X11_XLIB_H_
+    if (loadX11()) _XSetErrorHandler(x11_error_handler);
+#endif
 }
 
 #else
@@ -623,5 +651,9 @@ void platformExit() {
 }
 
 void addSystemCertificates(Poco::Net::Context::Ptr context) {}
+
+void unblockInput() {
+    close(STDIN_FILENO);
+}
 
 #endif // __INTELLISENSE__

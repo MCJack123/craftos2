@@ -43,18 +43,18 @@ if test "x$enable_wasm" = "xyes"; then
     CC=emcc
     CXX=em++
     CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -Iapi -DNO_CLI -DNO_PNG -DNO_WEBP -DPRINT_TYPE=1"
-    CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1 -s USE_SDL_MIXER=2 -Wno-implicit-const-int-float-conversion -Wno-pthreads-mem-growth"
+    CXXFLAGS="$CXXFLAGS -std=c++17 -s USE_SDL=2 -s USE_PTHREADS=1 -s USE_SDL_MIXER=2 -Wno-implicit-const-int-float-conversion -Wno-pthreads-mem-growth"
     LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -lidbfs.js -s USE_SDL=2 -s USE_SDL_MIXER=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 --no-heap-copy -Wno-pthreads-mem-growth"
 fi
 
 # Check language
 AC_LANG([C++])
-CXXFLAGS="$CXXFLAGS -std=c++14"
+CXXFLAGS="$CXXFLAGS -std=c++17"
 CPPFLAGS="$CPPFLAGS -Icraftos2-luajit/include -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -Lcraftos2-luajit/src -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
-AX_CHECK_COMPILE_FLAG([-std=c++14], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++14.])])
+AX_CHECK_COMPILE_FLAG([-std=c++17], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++17.])])
 
 # Find required libraries
 

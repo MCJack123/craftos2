@@ -13,6 +13,7 @@
 #include "SDLTerminal.hpp"
 
 class HardwareSDLTerminal : public SDLTerminal {
+    friend class debug_adapter;
 public:
     static void init();
     static void quit();

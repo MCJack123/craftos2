@@ -44,13 +44,13 @@ extern std::condition_variable listenerModeNotify;
 
 extern int getNextEvent(lua_State* L, const std::string& filter);
 extern void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async = false);
-extern void runComputer(Computer * self, const path_t& bios_name);
+extern void runComputer(Computer * self, const path_t& bios_name, const std::string& bios_data = "");
 extern bool Computer_getEvent(Computer * self, SDL_Event* e);
 extern void* computerThread(void* data);
 extern Computer* startComputer(int id);
 extern void queueEvent(Computer *comp, const event_provider& p, void* data);
-extern bool addMount(Computer *comp, const path_t& real_path, const char * comp_path, bool read_only);
-extern bool addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path);
+extern bool addMount(Computer *comp, const path_t& real_path, const std::string& comp_path, bool read_only);
+extern bool addVirtualMount(Computer * comp, const FileEntry& vfs, const std::string& comp_path);
 extern void registerPeripheral(const std::string& name, const peripheral_init_fn& initializer);
 extern void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
 extern void pumpTaskQueue();
