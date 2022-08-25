@@ -154,7 +154,6 @@ jobs:
         copy x64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
         copy x64\ReleaseC\CraftOS-PC.pdb CraftOS-PC_console.pdb
         copy craftos2-luajit\src\luajit51.dll luajit51.dll
-        copy craftos2-luajit\src\luajit51.pdb luajit51.pdb
         # Remove buildtrees that kill the cache
         Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
     - name: Run CraftOSTest
@@ -182,4 +181,3 @@ jobs:
         path: |
           CraftOS-PC.pdb
           CraftOS-PC_console.pdb
-          luajit51.pdb
