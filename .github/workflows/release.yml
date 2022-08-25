@@ -130,6 +130,7 @@ jobs:
         security unlock-keychain -p actionrunner build.keychain
         security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actionrunner build.keychain
+        security set-keychain-settings -lut 900
         echo "$NOTARIZATION_CERTIFICATE" | base64 -d > APIKey.p8
     - name: Build CraftOS-PC
       run: |
