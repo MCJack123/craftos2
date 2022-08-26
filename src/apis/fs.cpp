@@ -483,11 +483,10 @@ static int fs_open(lua_State *L) {
         }
         std::fstream ** fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
         fpid = lua_gettop(L);
-        std::ios::openmode flags;
+        std::ios::openmode flags = std::ios::binary;
         if (strchr(mode, 'r')) flags = std::ios::in;
         else if (strchr(mode, 'w')) flags = std::ios::out | std::ios::trunc;
         else if (strchr(mode, 'a')) flags = std::ios::in | std::ios::out | std::ios::ate;
-        if (strchr(mode, 'b')) flags |= std::ios::binary;
         *fp = new std::fstream(path, flags);
         if (!(*fp)->is_open()) {
             bool ok = false;
