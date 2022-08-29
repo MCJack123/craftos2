@@ -50,6 +50,10 @@
 extern "C" {extern int Android_JNI_SetupThread(void);}
 #endif
 
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+extern void mobileResetModifiers();
+#endif
+
 std::thread * renderThread;
 /* export */ std::unordered_map<int, unsigned char> keymap = {
     {0, 1},
@@ -749,6 +753,9 @@ std::string termGetEvent(lua_State *L) {
             try {str = utf8_to_string(e.text.text, std::locale("C"));}
             catch (std::exception &ignored) {str = "?";}
             if (!str.empty()) {
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+                mobileResetModifiers();
+#endif
                 lua_pushlstring(L, str.c_str(), 1);
                 return "char";
             }

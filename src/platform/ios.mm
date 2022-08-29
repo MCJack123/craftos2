@@ -543,6 +543,11 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_PushEvent(&e);
 }
 
+- (void)resetModifiers {
+    if (isCtrlDown) [self onCtrl:self];
+    if (isAltDown) [self onAlt:self];
+}
+
 - (void)updateKeyboard {} // placeholder empty method
 
 // MARK: UIGestureRecognizerDelegate
@@ -616,6 +621,10 @@ void updateCloseButton() {
 
 void iOS_SetWindowTitle(SDL_Window * win, const char * title) {
     viewController.navigationItem.title = [NSString stringWithCString:title encoding:NSASCIIStringEncoding];
+}
+
+void mobileResetModifiers() {
+    [viewController resetModifiers];
 }
 
 void handler(int sig) {
