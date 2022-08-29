@@ -16,6 +16,10 @@ static void forwardInput();
 #include "../termsupport.hpp"
 #include <Poco/Net/TCPServerConnection.h>
 #include <Poco/Net/TCPServerConnectionFactory.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 static debug_adapter * stdio_debugger = NULL;
 static std::thread * inputThread = NULL;
@@ -82,7 +86,14 @@ public:
 
 debug_adapter::debug_adapter(lua_State *L, const char * side): debugger(L, side), server(new DAPConnection::Factory(this), 12100 + get_comp(L)->id) {
     if (inputThread == NULL && (selectedRenderer == 0 || selectedRenderer == 5)) inputThread = new std::thread(forwardInput);
-    if (stdio_debugger == NULL) stdio_debugger = this;
+    if (stdio_debugger == NULL) {
+        stdio_debugger = this;
+#ifdef _WIN32
+        // Disable CRLF -> LF conversion (DAP needs CRLF)
+        _setmode(0, _O_BINARY);
+        _setmode(1, _O_BINARY);
+#endif
+    }
     server.start();
     std::lock_guard<std::mutex> lock(renderTargetsLock);
     if (singleWindowMode) {
@@ -114,11 +125,12 @@ debug_adapter::~debug_adapter() {
 }
 
 void debug_adapter::sendData(const std::string& data) {
-    if (socket == NULL) {
+    if (stdio_debugger == this) {
         std::cout.write(data.c_str(), data.size());
         std::cout << "\n";
         std::cout.flush();
-    } else {
+    }
+    if (socket != NULL) {
         socket->sendBytes(data.c_str(), data.size());
     }
 }
