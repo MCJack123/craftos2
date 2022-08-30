@@ -132,6 +132,7 @@ jobs:
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actionrunner build.keychain
         security set-keychain-settings -lut 900
         echo "$NOTARIZATION_CERTIFICATE" | base64 -d > APIKey.p8
+        brew install coreutils
     - name: Build CraftOS-PC
       run: |
         git submodule update --init --recursive
@@ -182,7 +183,7 @@ jobs:
         asset_content_type: application/octet-stream
 
   release-ubuntu:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     environment: production
     steps:
     - uses: actions/checkout@v1

@@ -247,7 +247,7 @@ static int fs_isReadOnly(lua_State *L) {
 
 static int fs_getName(lua_State *L) {
     lastCFunction = __func__;
-    pushstring(L, path_t(checkstring(L, 1), path_t::format::generic_format).filename().string());
+    pushstring(L, path_t(normalizePath(checkstring(L, 1))).filename().string());
     return 1;
 }
 
