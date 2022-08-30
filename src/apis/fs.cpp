@@ -145,7 +145,7 @@ static fs::space_info getSpace(const path_t& path) {
     do {
         retval = fs::space(p, e);
         p = p.parent_path();
-    } while (e && e.value() == ENOENT && p.has_parent_path());
+    } while (((e && e.value() == ENOENT) || retval.capacity == -1) && p.has_parent_path());
     return retval;
 }
 
@@ -235,7 +235,7 @@ static int fs_isReadOnly(lua_State *L) {
     else if (fs::is_directory(path)) {
         const path_t file = path / "a";
         const bool didexist = fs::exists(file);
-        std::ofstream fp(file, std::ios::app);
+        std::fstream fp(file, didexist ? std::ios::in : std::ios::out);
         lua_pushboolean(L, !fp.is_open());
         fp.close();
         if (!didexist && fs::exists(file)) fs::remove(file);
@@ -483,11 +483,10 @@ static int fs_open(lua_State *L) {
         }
         std::fstream ** fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
         fpid = lua_gettop(L);
-        std::ios::openmode flags;
-        if (strchr(mode, 'r')) flags = std::ios::in;
-        else if (strchr(mode, 'w')) flags = std::ios::out | std::ios::trunc;
-        else if (strchr(mode, 'a')) flags = std::ios::in | std::ios::out | std::ios::ate;
-        if (strchr(mode, 'b')) flags |= std::ios::binary;
+        std::ios::openmode flags = std::ios::binary;
+        if (strchr(mode, 'r')) flags |= std::ios::in;
+        else if (strchr(mode, 'w')) flags |= std::ios::out | std::ios::trunc;
+        else if (strchr(mode, 'a')) flags |= std::ios::in | std::ios::out | std::ios::ate;
         *fp = new std::fstream(path, flags);
         if (!(*fp)->is_open()) {
             bool ok = false;
@@ -744,8 +743,8 @@ static int fs_attributes(lua_State *L) {
             else if (fs::is_directory(path)) {
                 const path_t file = path / "a";
                 const bool didexist = fs::exists(file);
-                std::ofstream fp(file, std::ios::app);
-                lua_pushboolean(L, fp.is_open());
+                std::fstream fp(file, didexist ? std::ios::in : std::ios::out);
+                lua_pushboolean(L, !fp.is_open());
                 fp.close();
                 if (!didexist && fs::exists(file)) fs::remove(file);
             }

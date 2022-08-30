@@ -118,6 +118,19 @@ public class MainActivity extends SDLActivity implements MultiFingerTapGestureDe
     private static native void sendKeyboardUpdate(int size);
     private static native void sendCloseEvent();
 
+    public void resetModifiers() {
+        if (isCtrlDown) {
+            onNativeKeyUp(KeyEvent.KEYCODE_CTRL_LEFT);
+            isCtrlDown = false;
+            findViewById(R.id.controlButton).setBackgroundColor(0);
+        }
+        if (isAltDown) {
+            onNativeKeyUp(KeyEvent.KEYCODE_ALT_LEFT);
+            isAltDown = false;
+            findViewById(R.id.altButton).setBackgroundColor(0);
+        }
+    }
+
     private void extractAssets(String assetPath, String destPath, boolean isRoot) {
         AssetManager assets = getAssets();
         File dir = new File(destPath);

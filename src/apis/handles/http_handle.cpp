@@ -93,7 +93,7 @@ int http_handle_readLine(lua_State *L) {
     std::getline(*handle->stream, retval);
     if (retval.empty() && handle->stream->eof()) return 0;
     if (lua_toboolean(L, 1)) retval += '\n';
-    else if (retval[retval.size()-1] == '\r') retval = retval.substr(0, retval.size()-1);
+    else if (!retval.empty() && retval[retval.size()-1] == '\r') retval = retval.substr(0, retval.size()-1);
     const std::string out = handle->isBinary ? retval : makeASCIISafe(retval.c_str(), retval.size());
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
