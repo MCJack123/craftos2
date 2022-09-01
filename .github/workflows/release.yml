@@ -88,7 +88,7 @@ jobs:
       id: check_files
       uses: andstor/file-existence-action@v1
       with:
-        files: "${{ github.workspace }}\\CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}"
+        files: "${{ github.workspace }}\\CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe"
     - name: Upload delta installer
       if: steps.check_files.outputs.files_exists == 'true'
       uses: actions/upload-release-asset@v1.0.2
@@ -275,7 +275,7 @@ jobs:
     needs: [release-windows, release-mac]
     steps:
       - name: Generate Release Hashes
-        uses: MCJack123/ghaction-Generate-Release-Hashes@v3
+        uses: MCJack123/ghaction-Generate-Release-Hashes@v4
         with:
           file-name: hashes.txt
           get-assets: "true"
