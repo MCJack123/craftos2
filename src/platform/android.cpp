@@ -120,11 +120,11 @@ void addSystemCertificates(Poco::Net::Context::Ptr context) {
 void unblockInput() {}
 
 void mobileResetModifiers() {
-    JNIEnv env = (JNIEnv)SDL_AndroidGetJNIEnv();
+    JNIEnv * env = (JNIEnv*)SDL_AndroidGetJNIEnv();
     jobject activity = (jobject)SDL_AndroidGetActivity();
-    jclass activity_class = env->GetObjectClass(&env, activity);
-    jmethodID resetModifiers = env->GetMethodID(&env, activity_class, "resetModifiers", "()V");
-    env->CallVoidMethod(&env, activity, resetModifiers);
+    jclass activity_class = env->GetObjectClass(activity);
+    jmethodID resetModifiers = env->GetMethodID(activity_class, "resetModifiers", "()V");
+    env->CallVoidMethod(activity, resetModifiers);
 }
 
 #ifdef __INTELLISENSE__
