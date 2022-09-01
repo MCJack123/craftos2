@@ -208,8 +208,11 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_TimerID holdTimer;
     BOOL isCtrlDown;
     BOOL isAltDown;
+    UIToolbar *activeToolbar;
+    UITextField * textField;
 }
 @property (retain, nonatomic) IBOutlet UIToolbar *hotkeyToolbar;
+@property (retain, nonatomic) IBOutlet UIToolbar *arrowToolbar;
 @property (retain, nonatomic) UIViewController * oldvc;
 @property (retain, nonatomic) IBOutlet UIBarButtonItem *ctrlButton;
 @property (retain, nonatomic) IBOutlet UIBarButtonItem *altButton;
@@ -236,10 +239,22 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     [self.oldvc.view.trailingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor].active = YES;
     [self.oldvc didMoveToParentViewController:self];
     // Add the hotkey toolbar to the invisible text field so it shows up on input grab
-    UITextField * textField = (UITextField*)object_getIvar(self.oldvc, class_getInstanceVariable([self.oldvc class], "textField"));
+    textField = (UITextField*)object_getIvar(self.oldvc, class_getInstanceVariable([self.oldvc class], "textField"));
     [self.view addSubview:textField]; // ?
-    textField.inputAccessoryView = self.hotkeyToolbar;
+    UIView * toolbarContainer = [[UIView alloc] initWithFrame:self.hotkeyToolbar.frame];
+    textField.inputAccessoryView = toolbarContainer;
     textField.keyboardAppearance = UIKeyboardAppearanceDark;
+    activeToolbar = self.hotkeyToolbar;
+    [toolbarContainer addSubview:self.hotkeyToolbar];
+    [toolbarContainer addSubview:self.arrowToolbar];
+    [self.hotkeyToolbar.topAnchor constraintEqualToAnchor:toolbarContainer.topAnchor].active = YES;
+    [self.hotkeyToolbar.bottomAnchor constraintEqualToAnchor:toolbarContainer.bottomAnchor].active = YES;
+    [self.hotkeyToolbar.leftAnchor constraintEqualToAnchor:toolbarContainer.leftAnchor].active = YES;
+    [self.hotkeyToolbar.rightAnchor constraintEqualToAnchor:toolbarContainer.rightAnchor].active = YES;
+    [self.arrowToolbar.topAnchor constraintEqualToAnchor:toolbarContainer.topAnchor].active = YES;
+    [self.arrowToolbar.bottomAnchor constraintEqualToAnchor:toolbarContainer.bottomAnchor].active = YES;
+    [self.arrowToolbar.leftAnchor constraintEqualToAnchor:toolbarContainer.leftAnchor].active = YES;
+    [self.arrowToolbar.rightAnchor constraintEqualToAnchor:toolbarContainer.rightAnchor].active = YES;
     // Fix transparent navigation bar background on iOS 15+
     if (@available(iOS 15, *)) {
         UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
@@ -414,6 +429,18 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_PushEvent(&e);
 }
 
+- (IBAction)onMore0:(id)sender {
+    activeToolbar = self.arrowToolbar;
+    self.hotkeyToolbar.hidden = YES;
+    self.arrowToolbar.hidden = NO;
+}
+
+- (IBAction)onMore1:(id)sender {
+    activeToolbar = self.hotkeyToolbar;
+    self.arrowToolbar.hidden = YES;
+    self.hotkeyToolbar.hidden = NO;
+}
+
 - (IBAction)onCtrl:(id)sender {
     SDL_Event e;
     e.key.timestamp = time(0);
@@ -542,10 +569,77 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     e.key.state = SDL_RELEASED;
     SDL_PushEvent(&e);
 }
+    
+- (IBAction)onLeft:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_LEFT;
+    e.key.keysym.sym = SDLK_LEFT;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onUp:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_UP;
+    e.key.keysym.sym = SDLK_UP;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onDown:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_DOWN;
+    e.key.keysym.sym = SDLK_DOWN;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onRight:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_RIGHT;
+    e.key.keysym.sym = SDLK_RIGHT;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
 
 - (void)resetModifiers {
-    if (isCtrlDown) [self onCtrl:self];
-    if (isAltDown) [self onAlt:self];
+    if (isCtrlDown || isAltDown) queueTask([self](void*)->void*{
+        if (isCtrlDown) [self onCtrl:self];
+        if (isAltDown) [self onAlt:self];
+        return NULL;
+    }, NULL, true);
 }
 
 - (void)updateKeyboard {} // placeholder empty method
@@ -557,6 +651,10 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
     return YES;
 }
 
+- (void)dealloc {
+    [_arrowToolbar release];
+    [super dealloc];
+}
 @end
 
 @interface CCAppDelegate : NSObject<UIApplicationDelegate>
@@ -668,7 +766,27 @@ void setupCrashHandler() {
 
 void platformExit() {}
 
-void addSystemCertificates(Poco::Net::Context::Ptr context) {}
+static std::vector<Poco::Crypto::X509Certificate> certCache;
+void addSystemCertificates(Poco::Net::Context::Ptr context) {
+    if (certCache.empty()) {
+        std::ifstream bundle([[[NSBundle mainBundle] pathForResource:@"Certificates" ofType:@"pem"] cStringUsingEncoding:NSUTF8StringEncoding]);
+        std::string cert;
+        while (!bundle.eof()) {
+            std::string line;
+            std::getline(bundle, line);
+            if (line == "-----BEGIN CERTIFICATE-----" && !cert.empty()) {
+                std::stringstream ss(cert);
+                certCache.push_back(Poco::Crypto::X509Certificate(ss));
+                cert = "";
+            }
+            cert += line + "\n";
+        }
+        std::stringstream ss(cert);
+        certCache.push_back(Poco::Crypto::X509Certificate(ss));
+        bundle.close();
+    }
+    for (const Poco::Crypto::X509Certificate& cert : certCache) context->addCertificateAuthority(cert);
+}
 
 void unblockInput() {}
 

@@ -70,6 +70,7 @@
                     </navigationItem>
                     <connections>
                         <outlet property="altButton" destination="96X-Er-fMH" id="e6h-xh-Qqq"/>
+                        <outlet property="arrowToolbar" destination="zNj-am-Xvh" id="Q6t-75-PxD"/>
                         <outlet property="closeButton" destination="yyU-je-Dtj" id="kdi-hW-xBP"/>
                         <outlet property="ctrlButton" destination="JrA-QI-TA0" id="Vqb-D8-Jto"/>
                         <outlet property="hotkeyToolbar" destination="oo2-wD-jTu" id="UoI-6c-rGo"/>
@@ -82,6 +83,12 @@
                     <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
                     <items>
+                        <barButtonItem title="More" image="ellipsis.circle" catalog="system" id="7rP-pb-6Yu">
+                            <connections>
+                                <action selector="onMore0:" destination="Q4U-DV-xIG" id="yfF-Ze-PQc"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="N2D-hC-OvH"/>
                         <barButtonItem title="Ctrl" id="JrA-QI-TA0">
                             <connections>
                                 <action selector="onCtrl:" destination="Q4U-DV-xIG" id="Bbb-rN-FPl"/>
@@ -100,12 +107,6 @@
                             </connections>
                         </barButtonItem>
                         <barButtonItem style="plain" systemItem="flexibleSpace" id="jgE-Z5-A9r"/>
-                        <barButtonItem title="Paste" image="doc.on.clipboard" catalog="system" id="48k-Fu-4xl">
-                            <connections>
-                                <action selector="onPaste:" destination="Q4U-DV-xIG" id="QP4-8K-uVh"/>
-                            </connections>
-                        </barButtonItem>
-                        <barButtonItem style="plain" systemItem="flexibleSpace" id="Tpp-sP-222"/>
                         <barButtonItem title="Terminate" id="hZ6-9g-dc5">
                             <imageReference key="image" image="minus.circle" catalog="system" renderingMode="template"/>
                             <color key="tintColor" systemColor="systemRedColor"/>
@@ -131,15 +132,59 @@
                         </barButtonItem>
                     </items>
                 </toolbar>
+                <toolbar hidden="YES" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" id="zNj-am-Xvh">
+                    <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                    <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
+                    <items>
+                        <barButtonItem title="More" image="ellipsis.circle.fill" catalog="system" id="j7v-dG-h7n">
+                            <connections>
+                                <action selector="onMore1:" destination="Q4U-DV-xIG" id="vFg-4A-EJj"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="Nb0-Ug-929"/>
+                        <barButtonItem title="Left" image="arrow.left" catalog="system" id="6UL-qj-WId">
+                            <connections>
+                                <action selector="onLeft:" destination="Q4U-DV-xIG" id="CJZ-8R-lOl"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Up" image="arrow.up" catalog="system" id="0Vr-ih-tkG">
+                            <connections>
+                                <action selector="onUp:" destination="Q4U-DV-xIG" id="wfx-Oi-XKv"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Down" image="arrow.down" catalog="system" id="w2o-rm-ZMX">
+                            <connections>
+                                <action selector="onDown:" destination="Q4U-DV-xIG" id="6hX-DM-7qt"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Right" image="arrow.right" catalog="system" id="gVT-6D-CqZ">
+                            <connections>
+                                <action selector="onRight:" destination="Q4U-DV-xIG" id="cL2-5I-0Oc"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="rZt-CL-4c5"/>
+                        <barButtonItem title="Paste" image="doc.on.clipboard" catalog="system" id="48k-Fu-4xl">
+                            <connections>
+                                <action selector="onPaste:" destination="Q4U-DV-xIG" id="QP4-8K-uVh"/>
+                            </connections>
+                        </barButtonItem>
+                    </items>
+                </toolbar>
             </objects>
             <point key="canvasLocation" x="889.85507246376824" y="63.616071428571423"/>
         </scene>
     </scenes>
     <resources>
+        <image name="arrow.down" catalog="system" width="120" height="128"/>
+        <image name="arrow.left" catalog="system" width="128" height="98"/>
+        <image name="arrow.right" catalog="system" width="128" height="98"/>
         <image name="arrow.right.to.line" catalog="system" width="128" height="89"/>
+        <image name="arrow.up" catalog="system" width="120" height="128"/>
         <image name="chevron.left" catalog="system" width="96" height="128"/>
         <image name="chevron.right" catalog="system" width="96" height="128"/>
         <image name="doc.on.clipboard" catalog="system" width="116" height="128"/>
+        <image name="ellipsis.circle" catalog="system" width="128" height="121"/>
+        <image name="ellipsis.circle.fill" catalog="system" width="128" height="121"/>
         <image name="keyboard" catalog="system" width="128" height="79"/>
         <image name="minus.circle" catalog="system" width="128" height="121"/>
         <image name="power" catalog="system" width="128" height="124"/>
