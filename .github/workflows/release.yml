@@ -223,7 +223,7 @@ jobs:
         cd craftos2
         cp -Rp $GITHUB_WORKSPACE/craftos2-release-resources/ubuntu/debian_craftos-pc$LUAJIT debian
         if [ "a$LUAJIT" == "a" ]; then VERSION=1:$VERSION; fi
-        echo "craftos-pc$LUAJIT ($VERSION-bionic1) bionic; urgency=medium" > debian/changelog
+        echo "craftos-pc$LUAJIT ($VERSION-focal1) focal; urgency=medium" > debian/changelog
         echo "    " >> debian/changelog
         echo "$RELEASE_BODY" | sed 's/^/    /' >> debian/changelog
         echo "    " >> debian/changelog
