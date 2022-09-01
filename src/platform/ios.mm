@@ -635,8 +635,11 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
 }
 
 - (void)resetModifiers {
-    if (isCtrlDown) [self onCtrl:self];
-    if (isAltDown) [self onAlt:self];
+    if (isCtrlDown || isAltDown) queueTask([self](void*)->void*{
+        if (isCtrlDown) [self onCtrl:self];
+        if (isAltDown) [self onAlt:self];
+        return NULL;
+    }, NULL, true);
 }
 
 - (void)updateKeyboard {} // placeholder empty method
