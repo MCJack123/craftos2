@@ -349,8 +349,8 @@ static int fs_copy(lua_State *L) {
     const path_t toPath = fixpath_mkdir(get_comp(L), str2);
     if (fromPath.empty()) err(L, 1, "No such file");
     if (toPath.empty()) err(L, 2, "Invalid path");
-    if (std::regex_search((*fromPath.begin()).native(), pathregex("^\\d+:"))) err(L, 2, "Permission denied");
-    if (std::regex_search((*toPath.begin()).native(), pathregex("^\\d+:"))) {
+    if (std::regex_search((*toPath.begin()).native(), pathregex("^\\d+:"))) err(L, 2, "Permission denied");
+    if (std::regex_search((*fromPath.begin()).native(), pathregex("^\\d+:"))) {
         try {
             const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul((*fromPath.begin()).c_str())]->path(fromPath.lexically_relative(*fromPath.begin()));
             if (d.isDir) err(L, 1, "Is a directory");
