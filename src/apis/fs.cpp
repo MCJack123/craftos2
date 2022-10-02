@@ -104,10 +104,11 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& p
     for (size_t i = 0; i < max_path.first; i++) pathc.pop_front();
     for (const _path_t& p : max_path.second) {
         path_t sstmp = p;
+        std::error_code e;
         for (const std::string& s : pathc) sstmp /= s;
         if (
             (isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp.string()))) ||
-            (fs::exists(sstmp))) {
+            (fs::exists(sstmp, e))) {
             if (path_t::preferred_separator != (path_t::value_type)'/' && isVFSPath(sstmp)) {
                 path_t::string_type str = sstmp.native();
                 std::replace(str.begin(), str.end(), path_t::preferred_separator, (path_t::value_type)'/');
@@ -229,16 +230,19 @@ static int fs_isReadOnly(lua_State *L) {
         return 1;
     }
     const path_t path = fixpath_mkdir(get_comp(L), str, false);
+    std::error_code e;
     if (path.empty()) err(L, 1, "Invalid path"); // This should never happen
-    if (!fs::exists(path)) lua_pushboolean(L, false);
+    if (!fs::exists(path, e)) lua_pushboolean(L, false);
 #ifdef WIN32
-    else if (fs::is_directory(path)) {
+    else if (e.clear(), fs::is_directory(path, e)) {
+        e.clear();
         const path_t file = path / "a";
-        const bool didexist = fs::exists(file);
+        const bool didexist = fs::exists(file, e);
         std::fstream fp(file, didexist ? std::ios::in : std::ios::out);
         lua_pushboolean(L, !fp.is_open());
-        fp.close();
-        if (!didexist && fs::exists(file)) fs::remove(file);
+        if (fp.is_open()) fp.close();
+        e.clear();
+        if (!didexist && fs::exists(file, e)) fs::remove(file, e);
     }
 #endif
     else lua_pushboolean(L, access(path.native().c_str(), W_OK) != 0);
@@ -738,15 +742,17 @@ static int fs_attributes(lua_State *L) {
         lua_setfield(L, -2, "isDir");
         if (fixpath_ro(get_comp(L), str)) lua_pushboolean(L, true);
         else {
-            if (!fs::exists(path)) lua_pushboolean(L, false);
+            std::error_code e;
+            if (!fs::exists(path, e)) lua_pushboolean(L, false);
 #ifdef WIN32
-            else if (fs::is_directory(path)) {
+            else if (e.clear(), fs::is_directory(path, e)) {
                 const path_t file = path / "a";
-                const bool didexist = fs::exists(file);
+                const bool didexist = fs::exists(file, e);
                 std::fstream fp(file, didexist ? std::ios::in : std::ios::out);
                 lua_pushboolean(L, !fp.is_open());
                 fp.close();
-                if (!didexist && fs::exists(file)) fs::remove(file);
+                e.clear();
+                if (!didexist && fs::exists(file, e)) fs::remove(file, e);
             }
 #endif
             else lua_pushboolean(L, access(path.c_str(), W_OK) != 0);
