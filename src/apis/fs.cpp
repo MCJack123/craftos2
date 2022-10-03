@@ -268,6 +268,7 @@ static int fs_getSize(lua_State *L) {
     lastCFunction = __func__;
     std::string str = checkstring(L, 1);
     const path_t path = fixpath(get_comp(L), str, true);
+    std::error_code e;
     if (path.empty()) err(L, 1, "No such file");
     if (std::regex_search((*path.begin()).native(), pathregex("^\\d+:"))) {
         try {
@@ -279,8 +280,10 @@ static int fs_getSize(lua_State *L) {
     } else if (path == ":bios.lua") {
         lua_pushinteger(L, standaloneBIOS.size());
 #endif
+    } else if (fs::is_directory(path, e)) {
+        lua_pushinteger(L, 0);
     } else {
-        lua_pushinteger(L, fs::file_size(path));
+        lua_pushinteger(L, fs::file_size(path, e));
     }
     return 1;
 }
