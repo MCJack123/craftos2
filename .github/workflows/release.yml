@@ -188,7 +188,7 @@ jobs:
         echo "    " >> debian/changelog
         echo " -- JackMacWindows <jackmacwindowslinux@gmail.com>  $(date "+%a, %d %b %Y %T %z")" >> debian/changelog
         echo "" >> debian/changelog
-        gunzip -c /usr/share/doc/craftos-pc/changelog.Debian.gz >> debian/changelog
+        gunzip -c /usr/share/doc/craftos-pc${LUAJIT}/changelog.Debian.gz >> debian/changelog
         rm -r craftos2-release-resources
     - name: Build package
       run: zsh debian/buildall.sh
