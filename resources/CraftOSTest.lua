@@ -485,6 +485,7 @@ testStart "settings"
 		"shell.allow_disk_startup",
 		"shell.allow_startup",
 		"shell.autocomplete",
+		"shell.autocomplete_hidden",
 		"shell.mobile_resize_with_keyboard",
 		"shell.report_plugin_errors",
 		"test",
