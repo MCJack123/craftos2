@@ -905,7 +905,7 @@ static std::string websocket_success(lua_State *L, void* userp) {
 
     lua_pushstring(L, "receive");
     luaL_loadstring(L, websocket_receive);
-    lua_pushstring(L, ws->url.c_str());
+    lua_pushstring(L, (*ws)->url.c_str());
     lua_pushvalue(L, pos);
     lua_pushcclosure(L, websocket_isOpen, 1);
     lua_call(L, 2, 1);
