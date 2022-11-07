@@ -228,4 +228,5 @@ static luaL_Reg modem_reg[] = {
     {NULL, NULL}
 };
 
-library_t modem::methods = {"modem", modem_reg, nullptr, nullptr};
+library_t modem::methods = {"!!MULTITYPE", modem_reg, nullptr, nullptr};
+std::vector<std::string> modem::types = {"modem", "peripheral_hub"};

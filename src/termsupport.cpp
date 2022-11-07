@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
+#include "apis/handles/fs_handle.hpp"
 #include "main.hpp"
 #include "runtime.hpp"
 #include "peripheral/monitor.hpp"
@@ -313,6 +314,11 @@ int convertY(SDLTerminal * term, int x) {
 }
 
 inline const char * checkstr(const char * str) {return str == NULL ? "(null)" : str;}
+
+static int pushUpvalue(lua_State *L) {
+    lua_pushvalue(L, lua_upvalueindex(1));
+    return 1;
+}
 
 extern library_t * libraries[];
 int termPanic(lua_State *L) {
@@ -904,68 +910,70 @@ std::string termGetEvent(lua_State *L) {
                 SDL_free(e.drop.file);
                 return "paste";
             } else {
-                // Copy the file into the computer
-                path_t path(e.drop.file);
-                if (fs::is_regular_file(path)) {
-                    SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
-                    if (term != NULL) {
-                        SDL_MessageBoxButtonData buttons[] = {
-                            {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No"},
-                            {0, 1, "Yes"}
-                        };
-                        std::string text = std::string("A file named ") + path.filename().string() + " already exists on this computer. Would you like to overwrite it?";
-                        SDL_MessageBoxData msg = {
-                            SDL_MESSAGEBOX_WARNING,
-                            term->win,
-                            "File already exists",
-                            text.c_str(),
-                            2,
-                            buttons,
-                            NULL
-                        };
-                        if (!queueTask([](void*msg)->void*{int b = 0; SDL_ShowMessageBox((SDL_MessageBoxData*)msg, &b); return (void*)(ptrdiff_t)b;}, &msg)) {
-                            SDL_free(e.drop.file);
-                            return "";
-                        }
-                    }
-                }
-                std::ifstream infile(e.drop.file, std::ios::binary);
-                if (!infile.is_open()) {
-                    char * err = strerror(errno);
-                    char * msg = new char[strlen(err)+1];
-                    strcpy(msg, err);
-                    queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The input file could not be read: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
-                    SDL_free(e.drop.file);
-                    return "";
-                }
-                std::ofstream outfile(path, std::ios::binary);
-                if (!outfile.is_open()) {
-                    char * err = strerror(errno);
-                    char * msg = new char[strlen(err)+1];
-                    strcpy(msg, err);
-                    queueTask([computer](void*msg)->void*{computer->term->showMessage(SDL_MESSAGEBOX_ERROR, "Upload Failed", (std::string("The output file could not be written: ") + (const char*)msg + ".").c_str()); delete[] (char*)msg; return NULL;}, msg, true);
-                    infile.close();
-                    SDL_free(e.drop.file);
-                    return "";
-                }
-                char buf[4096];
-                while (!infile.eof()) {
-                    infile.read(buf, 4096);
-                    outfile.write(buf, infile.gcount());
-                    if (infile.gcount() < 4096) break;
-                }
-                infile.close();
-                outfile.close();
-                computer->fileUploadCount++;
+                computer->droppedFiles.push_back(path_t(e.drop.file));
                 SDL_free(e.drop.file);
                 return "";
             }
-        } else if ((e.type == SDL_DROPBEGIN || e.type == SDL_DROPCOMPLETE) && !config.dropFilePath) {
-            int c = computer->fileUploadCount;
-            if (e.type == SDL_DROPCOMPLETE && computer->fileUploadCount)
-                queueTask([computer, c](void*)->void*{computer->term->showMessage(SDL_MESSAGEBOX_INFORMATION, "Upload Succeeded", (std::to_string(c) + " files uploaded.").c_str()); return NULL;}, NULL, true);
-            computer->fileUploadCount = 0;
+        } else if (e.type == SDL_DROPBEGIN && !config.dropFilePath) {
+            computer->droppedFiles.clear();
             return "";
+        } else if (e.type == SDL_DROPCOMPLETE && !config.dropFilePath) {
+            lua_createtable(L, 0, 1);
+            lua_createtable(L, computer->droppedFiles.size(), 0);
+            for (int i = 0; i < computer->droppedFiles.size(); i++) {
+                std::fstream ** fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
+                int fpid = lua_gettop(L);
+                *fp = new std::fstream(computer->droppedFiles[i], std::ios::in | std::ios::binary);
+                if (!(*fp)->is_open()) {
+                    delete *fp;
+                    lua_pop(L, 1);
+                    continue;
+                }
+
+                lua_createtable(L, 0, 1);
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_gc, 1);
+                lua_setfield(L, -2, "__gc");
+                lua_setmetatable(L, -2);
+                
+                lua_createtable(L, 0, 6);
+                lua_pushstring(L, "close");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_close, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "read");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_readByte, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "readAll");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_readAllByte, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "readLine");
+                lua_pushvalue(L, fpid);
+                lua_pushboolean(L, true);
+                lua_pushcclosure(L, fs_handle_readLine, 2);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "seek");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_seek, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "getName");
+                pushstring(L, computer->droppedFiles[i].filename().string());
+                lua_pushcclosure(L, pushUpvalue, 1);
+                lua_settable(L, -3);
+
+                lua_rawseti(L, -3, i + 1);
+                lua_pop(L, 1); // remove userdata
+            }
+            lua_pushcclosure(L, pushUpvalue, 1);
+            lua_setfield(L, -2, "getFiles");
+            return "file_transfer";
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
             unsigned w, h;
             Terminal * term = NULL;
