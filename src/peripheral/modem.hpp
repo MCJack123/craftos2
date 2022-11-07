@@ -40,10 +40,12 @@ private:
     void receive(lua_State *data, uint16_t port, uint16_t replyPort, modem * sender);
 public:
     static library_t methods;
+    static std::vector<std::string> types;
     static peripheral * init(lua_State *L, const char * side) {return new modem(L, side);}
     static void deinit(peripheral * p) {delete (modem*)p;}
     destructor getDestructor() const override {return deinit;}
     library_t getMethods() const override {return methods;}
+    std::vector<std::string> getTypes() const override {return types;}
     modem(lua_State *L, const char * side);
     ~modem();
     int call(lua_State *L, const char * method) override;

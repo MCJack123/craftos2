@@ -17,6 +17,7 @@
 class inventory : public peripheral {
 protected:
     virtual int size() = 0; // Returns the number of slots available in the inventory.
+    virtual int getItemSpace(int slot) {return 64;} // Returns the maximum number of items in a slot (defaults to 64 for all).
     virtual void getItemDetail(lua_State *L, int slot) = 0; // Pushes a single Lua value to the stack with details about an item in a slot. If the slot is empty or invalid, pushes nil. (Slots are in the range 1-size().)
     virtual int addItems(lua_State *L, int slot, int count) = 0; // Adds the item described at the top of the Lua stack to the slot selected. Only adds up to count items. If slot is 0, determine the best slot available. Returns the number of items added.
     virtual int removeItems(int slot, int count) = 0; // Removes up to a number of items from the selected slot. Returns the number of items removed.
@@ -48,6 +49,9 @@ public:
             return 1;
         } else if (m == "getItemDetail") {
             getItemDetail(L, luaL_checkinteger(L, 1));
+            return 1;
+        } else if (m == "getItemLimit") {
+            lua_pushinteger(L, getItemSpace(luaL_checkinteger(L, 1)));
             return 1;
         } else if (m == "pushItems" || m == "pullItems") {
             Computer * comp = get_comp(L);
@@ -89,6 +93,7 @@ public:
             {"size", NULL},
             {"list", NULL},
             {"getItemDetail", NULL},
+            {"getItemLimit", NULL},
             {"pushItems", NULL},
             {"pullItems", NULL},
             {NULL, NULL}

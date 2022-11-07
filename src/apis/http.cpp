@@ -772,11 +772,9 @@ struct ws_handle {
     std::string url;
     WebSocket * ws;
     std::mutex lock;
-    std::condition_variable cv;
-    bool inUse;
     uint16_t port;
     void * clientID = NULL;
-    bool hasSwitched;
+    ws_handle ** ud = NULL;
 };
 
 struct websocket_failure_data {
@@ -825,20 +823,20 @@ static std::string websocket_server_closed(lua_State *L, void* userp) {
 // WebSocket handle functions
 static int websocket_free(lua_State *L) {
     lastCFunction = __func__;
-    ws_handle * ws = (ws_handle*)lua_touserdata(L, 1);
+    ws_handle * ws = *(ws_handle**)lua_touserdata(L, 1);
+    if (ws == NULL) return 0;
+    std::lock_guard<std::mutex> lock(ws->lock);
+    if (ws->ws == NULL) return 0;
     ws->ws = NULL;
-    // We can't finish freeing this object until the WebSocket thread is closed.
-    // We check twice to avoid using possibly freed C++ objects while ensuring no race conditions
-    // Dirty code? yes.
-    if (!ws->inUse) return 0;
-    std::unique_lock<std::mutex> lock(ws->lock);
-    while (ws->inUse) ws->cv.wait(lock);
     return 0;
 }
 
 static int websocket_close(lua_State *L) {
     lastCFunction = __func__;
-    ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
+    ws_handle * ws = *(ws_handle**)lua_touserdata(L, lua_upvalueindex(1));
+    if (ws == NULL) luaL_error(L, "attempt to use a closed file");
+    std::lock_guard<std::mutex> lock(ws->lock);
+    if (ws->ws == NULL) luaL_error(L, "attempt to use a closed file");
     ws->ws = NULL;
     return 0;
 }
@@ -847,7 +845,9 @@ static int websocket_send(lua_State *L) {
     lastCFunction = __func__;
     std::string str = checkstring(L, 1);
     if (config.http_max_websocket_message > 0 && str.size() > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
-    ws_handle * ws = (ws_handle*)lua_touserdata(L, lua_upvalueindex(1));
+    ws_handle * ws = *(ws_handle**)lua_touserdata(L, lua_upvalueindex(1));
+    if (ws == NULL) luaL_error(L, "attempt to use a closed file");
+    std::lock_guard<std::mutex> lock(ws->lock);
     if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
     std::string buf;
     if (!lua_toboolean(L, 2)) {
@@ -886,13 +886,9 @@ static std::string websocket_success(lua_State *L, void* userp) {
     if ((*wsh)->url.empty()) lua_pushnumber(L, (*wsh)->port);
     else lua_pushstring(L, (*wsh)->url.c_str());
 
-    ws_handle * ws = (ws_handle*)lua_newuserdata(L, sizeof(ws_handle));
-    {
-        //std::lock_guard<std::mutex> lock((*wsh)->lock);
-        memcpy(ws, *wsh, sizeof(ws_handle));
-        *wsh = ws;
-    }
-    ws->hasSwitched = true;
+    ws_handle ** ws = (ws_handle**)lua_newuserdata(L, sizeof(ws_handle*));
+    *ws = *wsh;
+    (*wsh)->ud = ws;
     int pos = lua_gettop(L);
     lua_createtable(L, 0, 1);
     lua_pushstring(L, "__gc");
@@ -921,7 +917,7 @@ static std::string websocket_success(lua_State *L, void* userp) {
     lua_settable(L, -3);
 
     lua_remove(L, pos);
-    if (ws->clientID) lua_pushlightuserdata(L, ws->clientID);
+    if ((*ws)->clientID) lua_pushlightuserdata(L, (*ws)->clientID);
     return "websocket_success";
 }
 
@@ -966,10 +962,8 @@ public:
         ws_handle * wsh = &ws_orig;
         wsh->ws = ws;
         wsh->url = "";
-        wsh->inUse = true;
         wsh->port = srv->port();
         wsh->clientID = &request;
-        wsh->hasSwitched = false;
         {
             std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
             comp->openWebsockets.push_back(&wsh);
@@ -1031,11 +1025,9 @@ public:
             }
             queueEvent(comp, websocket_server_closed, (void*)(ptrdiff_t)wsh->port);
         }
-        while (!wsh->hasSwitched) std::this_thread::yield();
-        std::unique_lock<std::mutex> lock(wsh->lock);
+        std::lock_guard<std::mutex> lock(wsh->lock);
         wsh->ws = NULL;
-        wsh->inUse = false;
-        wsh->cv.notify_all();
+        if (wsh->ud != NULL) *wsh->ud = NULL;
         delete ws;
     }
     class Factory: public HTTPRequestHandlerFactory {
@@ -1056,9 +1048,6 @@ public:
     if (handle->ws != NULL) {
         //handle->ws->close();
         handle->ws = NULL;
-        if (!handle->inUse) return;
-        std::unique_lock<std::mutex> lock(handle->lock);
-        while (handle->inUse) handle->cv.wait(lock);
     }
 }
 
@@ -1150,8 +1139,6 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     ws_handle * wsh = &wsh_orig;
     wsh->url = str;
     wsh->ws = ws;
-    wsh->inUse = true;
-    wsh->hasSwitched = false;
     {
         std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
         comp->openWebsockets.push_back(&wsh);
@@ -1217,11 +1204,9 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     }
     wsh->url = "";
     try {ws->shutdown();} catch (...) {}
-    while (!wsh->hasSwitched) std::this_thread::yield();
-    std::unique_lock<std::mutex> lock(wsh->lock);
+    std::lock_guard<std::mutex> lock(wsh->lock);
     wsh->ws = NULL;
-    wsh->inUse = false;
-    wsh->cv.notify_all();
+    if (wsh->ud != NULL) *wsh->ud = NULL;
     delete ws;
     delete cs;
 }

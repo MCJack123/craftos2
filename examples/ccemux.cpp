@@ -73,7 +73,7 @@ if ccemux then\n\
         elseif args[1] == \"open\" then\n\
             local id = ccemux.openEmu(tonumber(args[2]))\n\
             if id then print(\"Opened computer ID \" .. id)\n\
-            else print(\"Could not open computer\")\n\
+            else print(\"Could not open computer\") end\n\
         elseif args[1] == \"data\" then\n\
             local id = nil\n\
             if args[2] ~= nil then\n\

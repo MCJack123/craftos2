@@ -116,7 +116,7 @@ struct Computer {
     std::unordered_map<std::string, std::list<std::pair<const event_hook&, void*> > > eventHooks; // List of hooks for events
     lua_State *rawFileStack = NULL; // Temporary stack for raw mode file access function calls
     std::mutex rawFileStackMutex; // A mutex locking rawFileStack
-    int fileUploadCount = 0; // Stores the number of files that have been uploaded in the current set (if 0, no set is active)
+    int fileUploadCount = 0; // [DEPRECATED] Stores the number of files that have been uploaded in the current set (if 0, no set is active)
 
     // The following fields are available in API version 10.5 and later.
     std::queue<void*> httpRequestQueue; // Queue for HTTP requests that are past the limit
@@ -131,6 +131,9 @@ struct Computer {
     // The following fields are available in API version 10.8 and later.
     std::mutex openWebsocketsMutex;
     std::vector<std::pair<lua_CFunction, void*>> startupCallbacks; // List of functions to call when starting up + a userdata to pass as the first argument
+
+    // The following fields are available in API version 10.9 and later.
+    std::vector<std::filesystem::path> droppedFiles; // List of files that were dropped in the current drop set
 
 private:
     // The constructor is marked private to avoid having to implement it in this file.

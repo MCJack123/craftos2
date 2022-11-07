@@ -74,7 +74,7 @@ jobs:
         xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll\* $env:GITHUB_WORKSPACE\bin\ /Q /K /Y
         echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\LICENSE.txt $env:GITHUB_WORKSPACE\bin\LICENSE.txt /Q /K /Y
         cd $env:GITHUB_WORKSPACE\bin
-        tar -caf ..\CraftOS-PC-Portable-Win64.zip *
+        Compress-Archive -Path * -DestinationPath ..\CraftOS-PC-Portable-Win64.zip
     - name: Upload installer
       uses: actions/upload-release-asset@v1.0.2
       env:
@@ -182,7 +182,7 @@ jobs:
         cd craftos2
         cp -Rp $GITHUB_WORKSPACE/craftos2-release-resources/ubuntu/debian_craftos-pc$LUAJIT debian
         if [ "a$LUAJIT" == "a" ]; then VERSION=1:$VERSION; fi
-        echo "craftos-pc$LUAJIT ($VERSION-bionic1) bionic; urgency=medium" > debian/changelog
+        echo "craftos-pc$LUAJIT ($VERSION-focal1) focal; urgency=medium" > debian/changelog
         echo "    " >> debian/changelog
         echo "$RELEASE_BODY" | sed 's/^/    /' >> debian/changelog
         echo "    " >> debian/changelog
