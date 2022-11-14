@@ -338,10 +338,10 @@ downloadThread_entry:
             delete session;
             goto downloadThread_finish;
         } catch (Poco::Exception &e) {
-            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
+            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.displayText().c_str());
             http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
-            err->failureReason = e.message();
+            err->failureReason = e.name();
             queueEvent(param->comp, http_failure, err);
             delete response;
             delete session;
@@ -359,10 +359,10 @@ downloadThread_entry:
             delete session;
             goto downloadThread_finish;
         } catch (Poco::Exception &e) {
-            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
+            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.displayText().c_str());
             http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
-            err->failureReason = e.message();
+            err->failureReason = e.name();
             queueEvent(param->comp, http_failure, err);
             delete response;
             delete session;
