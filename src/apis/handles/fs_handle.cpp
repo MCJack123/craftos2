@@ -187,22 +187,14 @@ int fs_handle_readAllByte(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
     if (!fp->good()) luaL_error(L, "Could not read file");
-    size_t size = 0;
-    char * str = (char*)malloc(512);
+    std::streampos pos = fp->tellg();
+    fp->seekg(0, SEEK_END);
+    size_t size = fp->tellg() - pos;
+    fp->seekg(pos, SEEK_SET);
+    char * str = (char*)malloc(size);
     if (str == NULL) return luaL_error(L, "failed to allocate memory");
-    while (!fp->eof()) {
-        fp->read(&str[size], 512);
-        const size_t rd = fp->gcount();
-        if (rd == 0) break;
-        size += rd;
-        if (size % 512 != 0) break;
-        char * strn = (char*)realloc(str, size + 512);
-        if (strn == NULL) {
-            free(str);
-            return luaL_error(L, "failed to allocate memory");
-        }
-        str = strn;
-    }
+    fp->read(str, size);
+    size = fp->gcount();
     lua_pushlstring(L, str, size);
     free(str);
     return 1;
