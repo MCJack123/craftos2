@@ -188,9 +188,9 @@ int fs_handle_readAllByte(lua_State *L) {
     if (fp->eof()) return 0;
     if (!fp->good()) luaL_error(L, "Could not read file");
     std::streampos pos = fp->tellg();
-    fp->seekg(0, SEEK_END);
+    fp->seekg(0, std::ios_base::end);
     size_t size = fp->tellg() - pos;
-    fp->seekg(pos, SEEK_SET);
+    fp->seekg(pos, std::ios_base::beg);
     char * str = (char*)malloc(size);
     if (str == NULL) return luaL_error(L, "failed to allocate memory");
     fp->read(str, size);
