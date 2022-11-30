@@ -668,7 +668,11 @@ static int debugger_lib_getInternalPath(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     path_t::string_type path = path_t(checkstring(L, 1)).native();
-    std::tuple<std::list<std::string>, path_t, bool> maxPath = std::make_tuple(std::list<std::string>(), dbg->computer->dataDir, false);
+    std::tuple<std::list<std::string>, path_t, bool> maxPath = std::make_tuple(std::list<std::string>(), "", false);
+    {
+        path_t::string_type p = path_t(dbg->computer->dataDir).native();
+        if (path.substr(0, p.size()) == p && p.size() > std::get<1>(maxPath).native().size()) maxPath = std::make_tuple(std::list<std::string>(), dbg->computer->dataDir, false);
+    }
     for (const auto& mount : dbg->computer->mounts) {
         path_t::string_type p = path_t(std::get<1>(mount)).native();
         if (path.substr(0, p.size()) == p && p.size() > std::get<1>(maxPath).native().size()) maxPath = mount;

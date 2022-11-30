@@ -494,8 +494,9 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     else dbg->stepCount--;
                 } else if (!computer->breakpoints.empty()) {
                     lua_getinfo(L, "Sl", ar);
+                    if (ar->currentline == -1) ar->currentline++;
                     for (const std::pair<int, std::pair<std::string, lua_Integer> >& b : computer->breakpoints) {
-                        if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline) {
+                        if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline + 1) {
                             if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
                             break;
                         }
