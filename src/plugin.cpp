@@ -106,8 +106,9 @@ static const PluginFunctions function_map = {
 void preloadPlugins() {
     #ifndef STANDALONE_ROM
     const path_t plugin_path = getPlugInPath();
-    if (fs::is_directory(plugin_path)) {
-        for (const auto& dir : fs::directory_iterator(plugin_path)) {
+    std::error_code e;
+    if (fs::is_directory(plugin_path, e)) {
+        for (const auto& dir : fs::directory_iterator(plugin_path, e)) {
             if (dir.is_directory()) continue;
             if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
             loadingPlugin = dir.path().filename().string();

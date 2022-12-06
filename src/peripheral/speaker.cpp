@@ -850,9 +850,11 @@ void speakerInit() {
     Mix_QuerySpec(&AudioSpec::frequency, &AudioSpec::format, &AudioSpec::channelCount);
     speaker::sampleSize = (SDL_AUDIO_BITSIZE(AudioSpec::format)/8)*AudioSpec::channelCount;
 #ifndef STANDALONE_ROM
-    if (fs::is_directory(getROMPath() / "sounds")) {
-        for (const auto& dir : fs::directory_iterator(getROMPath() / "sounds")) {
-            if (!dir.is_directory() || !fs::is_regular_file(dir.path() / "sounds.json")) continue;
+    std::error_code e;
+    if (fs::is_directory(getROMPath() / "sounds", e)) {
+        for (const auto& dir : fs::directory_iterator(getROMPath() / "sounds", e)) {
+            e.clear();
+            if (!dir.is_directory() || !fs::is_regular_file(dir.path() / "sounds.json", e)) continue;
             std::ifstream in(dir.path() / "sounds.json");
             if (!in.is_open()) continue;
             Value root;

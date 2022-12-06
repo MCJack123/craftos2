@@ -153,6 +153,7 @@ int drive::insertDisk(lua_State *L, bool init) {
         comp->mounter_initializing = false;
     } else if (lua_isstring(L, arg)) {
         std::string str = lua_tostring(L, arg);
+        std::error_code e;
 #ifndef STANDALONE_ROM
         if (str.substr(0, 9) == "treasure:") {
             path = getROMPath() / "treasure" / str.substr(9);
@@ -182,15 +183,15 @@ int drive::insertDisk(lua_State *L, bool init) {
 #else
         else path = str;
 #endif
-        if (!fs::exists(path)) {
-            if (init) throw std::system_error(errno, std::system_category(), "Could not mount: ");
+        if (!fs::exists(path, e)) {
+            if (init) throw std::system_error(e.value() || errno, std::system_category(), "Could not mount: ");
             else {
                 error = "Could not mount: %s";
-                errparam = strerror(errno);
+                errparam = strerror(e.value() || errno);
                 goto throwErrorParam;
             }
         }
-        if (fs::is_directory(path)) {
+        if (fs::is_directory(path, e)) {
             diskType = disk_type::DISK_TYPE_MOUNT;
             int i;
             for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++) {}
