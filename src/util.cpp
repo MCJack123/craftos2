@@ -179,11 +179,18 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             else if (pathc.empty()) pathc.push_back("..");
             else pathc.pop_back();
         } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s = s.substr(s.find_first_not_of(' '), s.find_last_not_of(' ') - s.find_first_not_of(' ') + 1);
             s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
     }
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
+    if (!pathc.empty() && pathc.back().size() > 255) {
+        std::string s = pathc.back().substr(0, 255);
+        pathc.pop_back();
+        s = s.substr(0, s.find_last_not_of(' '));
+        pathc.push_back(s);
+    }
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua")
 #ifdef STANDALONE_ROM
         return path_t(":bios.lua", path_t::format::generic_format);
@@ -269,9 +276,17 @@ bool fixpath_ro(Computer *comp, const std::string& path) {
     for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
         else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s = s.substr(s.find_first_not_of(' '), s.find_last_not_of(' ') - s.find_first_not_of(' ') + 1);
             s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
+    }
+    while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
+    if (!pathc.empty() && pathc.back().size() > 255) {
+        std::string s = pathc.back().substr(0, 255);
+        pathc.pop_back();
+        s = s.substr(0, s.find_last_not_of(' '));
+        pathc.push_back(s);
     }
     std::pair<size_t, bool> max_path = std::make_pair(0, false);
     for (const auto& m : comp->mounts)
