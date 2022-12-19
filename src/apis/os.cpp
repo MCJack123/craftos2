@@ -257,9 +257,9 @@ static int os_epoch(lua_State *L) {
         lua_pushinteger(L, epoch);
     } else if (tmp == "nano") {
 #if PTRDIFF_MAX <= 0xFFFFFFFFFFFFLL
-        lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
+        lua_pushnumber(L, (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() & 0x1FFFFFFFFFFFFFLL));
 #else
-        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() & 0x1FFFFFFFFFFFFFLL);
 #endif
     } else luaL_error(L, "Unsupported operation");
     return 1;
