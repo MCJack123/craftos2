@@ -160,7 +160,7 @@ jobs:
 
         Invoke-Environment "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $tag = git rev-parse --short HEAD
-        Set-Item ENV:ExternalCompilerOptions "/DCRAFTOSPC_COMMIT='\"'$tag'\"' /DCRASHREPORT_API_KEY"
+        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\" '/DCRASHREPORT_API_KEY
         [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($Env:APIKEY)) | Out-File -Encoding "UTF8" src\apikey.cpp
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
         msbuild "CraftOS-PC 2.sln" /p:Configuration=Release
