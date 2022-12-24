@@ -261,7 +261,9 @@ void copyImage(SDL_Surface* surf, SDL_Window* win) {
 
 LONG WINAPI exceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
     if (!loadingPlugin.empty()) MessageBoxA(NULL, std::string("Uh oh, CraftOS-PC has crashed! It appears the plugin \"" + loadingPlugin + "\" may have been responsible for this. Please remove it and try again. CraftOS-PC will now close.").c_str(), "Application Error", MB_OK | MB_ICONSTOP);
+#ifdef CRASHREPORT_API_KEY
     else if (config.snooperEnabled) MessageBoxA(NULL, "Uh oh, CraftOS-PC has crashed! A crash log has been saved and will be uploaded on next launch. CraftOS-PC will now close.", "Application Error", MB_OK | MB_ICONSTOP);
+#endif
     else MessageBoxA(NULL, std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, attach the latest CraftOS-PC.exe .dmp file located here (you can type this into the File Explorer): '%LOCALAPPDATA%\\CrashDumps'. Add this text to the report as well: \"Last C function: " + std::string(lastCFunction) + "\". CraftOS-PC will now close.").c_str(), "Application Error", MB_OK | MB_ICONSTOP);
     return EXCEPTION_CONTINUE_SEARCH;
 }
