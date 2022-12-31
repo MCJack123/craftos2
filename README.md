@@ -54,6 +54,9 @@ Fedora support is maintained by [LeMoonStar](https://github.com/LeMoonStar). For
 #### Arch Linux
 Install the `craftos-pc` package using your chosen AUR helper (e.g. `yay -S craftos-pc`).
 
+#### Nix and NixOS
+Install the `craftos-pc` package from the nixpkgs unstable repository. You can then use it with `nix-shell -p craftos-pc --run "craftos"`.
+
 ### iOS
 [Visit the App Store](https://apps.apple.com/us/app/craftos-pc/id1565893014) to download CraftOS-PC. Or you can [join the TestFlight beta](https://testflight.apple.com/join/SiuXlijR) to get access to the latest versions before they're released.
 
