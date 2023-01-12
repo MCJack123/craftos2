@@ -206,7 +206,7 @@ int fs_handle_writeString(lua_State *L) {
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
-    if (fp->bad() || fp->fail()) luaL_error(L, "Could not write file");
+    if (fp->fail()) luaL_error(L, "Could not write file");
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     std::wstring wstr;
     for (unsigned char c : str) wstr += (wchar_t)c;
@@ -222,7 +222,7 @@ int fs_handle_writeLine(lua_State *L) {
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
-    if (fp->bad() || fp->fail()) luaL_error(L, "Could not write file");
+    if (fp->fail()) luaL_error(L, "Could not write file");
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     std::wstring wstr;
     for (unsigned char c : str) wstr += (wchar_t)c;
@@ -237,7 +237,7 @@ int fs_handle_writeByte(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
-    if (fp->bad() || fp->fail()) luaL_error(L, "Could not write file");
+    if (fp->fail()) luaL_error(L, "Could not write file");
     if (lua_type(L, 1) == LUA_TNUMBER) {
         const char b = (unsigned char)(lua_tointeger(L, 1) & 0xFF);
         fp->put(b);
@@ -277,8 +277,9 @@ int fs_handle_seek(lua_State *L) {
     else if (strcmp(whence, "cur") == 0) origin = std::ios::cur;
     else if (strcmp(whence, "end") == 0) origin = std::ios::end;
     else return luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
+    fp->clear();
     fp->seekg(offset, origin);
-    if (fp->bad()) {
+    if (fp->fail()) {
         lua_pushnil(L);
         lua_pushstring(L, strerror(errno));
         return 2;
