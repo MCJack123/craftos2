@@ -267,6 +267,11 @@ int fs_handle_seek(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     const char * whence = luaL_optstring(L, 1, "cur");
     const size_t offset = luaL_optinteger(L, 2, 0);
+    if (lua_tointeger(L, 2, 0) < 0) {
+        lua_pushnil(L);
+        lua_pushliteral(L, "Position is negative");
+        return 2;
+    }
     std::ios::seekdir origin;
     if (strcmp(whence, "set") == 0) origin = std::ios::beg;
     else if (strcmp(whence, "cur") == 0) origin = std::ios::cur;
