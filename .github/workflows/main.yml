@@ -3,12 +3,12 @@ name: CI
 on: 
   push:
     paths:
-      - "src"
-      - ".github/workflows"
+      - "src/*"
+      - ".github/workflows/*"
   pull_request:
     paths:
-      - "src"
-      - ".github/workflows"
+      - "src/*"
+      - ".github/workflows/*"
 
 jobs:
 
