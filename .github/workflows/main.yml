@@ -137,7 +137,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 68b7fec22eb5fd9c0236b1e42b3c0deb8e771b37
+        vcpkgGitCommitId: 12b7cfe6109a9d68319334b56a01c44a302a13b6
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
@@ -216,35 +216,36 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev
-        sudo curl -o /usr/bin/appimagetool https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev patchelf
+        sudo curl -sLo /usr/bin/appimagetool https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+        sudo chmod a+x /usr/bin/appimagetool
     - name: Build Lua
       run: |
         git submodule update --init --recursive
         make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
-        CFLAGS=-Wall ./configure
-        make PREFIX=./usr -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
+        ./configure
+        make PREFIX=././ -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
         patchelf --replace-needed craftos2-lua/src/liblua.so libcraftos2-lua.so craftos
     - name: Build AppImage
       run: |
         mkdir icons
         unzip resources/linux-icons.zip -d icons
         mkdir AppDir
-        curl -o AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
-        install -D -m 0644 icons/CraftOS-PC.desktop AppDir/CraftOS-PC.desktop
-        install -D -m 0644 icons/1024.png AppDir/CraftOS-PC.png
+        curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
+        chmod a+x AppDir/AppRun
+        install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
+        install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
+        install -D -m 0644 icons/1024.png AppDir/craftos.png
         install -D -m 0755 craftos AppDir/usr/bin/craftos
         install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
-        install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/CraftOS-PC.appdata.xml
+        install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
         mkdir -p AppDir/usr/share/craftos
         cp -Rp /usr/local/share/craftos/rom /usr/local/share/craftos/debug /usr/local/share/craftos/bios.lua /usr/local/share/craftos/hdfont.bmp AppDir/usr/share/craftos/
-        # this gets all libraries required recursively (3 steps - more needed?)
-        ldd craftos | grep -o '/usr/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libncurses' | 
-          xargs ldd | grep -o '/usr/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libncurses' | 
-          xargs ldd | grep -o '/usr/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libncurses' | 
-          sort | uniq | tee /dev/stderr | xargs -I {} cp -Rp {} AppDir/usr/lib
+        # this gets all libraries required recursively (?)
+        ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
+        cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
         appimagetool AppDir CraftOS-PC.x86_64.AppImage
     - name: Upload artifact
       uses: actions/upload-artifact@v2
