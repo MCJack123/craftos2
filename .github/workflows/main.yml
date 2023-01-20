@@ -209,7 +209,6 @@ jobs:
 
   test-appimage:
     runs-on: ubuntu-20.04
-    environment: production
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
@@ -225,8 +224,8 @@ jobs:
         make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
-        CFLAGS=-Wall ./configure --prefix=./usr
-        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
+        CFLAGS=-Wall ./configure
+        make PREFIX=./usr -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
         patchelf --replace-needed craftos2-lua/src/liblua.so libcraftos2-lua.so craftos
     - name: Build AppImage
       run: |
