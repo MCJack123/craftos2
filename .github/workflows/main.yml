@@ -237,7 +237,7 @@ jobs:
         install -D -m 0644 icons/1024.png AppDir/CraftOS-PC.png
         install -D -m 0755 craftos AppDir/usr/bin/craftos
         install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
-        install -D -m 0644 resources/appmeta.xml AppDir/usr/share/metainfo/CraftOS-PC.appmeta.xml
+        install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/CraftOS-PC.appdata.xml
         mkdir -p AppDir/usr/share/craftos
         cp -Rp /usr/local/share/craftos/rom /usr/local/share/craftos/debug /usr/local/share/craftos/bios.lua /usr/local/share/craftos/hdfont.bmp AppDir/usr/share/craftos/
         # this gets all libraries required recursively (3 steps - more needed?)
