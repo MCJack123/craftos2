@@ -5,7 +5,7 @@
  * This file implements the Debug Adapter Protocol connection.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 static void forwardInput();

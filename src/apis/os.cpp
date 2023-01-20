@@ -5,7 +5,7 @@
  * This file implements the functions for the os API.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <Computer.hpp>
@@ -347,7 +347,7 @@ static int os_about(lua_State *L) {
     lastCFunction = __func__;
     lua_pushstring(L, "CraftOS-PC " CRAFTOSPC_VERSION "\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
 \n\
-Copyright (c) 2019-2022 JackMacWindows\n\
+Copyright (c) 2019-2023 JackMacWindows\n\
 \n\
 Permission is hereby granted, free of charge, to any person obtaining a copy\n\
 of this software and associated documentation files (the \"Software\"), to deal\n\

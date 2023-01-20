@@ -5,7 +5,7 @@
  * This file defines the class for the debugger peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2022 JackMacWindows. 
+ * Copyright (c) 2019-2023 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_DEBUGGER_HPP
