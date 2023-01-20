@@ -231,7 +231,7 @@ jobs:
     - name: Build AppImage
       run: |
         mkdir icons
-	      unzip resources/linux-icons.zip -d icons
+        unzip resources/linux-icons.zip -d icons
         mkdir AppDir
         curl -o AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
         install -D -m 0644 icons/CraftOS-PC.desktop AppDir/CraftOS-PC.desktop
