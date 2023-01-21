@@ -1,14 +1,14 @@
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/mcfly.lua b/src/test/resources/test-rom/mcfly.lua
---- a/src/test/resources/test-rom/mcfly.lua	2020-06-29 02:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/mcfly.lua	2020-06-27 02:49:47.000000000 -0400
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/mcfly.lua b/projects/core/src/test/resources/test-rom/mcfly.lua
+--- a/projects/core/src/test/resources/test-rom/mcfly.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/mcfly.lua	2020-06-27 02:49:47.000000000 -0400
 @@ -699,3 +699,4 @@
  
  if cct_test then cct_test.finish(line_counts) end
  if howlci then howlci.log("debug", info) sleep(3) end
 +_G.failed_tests = actual_count - test_status.pass
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/fs_spec.lua b/src/test/resources/test-rom/spec/apis/fs_spec.lua
---- a/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 02:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 01:24:00.000000000 -0400
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua b/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua
+--- a/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 01:24:00.000000000 -0400
 @@ -122,7 +122,7 @@
  
      describe("fs.makeDir", function()
@@ -27,9 +27,9 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/fs_spec.lua
          end)
      end)
  
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/base_spec.lua b/src/test/resources/test-rom/spec/base_spec.lua
---- a/src/test/resources/test-rom/spec/base_spec.lua	2020-06-29 02:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/base_spec.lua	2020-06-28 00:31:42.000000000 -0400
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/base_spec.lua b/projects/core/src/test/resources/test-rom/spec/base_spec.lua
+--- a/projects/core/src/test/resources/test-rom/spec/base_spec.lua	2020-06-29 02:52:34.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/spec/base_spec.lua	2020-06-28 00:31:42.000000000 -0400
 @@ -48,7 +48,7 @@
  
          it("prefixes the filename with @", function()
@@ -39,9 +39,9 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/base_spec.lua b/
          end)
  
          it("loads a file with the global environment", function()
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/timeout_spec.lua b/src/test/resources/test-rom/spec/lua/timeout_spec.lua
---- a/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:52:34.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-04-28 03:19:00.000000000 -0400
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua
+--- a/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:52:34.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-04-28 03:19:00.000000000 -0400
 @@ -1,17 +1,7 @@
  describe("The VM terminates long running code :slow", function()
      it("in loops", function()
@@ -61,9 +61,9 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/timeout_spec
 -        end)
 -    end)
  end)
-diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/lua/coroutine_spec.lua b/src/test/resources/test-rom/spec/lua/coroutine_spec.lua
---- a/src/test/resources/test-rom/spec/lua/coroutine_spec.lua	2021-06-08 23:55:10.000000000 -0400
-+++ b/src/test/resources/test-rom/spec/lua/coroutine_spec.lua	2021-04-28 03:19:00.000000000 -0400
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/lua/coroutine_spec.lua b/projects/core/src/test/resources/test-rom/spec/lua/coroutine_spec.lua
+--- a/projects/core/src/test/resources/test-rom/spec/lua/coroutine_spec.lua	2021-06-08 23:55:10.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/spec/lua/coroutine_spec.lua	2021-04-28 03:19:00.000000000 -0400
 @@ -35,20 +35,18 @@
                  debug.sethook(function(kind)
                      counts[kind] = (counts[kind] or 0) + 1
