@@ -1207,7 +1207,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             queueEvent(comp, websocket_closed, sptr);
             break;
         }
-        if ((flags & 0x0f) & WebSocket::FRAME_OP_CLOSE) {
+        if ((flags & 0x0f) == WebSocket::FRAME_OP_CLOSE) {
             wsh->ws = NULL;
             wsh->url = "";
             char * sptr = new char[str.length()+1];
