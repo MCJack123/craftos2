@@ -869,6 +869,10 @@ static int websocket_receive(lua_State *L) {
         if (lua_isstring(L, 1)) {
             // haha, another string scoping issue :DDD
             // can M$ PLEASE fix this? (maybe I need to repro & report? :thinking:)
+            if (ws == NULL) {
+                lua_pushnil(L);
+                return 1;
+            }
             std::string * ev = new std::string(lua_tostring(L, 1));
             std::string * url = new std::string();
             int port = 0;
