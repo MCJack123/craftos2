@@ -144,7 +144,7 @@ jobs:
         mkdir x64\ReleaseC
         mkdir x64\Release
         & $Env:VCPKG_ROOT\vcpkg integrate install
-        (Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "ENABLE_NETSSL_WIN", "FORCE_OPENSSL" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
+        (Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "    if(VCPKG_TARGET_IS_WINDOWS)", "    if(false)" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
     - name: Build CraftOS-PC
       env:
         APIKEY: ${{secrets.WINDOWS_APIKEY}}
