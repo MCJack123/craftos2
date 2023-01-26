@@ -9,6 +9,7 @@ on:
 
 jobs:
   reddit:
+    name: Publish Reddit post
     runs-on: ubuntu-latest
     steps:
     - uses: BjornLuG/release-for-reddit-action@v1
@@ -23,6 +24,7 @@ jobs:
         flair-id: 33b418d2-8e71-11ea-b7d8-0e1aee799c6b
 
   release-windows:
+    name: Package Windows installers
     runs-on: windows-2022
     environment: production
     steps:
@@ -110,6 +112,7 @@ jobs:
         asset_content_type: application/zip
 
   release-mac:
+    name: Build macOS binary
     runs-on: macos-latest
     environment: production
     steps:
@@ -142,6 +145,7 @@ jobs:
         asset_content_type: application/octet-stream
 
   release-ubuntu:
+    name: Upload Ubuntu PPA package
     runs-on: ubuntu-20.04
     environment: production
     steps:
@@ -194,6 +198,7 @@ jobs:
       run: zsh debian/buildall.sh
 
   release-arch:
+    name: Update Arch AUR `craftos-pc` package
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -230,6 +235,7 @@ jobs:
         git push
 
   release-appimage:
+    name: Build Linux AppImage
     runs-on: ubuntu-20.04
     environment: production
     steps:
@@ -250,12 +256,12 @@ jobs:
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
+        if [[ ! $GITHUB_REF =~ luajit ]]; then make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}'); fi
     - name: Build CraftOS-PC
       run: |
         ./configure
         make PREFIX=././ -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
-        patchelf --replace-needed craftos2-lua/src/liblua.so libcraftos2-lua.so craftos
+        if [[ ! $GITHUB_REF =~ luajit ]]; then patchelf --replace-needed craftos2-lua/src/liblua.so libcraftos2-lua.so craftos; fi
         strip craftos
     - name: Build AppImage
       run: |
@@ -264,18 +270,27 @@ jobs:
         mkdir AppDir
         curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
         chmod a+x AppDir/AppRun
-        install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
-        install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
-        install -D -m 0644 icons/1024.png AppDir/craftos.png
-        install -D -m 0755 craftos AppDir/usr/bin/craftos
-        install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
-        install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
+        if [[ $GITHUB_REF =~ luajit ]]; then
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC-Accelerated.desktop
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC-Accelerated.desktop
+          install -D -m 0644 icons/1024.png AppDir/craftos-luajit.png
+          install -D -m 0755 craftos AppDir/usr/bin/craftos-luajit
+          install -D -m 0755 craftos2-luajit/src/libluajit.so AppDir/usr/lib/libluajit.so
+          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC-Accelerated.appdata.xml
+        else
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
+          install -D -m 0644 icons/1024.png AppDir/craftos.png
+          install -D -m 0755 craftos AppDir/usr/bin/craftos
+          install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
+          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
+        fi
         mkdir -p AppDir/usr/share/craftos
         cp -Rp /usr/local/share/craftos/rom /usr/local/share/craftos/debug /usr/local/share/craftos/bios.lua /usr/local/share/craftos/hdfont.bmp AppDir/usr/share/craftos/
         # this gets all libraries required recursively (?)
         ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
         cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
-        appimagetool AppDir CraftOS-PC.x86_64.AppImage
+        appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
     - name: Upload AppImage
       uses: actions/upload-release-asset@v1.0.2
       env:
@@ -286,9 +301,44 @@ jobs:
         asset_name: CraftOS-PC.x86_64.AppImage
         asset_content_type: application/octet-stream
 
-  hashes:
+  release-arch-appimage:
+    name: Update Arch AUR `craftos-pc-bin` package
     runs-on: ubuntu-latest
-    needs: [release-windows, release-mac]
+    needs: [release-appimage]
+    environment: production
+    steps:
+    - name: Download resources
+      run: git clone https://github.com/MCJack123/craftos2-release-resources $GITHUB_WORKSPACE/craftos2-release-resources
+    - name: Set up environment
+      env:
+        AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+      run: |
+        mkdir ~/.ssh
+        echo "$AUR_SSH_KEY" > ~/.ssh/aur
+        echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDgQDY289yNsiosJ7Q3SSpSDd27TCzodId0SifsDuryyLSpDpLW6ZvwBZaItnPbEluXx2RsIxw9IdP6HdObHIj7Wvhn3EoAHuVP0EFJpbDnWqw4lZ5UkYHp58vmjSdcv8xJYsCzgvWOG1ZORCQW0GpAQzR8uLSXO6iWd6nAmPSqT8TYMS9Dra9Lf+xl69ctxrGaCbhq1/s6189wEdUEkfNxV7IhMcAyaOmZVieEl/aEko2/Ko+mzBjDvIJ+aKhfHBShpqOA1bf3cwyePuVl8sXqheLQB01Ky+0WdS95D1FMmkIYa9XHO17M12KGl0V6J+UFg5olnEPAstwqsj/ZXeuRruG31vdpeWZ57Bekzji0Q5J1RA1JBG+nVWLT6k4XOY3RwCfPRASyrAcc5iciAb0EaMfuXEBgegyiwdPh8iHIk4rt2PboSGdxeguN0hIsb3OKJW9/l7xToLBzMqvC46EE0Hef/4+NNzhkvUtOYC5RORkJYtmF10fTRD5pWFvhxKU= aur@aur.archlinux.org" > ~/.ssh/aur.pub
+        printf "Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur\n  User aur\n" > ~/.ssh/config
+        ssh-keyscan -t rsa aur.archlinux.org > ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/aur ~/.ssh/known_hosts
+        git config --global user.name MCJack123
+        git config --global user.email jackmacwindowslinux@gmail.com
+        sudo apt install -y lua5.3
+    - name: Upload package
+      run: |
+        LUAJIT=
+        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
+        VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
+        git clone ssh://aur@aur.archlinux.org/craftos-pc$LUAJIT-bin.git
+        cd craftos-pc$LUAJIT-bin
+        lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-bin-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2/releases/download/$GITHUB_REF/CraftOS-PC.x86_64.AppImage | shasum -a 256 | awk '{print $1;}')
+        cat PKGBUILD .SRCINFO
+        git add PKGBUILD .SRCINFO
+        git commit -a -m "$GITHUB_REF"
+        git push
+
+  hashes:
+    name: Generate release hashes
+    runs-on: ubuntu-latest
+    needs: [release-windows, release-mac, release-appimage]
     steps:
       - name: Generate Release Hashes
         uses: MCJack123/ghaction-Generate-Release-Hashes@v4
