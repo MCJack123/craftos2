@@ -884,6 +884,7 @@ std::string termGetEvent(lua_State *L) {
             lua_pushinteger(L, y);
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return e.motion.state ? "mouse_drag" : "mouse_move";
+#if SDL_VERSION_ATLEAST(2, 0, 12)
         } else if ((e.type == SDL_FINGERDOWN || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION) && (computer->config->isColor || computer->isDebugger) && (e.tfinger.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
             if (term == NULL) return "";
@@ -919,6 +920,7 @@ std::string termGetEvent(lua_State *L) {
                 case SDL_FINGERUP: return "_CCPC_finger_up";
                 case SDL_FINGERMOTION: return "_CCPC_finger_drag";
             }
+#endif
         } else if (e.type == SDL_DROPFILE) {
             if (config.dropFilePath) {
                 // Simply paste the file path
