@@ -1,6 +1,14 @@
 name: CI
 
-on: [push, pull_request]
+on: 
+  push:
+    paths:
+      - "src/**"
+      - ".github/workflows/*"
+  pull_request:
+    paths:
+      - "src/**"
+      - ".github/workflows/*"
 
 jobs:
 
@@ -88,7 +96,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.16.5-1.101.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.19.3-1.102.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -100,7 +108,7 @@ jobs:
         CFLAGS=-Wall ./configure
         make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CC:T McFly Tests
-      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
+      run: ./craftos --mount-ro test-rom=../CC-Tweaked/projects/core/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
@@ -117,15 +125,17 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 68b7fec22eb5fd9c0236b1e42b3c0deb8e771b37
+        vcpkgGitCommitId: 12b7cfe6109a9d68319334b56a01c44a302a13b6
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
         mkdir x64\ReleaseC
         mkdir x64\Release
         & $Env:VCPKG_ROOT\vcpkg integrate install
-        (Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "ENABLE_NETSSL_WIN", "FORCE_OPENSSL" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
+        ((Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "VCPKG_TARGET_IS_WINDOWS", "false") -replace "lib/cmake/Poco", "cmake" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
     - name: Build CraftOS-PC
+      env:
+        APIKEY: ${{secrets.WINDOWS_APIKEY}}
       run: |
         function Invoke-Environment {
             param
@@ -146,7 +156,8 @@ jobs:
 
         Invoke-Environment "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         $tag = git rev-parse --short HEAD
-        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\"'
+        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\" '/DCRASHREPORT_API_KEY
+        [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($Env:APIKEY)) | Out-File -Encoding "UTF8" src\apikey.cpp
         msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
         msbuild "CraftOS-PC 2.sln" /p:Configuration=Release
         copy x64\Release\CraftOS-PC.exe CraftOS-PC.exe
@@ -181,3 +192,66 @@ jobs:
         path: |
           CraftOS-PC.pdb
           CraftOS-PC_console.pdb
+
+  test-appimage:
+    name: Build Linux AppImage
+    runs-on: ubuntu-20.04
+    environment: production
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
+    - name: Install dependencies
+      env:
+        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+      run: |
+        sudo apt update
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev patchelf
+        sudo curl -sLo /usr/bin/appimagetool https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+        sudo chmod a+x /usr/bin/appimagetool
+        echo "$GPG_SIGNING_KEY" > signing.asc
+        gpg --import signing.asc
+        rm signing.asc
+    - name: Build Lua
+      run: |
+        git submodule update --init --recursive
+        #if [[ ! $GITHUB_REF =~ luajit ]]; then make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}'); fi
+    - name: Build CraftOS-PC
+      run: |
+        ./configure
+        make PREFIX=././ -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
+        #if [[ ! $GITHUB_REF =~ luajit ]]; then patchelf --replace-needed craftos2-lua/src/liblua.so libcraftos2-lua.so craftos; fi
+        strip craftos
+    - name: Build AppImage
+      run: |
+        mkdir icons
+        unzip resources/linux-icons.zip -d icons
+        mkdir AppDir
+        curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
+        chmod a+x AppDir/AppRun
+        #if [[ $GITHUB_REF =~ luajit ]]; then
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC-Accelerated.desktop
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC-Accelerated.desktop
+          install -D -m 0644 icons/1024.png AppDir/craftos-luajit.png
+          install -D -m 0755 craftos AppDir/usr/bin/craftos-luajit
+          install -D -m 0755 craftos2-luajit/src/libluajit.so AppDir/usr/lib/libluajit.so
+          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC-Accelerated.appdata.xml
+        #else
+        #  install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
+        #  install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
+        #  install -D -m 0644 icons/1024.png AppDir/craftos.png
+        #  install -D -m 0755 craftos AppDir/usr/bin/craftos
+        #  install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
+        #  install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
+        #fi
+        mkdir -p AppDir/usr/share/craftos
+        cp -Rp /usr/local/share/craftos/rom /usr/local/share/craftos/debug /usr/local/share/craftos/bios.lua /usr/local/share/craftos/hdfont.bmp AppDir/usr/share/craftos/
+        # this gets all libraries required recursively (?)
+        ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
+        cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
+        appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: CraftOS-PC.x86_64.AppImage
+        path: CraftOS-PC.x86_64.AppImage

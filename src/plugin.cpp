@@ -5,7 +5,7 @@
  * This file implements various functions relating to plugin loading.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <unordered_map>
@@ -106,8 +106,9 @@ static const PluginFunctions function_map = {
 void preloadPlugins() {
     #ifndef STANDALONE_ROM
     const path_t plugin_path = getPlugInPath();
-    if (fs::is_directory(plugin_path)) {
-        for (const auto& dir : fs::directory_iterator(plugin_path)) {
+    std::error_code e;
+    if (fs::is_directory(plugin_path, e)) {
+        for (const auto& dir : fs::directory_iterator(plugin_path, e)) {
             if (dir.is_directory()) continue;
             if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
             loadingPlugin = dir.path().filename().string();

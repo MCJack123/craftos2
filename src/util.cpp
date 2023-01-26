@@ -5,7 +5,7 @@
  * This file implements some commonly-used functions.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <atomic>
@@ -179,11 +179,18 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             else if (pathc.empty()) pathc.push_back("..");
             else pathc.pop_back();
         } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s = s.substr(s.find_first_not_of(' '), s.find_last_not_of(' ') - s.find_first_not_of(' ') + 1);
             s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
     }
     while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
+    if (!pathc.empty() && pathc.back().size() > 255) {
+        std::string s = pathc.back().substr(0, 255);
+        pathc.pop_back();
+        s = s.substr(0, s.find_last_not_of(' '));
+        pathc.push_back(s);
+    }
     if (comp->isDebugger && addExt && pathc.size() == 1 && pathc.front() == "bios.lua")
 #ifdef STANDALONE_ROM
         return path_t(":bios.lua", path_t::format::generic_format);
@@ -191,6 +198,7 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
         return getROMPath()/"bios.lua";
 #endif
     path_t ss;
+    std::error_code e;
     if (addExt) {
         std::pair<size_t, std::vector<_path_t> > max_path = std::make_pair(0, std::vector<_path_t>(1, comp->dataDir));
         std::list<std::string> * mount_list = NULL;
@@ -212,7 +220,8 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             for (const _path_t& p : max_path.second) {
                 path_t sstmp = p;
                 for (const std::string& s : pathc) sstmp /= s;
-                if ((isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp))) || (fs::exists(sstmp))) {
+                e.clear();
+                if ((isVFSPath(p) && nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp))) || (fs::exists(sstmp, e))) {
                     ss /= sstmp;
                     found = true;
                     break;
@@ -226,10 +235,11 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             for (const _path_t& p : max_path.second) {
                 path_t sstmp = p;
                 for (const std::string& s : pathc) sstmp /= s;
+                e.clear();
                 if (
                     (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(ss/back)) ||
                     (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp)) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp).isDir))) ||
-                    (fs::exists(sstmp/back)) || (fs::is_directory(sstmp))) {
+                    (fs::exists(sstmp/back, e)) || (fs::is_directory(sstmp, e))) {
                     ss /= sstmp/back;
                     found = true;
                     break;
@@ -266,9 +276,17 @@ bool fixpath_ro(Computer *comp, const std::string& path) {
     for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
         else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+            s = s.substr(s.find_first_not_of(' '), s.find_last_not_of(' ') - s.find_first_not_of(' ') + 1);
             s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
+    }
+    while (!pathc.empty() && pathc.front().empty()) pathc.pop_front();
+    if (!pathc.empty() && pathc.back().size() > 255) {
+        std::string s = pathc.back().substr(0, 255);
+        pathc.pop_back();
+        s = s.substr(0, s.find_last_not_of(' '));
+        pathc.push_back(s);
     }
     std::pair<size_t, bool> max_path = std::make_pair(0, false);
     for (const auto& m : comp->mounts)

@@ -5,7 +5,7 @@
  * This file defines the SDLTerminal class, which is the default renderer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef TERMINAL_SDLTERMINAL_HPP
@@ -61,6 +61,8 @@ public:
     bool isOnTop = false;
     bool isRecordingWebP = false;
     std::mutex mouseMoveLock;
+    std::vector<std::pair<SDL_FingerID, std::pair<int, int>>> fingers;
+    int nFingers = 0;
 
     static void init();
     static void quit();

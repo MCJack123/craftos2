@@ -5,7 +5,7 @@
  * This file implements the methods for the http API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifdef __EMSCRIPTEN__
@@ -338,10 +338,10 @@ downloadThread_entry:
             delete session;
             goto downloadThread_finish;
         } catch (Poco::Exception &e) {
-            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
+            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.displayText().c_str());
             http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
-            err->failureReason = e.message();
+            err->failureReason = e.name();
             queueEvent(param->comp, http_failure, err);
             delete response;
             delete session;
@@ -359,10 +359,10 @@ downloadThread_entry:
             delete session;
             goto downloadThread_finish;
         } catch (Poco::Exception &e) {
-            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.message().c_str());
+            fprintf(stderr, "Error while downloading %s: %s\n", param->url.c_str(), e.displayText().c_str());
             http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
-            err->failureReason = e.message();
+            err->failureReason = e.name();
             queueEvent(param->comp, http_failure, err);
             delete response;
             delete session;
@@ -863,7 +863,7 @@ static int websocket_send(lua_State *L) {
 
 static int websocket_isOpen(lua_State *L) {
     lastCFunction = __func__;
-    lua_pushboolean(L, ((ws_handle*)lua_touserdata(L, lua_upvalueindex(1)))->ws != NULL);
+    lua_pushboolean(L, (*(ws_handle**)lua_touserdata(L, lua_upvalueindex(1)))->ws != NULL);
     return 1;
 }
 
@@ -1177,7 +1177,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             queueEvent(comp, websocket_closed, sptr);
             break;
         }
-        if ((flags & 0x0f) & WebSocket::FRAME_OP_CLOSE) {
+        if ((flags & 0x0f) == WebSocket::FRAME_OP_CLOSE) {
             wsh->ws = NULL;
             wsh->url = "";
             char * sptr = new char[str.length()+1];

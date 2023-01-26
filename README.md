@@ -10,7 +10,7 @@ Visit the website at https://www.craftos-pc.cc/ for more information, including 
 ## Requirements for released builds
 * Supported operating systems:
   * Windows Vista x64 or later
-  * macOS 10.9.5+
+  * macOS 10.15+
   * Ubuntu 18.04, 20.04, 21.04
   * Arch Linux with AUR helper
   * iOS 11.0+
@@ -55,6 +55,11 @@ Fedora support is maintained by [LeMoonStar](https://github.com/LeMoonStar). For
 
 ### Arch Linux
 Install the `craftos-pc-accelerated` package using your chosen AUR helper (e.g. `yay -S craftos-pc-accelerated`).
+
+#### Other Linux
+1. Download CraftOS-PC.x86_64.AppImage from the latest release
+2. `chmod a+x CraftOS-PC.x86-64.AppImage` (may be needed on some distros)
+3. Double-click CraftOS-PC.x86-64.AppImage
 
 ### iOS
 [Visit the App Store](https://apps.apple.com/us/app/craftos-pc/id1565893014) to download CraftOS-PC. Or you can [join the TestFlight beta](https://testflight.apple.com/join/SiuXlijR) to get access to the latest versions before they're released.

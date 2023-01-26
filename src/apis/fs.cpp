@@ -5,7 +5,7 @@
  * This file implements the methods for the fs API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cerrno>
@@ -166,9 +166,10 @@ static int fs_list(lua_State *L) {
                 else gotdir = false;
             } catch (...) {continue;}
         } else {
-            if (fs::is_directory(path)) {
+            std::error_code e;
+            if (fs::is_directory(path, e)) {
                 gotdir = true;
-                for (const auto& dir : fs::directory_iterator(path)) {
+                for (const auto& dir : fs::directory_iterator(path, e)) {
                     if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
                     entries.insert(dir.path().filename().string());
                 }
@@ -217,7 +218,8 @@ static int fs_isDir(lua_State *L) {
         try {lua_pushboolean(L, get_comp(L)->virtualMounts[(unsigned)std::stoul((*path.begin()).native())]->path(path.lexically_relative(*path.begin())).isDir);} 
         catch (...) {lua_pushboolean(L, false);}
     } else {
-        lua_pushboolean(L, fs::is_directory(path));
+        std::error_code e;
+        lua_pushboolean(L, fs::is_directory(path, e));
     }
     return 1;
 }
@@ -290,7 +292,8 @@ static int fs_getSize(lua_State *L) {
 
 static int calculateDirectorySize(const path_t& path) {
     int size = 0;
-    for (const auto& dir : fs::directory_iterator(path)) {
+    std::error_code e;
+    for (const auto& dir : fs::directory_iterator(path, e)) {
         if (dir.is_directory()) size += calculateDirectorySize(dir.path());
         else size += dir.file_size();
     }
@@ -334,12 +337,16 @@ static int fs_move(lua_State *L) {
     bool isRoot = false;
     const path_t fromPath = fixpath(get_comp(L), str1, true, true, NULL, &isRoot);
     const path_t toPath = fixpath_mkdir(get_comp(L), str2);
-    if (isRoot) luaL_error(L, "Cannot move mount");
-    if (fromPath.empty()) err(L, 1, "No such file");
+    if (fromPath.empty()) luaL_error(L, "No such file");
     if (toPath.empty()) err(L, 2, "Invalid path");
     if (std::regex_search((*fromPath.begin()).native(), pathregex("^\\d+:"))) err(L, 1, "Permission denied");
     if (std::regex_search((*toPath.begin()).native(), pathregex("^\\d+:"))) err(L, 2, "Permission denied");
+    if (std::mismatch(toPath.begin(), toPath.end(), fromPath.begin(), fromPath.end()).second == fromPath.end()) 
+        luaL_error(L, "Can't move a directory inside itself");
+    if (isRoot) luaL_error(L, "Cannot move mount");
     std::error_code e;
+    if (fs::exists(toPath, e)) luaL_error(L, "File exists");
+    e.clear();
     fs::create_directories(toPath.parent_path(), e);
     if (e) err(L, 2, e.message().c_str());
     fs::rename(fromPath, toPath, e);
@@ -474,7 +481,8 @@ static int fs_open(lua_State *L) {
         }
 #endif
     } else {
-        if (fs::is_directory(path)) { 
+        std::error_code e;
+        if (fs::is_directory(path, e)) { 
             lua_pushnil(L);
             if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", fixpath(computer, str, false, false).string().c_str());
             else lua_pushfstring(L, "/%s: Cannot write to directory", fixpath(computer, str, false, false).string().c_str());
@@ -486,7 +494,13 @@ static int fs_open(lua_State *L) {
                 lua_pushfstring(L, "/%s: Access denied", fixpath(computer, str, false, false).string().c_str());
                 return 2; 
             }
-            fs::create_directories(path.parent_path());
+            e.clear();
+            fs::create_directories(path.parent_path(), e);
+            if (e) {
+                lua_pushnil(L);
+                lua_pushfstring(L, "/%s: Cannot create directory", fixpath(computer, str, false, false).string().c_str());
+                return 2; 
+            }
         }
         std::fstream ** fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
         fpid = lua_gettop(L);
@@ -625,8 +639,9 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
                     if (d.isDir) for (auto p : d.dir) if (std::regex_match(p.first, std::regex(pathc_regex))) nextOptions.push_back(opt + (opt == "" ? "" : "/") + p.first);
                 } catch (...) {continue;}
             } else {
-                if (fs::is_directory(path)) {
-                    for (const auto& dir : fs::directory_iterator(path)) {
+                std::error_code e;
+                if (fs::is_directory(path, e)) {
+                    for (const auto& dir : fs::directory_iterator(path, e)) {
                         if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
                         if (std::regex_match(dir.path().filename().string(), std::regex(pathc_regex))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + dir.path().filename().string());
                     }

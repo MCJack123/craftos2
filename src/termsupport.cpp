@@ -5,7 +5,7 @@
  * This file implements some helper functions for terminal interaction.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cerrno>
@@ -473,8 +473,9 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     else dbg->stepCount--;
                 } else if (!computer->breakpoints.empty()) {
                     lua_getinfo(L, "Sl", ar);
+                    if (ar->currentline == -1) ar->currentline++;
                     for (const std::pair<int, std::pair<std::string, lua_Integer> >& b : computer->breakpoints) {
-                        if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline) {
+                        if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline + 1) {
                             if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
                             break;
                         }
@@ -861,6 +862,41 @@ std::string termGetEvent(lua_State *L) {
             lua_pushinteger(L, y);
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return e.motion.state ? "mouse_drag" : "mouse_move";
+        } else if ((e.type == SDL_FINGERDOWN || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION) && (computer->config->isColor || computer->isDebugger) && (e.tfinger.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
+            SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
+            if (term == NULL) return "";
+            int x = min(max(e.tfinger.x * (term->width + 0.666666666666) - 0.33333333333, 0.0), (double)term->width - 1) + 1;
+            int y = min(max(e.tfinger.y * (term->height + 0.666666666666) - 0.33333333333, 0.0), (double)term->height - 1) + 1;
+            int id = -1;
+            for (int i = 0; i < term->fingers.size(); i++) if (term->fingers[i].first == e.tfinger.fingerId || (e.type == SDL_FINGERDOWN && term->fingers[i].first == 0)) {id = i; break;}
+            if (id == -1) {
+                if (e.type == SDL_FINGERDOWN) {
+                    id = term->fingers.size();
+                    term->fingers.push_back(std::make_pair(e.tfinger.fingerId, std::make_pair(x, y)));
+                    term->nFingers++;
+                } else return "";
+            } else {
+                if (e.type == SDL_FINGERDOWN && term->fingers[id].first == 0) {
+                    term->fingers[id] = std::make_pair(e.tfinger.fingerId, std::make_pair(x, y));
+                    term->nFingers++;
+                } else if (e.type == SDL_FINGERMOTION) {
+                    if (term->fingers[id].second.first == x && term->fingers[id].second.second == y) return "";
+                    else term->fingers[id].second = std::make_pair(x, y);
+                } else if (e.type == SDL_FINGERUP) {
+                    term->fingers[id] = std::make_pair((SDL_FingerID)0, std::make_pair(0, 0));
+                    if (--term->nFingers == 0) term->fingers.clear();
+                    else while (term->fingers[term->fingers.size()-1].first == 0) term->fingers.erase(term->fingers.end() - 1);
+                }
+            }
+            lua_pushinteger(L, id + 1);
+            lua_pushinteger(L, x);
+            lua_pushinteger(L, y);
+            lua_pushinteger(L, e.tfinger.fingerId);
+            switch (e.type) {
+                case SDL_FINGERDOWN: return "_CCPC_finger_tap";
+                case SDL_FINGERUP: return "_CCPC_finger_up";
+                case SDL_FINGERMOTION: return "_CCPC_finger_drag";
+            }
         } else if (e.type == SDL_DROPFILE) {
             if (config.dropFilePath) {
                 // Simply paste the file path

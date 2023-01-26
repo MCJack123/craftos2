@@ -6,7 +6,7 @@
  * first computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include "main.hpp"
@@ -618,7 +618,7 @@ int parseArguments(const std::vector<std::string>& argv) {
 #else
             std::cout << " print_txt";
 #endif
-            std::cout << "\nCopyright (c) 2019-2022 JackMacWindows. Licensed under the MIT License.\n";
+            std::cout << "\nCopyright (c) 2019-2023 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             checkTTY();
@@ -802,7 +802,7 @@ int main(int argc, char*argv[]) {
         std::thread(update_thread).detach();
 #endif
 #if defined(_WIN32) && defined(CRASHREPORT_API_KEY)
-    if (onboardingMode == 1 && !config.snooperEnabled) {
+    if (onboardingMode == 1 && !config.snooperEnabled && (selectedRenderer == 0 || selectedRenderer == 5)) {
         SDL_MessageBoxData data;
         data.title = "Allow analytics?";
         data.message = "CraftOS-PC can automatically upload crash logs to help bugs get fixed. These files are sent anonymously and don't contain direct personal data, but they do include general system information (see https://www.craftos-pc.cc/docs/privacy for more info). Would you like to allow crash logs to be uploaded?";

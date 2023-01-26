@@ -6,7 +6,7 @@
  * the CraftOS-PC emulation session.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cerrno>
@@ -266,8 +266,9 @@ bool addMount(Computer *comp, const path_t& real_path, const std::string& comp_p
         if (!read_only && !SDL_AndroidRequestPermission("android.permission.WRITE_EXTERNAL_STORAGE")) return false;
     }
 #endif
+    std::error_code e;
     if (std::regex_search((*real_path.begin()).native(), std::basic_regex<path_t::value_type>(path_t("^\\d+:").native()))) return false;
-    if (!fs::is_directory(real_path) || access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
+    if (!fs::is_directory(real_path, e) || access(real_path.c_str(), R_OK | (read_only ? 0 : W_OK)) != 0) return false;
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {

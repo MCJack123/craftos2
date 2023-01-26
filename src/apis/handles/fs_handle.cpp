@@ -5,7 +5,7 @@
  * This file implements the methods for file handles.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cstdio>
@@ -187,22 +187,14 @@ int fs_handle_readAllByte(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
     if (!fp->good()) luaL_error(L, "Could not read file");
-    size_t size = 0;
-    char * str = (char*)malloc(512);
+    std::streampos pos = fp->tellg();
+    fp->seekg(0, std::ios_base::end);
+    size_t size = fp->tellg() - pos;
+    fp->seekg(pos, std::ios_base::beg);
+    char * str = (char*)malloc(size);
     if (str == NULL) return luaL_error(L, "failed to allocate memory");
-    while (!fp->eof()) {
-        fp->read(&str[size], 512);
-        const size_t rd = fp->gcount();
-        if (rd == 0) break;
-        size += rd;
-        if (size % 512 != 0) break;
-        char * strn = (char*)realloc(str, size + 512);
-        if (strn == NULL) {
-            free(str);
-            return luaL_error(L, "failed to allocate memory");
-        }
-        str = strn;
-    }
+    fp->read(str, size);
+    size = fp->gcount();
     lua_pushlstring(L, str, size);
     free(str);
     return 1;
@@ -214,7 +206,7 @@ int fs_handle_writeString(lua_State *L) {
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
-    if (fp->bad() || fp->fail()) luaL_error(L, "Could not write file");
+    if (fp->fail()) luaL_error(L, "Could not write file");
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     std::wstring wstr;
     for (unsigned char c : str) wstr += (wchar_t)c;
@@ -230,7 +222,7 @@ int fs_handle_writeLine(lua_State *L) {
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "string");
-    if (fp->bad() || fp->fail()) luaL_error(L, "Could not write file");
+    if (fp->fail()) luaL_error(L, "Could not write file");
     std::string str(lua_tostring(L, 1), lua_strlen(L, 1));
     std::wstring wstr;
     for (unsigned char c : str) wstr += (wchar_t)c;
@@ -245,7 +237,7 @@ int fs_handle_writeByte(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) luaL_error(L, "attempt to use a closed file");
-    if (fp->bad() || fp->fail()) luaL_error(L, "Could not write file");
+    if (fp->fail()) luaL_error(L, "Could not write file");
     if (lua_type(L, 1) == LUA_TNUMBER) {
         const char b = (unsigned char)(lua_tointeger(L, 1) & 0xFF);
         fp->put(b);
@@ -275,13 +267,19 @@ int fs_handle_seek(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     const char * whence = luaL_optstring(L, 1, "cur");
     const size_t offset = luaL_optinteger(L, 2, 0);
+    if (strcmp(whence, "set") == 0 && luaL_optinteger(L, 2, 0) < 0) {
+        lua_pushnil(L);
+        lua_pushliteral(L, "Position is negative");
+        return 2;
+    }
     std::ios::seekdir origin;
     if (strcmp(whence, "set") == 0) origin = std::ios::beg;
     else if (strcmp(whence, "cur") == 0) origin = std::ios::cur;
     else if (strcmp(whence, "end") == 0) origin = std::ios::end;
     else return luaL_error(L, "bad argument #1 to 'seek' (invalid option '%s')", whence);
+    fp->clear();
     fp->seekg(offset, origin);
-    if (fp->bad()) {
+    if (fp->fail()) {
         lua_pushnil(L);
         lua_pushstring(L, strerror(errno));
         return 2;
