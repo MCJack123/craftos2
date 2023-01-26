@@ -5,7 +5,7 @@
  * This file implements some commonly-used functions.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <atomic>

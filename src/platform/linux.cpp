@@ -5,7 +5,7 @@
  * This file implements functions specific to Linux.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifdef __linux__ // disable error checking on Windows

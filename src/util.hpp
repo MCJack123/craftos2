@@ -5,7 +5,7 @@
  * This file defines some common functions used by various parts of the program.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef UTIL_HPP
@@ -27,7 +27,7 @@ extern "C" {
 #include <Terminal.hpp>
 
 #define CRAFTOSPC_VERSION    "v2.7.3"
-#define CRAFTOSPC_CC_VERSION "1.102.0"
+#define CRAFTOSPC_CC_VERSION "1.102.2"
 #define CRAFTOSPC_INDEV      true
 
 using path_t = std::filesystem::path;

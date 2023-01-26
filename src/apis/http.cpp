@@ -5,7 +5,7 @@
  * This file implements the methods for the http API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifdef __EMSCRIPTEN__
@@ -869,6 +869,10 @@ static int websocket_receive(lua_State *L) {
         if (lua_isstring(L, 1)) {
             // haha, another string scoping issue :DDD
             // can M$ PLEASE fix this? (maybe I need to repro & report? :thinking:)
+            if (ws == NULL) {
+                lua_pushnil(L);
+                return 1;
+            }
             std::string * ev = new std::string(lua_tostring(L, 1));
             std::string * url = new std::string();
             int port = 0;
@@ -1207,7 +1211,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             queueEvent(comp, websocket_closed, sptr);
             break;
         }
-        if ((flags & 0x0f) & WebSocket::FRAME_OP_CLOSE) {
+        if ((flags & 0x0f) == WebSocket::FRAME_OP_CLOSE) {
             wsh->ws = NULL;
             wsh->url = "";
             char * sptr = new char[str.length()+1];

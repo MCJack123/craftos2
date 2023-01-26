@@ -57,6 +57,11 @@ Install the `craftos-pc` package using your chosen AUR helper (e.g. `yay -S craf
 #### Nix and NixOS
 Install the `craftos-pc` package from the nixpkgs unstable repository. You can then use it with `nix-shell -p craftos-pc --run "craftos"`.
 
+#### Other Linux
+1. Download CraftOS-PC.x86_64.AppImage from the latest release
+2. `chmod a+x CraftOS-PC.x86-64.AppImage` (may be needed on some distros)
+3. Double-click CraftOS-PC.x86-64.AppImage
+
 ### iOS
 [Visit the App Store](https://apps.apple.com/us/app/craftos-pc/id1565893014) to download CraftOS-PC. Or you can [join the TestFlight beta](https://testflight.apple.com/join/SiuXlijR) to get access to the latest versions before they're released.
 

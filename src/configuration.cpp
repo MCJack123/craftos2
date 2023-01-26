@@ -5,7 +5,7 @@
  * This file implements functions for interacting with the configuration.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <fstream>
@@ -209,7 +209,7 @@ void config_init() {
         {},
         true,
         4,
-        65536,
+        131072,
         16,
         4194304,
         16777216,

@@ -5,7 +5,7 @@
  * This file implements the methods for the fs API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cerrno>
@@ -337,12 +337,16 @@ static int fs_move(lua_State *L) {
     bool isRoot = false;
     const path_t fromPath = fixpath(get_comp(L), str1, true, true, NULL, &isRoot);
     const path_t toPath = fixpath_mkdir(get_comp(L), str2);
-    if (isRoot) luaL_error(L, "Cannot move mount");
-    if (fromPath.empty()) err(L, 1, "No such file");
+    if (fromPath.empty()) luaL_error(L, "No such file");
     if (toPath.empty()) err(L, 2, "Invalid path");
     if (std::regex_search((*fromPath.begin()).native(), pathregex("^\\d+:"))) err(L, 1, "Permission denied");
     if (std::regex_search((*toPath.begin()).native(), pathregex("^\\d+:"))) err(L, 2, "Permission denied");
+    if (std::mismatch(toPath.begin(), toPath.end(), fromPath.begin(), fromPath.end()).second == fromPath.end()) 
+        luaL_error(L, "Can't move a directory inside itself");
+    if (isRoot) luaL_error(L, "Cannot move mount");
     std::error_code e;
+    if (fs::exists(toPath, e)) luaL_error(L, "File exists");
+    e.clear();
     fs::create_directories(toPath.parent_path(), e);
     if (e) err(L, 2, e.message().c_str());
     fs::rename(fromPath, toPath, e);

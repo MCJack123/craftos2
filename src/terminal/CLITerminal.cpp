@@ -5,7 +5,7 @@
  * This file implements the CLITerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef NO_CLI

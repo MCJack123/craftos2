@@ -5,7 +5,7 @@
  * This file implements the SDLTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <fstream>
@@ -760,6 +760,9 @@ bool SDLTerminal::pollEvents() {
                             (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID) && (touchDevice == -1 || SDL_GetNumTouchFingers(touchDevice) < 2)) ||
                             (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
                             (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+                            ((e.type == SDL_FINGERDOWN || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION) && checkWindowID(c, e.tfinger.windowID)) ||
+#endif
                             (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
                             e.type == SDL_QUIT) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);

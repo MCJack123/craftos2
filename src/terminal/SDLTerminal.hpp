@@ -5,7 +5,7 @@
  * This file defines the SDLTerminal class, which is the default renderer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef TERMINAL_SDLTERMINAL_HPP

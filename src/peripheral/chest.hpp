@@ -5,7 +5,7 @@
  * This file defines the class for the chest peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2022 JackMacWindows. 
+ * Copyright (c) 2019-2023 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_CHEST_HPP

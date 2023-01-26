@@ -1,6 +1,14 @@
 name: CI
 
-on: [push, pull_request]
+on: 
+  push:
+    paths:
+      - "src/**"
+      - ".github/workflows/*"
+  pull_request:
+    paths:
+      - "src/**"
+      - ".github/workflows/*"
 
 jobs:
 
@@ -97,7 +105,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.16.5-1.101.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.19.3-1.102.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -112,7 +120,7 @@ jobs:
         CFLAGS=-Wall ./configure
         make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CC:T McFly Tests
-      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
+      run: ./craftos --mount-ro test-rom=../CC-Tweaked/projects/core/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
       continue-on-error: true
     - name: Show logs
       run: |
@@ -129,14 +137,14 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 68b7fec22eb5fd9c0236b1e42b3c0deb8e771b37
+        vcpkgGitCommitId: 12b7cfe6109a9d68319334b56a01c44a302a13b6
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
         mkdir x64\ReleaseC
         mkdir x64\Release
         & $Env:VCPKG_ROOT\vcpkg integrate install
-        (Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "ENABLE_NETSSL_WIN", "FORCE_OPENSSL" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
+        ((Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "VCPKG_TARGET_IS_WINDOWS", "false") -replace "lib/cmake/Poco", "cmake" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
     - name: Build CraftOS-PC
       env:
         APIKEY: ${{secrets.WINDOWS_APIKEY}}
@@ -198,3 +206,4 @@ jobs:
           CraftOS-PC.pdb
           CraftOS-PC_console.pdb
           lua51.pdb
+  

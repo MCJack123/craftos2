@@ -5,7 +5,7 @@
  * This file implements some helper functions for terminal interaction.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2022 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cerrno>
@@ -884,6 +884,15 @@ std::string termGetEvent(lua_State *L) {
             lua_pushinteger(L, y);
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return e.motion.state ? "mouse_drag" : "mouse_move";
+        } else if ((e.type == SDL_FINGERDOWN || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION) && (computer->config->isColor || computer->isDebugger) && (e.tfinger.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
+            lua_pushinteger(L, e.tfinger.fingerId);
+            lua_pushinteger(L, min(max(e.tfinger.x * (computer->term->width + 0.666666666666) - 0.33333333333, 0.0), (double)computer->term->width - 1) + 1);
+            lua_pushinteger(L, min(max(e.tfinger.y * (computer->term->height + 0.666666666666) - 0.33333333333, 0.0), (double)computer->term->height - 1) + 1);
+            switch (e.type) {
+                case SDL_FINGERDOWN: return "_CCPC_finger_tap";
+                case SDL_FINGERUP: return "_CCPC_finger_up";
+                case SDL_FINGERMOTION: return "_CCPC_finger_drag";
+            }
         } else if (e.type == SDL_DROPFILE) {
             if (config.dropFilePath) {
                 // Simply paste the file path
