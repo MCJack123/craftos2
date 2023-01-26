@@ -567,6 +567,9 @@ bool HardwareSDLTerminal::pollEvents() {
                             ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && checkWindowID(c, e.button.windowID)) ||
                             (e.type == SDL_MOUSEMOTION && checkWindowID(c, e.motion.windowID)) ||
                             (e.type == SDL_MOUSEWHEEL && checkWindowID(c, e.wheel.windowID)) ||
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+                            ((e.type == SDL_FINGERDOWN || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION) && checkWindowID(c, e.tfinger.windowID)) ||
+#endif
                             (e.type == SDL_TEXTINPUT && checkWindowID(c, e.text.windowID)) ||
                             (e.type == SDL_WINDOWEVENT && checkWindowID(c, e.window.windowID)) ||
                             e.type == SDL_QUIT) {
