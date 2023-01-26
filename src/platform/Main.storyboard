@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="ro5-es-Qe9">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="ro5-es-Qe9">
     <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="20020"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21505"/>
         <capability name="Image references" minToolsVersion="12.0"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
@@ -142,6 +142,11 @@
                             </connections>
                         </barButtonItem>
                         <barButtonItem style="plain" systemItem="flexibleSpace" id="Nb0-Ug-929"/>
+                        <barButtonItem title="Page Up" image="arrow.up.to.line" catalog="system" id="6Tz-vu-gAw">
+                            <connections>
+                                <action selector="onPageUp:" destination="Q4U-DV-xIG" id="Q6T-GY-VPH"/>
+                            </connections>
+                        </barButtonItem>
                         <barButtonItem title="Left" image="arrow.left" catalog="system" id="6UL-qj-WId">
                             <connections>
                                 <action selector="onLeft:" destination="Q4U-DV-xIG" id="CJZ-8R-lOl"/>
@@ -162,6 +167,11 @@
                                 <action selector="onRight:" destination="Q4U-DV-xIG" id="cL2-5I-0Oc"/>
                             </connections>
                         </barButtonItem>
+                        <barButtonItem title="Page Down" image="arrow.down.to.line" catalog="system" id="Q7Z-dD-yNF">
+                            <connections>
+                                <action selector="onPageDown:" destination="Q4U-DV-xIG" id="gSR-V6-spb"/>
+                            </connections>
+                        </barButtonItem>
                         <barButtonItem style="plain" systemItem="flexibleSpace" id="rZt-CL-4c5"/>
                         <barButtonItem title="Paste" image="doc.on.clipboard" catalog="system" id="48k-Fu-4xl">
                             <connections>
@@ -175,20 +185,22 @@
         </scene>
     </scenes>
     <resources>
-        <image name="arrow.down" catalog="system" width="120" height="128"/>
-        <image name="arrow.left" catalog="system" width="128" height="98"/>
-        <image name="arrow.right" catalog="system" width="128" height="98"/>
-        <image name="arrow.right.to.line" catalog="system" width="128" height="89"/>
-        <image name="arrow.up" catalog="system" width="120" height="128"/>
-        <image name="chevron.left" catalog="system" width="96" height="128"/>
-        <image name="chevron.right" catalog="system" width="96" height="128"/>
+        <image name="arrow.down" catalog="system" width="118" height="128"/>
+        <image name="arrow.down.to.line" catalog="system" width="110" height="128"/>
+        <image name="arrow.left" catalog="system" width="128" height="95"/>
+        <image name="arrow.right" catalog="system" width="128" height="95"/>
+        <image name="arrow.right.to.line" catalog="system" width="128" height="88"/>
+        <image name="arrow.up" catalog="system" width="118" height="128"/>
+        <image name="arrow.up.to.line" catalog="system" width="110" height="128"/>
+        <image name="chevron.left" catalog="system" width="97" height="128"/>
+        <image name="chevron.right" catalog="system" width="97" height="128"/>
         <image name="doc.on.clipboard" catalog="system" width="116" height="128"/>
-        <image name="ellipsis.circle" catalog="system" width="128" height="121"/>
-        <image name="ellipsis.circle.fill" catalog="system" width="128" height="121"/>
-        <image name="keyboard" catalog="system" width="128" height="79"/>
-        <image name="minus.circle" catalog="system" width="128" height="121"/>
-        <image name="power" catalog="system" width="128" height="124"/>
-        <image name="restart" catalog="system" width="120" height="128"/>
+        <image name="ellipsis.circle" catalog="system" width="128" height="123"/>
+        <image name="ellipsis.circle.fill" catalog="system" width="128" height="123"/>
+        <image name="keyboard" catalog="system" width="128" height="78"/>
+        <image name="minus.circle" catalog="system" width="128" height="123"/>
+        <image name="power" catalog="system" width="127" height="128"/>
+        <image name="restart" catalog="system" width="117" height="128"/>
         <image name="xmark" catalog="system" width="128" height="113"/>
         <namedColor name="BackgroundColor">
             <color red="0.063000001013278961" green="0.067000001668930054" blue="0.063000001013278961" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>

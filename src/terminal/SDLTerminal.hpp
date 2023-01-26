@@ -61,6 +61,8 @@ public:
     bool isOnTop = false;
     bool isRecordingWebP = false;
     std::mutex mouseMoveLock;
+    std::vector<std::pair<SDL_FingerID, std::pair<int, int>>> fingers;
+    int nFingers = 0;
 
     static void init();
     static void quit();

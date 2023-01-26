@@ -634,6 +634,38 @@ static Uint32 holdTimerCallback(Uint32 interval, void* param) {
     SDL_PushEvent(&e);
 }
 
+- (IBAction)onPageUp:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_PAGEUP;
+    e.key.keysym.sym = SDLK_PAGEUP;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
+- (IBAction)onPageDown:(id)sender {
+    SDL_Event e;
+    e.type = SDL_KEYDOWN;
+    e.key.timestamp = time(0);
+    e.key.windowID = SDL_GetWindowID(self.sdlWindow);
+    e.key.state = SDL_PRESSED;
+    e.key.repeat = 0;
+    e.key.keysym.scancode = SDL_SCANCODE_PAGEDOWN;
+    e.key.keysym.sym = SDLK_PAGEDOWN;
+    e.key.keysym.mod = 0;
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
+}
+
 - (void)resetModifiers {
     if (isCtrlDown || isAltDown) queueTask([self](void*)->void*{
         if (isCtrlDown) [self onCtrl:self];
