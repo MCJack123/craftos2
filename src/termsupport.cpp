@@ -894,7 +894,7 @@ std::string termGetEvent(lua_State *L) {
             lua_pushinteger(L, y);
             lua_pushinteger(L, e.tfinger.fingerId);
             switch (e.type) {
-                case SDL_FINGERDOWN: return "_CCPC_finger_tap";
+                case SDL_FINGERDOWN: return "_CCPC_finger_touch";
                 case SDL_FINGERUP: return "_CCPC_finger_up";
                 case SDL_FINGERMOTION: return "_CCPC_finger_drag";
             }

@@ -28,7 +28,7 @@ extern "C" {
 
 #define CRAFTOSPC_VERSION    "v2.7.3-luajit"
 #define CRAFTOSPC_CC_VERSION "1.102.2"
-#define CRAFTOSPC_INDEV      true
+#define CRAFTOSPC_INDEV      false
 
 using path_t = std::filesystem::path;
 namespace fs = std::filesystem;
