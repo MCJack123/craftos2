@@ -55,9 +55,11 @@ struct load_ctx {
     int oldtop;
     int status;
     int argcount;
+    int envidx;
     lua_State *L;
     lua_State *coro;
     const char * name;
+    const char * mode;
 };
 
 // Basic CraftOS libraries
@@ -247,7 +249,7 @@ static const char * yield_loader(lua_State *L, void* data, size_t *size) {
 }
 
 static void load_thread(load_ctx* ctx) {
-    int status = lua_load(ctx->coro, yield_loader, ctx, ctx->name);
+    int status = lua_load52(ctx->coro, yield_loader, ctx, ctx->name, ctx->mode);
     if (ctx->status == 3) return;
     std::unique_lock<std::mutex> lock(ctx->lock);
     if (status == 0) {
@@ -287,6 +289,25 @@ static int yieldable_load(lua_State *L) {
         ctx->L = L;
         ctx->argcount = lua_gettop(L) - ctx->argcount;
         ctx->notify.notify_all();
+    } else if (lua_isstring(L, 1)) {
+        size_t l;
+        const char *s = lua_tolstring(L, 1, &l);
+        const char *mode = luaL_optstring(L, 3, "bt");
+        int env = !lua_isnoneornil(L, 4) ? 4 : 0;
+        const char *chunkname = luaL_optstring(L, 2, s);
+        int status = luaL_loadbufferx(L, s, l, chunkname, mode);
+        if (status == 0) {  /* OK? */
+            if (env != 0) {  /* 'env' parameter? */
+                lua_pushvalue(L, env);  /* environment for loaded function */
+                if (!lua_setfenv(L, -2))  /* set it as 1st upvalue */
+                    lua_pop(L, 1);  /* remove 'env' if not used by previous call */
+            }
+            return 1;
+        } else {
+            lua_pushnil(L);
+            lua_insert(L, -2);  /* put before error message */
+            return 2;  /* return nil plus error message */
+        }
     } else {
         luaL_checktype(L, 1, LUA_TFUNCTION);
         const char * name = luaL_optstring(L, 2, "=(load)");
@@ -302,6 +323,8 @@ static int yieldable_load(lua_State *L) {
         setThreadName(ctx->thread, "Loader Thread: " + std::string(name));
         ctx->status = 0;
         ctx->name = name;
+        ctx->mode = luaL_optstring(L, 3, "bt");
+        ctx->envidx = lua_isnoneornil(L, 4) ? 0 : 4;
         ctx->L = L;
         ctx->coro = lua_newthread(L);
         lua_pushvalue(L, 1);
@@ -315,6 +338,11 @@ static int yieldable_load(lua_State *L) {
             ctx->argcount = lua_gettop(L) - ctx->argcount;
             return lua_vyield(L, argcount, ctx);
         } else if (ctx->status == 3) return 0; // this should never happen
+    }
+    if (ctx->argcount == 1 && ctx->envidx != 0) {  /* OK? */
+        lua_pushvalue(L, ctx->envidx);  /* environment for loaded function */
+        if (!lua_setfenv(L, -2))  /* set it as 1st upvalue */
+            lua_pop(L, 1);  /* remove 'env' if not used by previous call */
     }
     return ctx->argcount;
 }
