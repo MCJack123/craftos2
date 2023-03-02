@@ -153,16 +153,16 @@ std::unordered_map<path_t, std::string> initializePlugins() {
                 fprintf(stderr, "Failed to load plugin at %s: %s\n", path.string().c_str(), e.what());
                 continue;
             }
-            if (!info->failureReason.empty()) {
-                failures[path] = info->failureReason;
-                fprintf(stderr, "Failed to load plugin at %s: %s\n", path.string().c_str(), info->failureReason.c_str());
+            if (info->abi_version != PLUGIN_VERSION || info->minimum_structure_version > function_map.structure_version) {
+                failures[path] = "CraftOS-PC version too old";
+                fprintf(stderr, "Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", path.string().c_str());
                 const auto plugin_deinit = (void(*)(PluginInfo *))SDL_LoadFunction(p.second.first, "plugin_deinit");
                 if (plugin_deinit != NULL) plugin_deinit(info);
                 continue;
             }
-            if (info->abi_version != PLUGIN_VERSION || info->minimum_structure_version > function_map.structure_version) {
-                failures[path] = "CraftOS-PC version too old";
-                fprintf(stderr, "Failed to load plugin at %s: This plugin requires a newer version of CraftOS-PC\n", path.string().c_str());
+            if (!info->failureReason.empty()) {
+                failures[path] = info->failureReason;
+                fprintf(stderr, "Failed to load plugin at %s: %s\n", path.string().c_str(), info->failureReason.c_str());
                 const auto plugin_deinit = (void(*)(PluginInfo *))SDL_LoadFunction(p.second.first, "plugin_deinit");
                 if (plugin_deinit != NULL) plugin_deinit(info);
                 continue;
