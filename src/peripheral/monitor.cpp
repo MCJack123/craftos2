@@ -188,12 +188,14 @@ int monitor::blit(lua_State *L) {
     std::lock_guard<std::mutex> lock(term->locked);
     if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
-        colors = htoi(bg[i], 15) << 4 | htoi(fg[i], 0);
-        if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = htoi(fg[i], 0);
-        if (selectedRenderer == 4)
-            printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[colors & 0xf], term->id, ("0123456789abcdef")[colors >> 4], term->id, str[i]);
-        term->screen[term->blinkY][term->blinkX] = str[i];
-        term->colors[term->blinkY][term->blinkX] = colors;
+        if (term->blinkX >= 0) {
+            colors = htoi(bg[i], 15) << 4 | htoi(fg[i], 0);
+            if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = htoi(fg[i], 0);
+            if (selectedRenderer == 4)
+                printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[colors & 0xf], term->id, ("0123456789abcdef")[colors >> 4], term->id, str[i]);
+            term->screen[term->blinkY][term->blinkX] = str[i];
+            term->colors[term->blinkY][term->blinkX] = colors;
+        }
     }
     term->changed = true;
     return 0;
