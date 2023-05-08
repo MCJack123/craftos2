@@ -4,11 +4,17 @@ on:
   push:
     paths:
       - "src/**"
+      - "api/**"
       - ".github/workflows/*"
+      - "craftos2-lua/**"
+      - "craftos2-lua"
   pull_request:
     paths:
       - "src/**"
+      - "api/**"
       - ".github/workflows/*"
+      - "craftos2-lua/**"
+      - "craftos2-lua"
 
 jobs:
 
