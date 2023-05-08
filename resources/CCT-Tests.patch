@@ -27,18 +27,6 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/ap
          end)
      end)
  
-diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/base_spec.lua b/projects/core/src/test/resources/test-rom/spec/base_spec.lua
---- a/projects/core/src/test/resources/test-rom/spec/base_spec.lua	2020-06-29 02:52:34.000000000 -0400
-+++ b/projects/core/src/test/resources/test-rom/spec/base_spec.lua	2020-06-28 00:31:42.000000000 -0400
-@@ -48,7 +48,7 @@
- 
-         it("prefixes the filename with @", function()
-             local info = debug.getinfo(loadfile("/rom/startup.lua"), "S")
--            expect(info):matches { short_src = "startup.lua", source = "@startup.lua" }
-+            expect(info):matches { short_src = "/rom/startup.lua", source = "@/rom/startup.lua" }
-         end)
- 
-         it("loads a file with the global environment", function()
 diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua
 --- a/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:52:34.000000000 -0400
 +++ b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-04-28 03:19:00.000000000 -0400
