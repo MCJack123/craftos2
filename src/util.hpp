@@ -26,9 +26,9 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.7.3"
-#define CRAFTOSPC_CC_VERSION "1.102.2"
-#define CRAFTOSPC_INDEV      false
+#define CRAFTOSPC_VERSION    "v2.7.4"
+#define CRAFTOSPC_CC_VERSION "1.104.0"
+#define CRAFTOSPC_INDEV      true
 
 using path_t = std::filesystem::path;
 namespace fs = std::filesystem;
