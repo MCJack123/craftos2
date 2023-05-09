@@ -64,7 +64,7 @@ path_t getBasePath() {
     NSArray * paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString * path = paths[0];
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     base_path_expanded = retval;
     delete[] retval;
     return base_path_expanded;
@@ -74,7 +74,7 @@ path_t getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
     NSString * path = [NSBundle mainBundle].resourcePath;
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     rom_path_expanded = retval;
     delete[] retval;
     return rom_path_expanded;
@@ -83,7 +83,7 @@ path_t getROMPath() {
 path_t getPlugInPath() {
     NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     std::string s((const char*)retval);
     delete[] retval;
     return s;

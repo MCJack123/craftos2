@@ -71,7 +71,7 @@ path_t getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
     NSString * path = [NSBundle mainBundle].resourcePath;
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     rom_path_expanded = retval;
     delete[] retval;
     return rom_path_expanded;
@@ -80,7 +80,7 @@ path_t getROMPath() {
 path_t getPlugInPath() {
     NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     std::string s((const char*)retval);
     delete[] retval;
     return s + "/";
@@ -198,7 +198,7 @@ void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) 
                     if (bps >= 1048576) label += makeSize(bps / 1048576.0) + " MB/s)";
                     else if (bps >= 1024) label += makeSize(bps / 1024.0) + " kB/s)";
                     else label += std::to_string(bps) + " B/s)";
-                    vc.label.stringValue = [NSString stringWithCString:label.c_str() encoding:NSASCIIStringEncoding];
+                    vc.label.stringValue = [NSString stringWithCString:label.c_str() encoding:NSUTF8StringEncoding];
                     vc.bar.doubleValue = (double)total / (double)totalSize * 100.0;
                     SDL_PumpEvents();
                 }
@@ -270,7 +270,7 @@ void updateNow(const std::string& tag_name, const Poco::JSON::Object::Ptr root) 
                             [path retain];
                             queueTask([win, path, res, pathstr](void*)->void*{
                                 NSLog(@"Could not find %@\n", [path path]); 
-                                system((std::string("/usr/bin/hdiutil detach ") + [pathstr cStringUsingEncoding:NSASCIIStringEncoding]).c_str());
+                                system((std::string("/usr/bin/hdiutil detach ") + [pathstr cStringUsingEncoding:NSUTF8StringEncoding]).c_str());
                                 [res release];
                                 [path release];
                                 NSAlert * alert = [[NSAlert alloc] init];
@@ -309,7 +309,7 @@ void migrateOldData() {
     for (int i = 1; i < p.we_wordc; i++) oldpath += p.we_wordv[i];
     wordfree(&p);
     if (stat(oldpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode) && stat(getBasePath().c_str(), &st) != 0) 
-        [[NSFileManager defaultManager] moveItemAtPath:[NSString stringWithCString:oldpath.c_str() encoding:NSASCIIStringEncoding] toPath:[NSString stringWithCString:getBasePath().c_str() encoding:NSASCIIStringEncoding] error:nil];
+        [[NSFileManager defaultManager] moveItemAtPath:[NSString stringWithCString:oldpath.c_str() encoding:NSUTF8StringEncoding] toPath:[NSString stringWithCString:getBasePath().c_str() encoding:NSUTF8StringEncoding] error:nil];
 }
 
 void copyImage(SDL_Surface* surf, SDL_Window* win) {
