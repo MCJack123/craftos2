@@ -67,6 +67,9 @@ static _path_t _getBasePath() {return getBasePath().native();}
 static _path_t _getROMPath() {return getROMPath().native();}
 static bool _addMount(Computer *comp, const _path_t& real_path, const char * comp_path, bool read_only) {return addMount(comp, real_path, comp_path, read_only);}
 static bool _addVirtualMount(Computer * comp, const FileEntry& vfs, const char * comp_path) {return addVirtualMount(comp, vfs, comp_path);}
+#ifdef __IPHONEOS__
+extern bool checkIAPEligibility(const char * identifier);
+#endif
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
@@ -100,11 +103,14 @@ static const PluginFunctions function_map = {
     &registerTerminalFactory,
     &parseArguments,
     &setListenerMode,
+#ifdef __IPHONEOS__
+    &checkIAPEligibility,
+#endif
     &pumpTaskQueue
 };
 
 void preloadPlugins() {
-    #ifndef STANDALONE_ROM
+#ifndef STANDALONE_ROM
     const path_t plugin_path = getPlugInPath();
     std::error_code e;
     if (fs::is_directory(plugin_path, e)) {
