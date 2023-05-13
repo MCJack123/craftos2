@@ -12,7 +12,7 @@ jobs:
     name: Publish Reddit post
     runs-on: ubuntu-latest
     steps:
-    - uses: BjornLuG/release-for-reddit-action@v1
+    - uses: BjornLuG/release-for-reddit-action@v2
       with:
         username: ${{ secrets.REDDIT_USERNAME }}
         password: ${{ secrets.REDDIT_PASSWORD }}
@@ -78,7 +78,7 @@ jobs:
         cd $env:GITHUB_WORKSPACE\bin
         Compress-Archive -Path * -DestinationPath ..\CraftOS-PC-Portable-Win64.zip
     - name: Upload installer
-      uses: actions/upload-release-asset@v1.0.2
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -88,12 +88,12 @@ jobs:
         asset_content_type: application/vnd.microsoft.portable-executable
     - name: Check if delta was built
       id: check_files
-      uses: andstor/file-existence-action@v1
+      uses: andstor/file-existence-action@v2.0.0
       with:
         files: "${{ github.workspace }}\\CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe"
     - name: Upload delta installer
       if: steps.check_files.outputs.files_exists == 'true'
-      uses: actions/upload-release-asset@v1.0.2
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -102,7 +102,7 @@ jobs:
         asset_name: CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe
         asset_content_type: application/vnd.microsoft.portable-executable
     - name: Upload portable archive
-      uses: actions/upload-release-asset@v1.0.2
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -135,7 +135,7 @@ jobs:
       run: |
         . $GITHUB_WORKSPACE/craftos2-release-resources/mac/build.sh sign
     - name: Upload disk image
-      uses: actions/upload-release-asset@v1.0.2
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -292,7 +292,7 @@ jobs:
         cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
         appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
     - name: Upload AppImage
-      uses: actions/upload-release-asset@v1.0.2
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -346,7 +346,7 @@ jobs:
           file-name: hashes.txt
           get-assets: "true"
       - name: Upload a Release Asset
-        uses: actions/upload-release-asset@v1.0.2
+        uses: shogo82148/actions-upload-release-asset@v1.6.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

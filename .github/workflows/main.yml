@@ -4,11 +4,17 @@ on:
   push:
     paths:
       - "src/**"
+      - "api/**"
       - ".github/workflows/*"
+      - "craftos2-lua/**"
+      - "craftos2-lua"
   pull_request:
     paths:
       - "src/**"
+      - "api/**"
       - ".github/workflows/*"
+      - "craftos2-lua/**"
+      - "craftos2-lua"
 
 jobs:
 
@@ -31,6 +37,7 @@ jobs:
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 2
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
@@ -55,6 +62,7 @@ jobs:
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 2
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
@@ -83,6 +91,7 @@ jobs:
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 2
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
@@ -96,7 +105,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.19.3-1.102.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.19.4-1.104.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -110,6 +119,7 @@ jobs:
     - name: Run CC:T McFly Tests
       run: ./craftos --mount-ro test-rom=../CC-Tweaked/projects/core/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 1
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/test-log.txt
@@ -125,7 +135,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 12b7cfe6109a9d68319334b56a01c44a302a13b6
+        vcpkgGitCommitId: eebcbc7ca3f4ef825b14949e0b702a7517ab8565
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
@@ -172,6 +182,7 @@ jobs:
         x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua --rom "C:\Program Files\CraftOS-PC"
         echo $LASTEXITCODE > retval.txt
       continue-on-error: true
+      timeout-minutes: 2
     - name: Show logs
       run: |
         type "$ENV:APPDATA\CraftOS-PC\computer\0\CraftOSTest.log"

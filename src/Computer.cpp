@@ -54,9 +54,11 @@ struct load_ctx {
     int oldtop;
     int status;
     int argcount;
+    int envidx;
     lua_State *L;
     lua_State *coro;
     const char * name;
+    const char * mode;
 };
 
 // Basic CraftOS libraries

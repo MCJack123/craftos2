@@ -26,8 +26,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.7.3-luajit"
-#define CRAFTOSPC_CC_VERSION "1.102.2"
+#define CRAFTOSPC_VERSION    "v2.7.4-luajit"
+#define CRAFTOSPC_CC_VERSION "1.104.0"
 #define CRAFTOSPC_INDEV      false
 
 using path_t = std::filesystem::path;
@@ -39,9 +39,8 @@ template<> class std::hash<SDL_EventType>: public std::hash<unsigned short> {};
 #endif
 
 // for old compilers (see C++ LWG 3657)
-// NOTE: The libc++ check will *definitely* fail in the future! Check this once libc++ resolve the issue.
 // NOTE: No idea if this MSVC check is correct - if you have issues, just update to the latest VS2022.
-#if (defined(__GLIBCXX__) && __GLIBCXX__ < 20220426) || (defined(_LIBCPP_VERSION) /*&& _LIBCPP_VERSION < 16000*/) || (defined(_MSC_FULL_VER) && _MSC_FULL_VER < 193200000)
+#if (defined(__GLIBCXX__) && __GLIBCXX__ < 20220426) || (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 17000) || (defined(_MSC_FULL_VER) && _MSC_FULL_VER < 193200000)
 template<> struct std::hash<path_t> {size_t operator()(const path_t& path) const noexcept {return fs::hash_value(path);}};
 #endif
 

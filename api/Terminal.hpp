@@ -17,6 +17,7 @@
 #include <chrono>
 #include <list>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <vector>
 

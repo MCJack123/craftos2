@@ -93,7 +93,8 @@ void setupCrashHandler() {
         struct dirent *p;
         while ((p=readdir(d))) {
             if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-            certificateStore.push_back(Poco::Crypto::X509Certificate("/system/etc/security/cacerts_google/" + std::string(p->d_name)));
+            try {certificateStore.push_back(Poco::Crypto::X509Certificate("/system/etc/security/cacerts_google/" + std::string(p->d_name)));}
+            catch (...) {}
         }
         closedir(d);
     }
@@ -102,7 +103,8 @@ void setupCrashHandler() {
         struct dirent *p;
         while ((p=readdir(d))) {
             if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-            certificateStore.push_back(Poco::Crypto::X509Certificate("/system/etc/security/cacerts/" + std::string(p->d_name)));
+            try {certificateStore.push_back(Poco::Crypto::X509Certificate("/system/etc/security/cacerts/" + std::string(p->d_name)));}
+            catch (...) {}
         }
         closedir(d);
     }

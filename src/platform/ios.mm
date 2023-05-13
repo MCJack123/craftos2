@@ -51,6 +51,11 @@ path_t rom_path_expanded;
 static SDL_SysWMinfo window_info;
 static UIView * sdlView;
 
+extern void initIAP();
+extern void queueGetIAPList(Computer * comp);
+extern bool purchaseIAP(const char * name, Computer * comp);
+extern void restorePurchases(Computer * comp);
+
 void setBasePath(path_t path) {
     base_path_expanded = path;
 }
@@ -64,7 +69,7 @@ path_t getBasePath() {
     NSArray * paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString * path = paths[0];
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     base_path_expanded = retval;
     delete[] retval;
     return base_path_expanded;
@@ -74,7 +79,7 @@ path_t getROMPath() {
     if (!rom_path_expanded.empty()) return rom_path_expanded;
     NSString * path = [NSBundle mainBundle].resourcePath;
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     rom_path_expanded = retval;
     delete[] retval;
     return rom_path_expanded;
@@ -83,7 +88,7 @@ path_t getROMPath() {
 path_t getPlugInPath() {
     NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
     char * retval = new char[path.length + 1];
-    [path getCString:retval maxLength:path.length+1 encoding:NSASCIIStringEncoding];
+    [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     std::string s((const char*)retval);
     delete[] retval;
     return s;
@@ -794,29 +799,32 @@ void setupCrashHandler() {
     [[NSNotificationCenter defaultCenter] addObserverForName:UIKeyboardDidHideNotification object:nil queue:nil usingBlock:^(NSNotification* notif) {
         if (!computers->empty()) queueEvent(computers->front(), mobile_keyboard_open, (void*)PTRDIFF_MAX);
     }];
+    initIAP();
 }
 
 void platformExit() {}
 
-static std::vector<Poco::Crypto::X509Certificate> certCache;
-void addSystemCertificates(Poco::Net::Context::Ptr context) {
-    if (certCache.empty()) {
-        std::ifstream bundle([[[NSBundle mainBundle] pathForResource:@"Certificates" ofType:@"pem"] cStringUsingEncoding:NSUTF8StringEncoding]);
-        std::string cert;
-        while (!bundle.eof()) {
-            std::string line;
-            std::getline(bundle, line);
-            if (line == "-----BEGIN CERTIFICATE-----" && !cert.empty()) {
-                std::stringstream ss(cert);
-                certCache.push_back(Poco::Crypto::X509Certificate(ss));
-                cert = "";
-            }
-            cert += line + "\n";
+std::vector<Poco::Crypto::X509Certificate> certCache;
+void loadCerts() {
+    std::ifstream bundle([[[NSBundle mainBundle] pathForResource:@"Certificates" ofType:@"pem"] cStringUsingEncoding:NSUTF8StringEncoding]);
+    std::string cert;
+    while (!bundle.eof()) {
+        std::string line;
+        std::getline(bundle, line);
+        if (line == "-----BEGIN CERTIFICATE-----" && !cert.empty()) {
+            std::stringstream ss(cert);
+            certCache.push_back(Poco::Crypto::X509Certificate(ss));
+            cert = "";
         }
-        std::stringstream ss(cert);
-        certCache.push_back(Poco::Crypto::X509Certificate(ss));
-        bundle.close();
+        cert += line + "\n";
     }
+    std::stringstream ss(cert);
+    certCache.push_back(Poco::Crypto::X509Certificate(ss));
+    bundle.close();
+}
+
+void addSystemCertificates(Poco::Net::Context::Ptr context) {
+    if (certCache.empty()) loadCerts();
     for (const Poco::Crypto::X509Certificate& cert : certCache) context->addCertificateAuthority(cert);
 }
 
@@ -837,9 +845,27 @@ static int mobile_isKeyboardOpen(lua_State *L) {
     return 1;
 }
 
+static int mobile_listPlugins(lua_State *L) {
+    queueGetIAPList(get_comp(L));
+    return 0;
+}
+
+static int mobile_purchasePlugin(lua_State *L) {
+    lua_pushboolean(L, purchaseIAP(luaL_checkstring(L, 1), get_comp(L)));
+    return 1;
+}
+
+static int mobile_restorePurchases(lua_State *L) {
+    restorePurchases(get_comp(L));
+    return 0;
+}
+
 static luaL_Reg mobile_reg[] = {
     {"openKeyboard", mobile_openKeyboard},
     {"isKeyboardOpen", mobile_isKeyboardOpen},
+    {"listPlugins", mobile_listPlugins},
+    {"purchasePlugin", mobile_purchasePlugin},
+    {"restorePurchases", mobile_restorePurchases},
     {NULL, NULL}
 };
 

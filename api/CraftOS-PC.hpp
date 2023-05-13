@@ -318,6 +318,10 @@ struct PluginFunctions {
      * @param mode Whether listener mode is enabled
      */
     void (*setListenerMode)(bool mode);
+    
+#ifdef __IPHONEOS__
+    bool (*checkIAPEligibility)(const char * identifier);
+#endif
 
     /**
      * Pumps the main thread task queue. THIS MUST ONLY BE CALLED ON THE MAIN
