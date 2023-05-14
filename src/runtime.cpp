@@ -67,7 +67,7 @@ monitor * findMonitorFromWindowID(Computer *comp, unsigned id, std::string* side
 }
 
 void* queueTask(const std::function<void*(void*)>& func, void* arg, bool async) {
-    if (std::this_thread::get_id() == mainThreadID && !async) return func(arg);
+    if (std::this_thread::get_id() == mainThreadID && (!async || taskQueue.locked())) return func(arg);
     TaskQueueItem * task = new TaskQueueItem;
     task->func = func;
     task->data = arg;
