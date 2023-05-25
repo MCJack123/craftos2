@@ -32,7 +32,7 @@
                 {
                     "name": "sdl2-mixer",
                     "default-features": true,
-                    "features": [ "libmodplug", "opusfile", "fluidsynth" ]
+                    "features": [ "libmodplug", "opusfile", "fluidsynth", "libflac", "mpg123" ]
                 }
             ]
         },
