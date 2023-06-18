@@ -122,6 +122,12 @@ int modem::hasTypeRemote(lua_State *L) {
     return luaL_error(L, "Internal error");
 }
 
+int modem::getNameLocal(lua_State *L) {
+    lastCFunction = __func__;
+    pushstring(L, "computer_" + comp->id);
+    return 1;
+}
+
 struct modem_message_data {
     modem * m;
     int pos;
@@ -209,6 +215,7 @@ int modem::call(lua_State *L, const char * method) {
     else if (m == "getMethodsRemote") return getMethodsRemote(L);
     else if (m == "callRemote") return callRemote(L);
     else if (m == "hasTypeRemote") return hasTypeRemote(L);
+    else if (m == "getNameLocal") return getNameLocal(L);
     else return luaL_error(L, "No such method");
 }
 
@@ -225,6 +232,7 @@ static luaL_Reg modem_reg[] = {
     {"getMethodsRemote", NULL},
     {"callRemote", NULL},
     {"hasTypeRemote", NULL},
+    {"getNameLocal", NULL},
     {NULL, NULL}
 };
 
