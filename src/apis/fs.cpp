@@ -655,6 +655,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
     else return matchWildcard(comp, nextOptions, pathc, end);
 }
 
+// Deprecated as of 1.105.0, but remains here for safety.
 static int fs_find(lua_State *L) {
     lastCFunction = __func__;
     std::string str = checkstring(L, 1);
