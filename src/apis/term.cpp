@@ -620,6 +620,13 @@ static int term_showMouse(lua_State *L) {
     return 0;
 }
 
+static int term_relativeMouse(lua_State *L) {
+    lastCFunction = __func__;
+    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    SDL_SetRelativeMouseMode((SDL_bool)lua_toboolean(L, 1));
+    return 0;
+}
+
 static int term_setFrozen(lua_State *L) {
     lastCFunction = __func__;
     if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
@@ -681,6 +688,7 @@ static luaL_reg term_reg[] = {
     {"drawPixels", term_drawPixels},
     {"getPixels", term_getPixels},
     {"showMouse", term_showMouse},
+    {"relativeMouse", term_relativeMouse},
     {"setFrozen", term_setFrozen},
     {"getFrozen", term_getFrozen},
     {NULL, NULL}

@@ -854,7 +854,10 @@ std::string termGetEvent(lua_State *L) {
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {
                 x = e.motion.x; y = e.motion.y;
             } else if (term != NULL) {
-                x = convertX(term, e.motion.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
+                if (SDL_GetRelativeMouseMode()) {
+                    x = e.motion.xrel; y = e.motion.yrel;
+                    SDL_WarpMouseInWindow(term->win, (term->width * term->charWidth + 4 * term->charScale) / 2, (term->height * term->charHeight + 4 * term->charScale) / 2);
+                } else {x = convertX(term, e.motion.x); y = convertY(term, e.motion.y);}
             }
             std::list<Uint8> used_buttons;
             for (Uint8 i = 0; i < 32; i++) if (e.motion.state & (1 << i)) used_buttons.push_back(i + 1);
@@ -883,7 +886,7 @@ std::string termGetEvent(lua_State *L) {
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
             if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
-            return e.motion.state ? "mouse_drag" : "mouse_move";
+            return e.motion.state ? "mouse_drag" : (SDL_GetRelativeMouseMode() ? "mouse_move_relative" : "mouse_move");
 #if SDL_VERSION_ATLEAST(2, 0, 12)
         } else if ((e.type == SDL_FINGERDOWN || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION) && (computer->config->isColor || computer->isDebugger) && (e.tfinger.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
             SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
