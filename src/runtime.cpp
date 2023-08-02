@@ -218,7 +218,7 @@ Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
             }
         }
     }
-    lua_externalerror(computer->L, "Too long without yielding");
+    if (computer->L) lua_externalerror(computer->L, "Too long without yielding");
     return 1000;
 }
 
