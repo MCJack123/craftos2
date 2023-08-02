@@ -56,7 +56,7 @@ struct http_param_t {
     std::string old_url;
     bool isBinary;
     bool redirect;
-    int timeout;
+    double timeout;
 };
 
 struct http_handle_t {
@@ -299,7 +299,7 @@ downloadThread_entry:
         if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
         HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), path, HTTPMessage::HTTP_1_1);
         HTTPResponse * response = new HTTPResponse();
-        if (param->timeout > 0) session->setTimeout(Poco::Timespan(std::chrono::seconds(param->timeout)));
+        if (param->timeout > 0) session->setTimeout(Poco::Timespan(param->timeout * 1000000));
         else if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
         size_t requestSize = param->postData.size();
         for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
