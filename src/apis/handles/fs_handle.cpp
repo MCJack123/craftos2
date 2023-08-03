@@ -75,6 +75,7 @@ int fs_handle_readAll(lua_State *L) {
     if (!fp->good()) luaL_error(L, "Could not read file");
     const long pos = (long)fp->tellg();
     fp->seekg(0, std::ios::end);
+    if (!fp->good()) luaL_error(L, "Could not read file");
     long size = (long)fp->tellg() - pos;
     char * retval = new char[size + 1];
     memset(retval, 0, size + 1);

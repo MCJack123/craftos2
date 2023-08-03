@@ -40,6 +40,8 @@ extern "C" {
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#include "../peripheral/drive.hpp"
+#include "../peripheral/speaker.hpp"
 #include "../platform.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
@@ -55,6 +57,8 @@ extern void initIAP();
 extern void queueGetIAPList(Computer * comp);
 extern bool purchaseIAP(const char * name, Computer * comp);
 extern void restorePurchases(Computer * comp);
+extern void http_server_stop();
+extern void clearPeripherals();
 
 void setBasePath(path_t path) {
     base_path_expanded = path;
@@ -86,7 +90,7 @@ path_t getROMPath() {
 }
 
 path_t getPlugInPath() {
-    NSString * path = [NSBundle mainBundle].builtInPlugInsPath;
+    NSString * path = [NSBundle mainBundle].privateFrameworksPath;
     char * retval = new char[path.length + 1];
     [path getCString:retval maxLength:path.length+1 encoding:NSUTF8StringEncoding];
     std::string s((const char*)retval);
@@ -706,6 +710,35 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
 - (void)applicationDidBecomeActive:(UIApplication *)application {
     [self.delegate applicationDidBecomeActive:application];
     SDL_StartTextInput();
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application {
+    SDL_Event e;
+    e.type = SDL_QUIT;
+    {
+        LockGuard lock(computers);
+        for (Computer * comp : *computers) {
+            std::lock_guard<std::mutex> l2(comp->termEventQueueMutex);
+            comp->termEventQueue.push(e);
+        }
+    }
+    for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
+    computerThreads.clear();
+    deinitializePlugins();
+#ifndef NO_MIXER
+    speakerQuit();
+#endif
+    driveQuit();
+    http_server_stop();
+    config_save();
+    SDL_Quit();
+    // Clear out a few lists that plugins may insert functions into
+    // We can't let these stay past the lifetime of plugins since C++ will try
+    // to access methods that were unloaded to destroy the objects
+    SDLTerminal::eventHandlers.clear();
+    clearPeripherals();
+    unloadPlugins();
+    platformExit();
 }
 
 - (id)forwardingTargetForSelector:(SEL)sel {

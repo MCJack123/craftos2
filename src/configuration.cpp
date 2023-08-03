@@ -46,7 +46,12 @@ struct computer_configuration getComputerConfig(int id) {
         showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
         return cfg;
-    } catch (std::exception &e) {
+    } catch (Poco::Exception &e) {
+        cfg.loadFailure = true;
+        showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
+        in.close();
+        return cfg;
+    }catch (std::exception &e) {
         cfg.loadFailure = true;
         showMessage("An error occurred while parsing the per-computer configuration file for computer " + std::to_string(id) + ": " + e.what() + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();
@@ -240,6 +245,11 @@ void config_init() {
     try {
         p = root.parse(in);
     } catch (Poco::JSON::JSONException &e) {
+        configLoadError = true;
+        showMessage("An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
+        in.close();
+        return;
+    } catch (Poco::Exception &e) {
         configLoadError = true;
         showMessage("An error occurred while parsing the global configuration file: " + e.message() + ". The current session's config will be reset to default, and any changes made will not be saved.");
         in.close();

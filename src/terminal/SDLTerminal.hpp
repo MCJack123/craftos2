@@ -87,6 +87,7 @@ public:
 
     SDL_Window *win;
     static SDL_Window *singleWin;
+    static std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > eventHandlers;
 protected:
     friend void registerSDLEvent(SDL_EventType type, const sdl_event_handler& handler, void* userdata);
     friend int main(int argc, char*argv[]);
@@ -94,7 +95,6 @@ protected:
     static SDL_Surface *bmp;
     static SDL_Surface *origfont;
     static Uint32 lastWindow;
-    static std::unordered_multimap<SDL_EventType, std::pair<sdl_event_handler, void*> > eventHandlers;
 
     SDL_Rect getCharacterRect(unsigned char c);
 };

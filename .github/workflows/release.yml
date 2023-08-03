@@ -290,6 +290,8 @@ jobs:
         # this gets all libraries required recursively (?)
         ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
         cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
+        mkdir -p AppDir/etc/ssl/certs
+        cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/etc/ssl/certs
         appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
     - name: Upload AppImage
       uses: shogo82148/actions-upload-release-asset@v1.6.3

@@ -26,8 +26,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.7.4-luajit"
-#define CRAFTOSPC_CC_VERSION "1.104.0"
+#define CRAFTOSPC_VERSION    "v2.7.5-luajit"
+#define CRAFTOSPC_CC_VERSION "1.106.1"
 #define CRAFTOSPC_INDEV      false
 
 using path_t = std::filesystem::path;
@@ -129,7 +129,7 @@ public:
     bool isString() { return obj.isString(); }
     bool isObject() { try { obj.extract<Poco::JSON::Object>(); return true; } catch (Poco::BadCastException &e) { try { obj.extract<Poco::JSON::Object::Ptr>(); return true; } catch (Poco::BadCastException &e2) { return false; } } }
     bool isMember(std::string key) { try { return obj.extract<Poco::JSON::Object>().has(key); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->has(key); } }
-    Poco::JSON::Object::Ptr parse(std::istream& in) { Poco::JSON::Object::Ptr p = Poco::JSON::Parser().parse(in).extract<Poco::JSON::Object::Ptr>(); obj = *p; return p; }
+    Poco::JSON::Object::Ptr parse(std::istream& in) { Poco::JSON::Parser parser; Poco::JSON::Object::Ptr p = parser.parse(in).extract<Poco::JSON::Object::Ptr>(); obj = *p; return p; }
     friend std::ostream& operator<<(std::ostream &out, Value &v) { v.obj.extract<Poco::JSON::Object>().stringify(out, 4, -1); return out; }
     //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
     Poco::JSON::Array::ConstIterator arrayBegin() { try { return obj.extract<Poco::JSON::Array>().begin(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Array::Ptr>()->begin(); } }

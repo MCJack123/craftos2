@@ -56,6 +56,7 @@ struct http_param_t {
     std::string old_url;
     bool isBinary;
     bool redirect;
+    double timeout;
 };
 
 struct http_handle_t {
@@ -298,7 +299,8 @@ downloadThread_entry:
         if (!config.http_proxy_server.empty()) session->setProxy(config.http_proxy_server, config.http_proxy_port);
         HTTPRequest request(!param->method.empty() ? param->method : (!param->postData.empty() ? "POST" : "GET"), path, HTTPMessage::HTTP_1_1);
         HTTPResponse * response = new HTTPResponse();
-        if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
+        if (param->timeout > 0) session->setTimeout(Poco::Timespan(param->timeout * 1000000));
+        else if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
         size_t requestSize = param->postData.size();
         for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
         if (isLocalhost) request.add("Host", "localhost");
@@ -535,6 +537,11 @@ static int http_request(lua_State *L) {
             }
         }
         lua_pop(L, 1);
+        lua_getfield(L, 1, "timeout");
+        if (!lua_isnil(L, -1) && !lua_isnumber(L, -1)) {delete param; return luaL_error(L, "bad field 'timeout' (number expected, got %s)", lua_typename(L, lua_type(L, -1)));}
+        else if (lua_isnumber(L, -1)) param->timeout = lua_tonumber(L, -1);
+        else param->timeout = 0;
+        lua_pop(L, 1);
     } else {
         param->url = lua_tostring(L, 1);
         param->old_url = param->url;
@@ -554,6 +561,7 @@ static int http_request(lua_State *L) {
         if (lua_isboolean(L, 4)) param->isBinary = lua_toboolean(L, 4);
         if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
         param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
+        param->timeout = 0;
     }
     std::lock_guard<std::mutex> lock(param->comp->httpRequestQueueMutex);
     if (param->comp->requests_open >= config.http_max_requests) {
