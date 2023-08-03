@@ -13,6 +13,9 @@
 #include "../terminal/SDLTerminal.hpp"
 #include "../runtime.hpp"
 #include "../util.hpp"
+extern "C" {
+#include <luajit.h>
+}
 
 static int headlessCursorX = 1, headlessCursorY = 1;
 static bool can_blink_headless = true;
@@ -392,6 +395,19 @@ static int term_drawPixels(lua_State *L) {
 
     const int fillType = lua_type(L, 3);
     const bool isSolidFill = fillType == LUA_TNUMBER;
+
+    if (fillType == 10) { // cdata
+        unsigned width_, height_;
+        width_ = luaL_checkinteger(L, 4);
+        height_ = luaL_checkinteger(L, 5);
+        uint8_t * pixels = (uint8_t*)luaJIT_ffi_getbuf(L, 3);
+        size_t w = init_x + width_ < pixelWidth ? width_ : pixelWidth - init_x;
+        uint8_t * dest = term->pixels.data();
+        for (int y = init_y; y < init_y + height_ && y < pixelHeight; y++) {
+            memcpy(dest + y * pixelWidth, pixels + y * width_, w);
+        }
+        return 0;
+    }
 
     if (!isSolidFill && fillType != LUA_TTABLE)
         return luaL_typerror(L, 3, "table or number");
