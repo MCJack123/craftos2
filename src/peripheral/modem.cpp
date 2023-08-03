@@ -124,7 +124,7 @@ int modem::hasTypeRemote(lua_State *L) {
 
 int modem::getNameLocal(lua_State *L) {
     lastCFunction = __func__;
-    pushstring(L, "computer_" + comp->id);
+    pushstring(L, "computer_" + std::to_string(comp->id));
     return 1;
 }
 
