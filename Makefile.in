@@ -4,7 +4,7 @@ CFLAGS=@CFLAGS@
 CPPFLAGS=@CPPFLAGS@ -I@srcdir@/api
 CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
-LIBS=craftos2-luajit/src/libluajit.a @LIBS@
+LIBS=craftos2-luajit/src/libluajit-craftos.so @LIBS@
 ifndef OS
 ifeq (@OUT_TARGET@, craftos)
 ifeq ($(shell uname), Darwin)
