@@ -6,8 +6,8 @@ on:
       - "src/**"
       - "api/**"
       - ".github/workflows/*"
-      - "craftos2-lua/**"
-      - "craftos2-lua"
+      - "craftos2-luajit/**"
+      - "craftos2-luajit"
       - "resources/CCT-Tests.patch"
       - "resources/CraftOSTest.lua"
       - "Makefile.in"
@@ -16,8 +16,8 @@ on:
       - "src/**"
       - "api/**"
       - ".github/workflows/*"
-      - "craftos2-lua/**"
-      - "craftos2-lua"
+      - "craftos2-luajit/**"
+      - "craftos2-luajit"
       - "resources/CraftOSTest.lua"
 
 jobs:
