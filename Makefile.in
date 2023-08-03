@@ -142,4 +142,4 @@ uninstall:
 test: craftos
 	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua -d "$(shell mktemp -d)"
 
-#.SILENT:
+.SILENT:
