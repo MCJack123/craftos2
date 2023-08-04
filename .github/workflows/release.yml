@@ -247,7 +247,7 @@ jobs:
         GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
       run: |
         sudo apt update
-        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev patchelf
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev patchelf lua5.4
         sudo curl -sLo /usr/bin/appimagetool https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
         sudo chmod a+x /usr/bin/appimagetool
         echo "$GPG_SIGNING_KEY" > signing.asc
@@ -291,8 +291,8 @@ jobs:
         ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
         cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
         mkdir -p AppDir/etc/ssl/certs
-        cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/etc/ssl/certs
         cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
+        lua -e 'local file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "rb")) local data = file:read("*a") file:close() file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "wb")) file:write(data:gsub("/usr(/lib/ssl[^\0]*\0)", ".%1\0\0\0")) file:close()'
         appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
     - name: Upload AppImage
       uses: shogo82148/actions-upload-release-asset@v1.6.3
