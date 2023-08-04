@@ -292,6 +292,7 @@ jobs:
         cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
         mkdir -p AppDir/etc/ssl/certs
         cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/etc/ssl/certs
+        cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
         appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
     - name: Upload AppImage
       uses: shogo82148/actions-upload-release-asset@v1.6.3
