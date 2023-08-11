@@ -275,7 +275,7 @@ jobs:
           install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC-Accelerated.desktop
           install -D -m 0644 icons/1024.png AppDir/craftos-luajit.png
           install -D -m 0755 craftos AppDir/usr/bin/craftos-luajit
-          install -D -m 0755 craftos2-luajit/src/libluajit.so AppDir/usr/lib/libluajit.so
+          install -D -m 0755 craftos2-luajit/src/libluajit-craftos.so AppDir/usr/lib/libluajit-craftos.so
           install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC-Accelerated.appdata.xml
         else
           install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
