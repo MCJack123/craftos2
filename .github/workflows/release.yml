@@ -225,7 +225,7 @@ jobs:
         git clone ssh://aur@aur.archlinux.org/craftos-pc$LUAJIT.git
         cd craftos-pc$LUAJIT
         if [[ $GITHUB_REF =~ luajit ]]; then
-          lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') d65736d71a54bdf393f657ae0ecd7d333a07143b9842f759f09749ca5b7b6003
+          lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') e03dcb9b9f4b44e1d9bd17fadcf86f28edab5982f7e9cffebb53de73e8cfc04d
         else
           lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2-lua/archive/v$VERSION.tar.gz | shasum -a 256 | awk '{print $1;}')
         fi
