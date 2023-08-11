@@ -10,6 +10,7 @@
 
 extern "C" {
 #include <lualib.h>
+#include <luajit.h>
 }
 #include <fstream>
 #include <thread>
@@ -258,6 +259,10 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             return;
         }
         uncache_state(L);
+#if defined(__APPLE__) && defined(__arm64__)
+#warning JIT compilation is disabled by default on Apple Silicon
+        if (!luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE | LUAJIT_MODE_OFF)) printf("Failed to disable JIT\n"); // JIT does not work well on Apple Silicon; disable it for performance
+#endif
 
         self->coro = lua_newthread(L);
         self->paramQueue = lua_newthread(L);
