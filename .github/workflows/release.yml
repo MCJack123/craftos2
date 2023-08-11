@@ -188,6 +188,7 @@ jobs:
         if [ "a$LUAJIT" == "a" ]; then VERSION=1:$VERSION; fi
         REVISION=1
         if [ -e "debian/revision_$VERSION" ]; then REVISION=`cat debian/revision_$VERSION`; fi
+        if [ "$REVISION" != 1 ]; then EDITOR=/bin/true dpkg-source -q --commit . quickfix; fi
         echo "craftos-pc$LUAJIT ($VERSION-focal$REVISION) focal; urgency=medium" > debian/changelog
         echo "    " >> debian/changelog
         echo "$RELEASE_BODY" | sed 's/^/    /' >> debian/changelog
