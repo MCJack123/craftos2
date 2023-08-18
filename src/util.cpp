@@ -178,7 +178,7 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             if (pathc.empty() && addExt) return path_t();
             else if (pathc.empty()) pathc.push_back("..");
             else pathc.pop_back();
-        } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
+        } else if (!s.empty() && s.find_first_not_of(' ') != std::string::npos && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
             s = s.substr(s.find_first_not_of(' '), s.find_last_not_of(' ') - s.find_first_not_of(' ') + 1);
             s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
