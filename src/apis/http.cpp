@@ -799,6 +799,12 @@ struct ws_message {
     bool binary;
 };
 
+struct websocket_closed_data {
+    std::string url;
+    std::string reason;
+    uint16_t code;
+};
+
 static std::string websocket_failure(lua_State *L, void* userp) {
     websocket_failure_data * data = (websocket_failure_data*)userp;
     if (data->url.empty()) lua_pushnumber(L, data->port);
@@ -809,10 +815,14 @@ static std::string websocket_failure(lua_State *L, void* userp) {
 }
 
 static std::string websocket_closed(lua_State *L, void* userp) {
-    char * url = (char*)userp;
-    if (url == NULL) lua_pushnil(L);
-    else lua_pushstring(L, url);
-    delete[] url;
+    websocket_closed_data * data = (websocket_closed_data*)userp;
+    if (data == NULL) lua_pushnil(L);
+    else pushstring(L, data->url);
+    if (data->code != 0) {
+        pushstring(L, data->reason);
+        lua_pushinteger(L, data->code);
+    }
+    delete data;
     return "websocket_closed";
 }
 
@@ -1017,7 +1027,7 @@ public:
             int res;
             try {
                 res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
-                if (res == 0) {
+                if (res < 0 || (res == 0 && flags == 0)) {
                     wsh->ws = NULL;
                     queueEvent(comp, websocket_closed_server, wsh);
                     break;
@@ -1192,40 +1202,45 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         int res;
         try {
             res = ws->receiveFrame(buf, config.http_max_websocket_message, flags);
-            if (res <= 0) {
+            if (res < 0 || (res == 0 && flags == 0)) {
                 wsh->ws = NULL;
                 wsh->url = "";
-                char * sptr = new char[str.length()+1];
-                memcpy(sptr, str.c_str(), str.length());
-                sptr[str.length()] = 0;
-                queueEvent(comp, websocket_closed, sptr);
+                websocket_closed_data * d = new websocket_closed_data;
+                d->url = str;
+                d->code = 0;
+                queueEvent(comp, websocket_closed, d);
                 break;
             }
         } catch (Poco::TimeoutException &e) {
             if (!wsh->ws) {
-                char * sptr = new char[str.length()+1];
-                memcpy(sptr, str.c_str(), str.length());
-                sptr[str.length()] = 0;
-                queueEvent(comp, websocket_closed, sptr);
+                websocket_closed_data * d = new websocket_closed_data;
+                d->url = str;
+                d->code = 1006;
+                d->reason = "Timed out";
+                queueEvent(comp, websocket_closed, d);
                 break;
             }
             continue;
         } catch (NetException &e) {
             wsh->ws = NULL;
             wsh->url = "";
-            char * sptr = new char[str.length()+1];
-            memcpy(sptr, str.c_str(), str.length());
-            sptr[str.length()] = 0;
-            queueEvent(comp, websocket_closed, sptr);
+            websocket_closed_data * d = new websocket_closed_data;
+            d->url = str;
+            d->code = 1006;
+            d->reason = e.message();
+            queueEvent(comp, websocket_closed, d);
             break;
         }
         if ((flags & 0x0f) == WebSocket::FRAME_OP_CLOSE) {
             wsh->ws = NULL;
             wsh->url = "";
-            char * sptr = new char[str.length()+1];
-            memcpy(sptr, str.c_str(), str.length());
-            sptr[str.length()] = 0;
-            queueEvent(comp, websocket_closed, sptr);
+            websocket_closed_data * d = new websocket_closed_data;
+            d->url = str;
+            if (res >= 2) {
+                d->code = (((uint8_t*)buf)[0] << 8) | ((uint8_t*)buf)[1];
+                d->reason = std::string(buf + 2, res - 2);
+            } else d->code = 0;
+            queueEvent(comp, websocket_closed, d);
             break;
         } else if ((flags & 0x0f) == WebSocket::FRAME_OP_PING) {
             ws->sendFrame(buf, res, WebSocket::FRAME_FLAG_FIN | WebSocket::FRAME_OP_PONG);
