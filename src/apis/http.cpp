@@ -1033,7 +1033,7 @@ public:
                 queueEvent(comp, websocket_closed_server, wsh);
                 break;
             }
-            if ((flags & 0x0f) & WebSocket::FRAME_OP_CLOSE) {
+            if ((flags & 0x0f) == WebSocket::FRAME_OP_CLOSE) {
                 wsh->ws = NULL;
                 queueEvent(comp, websocket_closed_server, wsh);
                 break;
