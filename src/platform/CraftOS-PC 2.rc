@@ -77,12 +77,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "CraftOS-PC"
-            VALUE "FileVersion", "2.7.5.0"
+            VALUE "FileVersion", "2.7.6.0"
             VALUE "InternalName", "CraftOS-PC.exe"
             VALUE "LegalCopyright", "Copyright (C) 2019-2023 JackMacWindows."
             VALUE "OriginalFilename", "CraftOS-PC.exe"
             VALUE "ProductName", "CraftOS-PC"
-            VALUE "ProductVersion", "2.7.5.0"
+            VALUE "ProductVersion", "2.7.6.0"
         END
     END
     BLOCK "VarFileInfo"
