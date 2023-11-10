@@ -48,7 +48,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
     <None Include=".travis.yml">
       <Filter>Other Files</Filter>
     </None>
@@ -103,6 +102,9 @@
     <None Include="src\platform\ios.mm">
       <Filter>Source Files\platform</Filter>
     </None>
+    <None Include=".github\workflows\release.yml">
+      <Filter>Other Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="image1.bmp">
@@ -134,13 +136,22 @@
     <ClInclude Include="src\terminal\TRoRTerminal.hpp">
       <Filter>Header Files\terminal</Filter>
     </ClInclude>
+    <ClInclude Include="src\peripheral\chest.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
     <ClInclude Include="src\peripheral\computer.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
     <ClInclude Include="src\peripheral\debugger.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
+    <ClInclude Include="src\peripheral\debug_adapter.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
     <ClInclude Include="src\peripheral\drive.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\energy.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
     <ClInclude Include="src\peripheral\modem.hpp">
@@ -153,6 +164,9 @@
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
     <ClInclude Include="src\peripheral\speaker.hpp">
+      <Filter>Header Files\peripheral</Filter>
+    </ClInclude>
+    <ClInclude Include="src\peripheral\tank.hpp">
       <Filter>Header Files\peripheral</Filter>
     </ClInclude>
     <ClInclude Include="src\platform\resource.h">
@@ -247,13 +261,22 @@
     <ClCompile Include="src\platform\win.cpp">
       <Filter>Source Files\platform</Filter>
     </ClCompile>
+    <ClCompile Include="src\peripheral\chest.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
     <ClCompile Include="src\peripheral\computer_p.cpp">
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\debugger.cpp">
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
+    <ClCompile Include="src\peripheral\debug_adapter.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
     <ClCompile Include="src\peripheral\drive.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\energy.cpp">
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\modem.cpp">
@@ -269,6 +292,9 @@
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
     <ClCompile Include="src\peripheral\speaker_sounds.cpp">
+      <Filter>Source Files\peripheral</Filter>
+    </ClCompile>
+    <ClCompile Include="src\peripheral\tank.cpp">
       <Filter>Source Files\peripheral</Filter>
     </ClCompile>
     <ClCompile Include="src\terminal\CLITerminal.cpp">

@@ -5,7 +5,7 @@
  * This file defines some functions from gif.cpp for external use.
  *
  * This code is licensed in the public domain.
- * Copyright (c) 2019-2021 JackMacWindows, Charlie Tangora.
+ * Copyright (c) 2019-2023 JackMacWindows, Charlie Tangora.
  */
 
 #ifndef gif_h
@@ -72,7 +72,7 @@ struct GifWriter
 };
 
 extern bool GifBegin( GifWriter* writer, const char* filename, uint32_t width, uint32_t height, uint32_t delay, int32_t bitDepth = 8, bool dither = false );
-extern bool GifWriteFrame( GifWriter* writer, const uint8_t* image, uint32_t width, uint32_t height, uint32_t delay, int bitDepth = 8, bool dither = false );
+extern bool GifWriteFrame( GifWriter* writer, const uint8_t* image, uint32_t width, uint32_t height, uint32_t delay, int bitDepth = 8, bool dither = false, uint32_t * palette = NULL );
 extern bool GifEnd( GifWriter* writer );
 
 #endif

@@ -6,7 +6,7 @@
  * support the standard HTTP implementation using Poco.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #define CRAFTOSPC_INTERNAL
@@ -133,7 +133,7 @@ std::string http_success(lua_State *L, void* data) {
     emscripten_fetch_t ** handle = new emscripten_fetch_t*;
     *handle = (emscripten_fetch_t*)data;
     luaL_checkstack(L, 30, "Unable to allocate HTTP handle");
-    lua_pushstring(L, &(*handle)->url[strlen("https://cors-anywhere.herokuapp.com/")]);
+    lua_pushstring(L, &(*handle)->url[strlen("https://4eqvr0r8wh.execute-api.us-east-2.amazonaws.com/")]);
     lua_newtable(L);
 
     lua_pushstring(L, "close");
@@ -199,8 +199,8 @@ void downloadSucceeded(emscripten_fetch_t *fetch) {
 
 void downloadFailed(emscripten_fetch_t *fetch) {
     if (fetch->userData == NULL) return;
-    char * url = new char[strlen(fetch->url)-strlen("https://cors-anywhere.herokuapp.com/")+1];
-    strcpy(url, &fetch->url[strlen("https://cors-anywhere.herokuapp.com/")]);
+    char * url = new char[strlen(fetch->url)-strlen("https://4eqvr0r8wh.execute-api.us-east-2.amazonaws.com/")+1];
+    strcpy(url, &fetch->url[strlen("https://4eqvr0r8wh.execute-api.us-east-2.amazonaws.com/")]);
     queueEvent(((http_data_t*)fetch->userData)->comp, http_failure, url);
     delete (http_data_t*)fetch->userData;
     fetch->userData = NULL;
@@ -245,7 +245,7 @@ int http_request(lua_State *L) {
     }
     header_str[i] = NULL;
     attr.requestHeaders = header_str;
-    lua_pushstring(L, "https://cors-anywhere.herokuapp.com/");
+    lua_pushstring(L, "https://4eqvr0r8wh.execute-api.us-east-2.amazonaws.com/");
     lua_pushvalue(L, 1);
     lua_concat(L, 2);
     queueTask([L](void* attr)->void*{return emscripten_fetch((emscripten_fetch_attr_t*)attr, lua_tostring(L, -1));}, &attr);
@@ -256,7 +256,7 @@ int http_request(lua_State *L) {
 
 std::string http_check(lua_State *L, void* data) {
     http_check_t * res = (http_check_t*)data;
-    lua_pushlstring(L, res->url.c_str(), res->url.size());
+    pushstring(L, res->url);
     lua_pushboolean(L, res->status.empty());
     if (res->status.empty()) lua_pushnil(L);
     else lua_pushstring(L, res->status.c_str());
@@ -291,7 +291,7 @@ int http_checkURL(lua_State *L) {
     luaL_checkstring(L, 1);
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    param->url = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
+    param->url = std::string(lua_tostring(L, 1), lua_rawlen(L, 1));
     std::thread th(checkThread, param);
     setThreadName(th, "HTTP Check Thread");
     th.detach();

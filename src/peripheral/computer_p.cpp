@@ -5,7 +5,7 @@
  * This file defines the methods for the computer peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cstring>
@@ -50,7 +50,7 @@ int computer::getLabel(lua_State *L) {
 }
 
 computer::computer(lua_State *L, const char * side) {
-    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")
+    if (SDL_GetCurrentVideoDriver() != NULL && (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY"))
         throw std::runtime_error("Computers are not available when using the Linux framebuffer");
     if (strlen(side) < 10 || std::string(side).substr(0, 9) != "computer_" || (strlen(side) > 9 && !std::all_of(side + 9, side + strlen(side), ::isdigit))) 
         throw std::invalid_argument("\"side\" parameter must be a number (the computer's ID)");
@@ -85,7 +85,7 @@ int computer::call(lua_State *L, const char * method) {
     else if (m == "getID") return getID(L);
     else if (m == "isOn") return isOn(L);
     else if (m == "getLabel") return getLabel(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg computer_reg[] = {

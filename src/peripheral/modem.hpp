@@ -5,7 +5,7 @@
  * This file defines the class for the modem peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2021 JackMacWindows. 
+ * Copyright (c) 2019-2023 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_MODEM_HPP
@@ -18,8 +18,8 @@ class modem: public peripheral {
 private:
     friend std::string modem_message(lua_State *, void*);
     std::unordered_set<uint16_t> openPorts;
-    std::unordered_set<void*> modemMessages;
     Computer * comp;
+    int eventQueuePosition;
     lua_State * eventQueue;
     std::mutex eventQueueMutex;
     std::unordered_set<int> idsToDelete;
@@ -36,13 +36,17 @@ private:
     int isPresentRemote(lua_State *L);
     int getMethodsRemote(lua_State *L);
     int callRemote(lua_State *L);
-    void receive(uint16_t port, uint16_t replyPort, int id, modem * sender);
+    int hasTypeRemote(lua_State *L);
+    int getNameLocal(lua_State *L);
+    void receive(lua_State *data, uint16_t port, uint16_t replyPort, modem * sender);
 public:
     static library_t methods;
+    static std::vector<std::string> types;
     static peripheral * init(lua_State *L, const char * side) {return new modem(L, side);}
     static void deinit(peripheral * p) {delete (modem*)p;}
     destructor getDestructor() const override {return deinit;}
     library_t getMethods() const override {return methods;}
+    std::vector<std::string> getTypes() const override {return types;}
     modem(lua_State *L, const char * side);
     ~modem();
     int call(lua_State *L, const char * method) override;

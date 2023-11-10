@@ -3,12 +3,16 @@ name: Release
 on:
   release:
     types: [published]
+    branches:
+      - master
+      - luajit
 
 jobs:
   reddit:
+    name: Publish Reddit post
     runs-on: ubuntu-latest
     steps:
-    - uses: BjornLuG/release-for-reddit-action@v1
+    - uses: BjornLuG/release-for-reddit-action@v2
       with:
         username: ${{ secrets.REDDIT_USERNAME }}
         password: ${{ secrets.REDDIT_PASSWORD }}
@@ -19,23 +23,339 @@ jobs:
         comment: ${{ github.event.release.body }}
         flair-id: 33b418d2-8e71-11ea-b7d8-0e1aee799c6b
 
-  hashes:
+  release-windows:
+    name: Package Windows installers
+    runs-on: windows-2022
+    environment: production
+    steps:
+    - name: Wait for build to complete
+      uses: MCJack123/wait-on-check-action@master
+      with:
+        ref: ${{ github.ref }}
+        check-name: 'Build Windows'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        wait-interval: 10
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: git clone https://github.com/MCJack123/craftos2-rom $env:GITHUB_WORKSPACE\craftos2-rom
+    - name: Download resources
+      run: git clone https://github.com/MCJack123/craftos2-release-resources $env:GITHUB_WORKSPACE\craftos2-release-resources
+    - name: Download built executables
+      uses: dawidd6/action-download-artifact@v2.22.0
+      with:
+        github_token: ${{secrets.GITHUB_TOKEN}}
+        workflow: main.yml
+        commit: ${{ github.sha }}
+        name: CraftOS-PC-Artifact
+        path: ${{ github.workspace }}\bin
+    - name: Build installer
+      env:
+        TAG_NAME: ${{ github.event.release.tag_name }}
+      run: |
+        $env:GITHUB_REF -match "[0-9\.]+"
+        $VERSION=$matches[0]
+        & "C:\Program Files (x86)\Inno Setup 6\iscc" /DMyAppVersion=$VERSION /DWorkspaceDir=$env:GITHUB_WORKSPACE $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\CraftOS-PC.iss
+    - name: Build delta installer
+      env:
+        TAG_NAME: ${{ github.event.release.tag_name }}
+      run: |
+        $env:GITHUB_REF -match "[0-9\.]+"
+        $VERSION=$matches[0]
+        $delta_version=Get-Content "$env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll\version.txt"
+        chcp 65001
+        echo ("DELTA_VERSION=" + $delta_version) >> $env:GITHUB_ENV
+        if ( "$env:TAG_NAME" -ne $delta_version ) {
+          & "C:\Program Files (x86)\Inno Setup 6\iscc" /DMyAppVersion=$VERSION /DWorkspaceDir=$env:GITHUB_WORKSPACE /DDeltaVersion=$delta_version $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\CraftOS-PC-Delta.iss
+        }
+    - name: Build portable package
+      run: |
+        echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\bios.lua $env:GITHUB_WORKSPACE\bin\bios.lua /Q /K /Y
+        echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\hdfont.bmp $env:GITHUB_WORKSPACE\bin\hdfont.bmp /Q /K /Y
+        echo D | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\rom $env:GITHUB_WORKSPACE\bin\rom /E /Q /K /Y
+        echo D | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\debug $env:GITHUB_WORKSPACE\bin\debug /E /Q /K /Y
+        xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll\* $env:GITHUB_WORKSPACE\bin\ /Q /K /Y
+        echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\LICENSE.txt $env:GITHUB_WORKSPACE\bin\LICENSE.txt /Q /K /Y
+        cd $env:GITHUB_WORKSPACE\bin
+        Compress-Archive -Path * -DestinationPath ..\CraftOS-PC-Portable-Win64.zip
+    - name: Upload installer
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ github.workspace }}\CraftOS-PC-Setup.exe
+        asset_name: CraftOS-PC-Setup.exe
+        asset_content_type: application/vnd.microsoft.portable-executable
+    - name: Check if delta was built
+      id: check_files
+      uses: andstor/file-existence-action@v2.0.0
+      with:
+        files: "${{ github.workspace }}\\CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe"
+    - name: Upload delta installer
+      if: steps.check_files.outputs.files_exists == 'true'
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ github.workspace }}\CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe
+        asset_name: CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe
+        asset_content_type: application/vnd.microsoft.portable-executable
+    - name: Upload portable archive
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ github.workspace }}\CraftOS-PC-Portable-Win64.zip
+        asset_name: CraftOS-PC-Portable-Win64.zip
+        asset_content_type: application/zip
+
+  release-mac:
+    name: Build macOS binary
+    runs-on: macos-latest
+    environment: production
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: git clone https://github.com/MCJack123/craftos2-rom $GITHUB_WORKSPACE/craftos2-rom
+    - name: Download resources
+      run: git clone https://github.com/MCJack123/craftos2-release-resources $GITHUB_WORKSPACE/craftos2-release-resources
+    - name: Install signing certificates
+      env: 
+        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        NOTARIZATION_CERTIFICATE: ${{ secrets.NOTARIZATION_CERTIFICATE }}
+      run: |
+        . $GITHUB_WORKSPACE/craftos2-release-resources/mac/build.sh setup
+    - name: Build CraftOS-PC
+      run: |
+        . $GITHUB_WORKSPACE/craftos2-release-resources/mac/build.sh build
+    - name: Build and notarize disk image
+      run: |
+        . $GITHUB_WORKSPACE/craftos2-release-resources/mac/build.sh sign
+    - name: Upload disk image
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: CraftOS-PC.dmg
+        asset_name: CraftOS-PC.dmg
+        asset_content_type: application/octet-stream
+
+  release-ubuntu:
+    name: Upload Ubuntu PPA package
+    runs-on: ubuntu-20.04
+    environment: production
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        path: craftos2
+        submodules: true
+    - name: Download resources
+      run: git clone https://github.com/MCJack123/craftos2-release-resources $GITHUB_WORKSPACE/craftos2-release-resources
+    - name: Install dependencies
+      env:
+        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+      run: |
+        sudo add-apt-repository -y ppa:jackmacwindows/ppa
+        sudo apt install -y devscripts dput lintian debhelper zsh unzip libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev craftos-pc-data craftos-pc
+        echo "$GPG_SIGNING_KEY" > signing.asc
+        gpg --import signing.asc
+        rm signing.asc
+    - name: Set up build directory
+      env:
+        RELEASE_BODY: ${{ github.event.release.body }}
+        RELEASE_TAR_URL: ${{ github.event.release.tarball_url }}
+      run: |
+        set -o xtrace
+        LUAJIT=
+        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
+        VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
+        cd $GITHUB_WORKSPACE/..
+        curl -Lo craftos-pc${LUAJIT}_$VERSION.orig.tar.gz $RELEASE_TAR_URL
+        BASENAME=$(tar -tf craftos-pc${LUAJIT}_$VERSION.orig.tar.gz | head -n 1 | grep -o '^[^/]*')
+        gunzip craftos-pc${LUAJIT}_$VERSION.orig.tar.gz
+        if [[ $GITHUB_REF =~ luajit ]]; then
+          tar -rf craftos-pc-accelerated_$VERSION.orig.tar --transform s/craftos2\\//$BASENAME\\// craftos2/craftos2-luajit
+        else
+          tar -rf craftos-pc_$VERSION.orig.tar --transform s/craftos2\\//$BASENAME\\// craftos2/craftos2-lua
+        fi
+        gzip craftos-pc${LUAJIT}_$VERSION.orig.tar
+        cd craftos2
+        cp -Rp $GITHUB_WORKSPACE/craftos2-release-resources/ubuntu/debian_craftos-pc$LUAJIT debian
+        if [ "a$LUAJIT" == "a" ]; then VERSION=1:$VERSION; fi
+        REVISION=1
+        if [ -e "debian/revision_$VERSION" ]; then REVISION=`cat debian/revision_$VERSION`; fi
+        echo "craftos-pc$LUAJIT ($VERSION-focal$REVISION) focal; urgency=medium" > debian/changelog
+        echo "    " >> debian/changelog
+        echo "$RELEASE_BODY" | sed 's/^/    /' >> debian/changelog
+        echo "    " >> debian/changelog
+        echo " -- JackMacWindows <jackmacwindowslinux@gmail.com>  $(date "+%a, %d %b %Y %T %z")" >> debian/changelog
+        echo "" >> debian/changelog
+        gunzip -c /usr/share/doc/craftos-pc${LUAJIT}/changelog.Debian.gz >> debian/changelog
+        rm -r craftos2-release-resources
+    - name: Build package
+      run: zsh debian/buildall.sh
+
+  release-arch:
+    name: Update Arch AUR `craftos-pc` package
     runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - name: Download resources
+      run: git clone https://github.com/MCJack123/craftos2-release-resources $GITHUB_WORKSPACE/craftos2-release-resources
+    - name: Set up environment
+      env:
+        AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+      run: |
+        mkdir ~/.ssh
+        echo "$AUR_SSH_KEY" > ~/.ssh/aur
+        echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDgQDY289yNsiosJ7Q3SSpSDd27TCzodId0SifsDuryyLSpDpLW6ZvwBZaItnPbEluXx2RsIxw9IdP6HdObHIj7Wvhn3EoAHuVP0EFJpbDnWqw4lZ5UkYHp58vmjSdcv8xJYsCzgvWOG1ZORCQW0GpAQzR8uLSXO6iWd6nAmPSqT8TYMS9Dra9Lf+xl69ctxrGaCbhq1/s6189wEdUEkfNxV7IhMcAyaOmZVieEl/aEko2/Ko+mzBjDvIJ+aKhfHBShpqOA1bf3cwyePuVl8sXqheLQB01Ky+0WdS95D1FMmkIYa9XHO17M12KGl0V6J+UFg5olnEPAstwqsj/ZXeuRruG31vdpeWZ57Bekzji0Q5J1RA1JBG+nVWLT6k4XOY3RwCfPRASyrAcc5iciAb0EaMfuXEBgegyiwdPh8iHIk4rt2PboSGdxeguN0hIsb3OKJW9/l7xToLBzMqvC46EE0Hef/4+NNzhkvUtOYC5RORkJYtmF10fTRD5pWFvhxKU= aur@aur.archlinux.org" > ~/.ssh/aur.pub
+        printf "Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur\n  User aur\n" > ~/.ssh/config
+        ssh-keyscan -t rsa aur.archlinux.org > ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/aur ~/.ssh/known_hosts
+        git config --global user.name MCJack123
+        git config --global user.email jackmacwindowslinux@gmail.com
+        sudo apt install -y lua5.3
+    - name: Upload package
+      run: |
+        LUAJIT=
+        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
+        VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
+        git clone ssh://aur@aur.archlinux.org/craftos-pc$LUAJIT.git
+        cd craftos-pc$LUAJIT
+        if [[ $GITHUB_REF =~ luajit ]]; then
+          lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') e03dcb9b9f4b44e1d9bd17fadcf86f28edab5982f7e9cffebb53de73e8cfc04d
+        else
+          lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2-lua/archive/v$VERSION.tar.gz | shasum -a 256 | awk '{print $1;}')
+        fi
+        cat PKGBUILD .SRCINFO
+        git add PKGBUILD .SRCINFO
+        git commit -a -m "$GITHUB_REF"
+        git push
+
+  release-appimage:
+    name: Build Linux AppImage
+    runs-on: ubuntu-20.04
+    environment: production
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
+    - name: Install dependencies
+      env:
+        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+      run: |
+        sudo apt update
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev patchelf lua5.4
+        sudo curl -sLo /usr/bin/appimagetool https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+        sudo chmod a+x /usr/bin/appimagetool
+        echo "$GPG_SIGNING_KEY" > signing.asc
+        gpg --import signing.asc
+        rm signing.asc
+    - name: Build Lua
+      run: |
+        git submodule update --init --recursive
+        if [[ ! $GITHUB_REF =~ luajit ]]; then make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}'); fi
+    - name: Build CraftOS-PC
+      run: |
+        ./configure
+        make PREFIX=././ -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
+        if [[ ! $GITHUB_REF =~ luajit ]]; then patchelf --replace-needed craftos2-lua/src/liblua.so libcraftos2-lua.so craftos; fi
+        strip craftos
+    - name: Build AppImage
+      run: |
+        mkdir icons
+        unzip resources/linux-icons.zip -d icons
+        mkdir AppDir
+        curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
+        chmod a+x AppDir/AppRun
+        if [[ $GITHUB_REF =~ luajit ]]; then
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC-Accelerated.desktop
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC-Accelerated.desktop
+          install -D -m 0644 icons/1024.png AppDir/craftos-luajit.png
+          install -D -m 0755 craftos AppDir/usr/bin/craftos-luajit
+          install -D -m 0755 craftos2-luajit/src/libluajit.so AppDir/usr/lib/libluajit.so
+          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC-Accelerated.appdata.xml
+        else
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
+          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
+          install -D -m 0644 icons/1024.png AppDir/craftos.png
+          install -D -m 0755 craftos AppDir/usr/bin/craftos
+          install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
+          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
+        fi
+        mkdir -p AppDir/usr/share/craftos
+        cp -Rp /usr/local/share/craftos/rom /usr/local/share/craftos/debug /usr/local/share/craftos/bios.lua /usr/local/share/craftos/hdfont.bmp AppDir/usr/share/craftos/
+        # this gets all libraries required recursively (?)
+        ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
+        cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
+        mkdir -p AppDir/etc/ssl/certs
+        cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
+        lua -e 'local file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "rb")) local data = file:read("*a") file:close() file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "wb")) file:write(data:gsub("/usr(/lib/ssl[^\0]*\0)", ".%1\0\0\0")) file:close()'
+        appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
+    - name: Upload AppImage
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: CraftOS-PC.x86_64.AppImage
+        asset_name: CraftOS-PC.x86_64.AppImage
+        asset_content_type: application/octet-stream
+
+  release-arch-appimage:
+    name: Update Arch AUR `craftos-pc-bin` package
+    runs-on: ubuntu-latest
+    needs: [release-appimage]
+    environment: production
+    steps:
+    - name: Download resources
+      run: git clone https://github.com/MCJack123/craftos2-release-resources $GITHUB_WORKSPACE/craftos2-release-resources
+    - name: Set up environment
+      env:
+        AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+      run: |
+        mkdir ~/.ssh
+        echo "$AUR_SSH_KEY" > ~/.ssh/aur
+        echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDgQDY289yNsiosJ7Q3SSpSDd27TCzodId0SifsDuryyLSpDpLW6ZvwBZaItnPbEluXx2RsIxw9IdP6HdObHIj7Wvhn3EoAHuVP0EFJpbDnWqw4lZ5UkYHp58vmjSdcv8xJYsCzgvWOG1ZORCQW0GpAQzR8uLSXO6iWd6nAmPSqT8TYMS9Dra9Lf+xl69ctxrGaCbhq1/s6189wEdUEkfNxV7IhMcAyaOmZVieEl/aEko2/Ko+mzBjDvIJ+aKhfHBShpqOA1bf3cwyePuVl8sXqheLQB01Ky+0WdS95D1FMmkIYa9XHO17M12KGl0V6J+UFg5olnEPAstwqsj/ZXeuRruG31vdpeWZ57Bekzji0Q5J1RA1JBG+nVWLT6k4XOY3RwCfPRASyrAcc5iciAb0EaMfuXEBgegyiwdPh8iHIk4rt2PboSGdxeguN0hIsb3OKJW9/l7xToLBzMqvC46EE0Hef/4+NNzhkvUtOYC5RORkJYtmF10fTRD5pWFvhxKU= aur@aur.archlinux.org" > ~/.ssh/aur.pub
+        printf "Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur\n  User aur\n" > ~/.ssh/config
+        ssh-keyscan -t rsa aur.archlinux.org > ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/aur ~/.ssh/known_hosts
+        git config --global user.name MCJack123
+        git config --global user.email jackmacwindowslinux@gmail.com
+        sudo apt install -y lua5.3
+    - name: Upload package
+      run: |
+        LUAJIT=
+        if [[ $GITHUB_REF =~ luajit ]]; then LUAJIT=-accelerated; fi
+        VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
+        git clone ssh://aur@aur.archlinux.org/craftos-pc$LUAJIT-bin.git
+        cd craftos-pc$LUAJIT-bin
+        lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-bin-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2/releases/download/$GITHUB_REF/CraftOS-PC.x86_64.AppImage | shasum -a 256 | awk '{print $1;}')
+        cat PKGBUILD .SRCINFO
+        git add PKGBUILD .SRCINFO
+        git commit -a -m "$GITHUB_REF"
+        git push
+
+  hashes:
+    name: Generate release hashes
+    runs-on: ubuntu-latest
+    needs: [release-windows, release-mac, release-appimage]
     steps:
       - name: Generate Release Hashes
-        uses: MCJack123/ghaction-Generate-Release-Hashes@v2
+        uses: MCJack123/ghaction-Generate-Release-Hashes@v4
         with:
           file-name: hashes.txt
+          get-assets: "true"
       - name: Upload a Release Asset
-        uses: actions/upload-release-asset@v1.0.2
+        uses: shogo82148/actions-upload-release-asset@v1.6.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # The URL for uploading assets to the release
           upload_url: ${{ github.event.release.upload_url }}
-          # The path to the asset you want to upload
           asset_path: hashes.txt
-          # The name of the asset you want to upload
           asset_name: sha256-hashes.txt
-          # The content-type of the asset you want to upload. See the supported Media Types here: https://www.iana.org/assignments/media-types/media-types.xhtml for more information
           asset_content_type: text/plain

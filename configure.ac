@@ -7,6 +7,8 @@ m4_include([m4/find_cxx11.m4])
 # Options
 AC_ARG_WITH(png, [AS_HELP_STRING([--with-png], [support PNG screenshots])])
 AC_ARG_WITH(png, [AS_HELP_STRING([--without-png], [do not support PNG screenshots])])
+AC_ARG_WITH(webp, [AS_HELP_STRING([--with-webp], [support WebP screenshots/recordings])])
+AC_ARG_WITH(webp, [AS_HELP_STRING([--without-webp], [do not support WebP screenshots/recordings])])
 AC_ARG_WITH(ncurses, [AS_HELP_STRING([--with-ncurses], [support CLI mode])])
 AC_ARG_WITH(ncurses, [AS_HELP_STRING([--without-ncurses], [do not support CLI mode])])
 AC_ARG_WITH(sdl_mixer, [AS_HELP_STRING([--with-sdl_mixer], [support audio disks])])
@@ -41,19 +43,19 @@ if test "x$enable_wasm" = "xyes"; then
     SQBRCL=@:>@
     CC=emcc
     CXX=em++
-    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -Iapi -DNO_CLI -DNO_PNG -DPRINT_TYPE=1"
-    CXXFLAGS="$CXXFLAGS -std=c++11 -s USE_SDL=2 -s USE_PTHREADS=1 -s USE_SDL_MIXER=2 -Wno-implicit-const-int-float-conversion -Wno-pthreads-mem-growth"
+    CPPFLAGS="$CPPFLAGS -I$with_wasm_poco/include -Icraftos2-lua/include -Iapi -DNO_CLI -DNO_PNG -DNO_WEBP -DPRINT_TYPE=1"
+    CXXFLAGS="$CXXFLAGS -std=c++17 -s USE_SDL=2 -s USE_PTHREADS=1 -s USE_SDL_MIXER=2 -Wno-implicit-const-int-float-conversion -Wno-pthreads-mem-growth"
     LDFLAGS="$LDFLAGS -L$with_wasm_poco/lib -lidbfs.js -s USE_SDL=2 -s USE_SDL_MIXER=2 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s TOTAL_MEMORY=33554432 -s DISABLE_EXCEPTION_CATCHING=0 -s FETCH=1 -s DEMANGLE_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=$SQBROP\"ccall\",\"cwrap\"$SQBRCL -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 --no-heap-copy -Wno-pthreads-mem-growth"
 fi
 
 # Check language
 AC_LANG([C++])
-CXXFLAGS="$CXXFLAGS -std=c++14"
+CXXFLAGS="$CXXFLAGS -std=c++17"
 CPPFLAGS="$CPPFLAGS -Icraftos2-lua/include -I/usr/local/opt/openssl/include"
 LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
 AC_PROG_CC
 AC_PROG_CXX
-AX_CHECK_COMPILE_FLAG([-std=c++14], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++14.])])
+AX_CHECK_COMPILE_FLAG([-std=c++17], [], [AC_MSG_ERROR([C++ compiler does not support -std=c++17.])])
 
 # Find required libraries
 
@@ -112,9 +114,15 @@ if test "x$enable_wasm" != "xyes"; then
         AC_SEARCH_LIBS(png_init_io, png, [], [AS_IF([test "x$with_png" = "xyes"], [AC_MSG_ERROR([Could not find libpng library.])], [NO_PNG=1])])
     ], [NO_PNG=1])
 
+    AS_IF([test "x$with_webp" != "xno"], [
+        AC_CHECK_HEADERS([webp/mux.h], [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find webp header.])], [NO_WEBP=1])])
+        AC_SEARCH_LIBS(WebPEncodeRGB, webp, [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find libwebp library.])], [NO_WEBP=1])])
+        AC_SEARCH_LIBS(WebPAnimEncoderNewInternal, webpmux, [], [AS_IF([test "x$with_webp" = "xyes"], [AC_MSG_ERROR([Could not find libwebp library.])], [NO_WEBP=1])])
+    ], [NO_WEBP=1])
+
     AS_IF([test "x$with_ncurses" != "xno"], [
         AC_CHECK_HEADERS(ncurses.h, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses header.])], [NO_CLI=1])])
-        AC_SEARCH_LIBS(initscr, ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
+        AC_SEARCH_LIBS(initscr, ncursesw ncurses, [], [AS_IF([test "x$with_ncurses" = "xyes"], [AC_MSG_ERROR([Could not find ncurses library.])], [NO_CLI=1])])
     ], [NO_CLI=1])
 
     AS_IF([test "x$with_sdl_mixer" != "xno"], [
@@ -131,6 +139,7 @@ if test "x$enable_wasm" != "xyes"; then
     ], [])
 
     if test "x$NO_PNG" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_PNG"; fi
+    if test "x$NO_WEBP" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_WEBP"; fi
     if test "x$NO_CLI" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_CLI"; fi
     if test "x$NO_MIXER" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_MIXER"; fi
     if test "x$PRINT_TYPE" != "x"; then CPPFLAGS="$CPPFLAGS -DPRINT_TYPE=$PRINT_TYPE"; fi

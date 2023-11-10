@@ -2,10 +2,10 @@
  * peripheral/debugger.cpp
  * CraftOS-PC 2
  * 
- * This file defines the methods for the debugger peripheral.
+ * This file implements the methods for the debugger peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <string>
@@ -14,10 +14,15 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side);
 #include "../runtime.hpp"
 static int debugger_lib_getInfo(lua_State *L);
 #include "debugger.hpp"
+#include "debug_adapter.hpp"
 #include <FileEntry.hpp>
 #include "../platform.hpp"
 #include "../terminal/CLITerminal.hpp"
 #include "../termsupport.hpp"
+
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
 
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
@@ -30,12 +35,15 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread (Debugger)").c_str());
 #endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
+#endif
     // in case the allocator decides to reuse pointers
     if (freedComputers.find(comp) != freedComputers.end()) freedComputers.erase(comp);
 #ifdef STANDALONE_ROM
-    runComputer(comp, wstr(standaloneDebug["bios.lua"].data));
+    runComputer(comp, "debug/bios.lua", standaloneDebug["bios.lua"].data);
 #else
-    runComputer(comp, WS("debug/bios.lua"));
+    runComputer(comp, path_t("debug")/"bios.lua");
 #endif
     freedComputers.insert(comp);
     {
@@ -57,7 +65,7 @@ static void debuggerThread(Computer * comp, void * dbgv, std::string side) {
             dbg->computer->peripherals.erase(side);
         }
         dbg->computer->shouldDeinitDebugger = true;
-        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL, true);
+        queueTask([comp](void*)->void*{delete comp; return NULL;}, NULL);
     }
 }
 
@@ -68,6 +76,7 @@ static int debugger_lib_waitForBreak(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     Computer * comp = get_comp(L);
+    if (dbg->waitingForBreak) return 0;
     std::thread th([dbg](Computer*comp){
         dbg->didBreak = false;
         dbg->waitingForBreak = true;
@@ -153,8 +162,8 @@ static int debugger_lib_getInfo(lua_State *L) {
     lua_Debug ar;
     if (!lua_getstack(dbg->thread, lua_isnumber(L, 1) ? (int)lua_tointeger(L, 1) : 0, &ar)) lua_pushnil(L);
     else {
-        lua_getinfo(dbg->thread, "nSl", &ar);
-        lua_createtable(L, 0, 2);
+        lua_getinfo(dbg->thread, "nSliu", &ar);
+        lua_createtable(L, 0, 12);
         settabss(L, "source", ar.source);
         settabss(L, "short_src", ar.short_src);
         settabsi(L, "linedefined", ar.linedefined);
@@ -163,6 +172,11 @@ static int debugger_lib_getInfo(lua_State *L) {
         settabsi(L, "currentline", ar.currentline);
         settabss(L, "name", ar.name);
         settabss(L, "namewhat", ar.namewhat);
+        settabsi(L, "instruction", ar.instruction);
+        settabsi(L, "nups", ar.nups);
+        settabsi(L, "nparams", ar.nparams);
+        lua_pushboolean(L, ar.isvararg);
+        lua_setfield(L, -2, "isvararg");
     }
     return 1;
 }
@@ -172,7 +186,18 @@ static int debugger_lib_setBreakpoint(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     const int id = !dbg->computer->breakpoints.empty() ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
-    dbg->computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(dbg->computer, lua_tostring(L, 1), false, false)), lua_tointeger(L, 2));
+    dbg->computer->breakpoints[id] = std::make_pair("@/" + fixpath(dbg->computer, lua_tostring(L, 1), false, false).string(), lua_tointeger(L, 2));
+    dbg->computer->hasBreakpoints = true;
+    lua_pushinteger(L, id);
+    return 1;
+}
+
+static int debugger_lib_setFunctionBreakpoint(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    const int id = !dbg->computer->breakpoints.empty() ? dbg->computer->breakpoints.rbegin()->first + 1 : 1;
+    dbg->computer->breakpoints[id] = std::make_pair(tostring(L, 1), -1);
     dbg->computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
@@ -227,7 +252,10 @@ static int debugger_lib_local_index(lua_State *L) {
             }
             lua_pushstring(L, name);
             if (L == thread) lua_pushvalue(L, -2);
-            else lua_xmove(thread, L, 1);
+            else {
+                xcopy(thread, L, 1);
+                lua_pop(thread, 1);
+            }
             lua_settable(L, L == thread ? -4 : -3);
             if (L == thread) lua_pop(L, 1);
         }
@@ -236,8 +264,14 @@ static int debugger_lib_local_index(lua_State *L) {
         const char * name, *search = lua_tostring(L, 2);
         for (int i = 0; lua_getstack(thread, i, &ar); i++) {
             for (int j = 1; (name = lua_getlocal(thread, &ar, j)) != NULL; j++) {
-                if (strcmp(search, name) == 0) return 1;
-                else lua_pop(L, 1);
+                if (strcmp(search, name) == 0) {
+                    if (L != thread) {
+                        xcopy(thread, L, 1);
+                        lua_pop(thread, 1);
+                    }
+                    return 1;
+                }
+                else lua_pop(thread, 1);
             }
         }
         lua_pushnil(L);
@@ -258,10 +292,11 @@ static int debugger_lib_local_newindex(lua_State *L) {
     for (int i = 0; lua_getstack(thread, i, &ar); i++) {
         for (int j = 1; (name = lua_getlocal(thread, &ar, j)) != NULL; j++) {
             if (strcmp(search, name) == 0) {
-                lua_setlocal(thread, &ar, 2);
+                if (L != thread) xcopy(L, thread, 1);
+                lua_setlocal(thread, &ar, j);
                 return 0;
             }
-            else lua_pop(L, 1);
+            else lua_pop(thread, 1);
         }
     }
     return 0;
@@ -270,6 +305,74 @@ static int debugger_lib_local_newindex(lua_State *L) {
 static int debugger_lib_local_tostring(lua_State *L) {
     lastCFunction = __func__;
     lua_pushstring(L, "locals table");
+    return 1;
+}
+
+static int debugger_lib_upvalue_index(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    if (lua_isnumber(L, 2)) {
+        const char * name;
+        lua_newtable(L);
+        for (int i = 1; (name = lua_getupvalue(thread, (int)lua_tointeger(L, 2), i)) != NULL; i++) {
+            lua_pushstring(L, name);
+            if (L == thread) lua_pushvalue(L, -2);
+            else {
+                xcopy(thread, L, 1);
+                lua_pop(thread, 1);
+            }
+            lua_settable(L, L == thread ? -4 : -3);
+            if (L == thread) lua_pop(L, 1);
+        }
+        return 1;
+    } else if (lua_isstring(L, 2)) {
+        const char * name, *search = lua_tostring(L, 2);
+        lua_Debug ar;
+        for (int i = 0; lua_getstack(thread, i, &ar); i++) {
+            for (int j = 1; (name = lua_getupvalue(thread, i, j)) != NULL; j++) {
+                if (strcmp(search, name) == 0) {
+                    if (L != thread) {
+                        xcopy(thread, L, 1);
+                        lua_pop(thread, 1);
+                    }
+                    return 1;
+                }
+                else lua_pop(thread, 1);
+            }
+        }
+        lua_pushnil(L);
+        return 1;
+    } else {
+        lua_pushnil(L);
+        return 1;
+    }
+}
+
+static int debugger_lib_upvalue_newindex(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_Debug ar;
+    const char * name, *search = luaL_checkstring(L, 2);
+    for (int i = 0; lua_getstack(thread, i, &ar); i++) {
+        for (int j = 1; (name = lua_getupvalue(thread, i, j)) != NULL; j++) {
+            if (strcmp(search, name) == 0) {
+                if (L != thread) xcopy(L, thread, 1);
+                lua_setupvalue(thread, i, j);
+                return 0;
+            }
+            else lua_pop(thread, 1);
+        }
+    }
+    return 0;
+}
+
+static int debugger_lib_upvalue_tostring(lua_State *L) {
+    lastCFunction = __func__;
+    lua_pushstring(L, "upvalues table");
     return 1;
 }
 
@@ -284,9 +387,9 @@ static int debugger_lib_run(lua_State *L) {
     lua_settop(L, 1);
     const int top = lua_gettop(dbg->thread); // ...
     luaL_loadstring(dbg->thread, lua_tostring(L, 1)); // ..., func
-    luaL_loadstring(dbg->thread, "return setmetatable({_echo = function(...) return ... end, getfenv = getfenv, locals = ..., _ENV = getfenv(2)}, {__index = getfenv(2)})"); // ..., func, getenv
-    lua_pushlightuserdata(dbg->thread, NULL); // ..., func, getenv, locals
-    lua_newtable(dbg->thread); // ..., func, getenv, locals, mt
+    luaL_loadstring(dbg->thread, "local locals, upvalues = ... local t = setmetatable({_echo = function(...) return ... end, locals = locals, upvalues = upvalues, getfenv = getfenv, _ENV = getfenv(2)}, {__index = function(_, idx) if locals[idx] ~= nil then return locals[idx] elseif upvalues[idx] ~= nil then return upvalues[idx] else return getfenv(2)[idx] end end}) return t"); // ..., func, getenv
+    lua_newuserdata(dbg->thread, 0); // ..., func, getenv, locals
+    lua_createtable(dbg->thread, 0, 3); // ..., func, getenv, locals, mt
     lua_pushcfunction(dbg->thread, debugger_lib_local_index); // ..., func, getenv, locals, mt, __index
     lua_setfield(dbg->thread, -2, "__index"); // ..., func, getenv, locals, mt
     lua_pushcfunction(dbg->thread, debugger_lib_local_newindex); // ..., func, getenv, locals, mt, __newindex
@@ -294,13 +397,22 @@ static int debugger_lib_run(lua_State *L) {
     lua_pushcfunction(dbg->thread, debugger_lib_local_tostring); // ..., func, getenv, locals, mt, __tostring
     lua_setfield(dbg->thread, -2, "__tostring"); // ..., func, getenv, locals, mt
     lua_setmetatable(dbg->thread, -2); // ..., func, getenv, locals (w/mt)
-    const int status = lua_pcall(dbg->thread, 1, 1, 0); // ..., func, env
+    lua_newuserdata(dbg->thread, 0); // ..., func, getenv, locals (w/mt), upvalues
+    lua_createtable(dbg->thread, 0, 3); // ..., func, getenv, locals (w/mt), upvalues, mt
+    lua_pushcfunction(dbg->thread, debugger_lib_upvalue_index); // ..., func, getenv, locals (w/mt), upvalues, mt, __index
+    lua_setfield(dbg->thread, -2, "__index"); // ..., func, getenv, locals (w/mt), upvalues, mt
+    lua_pushcfunction(dbg->thread, debugger_lib_upvalue_newindex); // ..., func, locals (w/mt), getenv, upvalues, mt, __newindex
+    lua_setfield(dbg->thread, -2, "__newindex"); // ..., func, getenv, locals (w/mt), upvalues, mt
+    lua_pushcfunction(dbg->thread, debugger_lib_upvalue_tostring); // ..., func, getenv, upvalues (w/mt), upvalues, mt, __tostring
+    lua_setfield(dbg->thread, -2, "__tostring"); // ..., func, getenv, locals (w/mt), upvalues, mt
+    lua_setmetatable(dbg->thread, -2); // ..., func, getenv, locals (w/mt), upvalues (w/mt)
+    const int status = lua_pcall(dbg->thread, 2, 1, 0); // ..., func, env
     if (status != 0) {
-        fprintf(stderr, "Error while loading debug environment: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
-        lua_createtable(L, 0, 1);
-        lua_pushcfunction(L, _echo);
-        lua_setfield(L, -2, "_echo");
+        fprintf(stderr, "Error while loading debug environment: %s\n", lua_tostring(dbg->thread, -1));
+        lua_pop(dbg->thread, 1);
+        lua_createtable(dbg->thread, 0, 1);
+        lua_pushcfunction(dbg->thread, _echo);
+        lua_setfield(dbg->thread, -2, "_echo");
     }
     lua_setupvalue(dbg->thread, -2, 1); // ..., func (w/env)
     lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0)); // ..., results...
@@ -389,7 +501,10 @@ static int debugger_lib_getLocals(lua_State *L) {
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
     lua_State *thread = (dbg == NULL) ? L : dbg->thread;
     lua_Debug ar;
-    lua_getstack(thread, 3, &ar);
+    if (!lua_getstack(thread, luaL_optinteger(L, 1, 1), &ar)) {
+        lua_newtable(L);
+        return 1;
+    }
     lua_newtable(L);
     const char * name;
     for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
@@ -398,12 +513,85 @@ static int debugger_lib_getLocals(lua_State *L) {
             continue;
         }
         lua_pushstring(L, name);
-        if (thread != L) lua_xmove(thread, L, 1);
+        if (thread != L) xcopy(thread, L, 1);
         else { lua_pushvalue(L, -2); lua_remove(L, -3); }
         lua_settable(L, -3);
     }
     lua_createtable(L, 0, 1);
     lua_pushcfunction(L, debugger_lib_local_index);
+    lua_setfield(L, -2, "__index");
+    lua_setmetatable(L, -2);
+    return 1;
+}
+
+static int debugger_lib_getUpvalues(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_Debug ar;
+    if (!lua_getstack(thread, luaL_optinteger(L, 1, 1), &ar)) {
+        lua_newtable(L);
+        return 1;
+    }
+    lua_newtable(L);
+    const char * name;
+    for (int i = 1; (name = lua_getupvalue(thread, luaL_optinteger(L, 1, 1), i)) != NULL; i++) {
+        lua_pushstring(L, name);
+        if (thread != L) xcopy(thread, L, 1);
+        else { lua_pushvalue(L, -2); lua_remove(L, -3); }
+        lua_settable(L, -3);
+    }
+    lua_createtable(L, 0, 1);
+    lua_pushcfunction(L, debugger_lib_upvalue_index);
+    lua_setfield(L, -2, "__index");
+    lua_setmetatable(L, -2);
+    return 1;
+}
+
+static int debugger_lib_setLocal(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_Debug ar;
+    if (!lua_getstack(thread, luaL_optinteger(L, 1, 1), &ar)) return 0;
+    std::string key = tostring(L, 2);
+    const char * name;
+    for (int i = 1; (name = lua_getlocal(thread, &ar, i)) != NULL; i++) {
+        if (name == key) {
+            lua_pushvalue(L, 3);
+            if (L != thread) xcopy(L, thread, 1);
+            lua_setlocal(thread, &ar, i);
+            lua_pop(thread, 1);
+            return 0;
+        }
+        lua_pop(thread, 1);
+    }
+    return 0;
+}
+
+static int debugger_lib_setUpvalue(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_State *thread = (dbg == NULL) ? L : dbg->thread;
+    lua_Debug ar;
+    if (!lua_getstack(thread, luaL_optinteger(L, 1, 1), &ar)) return 0;
+    std::string key = tostring(L, 2);
+    const char * name;
+    for (int i = 1; (name = lua_getupvalue(thread, luaL_optinteger(L, 1, 1), i)) != NULL; i++) {
+        if (name == key) {
+            lua_pushvalue(L, 3);
+            if (L != thread) xcopy(L, thread, 1);
+            lua_setupvalue(thread, luaL_optinteger(L, 1, 1), i);
+            lua_pop(thread, 1);
+            return 0;
+        }
+        lua_pop(thread, 1);
+    }
+    lua_createtable(L, 0, 1);
+    lua_pushcfunction(L, debugger_lib_upvalue_index);
     lua_setfield(L, -2, "__index");
     lua_setmetatable(L, -2);
     return 1;
@@ -433,6 +621,83 @@ static int debugger_lib_uncatch(lua_State *L) {
     return 0;
 }
 
+static int debugger_lib_useDAP(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    lua_pushboolean(L, dynamic_cast<debug_adapter*>(dbg) != NULL);
+    return 1;
+}
+
+static int debugger_lib_sendDAPData(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debug_adapter * dbg = dynamic_cast<debug_adapter*>((debugger*)lua_touserdata(L, -1));
+    if (dbg == NULL) return 0;
+    dbg->sendData(checkstring(L, 1));
+    return 0;
+}
+
+static int debugger_startupCode(lua_State *L) {
+    lastCFunction = __func__;
+    std::string * str = (std::string*)lua_touserdata(L, 1);
+    lua_pushlstring(L, str->c_str(), str->size());
+    lua_setglobal(L, "_CCPC_STARTUP_SCRIPT");
+    delete str;
+    lua_pushboolean(L, true);
+    return 1;
+}
+
+static int debugger_lib_setStartupCode(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    dbg->computer->startupCallbacks.push_back(std::make_pair(debugger_startupCode, new std::string(checkstring(L, 1))));
+    return 0;
+}
+
+static int debugger_lib_getPath(lua_State *L) {
+    lastCFunction = __func__;
+    std::string path = fixpath(get_comp(L), checkstring(L, 1), true).string();
+    pushstring(L, path);
+    return 1;
+}
+
+static int debugger_lib_getInternalPath(lua_State *L) {
+    lastCFunction = __func__;
+    lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
+    debugger * dbg = (debugger*)lua_touserdata(L, -1);
+    path_t::string_type path = path_t(checkstring(L, 1)).native();
+    std::tuple<std::list<std::string>, path_t, bool> maxPath = std::make_tuple(std::list<std::string>(), "", false);
+    {
+        path_t::string_type p = path_t(dbg->computer->dataDir).native();
+        if (path.substr(0, p.size()) == p && p.size() > std::get<1>(maxPath).native().size()) maxPath = std::make_tuple(std::list<std::string>(), dbg->computer->dataDir, false);
+    }
+    for (const auto& mount : dbg->computer->mounts) {
+        path_t::string_type p = path_t(std::get<1>(mount)).native();
+        if (path.substr(0, p.size()) == p && p.size() > std::get<1>(maxPath).native().size()) maxPath = mount;
+    }
+    if (std::get<1>(maxPath).empty()) lua_pushnil(L);
+    else {
+        bool begin = true;
+        for (const std::string& p : std::get<0>(maxPath)) {
+            if (begin) {
+                begin = false;
+                pushstring(L, p);
+            } else {
+                lua_pushliteral(L, "/");
+                pushstring(L, p);
+                lua_concat(L, 3);
+            }
+        }
+        std::string rest = path_t(path.substr(std::get<1>(maxPath).native().size())).string();
+        for (int i = 0; i < rest.size(); i++) if (rest[i] == '\\') rest[i] = '/';
+        pushstring(L, rest);
+        if (!begin) lua_concat(L, 2);
+    }
+    return 1;
+}
+
 static luaL_Reg debugger_lib_reg[] = {
     {"waitForBreak", debugger_lib_waitForBreak},
     {"confirmBreak", debugger_lib_confirmBreak},
@@ -441,6 +706,7 @@ static luaL_Reg debugger_lib_reg[] = {
     {"stepOut", debugger_lib_stepOut},
     {"getInfo", debugger_lib_getInfo},
     {"setBreakpoint", debugger_lib_setBreakpoint},
+    {"setFunctionBreakpoint", debugger_lib_setFunctionBreakpoint},
     {"unsetBreakpoint", debugger_lib_unsetBreakpoint},
     {"listBreakpoints", debugger_lib_listBreakpoints},
     {"run", debugger_lib_run},
@@ -451,8 +717,14 @@ static luaL_Reg debugger_lib_reg[] = {
     {"unblock", debugger_lib_unblock},
     {"getReason", debugger_lib_getReason},
     {"getLocals", debugger_lib_getLocals},
+    {"getUpvalues", debugger_lib_getUpvalues},
     {"catch", debugger_lib_catch},
     {"uncatch", debugger_lib_uncatch},
+    {"useDAP", debugger_lib_useDAP},
+    {"sendDAPData", debugger_lib_sendDAPData},
+    {"setStartupCode", debugger_lib_setStartupCode},
+    {"getPath", debugger_lib_getPath},
+    {"getInternalPath", debugger_lib_getInternalPath},
     {NULL, NULL}
 };
 
@@ -480,7 +752,7 @@ int debugger::setBreakpoint(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const int id = !computer->breakpoints.empty() ? computer->breakpoints.rbegin()->first + 1 : 1;
-    computer->breakpoints[id] = std::make_pair("@/" + astr(fixpath(computer, luaL_checkstring(L, 1), false, false)), luaL_checkinteger(L, 2));
+    computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, luaL_checkstring(L, 1), false, false).string(), luaL_checkinteger(L, 2));
     computer->hasBreakpoints = true;
     lua_pushinteger(L, id);
     return 1;
@@ -531,8 +803,10 @@ int debugger::print(lua_State *L) {
         lua_call(L, 1, 1);
         luaL_checkstring(L, -1);
     }
-    std::string * str = new std::string(lua_tostring(L, -1), lua_rawlen(L, -1));
-    queueEvent(monitor, debugger_print, str);
+    if (monitor != NULL) {
+        std::string * str = new std::string(tostring(L, -1));
+        queueEvent(monitor, debugger_print, str);
+    }
     return 0;
 }
 
@@ -542,7 +816,7 @@ struct debugger_param {
 };
 
 debugger::debugger(lua_State *L, const char * side) {
-    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")
+    if (SDL_GetCurrentVideoDriver() != NULL && (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY"))
         throw std::runtime_error("Debuggers are not available when using the Linux framebuffer");
     didBreak = false;
     running = true;
@@ -588,7 +862,7 @@ debugger::~debugger() {
     deleteThis = true;
     breakType = DEBUGGER_BREAK_TYPE_NONSTOP;
     didBreak = false;
-    if (freedComputers.find(monitor) == freedComputers.end()) {
+    if (monitor != NULL && freedComputers.find(monitor) == freedComputers.end()) {
         monitor->running = 0;
         monitor->event_lock.notify_all();
         compThread->join();
@@ -601,7 +875,8 @@ debugger::~debugger() {
         confirmBreak = true;
         std::this_thread::yield();
     }
-    if (compThread->joinable()) compThread->join();
+    if (compThread != NULL && compThread->joinable()) compThread->join();
+    computer->shouldDeleteDebugger = false;
     computer->shouldDeinitDebugger = true;
 }
 
@@ -611,7 +886,7 @@ int debugger::call(lua_State *L, const char * method) {
     else if (m == "setBreakpoint") return setBreakpoint(L);
     else if (m == "print") return print(L);
     else if (m == "deinit") return _deinit(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 int debugger::_deinit(lua_State *L) {

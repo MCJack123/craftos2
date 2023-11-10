@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="ro5-es-Qe9">
+    <device id="retina6_1" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21505"/>
+        <capability name="Image references" minToolsVersion="12.0"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Navigation Controller-->
+        <scene sceneID="f3O-Pp-mLE">
+            <objects>
+                <navigationController navigationBarHidden="YES" id="ro5-es-Qe9" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" opaque="NO" contentMode="scaleToFill" barStyle="black" id="oEj-K2-hsw">
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="VcB-Me-KWK">
+                        <autoresizingMask key="autoresizingMask"/>
+                    </toolbar>
+                    <connections>
+                        <segue destination="Q4U-DV-xIG" kind="relationship" relationship="rootViewController" id="QxJ-Ac-TMf"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="lrU-YN-bID" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="-79" y="64"/>
+        </scene>
+        <!--CraftOS Terminal-->
+        <scene sceneID="LmW-7Q-EyH">
+            <objects>
+                <viewController id="Q4U-DV-xIG" customClass="ViewController" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="PfY-GL-4ak">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <viewLayoutGuide key="safeArea" id="A6c-fb-uBC"/>
+                        <color key="backgroundColor" name="BackgroundColor"/>
+                        <gestureRecognizers/>
+                    </view>
+                    <toolbarItems/>
+                    <navigationItem key="navigationItem" title="CraftOS Terminal" id="GmD-yA-A3Q">
+                        <leftBarButtonItems>
+                            <barButtonItem enabled="NO" title="Previous" image="chevron.left" catalog="system" id="Qpy-kl-m2Y">
+                                <connections>
+                                    <action selector="onPrevious:" destination="Q4U-DV-xIG" id="uWw-Ie-bIg"/>
+                                </connections>
+                            </barButtonItem>
+                            <barButtonItem title="Keyboard" image="keyboard" catalog="system" id="lI6-hn-TSl">
+                                <connections>
+                                    <action selector="toggleKeyboard:" destination="Q4U-DV-xIG" id="NN4-xh-zrJ"/>
+                                </connections>
+                            </barButtonItem>
+                        </leftBarButtonItems>
+                        <rightBarButtonItems>
+                            <barButtonItem enabled="NO" title="Next" image="chevron.right" catalog="system" id="FJ3-kZ-47N">
+                                <connections>
+                                    <action selector="onNext:" destination="Q4U-DV-xIG" id="i0q-lo-r54"/>
+                                </connections>
+                            </barButtonItem>
+                            <barButtonItem enabled="NO" title="Close" image="xmark" catalog="system" id="yyU-je-Dtj">
+                                <color key="tintColor" systemColor="systemRedColor"/>
+                                <connections>
+                                    <action selector="onClose:" destination="Q4U-DV-xIG" id="TAY-5d-Khf"/>
+                                </connections>
+                            </barButtonItem>
+                        </rightBarButtonItems>
+                    </navigationItem>
+                    <connections>
+                        <outlet property="altButton" destination="96X-Er-fMH" id="e6h-xh-Qqq"/>
+                        <outlet property="arrowToolbar" destination="zNj-am-Xvh" id="Q6t-75-PxD"/>
+                        <outlet property="closeButton" destination="yyU-je-Dtj" id="kdi-hW-xBP"/>
+                        <outlet property="ctrlButton" destination="JrA-QI-TA0" id="Vqb-D8-Jto"/>
+                        <outlet property="hotkeyToolbar" destination="oo2-wD-jTu" id="UoI-6c-rGo"/>
+                        <outlet property="nextButton" destination="FJ3-kZ-47N" id="vXZ-p0-Vvr"/>
+                        <outlet property="previousButton" destination="Qpy-kl-m2Y" id="cHO-Pi-aau"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="wzY-RT-v2q" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+                <toolbar opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" id="oo2-wD-jTu">
+                    <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                    <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
+                    <items>
+                        <barButtonItem title="More" image="ellipsis.circle" catalog="system" id="7rP-pb-6Yu">
+                            <connections>
+                                <action selector="onMore0:" destination="Q4U-DV-xIG" id="yfF-Ze-PQc"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="N2D-hC-OvH"/>
+                        <barButtonItem title="Ctrl" id="JrA-QI-TA0">
+                            <connections>
+                                <action selector="onCtrl:" destination="Q4U-DV-xIG" id="Bbb-rN-FPl"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="jJv-lY-CCA"/>
+                        <barButtonItem title="Alt" id="96X-Er-fMH">
+                            <connections>
+                                <action selector="onAlt:" destination="Q4U-DV-xIG" id="yzx-yb-yM6"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="Hfp-Rx-rgD"/>
+                        <barButtonItem title="Tab" image="arrow.right.to.line" catalog="system" id="0V5-oP-8jn">
+                            <connections>
+                                <action selector="onTab:" destination="Q4U-DV-xIG" id="dF4-q9-Xob"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="jgE-Z5-A9r"/>
+                        <barButtonItem title="Terminate" id="hZ6-9g-dc5">
+                            <imageReference key="image" image="minus.circle" catalog="system" renderingMode="template"/>
+                            <color key="tintColor" systemColor="systemRedColor"/>
+                            <connections>
+                                <action selector="onTerminate:forEvent:" destination="Q4U-DV-xIG" id="TKZ-TB-tBU"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="tbp-yn-zfF"/>
+                        <barButtonItem title="Shut Down" id="ejn-N6-0gJ">
+                            <imageReference key="image" image="power" catalog="system" renderingMode="template"/>
+                            <color key="tintColor" systemColor="systemRedColor"/>
+                            <connections>
+                                <action selector="onShutdown:forEvent:" destination="Q4U-DV-xIG" id="yHw-rs-6yP"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="RtO-8e-Nxw"/>
+                        <barButtonItem title="Reboot" id="OHV-XY-4R7">
+                            <imageReference key="image" image="restart" catalog="system" renderingMode="template"/>
+                            <color key="tintColor" systemColor="systemRedColor"/>
+                            <connections>
+                                <action selector="onReboot:forEvent:" destination="Q4U-DV-xIG" id="J3G-sQ-6xa"/>
+                            </connections>
+                        </barButtonItem>
+                    </items>
+                </toolbar>
+                <toolbar hidden="YES" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" id="zNj-am-Xvh">
+                    <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                    <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
+                    <items>
+                        <barButtonItem title="More" image="ellipsis.circle.fill" catalog="system" id="j7v-dG-h7n">
+                            <connections>
+                                <action selector="onMore1:" destination="Q4U-DV-xIG" id="vFg-4A-EJj"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="Nb0-Ug-929"/>
+                        <barButtonItem title="Page Up" image="arrow.up.to.line" catalog="system" id="6Tz-vu-gAw">
+                            <connections>
+                                <action selector="onPageUp:" destination="Q4U-DV-xIG" id="Q6T-GY-VPH"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Left" image="arrow.left" catalog="system" id="6UL-qj-WId">
+                            <connections>
+                                <action selector="onLeft:" destination="Q4U-DV-xIG" id="CJZ-8R-lOl"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Up" image="arrow.up" catalog="system" id="0Vr-ih-tkG">
+                            <connections>
+                                <action selector="onUp:" destination="Q4U-DV-xIG" id="wfx-Oi-XKv"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Down" image="arrow.down" catalog="system" id="w2o-rm-ZMX">
+                            <connections>
+                                <action selector="onDown:" destination="Q4U-DV-xIG" id="6hX-DM-7qt"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Right" image="arrow.right" catalog="system" id="gVT-6D-CqZ">
+                            <connections>
+                                <action selector="onRight:" destination="Q4U-DV-xIG" id="cL2-5I-0Oc"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem title="Page Down" image="arrow.down.to.line" catalog="system" id="Q7Z-dD-yNF">
+                            <connections>
+                                <action selector="onPageDown:" destination="Q4U-DV-xIG" id="gSR-V6-spb"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem style="plain" systemItem="flexibleSpace" id="rZt-CL-4c5"/>
+                        <barButtonItem title="Paste" image="doc.on.clipboard" catalog="system" id="48k-Fu-4xl">
+                            <connections>
+                                <action selector="onPaste:" destination="Q4U-DV-xIG" id="QP4-8K-uVh"/>
+                            </connections>
+                        </barButtonItem>
+                    </items>
+                </toolbar>
+            </objects>
+            <point key="canvasLocation" x="889.85507246376824" y="63.616071428571423"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="arrow.down" catalog="system" width="118" height="128"/>
+        <image name="arrow.down.to.line" catalog="system" width="110" height="128"/>
+        <image name="arrow.left" catalog="system" width="128" height="95"/>
+        <image name="arrow.right" catalog="system" width="128" height="95"/>
+        <image name="arrow.right.to.line" catalog="system" width="128" height="88"/>
+        <image name="arrow.up" catalog="system" width="118" height="128"/>
+        <image name="arrow.up.to.line" catalog="system" width="110" height="128"/>
+        <image name="chevron.left" catalog="system" width="97" height="128"/>
+        <image name="chevron.right" catalog="system" width="97" height="128"/>
+        <image name="doc.on.clipboard" catalog="system" width="116" height="128"/>
+        <image name="ellipsis.circle" catalog="system" width="128" height="123"/>
+        <image name="ellipsis.circle.fill" catalog="system" width="128" height="123"/>
+        <image name="keyboard" catalog="system" width="128" height="78"/>
+        <image name="minus.circle" catalog="system" width="128" height="123"/>
+        <image name="power" catalog="system" width="127" height="128"/>
+        <image name="restart" catalog="system" width="117" height="128"/>
+        <image name="xmark" catalog="system" width="128" height="113"/>
+        <namedColor name="BackgroundColor">
+            <color red="0.063000001013278961" green="0.067000001668930054" blue="0.063000001013278961" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+        </namedColor>
+        <systemColor name="systemRedColor">
+            <color red="1" green="0.23137254901960785" blue="0.18823529411764706" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </systemColor>
+    </resources>
+</document>

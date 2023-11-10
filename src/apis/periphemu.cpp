@@ -5,35 +5,49 @@
  * This file implements the methods for the periphemu API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <algorithm>
 #include <Computer.hpp>
 #include <Terminal.hpp>
+#include "../peripheral/chest.hpp"
 #include "../peripheral/computer.hpp"
 #include "../peripheral/debugger.hpp"
+#include "../peripheral/debug_adapter.hpp"
 #include "../peripheral/drive.hpp"
+#include "../peripheral/energy.hpp"
 #include "../peripheral/modem.hpp"
 #include "../peripheral/monitor.hpp"
 #include "../peripheral/printer.hpp"
 #include "../peripheral/speaker.hpp"
+#include "../peripheral/tank.hpp"
 #include "../runtime.hpp"
 #include "../util.hpp"
 
-static std::unordered_map<std::string, peripheral_init> initializers = {
-    {"monitor", &monitor::init},
-    {"printer", &printer::init},
-    {"computer", &computer::init},
-    {"modem", &modem::init},
-    {"drive", &drive::init},
+static std::unordered_map<std::string, peripheral_init_fn> initializers = {
+    {"monitor", peripheral_init_fn(monitor::init)},
+    {"computer", peripheral_init_fn(computer::init)},
+    {"debugger", peripheral_init_fn(debugger::_init)},
+    {"debug_adapter", peripheral_init_fn(debug_adapter::_init)},
+    {"printer", peripheral_init_fn(printer::init)},
+    {"modem", peripheral_init_fn(modem::init)},
+    {"drive", peripheral_init_fn(drive::init)},
+    {"chest", peripheral_init_fn(chest::init)},
+    {"minecraft:chest", peripheral_init_fn(chest::init)},
+    {"energy", peripheral_init_fn(energy::init)},
+    {"tank", peripheral_init_fn(tank::init)},
 #ifndef NO_MIXER
-    {"speaker", &speaker::init}
+    {"speaker", peripheral_init_fn(speaker::init)}
 #endif
 };
 
-void registerPeripheral(const std::string& name, const peripheral_init& initializer) {
+void registerPeripheral(const std::string& name, const peripheral_init_fn& initializer) {
     initializers[name] = initializer;
+}
+
+void clearPeripherals() {
+    initializers.clear();
 }
 
 static std::string peripheral_attach(lua_State *L, void* arg) {
@@ -55,13 +69,13 @@ peripheral* attachPeripheral(Computer * computer, const std::string& side, const
         if (errorReturn != NULL) *errorReturn = "No peripheral named speaker";
         return NULL;
     }
-    computer->peripherals_mutex.lock();
-    if (computer->peripherals.find(side) != computer->peripherals.end()) {
-        computer->peripherals_mutex.unlock();
-        if (errorReturn != NULL) *errorReturn = "Peripheral already attached on side " + side;
-        return NULL;
+    {
+        std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
+        if (computer->peripherals.find(side) != computer->peripherals.end()) {
+            if (errorReturn != NULL) *errorReturn = "Peripheral already attached on side " + side;
+            return NULL;
+        }
     }
-    computer->peripherals_mutex.unlock();
     lua_State *L;
     int idx = -1;
     va_list arg;
@@ -78,21 +92,17 @@ peripheral* attachPeripheral(Computer * computer, const std::string& side, const
             case 'i': lua_pushinteger(L, va_arg(arg, lua_Integer)); break;
             case 'n': lua_pushnumber(L, va_arg(arg, lua_Number)); break;
             case 's': lua_pushstring(L, va_arg(arg, const char *)); break;
-            case 'b': lua_pushboolean(L, va_arg(arg, bool)); break;
+            case 'b': lua_pushboolean(L, va_arg(arg, int)); break;
             case 'N': lua_pushnil(L); va_arg(arg, void*); break;
             default: throw std::invalid_argument(std::string("Invalid format specifier ") + *format);
             }
         }
     }
     peripheral * p;
-    if (type == "debugger" && config.debug_enable) p = new debugger(L, side.c_str());
-    else if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
+    if (initializers.find(type) != initializers.end()) p = initializers[type](L, side.c_str());
     else {
         //fprintf(stderr, "not found: %s\n", type.c_str());
-        if (errorReturn != NULL) {
-            if (type == "debugger") *errorReturn = "Set debug_enable to true in the config to enable the debugger";
-            else *errorReturn = "No peripheral named " + type;
-        }
+        if (errorReturn != NULL) *errorReturn = "No peripheral named " + type;
         return NULL;
     }
     computer->peripherals_mutex.lock();
@@ -161,11 +171,6 @@ static int periphemu_names(lua_State *L) {
     lastCFunction = __func__;
     lua_createtable(L, initializers.size() + 1, 0);
     int i = 1;
-    if (config.debug_enable) {
-        lua_pushinteger(L, i++);
-        lua_pushstring(L, "debugger");
-        lua_settable(L, -3);
-    }
     for (const auto& entry : initializers) {
         lua_pushinteger(L, i++);
         lua_pushstring(L, entry.first.c_str());

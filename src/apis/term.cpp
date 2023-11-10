@@ -5,7 +5,7 @@
  * This file implements the methods for the term API.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <Computer.hpp>
@@ -26,13 +26,13 @@ static int term_write(lua_State *L) {
     } else if (selectedRenderer == 4) printf("TW:%d;%s\n", get_comp(L)->term->id, luaL_checkstring(L, 1));
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz = 0;
     const char * str = luaL_checklstring(L, 1, &str_sz);
 #ifdef TESTING
     printf("%s\n", str);
 #endif
     std::lock_guard<std::mutex> locked_g(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (size_t i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             term->screen[term->blinkY][term->blinkX] = str[i];
@@ -63,9 +63,9 @@ static int term_scroll(lua_State *L) {
         memmove(term->colors.data(), term->colors.data() + lines * term->width, (term->height - lines) * term->width);
         memset(term->colors.data() + (term->height - lines) * term->width, computer->colors, lines * term->width);
     } else if (lines < 0) {
-        memmove(term->screen.data() - lines * term->width, term->screen.data(), (term->height + lines) * term->width);
+        memmove(term->screen.data() - lines * (int)term->width, term->screen.data(), ((int)term->height + lines) * term->width);
         memset(term->screen.data(), ' ', -lines * term->width);
-        memmove(term->colors.data() - lines * term->width, term->colors.data(), (term->height + lines) * term->width);
+        memmove(term->colors.data() - lines * (int)term->width, term->colors.data(), ((int)term->height + lines) * term->width);
         memset(term->colors.data(), computer->colors, -lines * term->width);
     }
     term->changed = true;
@@ -98,8 +98,10 @@ static int term_setCursorBlink(lua_State *L) {
     lastCFunction = __func__;
     if (!lua_isboolean(L, 1)) luaL_error(L, "bad argument #1 (expected boolean, got %s)", lua_typename(L, lua_type(L, 1)));
     if (selectedRenderer != 1) {
-        get_comp(L)->term->canBlink = lua_toboolean(L, 1);
-        get_comp(L)->term->changed = true;
+        Terminal * term = get_comp(L)->term;
+        std::lock_guard<std::mutex> lock(term->locked);
+        term->canBlink = lua_toboolean(L, 1);
+        term->changed = true;
     } else can_blink_headless = lua_toboolean(L, 1);
     if (selectedRenderer == 4) printf("TB:%d;%s\n", get_comp(L)->term->id, lua_toboolean(L, 1) ? "true" : "false");
     return 0;
@@ -135,6 +137,7 @@ static int term_getSize(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
+    std::lock_guard<std::mutex> lock(term->locked);
     if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
         lua_pushinteger(L, term->width * Terminal::fontWidth);
         lua_pushinteger(L, term->height * Terminal::fontHeight);
@@ -191,7 +194,10 @@ static int term_setTextColor(lua_State *L) {
     if (c > 15) return luaL_error(L, "bad argument #1 (invalid color %d)", c);
     //if ((computer->config->isColor || computer->isDebugger) || ((c & 7) - 1) >= 6) {
     computer->colors = (computer->colors & 0xf0) | (unsigned char)c;
-    if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = (char)c;
+    if (computer->term != NULL && dynamic_cast<SDLTerminal*>(computer->term) != NULL) {
+        std::lock_guard<std::mutex> lock(computer->term->locked);
+        dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = (char)c;
+    }
     //}
     return 0;
 }
@@ -240,21 +246,17 @@ static int term_blit(lua_State *L) {
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
     if (term == NULL) return 0;
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz, fg_sz, bg_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
     const char * fg = luaL_checklstring(L, 2, &fg_sz);
     const char * bg = luaL_checklstring(L, 3, &bg_sz);
     if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
     std::lock_guard<std::mutex> locked_g(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
-            if ((computer->config->isColor || computer->isDebugger) || ((unsigned)(htoi(bg[i]) & 7) - 1) >= 6)
-                computer->colors = (unsigned char)(htoi(bg[i]) << 4) | (computer->colors & 0xF);
-            if ((computer->config->isColor || computer->isDebugger) || ((unsigned)(htoi(fg[i]) & 7) - 1) >= 6) {
-                computer->colors = (computer->colors & 0xF0) | htoi(fg[i]);
-                if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i]);
-            }
+            computer->colors = (unsigned char)(htoi(bg[i], 15) << 4) | htoi(fg[i], 0);
+            if (dynamic_cast<SDLTerminal*>(computer->term) != NULL) dynamic_cast<SDLTerminal*>(computer->term)->cursorColor = htoi(fg[i], 0);
             if (selectedRenderer == 4)
                 printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[computer->colors & 0xf], term->id, ("0123456789abcdef")[computer->colors >> 4], term->id, str[i]);
             term->screen[term->blinkY][term->blinkX] = str[i];
@@ -322,7 +324,7 @@ static int term_setGraphicsMode(lua_State *L) {
     if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (expected boolean or number, got %s)", lua_typename(L, lua_type(L, 1)));
     Computer * computer = get_comp(L);
     if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config->isColor || computer->isDebugger)) return 0;
-    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument %1 (invalid mode %d)", lua_tointeger(L, 1));
+    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument #1 (invalid mode %d)", lua_tointeger(L, 1));
     std::lock_guard<std::mutex> lock(computer->term->locked);
     computer->term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : (int)lua_tointeger(L, 1);
     computer->term->changed = true;
@@ -386,8 +388,7 @@ static int term_drawPixels(lua_State *L) {
     const int init_x = (int)luaL_checkinteger(L, 1),
               init_y = (int)luaL_checkinteger(L, 2);
 
-    if (init_x >= pixelWidth) return 0;
-    else if (init_y >= pixelHeight) return 0;
+    if (init_x >= pixelWidth || init_y >= pixelHeight) return 0;
 
     const int fillType = lua_type(L, 3);
     const bool isSolidFill = fillType == LUA_TNUMBER;
@@ -437,8 +438,9 @@ static int term_drawPixels(lua_State *L) {
             ? (unsigned char) color
             : (unsigned char) log2i(color);
 
-        const unsigned memset_x = max(init_x, 0),
-                       memset_len = min((int) width, max(pixelWidth - init_x, 0)) + min(init_x, 0);
+        const unsigned memset_x = max((int)init_x, 0),
+                       memset_len = max(min((int) width, max(pixelWidth - init_x, 0)) + min((int)init_x, 0), 0);
+        if (memset_len == 0) return 0;
 
         const int cool_height = min((int) height, pixelHeight - init_y);
         for (int h = max(-init_y, 0); h < cool_height; h++) {
@@ -449,8 +451,8 @@ static int term_drawPixels(lua_State *L) {
         return 0;
     }
 
-    const int str_offset = init_x < 0 ? -init_x : 0,
-              str_maxlen = init_x > pixelWidth ? 0 : pixelWidth - init_x;
+    const size_t str_offset = init_x < 0 ? (size_t)-init_x : 0,
+                 str_maxlen = init_x > pixelWidth ? 0 : (size_t)(pixelWidth - init_x);
 
     const unsigned cool_height = min((int) height, pixelHeight - init_y);
     for (unsigned h = max(-init_y, 0); h < cool_height; h++) {
@@ -618,6 +620,13 @@ static int term_showMouse(lua_State *L) {
     return 0;
 }
 
+static int term_relativeMouse(lua_State *L) {
+    lastCFunction = __func__;
+    luaL_checktype(L, 1, LUA_TBOOLEAN);
+    SDL_SetRelativeMouseMode((SDL_bool)lua_toboolean(L, 1));
+    return 0;
+}
+
 static int term_setFrozen(lua_State *L) {
     lastCFunction = __func__;
     if (!lua_isboolean(L, 1)) luaL_error(L, "bad argument #1 (expected boolean, got %s)", lua_typename(L, lua_type(L, 1)));
@@ -679,6 +688,7 @@ static luaL_Reg term_reg[] = {
     {"drawPixels", term_drawPixels},
     {"getPixels", term_getPixels},
     {"showMouse", term_showMouse},
+    {"relativeMouse", term_relativeMouse},
     {"setFrozen", term_setFrozen},
     {"getFrozen", term_getFrozen},
     {NULL, NULL}

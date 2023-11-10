@@ -5,35 +5,20 @@
  * This file implements the methods for the monitor peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include "monitor.hpp"
 #include "../runtime.hpp"
-#include "../terminal/SDLTerminal.hpp"
-#include "../terminal/CLITerminal.hpp"
-#include "../terminal/RawTerminal.hpp"
-#include "../terminal/TRoRTerminal.hpp"
-#include "../terminal/HardwareSDLTerminal.hpp"
+#include "../termsupport.hpp"
 
 monitor::monitor(lua_State *L, const char * side) {
-    if (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")
+    if (SDL_GetCurrentVideoDriver() != NULL && (std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY"))
         throw std::runtime_error("Monitors are not available when using the Linux framebuffer");
-#ifndef NO_CLI
-    if (selectedRenderer == 2) term = new CLITerminal("CraftOS Terminal: Monitor " + std::string(side));
-    else
-#endif
-    if (selectedRenderer == 3) term = new RawTerminal("CraftOS Terminal: Monitor " + std::string(side));
-    else if (selectedRenderer == 4) term = new TRoRTerminal("CraftOS Terminal: Monitor " + std::string(side));
-    else if (selectedRenderer == 0) {
-        term = (SDLTerminal*)queueTask([ ](void* side)->void* {
-            return new SDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
-        }, (void*)side);
-    } else if (selectedRenderer == 5) {
-        term = (HardwareSDLTerminal*)queueTask([ ](void* side)->void* {
-            return new HardwareSDLTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
-        }, (void*)side);
-    } else throw std::invalid_argument("Monitors are not available in headless mode");
+    term = (Terminal*)queueTask([](void*side)->void*{
+        return createTerminal("CraftOS Terminal: Monitor " + std::string((const char*)side));
+    }, (void*)side);
+    if (term == NULL) throw std::runtime_error("Monitors are not available in this mode");
     term->canBlink = false;
     unsigned w = term->width, h = term->height;
     if (lua_isnumber(L, 3)) w = (unsigned)lua_tointeger(L, 3);
@@ -41,15 +26,15 @@ monitor::monitor(lua_State *L, const char * side) {
     if (w != term->width || h != term->height) term->resize(w, h);
 }
 
-monitor::~monitor() {delete term;}
+monitor::~monitor() {term->factory->deleteTerminal(term);}
 
 int monitor::write(lua_State *L) {
     lastCFunction = __func__;
     if (selectedRenderer == 4) printf("TW:%d;%s\n", term->id, luaL_checkstring(L, 1));
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     size_t str_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
     std::lock_guard<std::mutex> lock(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
         if (term->blinkX >= 0) {
             term->screen[term->blinkY][term->blinkX] = str[i];
@@ -75,9 +60,9 @@ int monitor::scroll(lua_State *L) {
         memmove(term->colors.data(), term->colors.data() + lines * term->width, (term->height - lines) * term->width);
         memset(term->colors.data() + (term->height - lines) * term->width, colors, lines * term->width);
     } else if (lines < 0) {
-        memmove(term->screen.data() - lines * term->width, term->screen.data(), (term->height + lines) * term->width);
+        memmove(term->screen.data() - lines * (int)term->width, term->screen.data(), ((int)term->height + lines) * term->width);
         memset(term->screen.data(), ' ', -lines * term->width);
-        memmove(term->colors.data() - lines * term->width, term->colors.data(), (term->height + lines) * term->width);
+        memmove(term->colors.data() - lines * (int)term->width, term->colors.data(), ((int)term->height + lines) * term->width);
         memset(term->colors.data(), colors, -lines * term->width);
     }
     term->changed = true;
@@ -200,15 +185,17 @@ int monitor::blit(lua_State *L) {
     const char * fg = luaL_checklstring(L, 2, &fg_sz);
     const char * bg = luaL_checklstring(L, 3, &bg_sz);
     if (str_sz != fg_sz || fg_sz != bg_sz) luaL_error(L, "Arguments must be the same length");
-    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     std::lock_guard<std::mutex> lock(term->locked);
+    if (term->blinkY < 0 || (term->blinkX >= 0 && (unsigned)term->blinkX >= term->width) || (unsigned)term->blinkY >= term->height) return 0;
     for (unsigned i = 0; i < str_sz && (term->blinkX < 0 || (unsigned)term->blinkX < term->width); i++, term->blinkX++) {
-        colors = htoi(bg[i]) << 4 | htoi(fg[i]);
-        if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = htoi(fg[i]);
-        if (selectedRenderer == 4)
-            printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[colors & 0xf], term->id, ("0123456789abcdef")[colors >> 4], term->id, str[i]);
-        term->screen[term->blinkY][term->blinkX] = str[i];
-        term->colors[term->blinkY][term->blinkX] = colors;
+        if (term->blinkX >= 0) {
+            colors = htoi(bg[i], 15) << 4 | htoi(fg[i], 0);
+            if (dynamic_cast<SDLTerminal*>(term) != NULL) dynamic_cast<SDLTerminal*>(term)->cursorColor = htoi(fg[i], 0);
+            if (selectedRenderer == 4)
+                printf("TF:%d;%c\nTK:%d;%c\nTW:%d;%c\n", term->id, ("0123456789abcdef")[colors & 0xf], term->id, ("0123456789abcdef")[colors >> 4], term->id, str[i]);
+            term->screen[term->blinkY][term->blinkX] = str[i];
+            term->colors[term->blinkY][term->blinkX] = colors;
+        }
     }
     term->changed = true;
     return 0;
@@ -258,7 +245,7 @@ int monitor::setGraphicsMode(lua_State *L) {
     lastCFunction = __func__;
     if (!lua_isnumber(L, 1) && !lua_isboolean(L, 1)) luaL_error(L, "bad argument #1 (expected number, got %s)", lua_typename(L, lua_type(L, 1)));
     if (selectedRenderer == 1 || selectedRenderer == 2) return 0;
-    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument %1 (invalid mode %d)", lua_tointeger(L, 1));
+    if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument #1 (invalid mode %d)", lua_tointeger(L, 1));
     std::lock_guard<std::mutex> lock(term->locked);
     term->mode = lua_isboolean(L, 1) ? (lua_toboolean(L, 1) ? 1 : 0) : (int)lua_tointeger(L, 1);
     term->changed = true;
@@ -305,14 +292,9 @@ int monitor::getPixel(lua_State *L) {
 
 int monitor::setTextScale(lua_State *L) {
     lastCFunction = __func__;
-    luaL_checkinteger(L, 1);
+    unsigned charScale = (unsigned)(luaL_checknumber(L, 1) * 2.0);
     SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
-    if (sdlterm != NULL) {
-        std::lock_guard<std::mutex> lock(sdlterm->locked);
-        sdlterm->charScale = (unsigned)(lua_tonumber(L, -1) * 2);
-        queueTask([ ](void* term)->void*{((SDLTerminal*)term)->setCharScale(((SDLTerminal*)term)->charScale); return NULL;}, sdlterm);
-        sdlterm->changed = true;
-    }
+    if (sdlterm != NULL) queueTask([charScale](void* term)->void*{((SDLTerminal*)term)->setCharScale(charScale); return NULL;}, sdlterm);
     return 0;
 }
 
@@ -559,13 +541,42 @@ int monitor::getFrozen(lua_State *L) {
     return 1;
 }
 
+int monitor::setSize(lua_State *L) {
+    lastCFunction = __func__;
+    if (term == NULL) return 0;
+    lua_Integer w = luaL_checkinteger(L, 1);
+    lua_Integer h = luaL_checkinteger(L, 2);
+    if (w < 1) luaL_error(L, "bad argument #1 (value out of range)");
+    if (h < 1) luaL_error(L, "bad argument #2 (value out of range)");
+    SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+    if (sdlterm != NULL) sdlterm->resizeWholeWindow(w, h);
+    else term->resize(w, h);
+    return 0;
+}
+
+int monitor::setBlockSize(lua_State *L) {
+    lastCFunction = __func__;
+    if (term == NULL) return 0;
+    lua_Integer w = luaL_checkinteger(L, 1);
+    lua_Integer h = luaL_checkinteger(L, 2);
+    if (w < 1) luaL_error(L, "bad argument #1 (value out of range)");
+    if (h < 1) luaL_error(L, "bad argument #2 (value out of range)");
+    SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+    w = round((64*w - 20) / (Terminal::fontWidth * (sdlterm ? sdlterm->charScale / 2.0 : 1.0)));
+    h = round((64*h - 20) / (Terminal::fontHeight * (sdlterm ? sdlterm->charScale / 2.0 : 1.0)));
+    if (sdlterm != NULL) sdlterm->resizeWholeWindow(w, h);
+    else term->resize(w, h);
+    return 0;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
     else if (m == "scroll") return scroll(L);
-    else if (m == "setCursorPos") return setCursorPos(L);
+    else if (m == "getCursorBlink") return getCursorBlink(L);
     else if (m == "setCursorBlink") return setCursorBlink(L);
     else if (m == "getCursorPos") return getCursorPos(L);
+    else if (m == "setCursorPos") return setCursorPos(L);
     else if (m == "getSize") return getSize(L);
     else if (m == "clear") return clear(L);
     else if (m == "clearLine") return clearLine(L);
@@ -595,7 +606,9 @@ int monitor::call(lua_State *L, const char * method) {
     else if (m == "screenshot") return screenshot(L);
     else if (m == "setFrozen") return setFrozen(L);
     else if (m == "getFrozen") return getFrozen(L);
-    else return 0;
+    else if (m == "setSize") return setSize(L);
+    else if (m == "setBlockSize") return setBlockSize(L);
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg monitor_reg[] = {
@@ -631,6 +644,8 @@ static luaL_Reg monitor_reg[] = {
     {"getTextScale", NULL},
     {"drawPixels", NULL},
     {"getPixels", NULL},
+    {"setSize", NULL},
+    {"setBlockSize", NULL},
     {NULL, NULL}
 };
 

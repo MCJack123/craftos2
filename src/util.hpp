@@ -5,7 +5,7 @@
  * This file defines some common functions used by various parts of the program.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef UTIL_HPP
@@ -15,22 +15,33 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
+#include <filesystem>
 #include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
 #include <Poco/JSON/JSON.h>
 #include <Poco/JSON/Parser.h>
+#include <Poco/Net/HTTPResponse.h>
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.6"
-#define CRAFTOSPC_CC_VERSION "2.0.0"
-#define CRAFTOSPC_INDEV      false
+#define CRAFTOSPC_VERSION    "v2.8"
+#define CRAFTOSPC_CC_VERSION "1.109.0"
+#define CRAFTOSPC_INDEV      true
+
+using path_t = std::filesystem::path;
+namespace fs = std::filesystem;
 
 // for some reason Clang complains if this isn't present
 #ifdef __clang__
 template<> class std::hash<SDL_EventType>: public std::hash<unsigned short> {};
+#endif
+
+// for old compilers (see C++ LWG 3657)
+// NOTE: No idea if this MSVC check is correct - if you have issues, just update to the latest VS2022.
+#if (defined(__GLIBCXX__) && __GLIBCXX__ < 20220426) || (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 17000) || (defined(_MSC_FULL_VER) && _MSC_FULL_VER < 193200000)
+template<> struct std::hash<path_t> {size_t operator()(const path_t& path) const noexcept {return fs::hash_value(path);}};
 #endif
 
 template<typename T>
@@ -40,12 +51,17 @@ class ProtectedObject {
     std::mutex mutex;
     bool isLocked;
 public:
+    ProtectedObject() {}
+    ProtectedObject(T o): obj(o) {}
     void lock() { mutex.lock(); isLocked = true; }
     void unlock() { mutex.unlock(); isLocked = false; }
     bool locked() { return isLocked; }
     std::mutex& getMutex() { return mutex; }
     T& operator*() { return obj; }
     T* operator->() { return &obj; }
+    ProtectedObject<T>& operator=(const T& rhs) {obj = rhs; return *this;}
+    template<typename U>
+    U block(const std::function<U()>& func) { std::lock_guard<std::mutex> lock(mutex); return func(); }
 };
 
 class LockGuard : public std::lock_guard<std::mutex> {
@@ -81,11 +97,24 @@ class Value {
 public:
     Value() { obj = Poco::Dynamic::Var(Poco::JSON::Object()); }
     Value(Poco::Dynamic::Var o) : obj(o) {}
-    Value operator[](std::string key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
+    template<typename T>
+    Value(const std::vector<T>& arr) {
+        Poco::JSON::Array jarr;
+        for (const T& val : arr) jarr.add(val);
+        obj = Poco::Dynamic::Var(jarr);
+    }
+    Value operator[](const std::string& key) { try { return Value(obj.extract<Poco::JSON::Object>().get(key), this, key); } catch (Poco::BadCastException &e) { return Value(obj.extract<Poco::JSON::Object::Ptr>()->get(key), this, key); } }
     void operator=(int v) { obj = v; updateParent(); }
     void operator=(bool v) { obj = v; updateParent(); }
     void operator=(const char * v) { obj = std::string(v); updateParent(); }
-    void operator=(std::string v) { obj = v; updateParent(); }
+    void operator=(const std::string& v) { obj = v; updateParent(); }
+    template<typename T>
+    void operator=(const std::vector<T>& v) {
+        Poco::JSON::Array jarr;
+        for (const T& val : v) jarr.add(val);
+        obj = Poco::Dynamic::Var(jarr);
+        updateParent();
+    }
     void operator=(Poco::Dynamic::Var v) { obj = v; updateParent(); }
     void operator=(const Value& v) { obj = v.obj; updateParent(); }
     bool asBool() { return obj.convert<bool>(); }
@@ -100,13 +129,56 @@ public:
     bool isString() { return obj.isString(); }
     bool isObject() { try { obj.extract<Poco::JSON::Object>(); return true; } catch (Poco::BadCastException &e) { try { obj.extract<Poco::JSON::Object::Ptr>(); return true; } catch (Poco::BadCastException &e2) { return false; } } }
     bool isMember(std::string key) { try { return obj.extract<Poco::JSON::Object>().has(key); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->has(key); } }
-    Poco::JSON::Object::Ptr parse(std::istream& in) { Poco::JSON::Object::Ptr p = Poco::JSON::Parser().parse(in).extract<Poco::JSON::Object::Ptr>(); obj = *p; return p; }
+    Poco::JSON::Object::Ptr parse(std::istream& in) { Poco::JSON::Parser parser; Poco::JSON::Object::Ptr p = parser.parse(in).extract<Poco::JSON::Object::Ptr>(); obj = *p; return p; }
     friend std::ostream& operator<<(std::ostream &out, Value &v) { v.obj.extract<Poco::JSON::Object>().stringify(out, 4, -1); return out; }
     //friend std::istream& operator>>(std::istream &in, Value &v) {v.obj = Parser().parse(in).extract<Object::Ptr>(); return in; }
     Poco::JSON::Array::ConstIterator arrayBegin() { try { return obj.extract<Poco::JSON::Array>().begin(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Array::Ptr>()->begin(); } }
     Poco::JSON::Array::ConstIterator arrayEnd() { try { return obj.extract<Poco::JSON::Array>().end(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Array::Ptr>()->end(); } }
     Poco::JSON::Object::ConstIterator begin() { try { return obj.extract<Poco::JSON::Object>().begin(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->begin(); } }
     Poco::JSON::Object::ConstIterator end() { try { return obj.extract<Poco::JSON::Object>().end(); } catch (Poco::BadCastException &e) { return obj.extract<Poco::JSON::Object::Ptr>()->end(); } }
+};
+
+// For get_comp
+typedef union {
+  void *gc;
+  void *p;
+  lua_Number n;
+  int b;
+} lua_Value;
+
+typedef struct lua_TValue {
+  lua_Value value; int tt;
+} TValue;
+
+struct lua_State {
+  void *next;
+  unsigned char tt;
+  unsigned char marked;
+  unsigned char status;
+  void* top;  /* first free slot in the stack */
+  void* base;  /* base of current function */
+  void *l_G;
+  void *ci;  /* call info for current function */
+  void* ctx;  /* `savedpc' of current function, or context */
+  void* stack_last;  /* last free slot in the stack */
+  void* stack;  /* stack base */
+  void *end_ci;  /* points after end of ci array*/
+  void *base_ci;  /* array of CallInfo's */
+  int stacksize;
+  int size_ci;  /* size of array `base_ci' */
+  unsigned short nCcalls;  /* number of nested C calls */
+  unsigned short baseCcalls;  /* nested C calls when resuming coroutine */
+  unsigned char hookmask;
+  unsigned char allowhook;
+  int basehookcount;
+  int hookcount;
+  lua_Hook hook;
+  TValue l_gt;  /* table of globals */
+  TValue env;  /* temporary place for environments */
+  void *openupval;  /* list of open upvalues in this stack */
+  void *gclist;
+  struct lua_longjmp *errorJmp;  /* current error recover point */
+  ptrdiff_t errfunc;  /* current error handling function (stack index) */
 };
 
 inline int log2i(int num) {
@@ -116,11 +188,11 @@ inline int log2i(int num) {
     return retval;
 }
 
-inline unsigned char htoi(char c) {
+inline unsigned char htoi(char c, unsigned char def) {
     if (c >= '0' && c <= '9') return c - '0';
     else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return 0;
+    return def;
 }
 
 inline std::string asciify(std::string str) {
@@ -129,29 +201,14 @@ inline std::string asciify(std::string str) {
     return retval;
 }
 
-#ifdef WIN32
-#define PATH_SEP L"\\"
-#define PATH_SEPC '\\'
-#else
-#define PATH_SEP "/"
-#define PATH_SEPC '/'
-#endif
-
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
 extern std::unordered_map<std::string, std::tuple<int, std::function<int(const std::string&, void*)>, void*> > userConfig;
-extern std::list<Terminal*> renderTargets;
-extern std::mutex renderTargetsLock;
-#ifdef __EMSCRIPTEN__
-extern std::list<Terminal*>::iterator renderTarget;
-#endif
 
 extern std::string loadingPlugin;
 extern const char * lastCFunction;
-extern void* getCompCache_glob;
-extern Computer * getCompCache_comp;
-extern Computer * _get_comp(lua_State *L);
-#define get_comp(L) (*(void**)(((ptrdiff_t)L) + sizeof(void*)*3 + 3 + alignof(void*) - ((sizeof(void*)*3 + 3) % alignof(void*))) == getCompCache_glob ? getCompCache_comp : _get_comp(L))
+extern Computer * get_comp(lua_State *L);
+extern void uncache_state(lua_State *L);
 
 template<typename T>
 inline T min(T a, T b) { return a < b ? a : b; }
@@ -161,19 +218,32 @@ extern std::string b64encode(const std::string& orig);
 extern std::string b64decode(const std::string& orig);
 extern std::vector<std::string> split(const std::string& strToSplit, const char * delimeter);
 extern std::vector<std::wstring> split(const std::wstring& strToSplit, const wchar_t * delimeter);
+extern std::vector<path_t> split(const path_t& strToSplit, const path_t::value_type * delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
-extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*)>& callback);
-extern path_t fixpath(Computer *comp, const char * path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool getAllResults = false, bool * isRoot = NULL);
-extern bool fixpath_ro(Computer *comp, const char * path);
+extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*, Poco::Net::HTTPResponse*)>& callback);
+extern path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool * isRoot = NULL);
+extern bool fixpath_ro(Computer *comp, const std::string& path);
 extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);
-extern std::set<std::string> getMounts(Computer * computer, const char * comp_path);
+extern std::set<std::string> getMounts(Computer * computer, const std::string& comp_path);
 extern void peripheral_update(Computer *comp);
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, const computer_configuration& cfg);
 extern void config_init();
 extern void config_save();
 extern void xcopy(lua_State *from, lua_State *to, int n);
-extern std::pair<int, std::string> recursiveCopy(const path_t& fromPath, const path_t& toPath, std::list<path_t> * failures = NULL);
 extern std::string makeASCIISafe(const char * retval, size_t len);
+extern bool matchIPClass(const std::string& address, const std::string& pattern);
+inline std::string checkstring(lua_State *L, int idx) {
+    size_t sz = 0;
+    const char * str = luaL_checklstring(L, idx, &sz);
+    return std::string(str, sz);
+}
+inline std::string tostring(lua_State *L, int idx, const std::string& def = "") {
+    size_t sz = 0;
+    const char * str = lua_tolstring(L, idx, &sz);
+    if (str == NULL) return def;
+    return std::string(str, sz);
+}
+inline void pushstring(lua_State *L, const std::string& str) {lua_pushlstring(L, str.c_str(), str.size());}
 
 #endif

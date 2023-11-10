@@ -5,7 +5,7 @@
  * This file implements the RawTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <algorithm>
@@ -15,11 +15,15 @@
 #include <Poco/Checksum.h>
 #include "RawTerminal.hpp"
 #include "SDLTerminal.hpp"
+#include "../apis.hpp"
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
 
 /* Data spec
+
+  See https://www.craftos-pc.cc/docs/rawmode for the full specification sheet.
+  This file only contains a basic overview of the format.
   
 * Common Header
 
@@ -30,11 +34,17 @@
   0x00       1          Frame type ID
   0x01       1          Window ID
 
+Note: As of version 1.1, headers for payloads >65535 bytes in size will have the following format instead:
+
+  Offset     Bytes      Purpose
+  0x00       4          Header ("!CPD")
+  0x04       12         Size (hex string)
+
 * Type 0: Terminal contents (server -> client)
 
   Offset     Bytes      Purpose
   0x02       1          Graphics mode
-  0x03       1          Cursor showing?
+  0x03       1          Cursor blinking? (previously showing)
   0x04       2          Width
   0x06       2          Height
   0x08       2          Cursor X
@@ -91,7 +101,9 @@
     
   Offset     Bytes      Purpose
   0x02       1          Set to 1 when closing window or 2 when quitting program (if so, other fields may be any value)
-  0x03       1          Reserved
+  0x03       1          If opening a window and this is > 0, provides the ID + 1 of the computer this references (v2.5.6+)
+                        If opening a window and this is = 0, either the window is a monitor or this field is not supported
+                        If not opening a window, this field is reserved
   0x04       2          Width
   0x06       2          Height
   0x08       *x*        Title (NUL-terminated) (ignored when sending client -> server)
@@ -103,6 +115,82 @@
   0x06       *x*        Title (NUL-terminated)
   0x06+x     *y*        Message (NUL-terminated)
 
+* Type 6: Version support flags (either -> either)
+  
+  Offset     Bytes      Purpose
+  0x02       2          Standard flags as a bitfield - each bit represents a supported feature
+                        0: Binary data CRC-32 checksum support (as opposed to checksumming the Base64 data)
+                        1: Filesystem support extension
+                        2-14: Currently reserved, set to 0
+                        15: Set if the extended flags are present
+  [0x04]    [4]         Extended flags as a bitfield - only available if bit 15 of standard flags is set
+                        0-31: Currently reserved, set to 0
+
+When a client supporting Type 6 packets connects to a server, it SHOULD send a Type 6 packet with its capabilities.
+If a server receives a Type 6 packet and knows about its existence, it MUST send back a packet specifying its capabilities.
+If the client doesn't send or receive a Type 6 packet, both parties MUST assume none of the above capabilities are supported.
+Once the server sends back a response, both the server and client MUST communicate using the common capabilities between the two.
+(A way to determine common capabilities is through a bitwise AND of the support flags.)
+
+== Filesystem support extension ==
+
+* Type 7: File request (client -> server)
+
+  Offset    Bytes       Purpose
+  0x02      1           Request type: 0 = exists, 1 = isDir, 2 = isReadOnly, 3 = getSize, 
+                            4 = getDrive, 5 = getCapacity, 6 = getFreeSpace, 7 = list,
+                            8 = attributes, 9 = find, 10 = makeDir, 11 = delete,
+                            12 = copy, 13 = move, 16 = file read/write
+                        If type is 16 (file read/write), the low 3 bits are used as follows:
+                            Bit 0: read (0)/write (1)
+                            Bit 1: append? (ignored on read)
+                            Bit 2: binary?
+  0x03      1           Unique request ID to be sent back to the client
+  0x04      *x*         Path to the file to check (NUL-terminated)
+  0x04+x    *y*         For types 12 and 13, the second path (NUL-terminated)
+
+  Note: If the packet is a write request, this packet type MUST be followed by a Type 9 File data packet.
+  To write to a file, first send a Type 7 packet specifying the open mode and path; then send a Type 9 packet with the data to write.
+  If the request is a read operation, the next packet will be a Type 9 packet - no Type 8 packet will be sent.
+
+* Type 8: File response (server -> client)
+
+  Offset    Bytes       Purpose
+  0x02      1           Request type
+  0x03      1           Unique request ID this response belongs to
+  ===================== Response data
+  --------------------- Non-returning operations (makeDir, delete, copy, move, write operations)
+  0x04      *x*         0 if success, otherwise a NUL-terminated string containing an error message
+  --------------------- Boolean operations (exists, isDir, isReadOnly)
+  0x04      1           0 = false, 1 = true, 2 = error
+  --------------------- Integer operations (getSize, getCapacity, getFreeSpace)
+  0x04      4           The size reported from the function (0xFFFFFFFF = error)
+  --------------------- String operations (getDrive)
+  0x04      *x*         The path/name of the drive (NUL-terminated, "" = error)
+  --------------------- List results (list, find)
+  0x04      4           Number of entries in the list (0xFFFFFFFF = error)
+  0x08      *y*         List of files, with each string NUL-terminated
+  --------------------- Attributes (attributes)
+  0x04      4           File size
+  0x08      8           Creation time (in milliseconds; integer)
+  0x10      8           Modification time (in milliseconds; integer)
+  0x18      1           Is directory?
+  0x19      1           Is read only?
+  0x1A      1           Error flag (0 = ok, 1 = does not exist, 2 = error)
+  0x1B      1           Reserved
+  ===================== End response data
+
+* Type 8: File data (either -> either)
+
+  Offset    Bytes       Purpose
+  0x02      1           Set to 1 if an error occurred while accessing the file
+                        An error message will be sent as file data if set
+  0x03      1           Unique request ID this response belongs to
+  0x04      4           Size of the data, in bytes
+  0x08      *x*         File data
+
+== End filesystem support extension ==
+
 * Common Footer
 
   ===================== End Base64 payload
@@ -111,17 +199,15 @@
 
 */
 
-std::set<unsigned> RawTerminal::currentIDs;
-static std::thread * inputThread;
-
-enum {
-    CCPC_RAW_TERMINAL_DATA = 0,
-    CCPC_RAW_KEY_DATA,
-    CCPC_RAW_MOUSE_DATA,
-    CCPC_RAW_EVENT_DATA,
-    CCPC_RAW_TERMINAL_CHANGE,
-    CCPC_RAW_MESSAGE_DATA
+uint16_t RawTerminal::supportedFeatures = 0;
+uint32_t RawTerminal::supportedExtendedFeatures = 0;
+std::function<void(const std::string&)> rawWriter = [](const std::string& data){
+    std::cout << data;
+    std::cout.flush();
 };
+static std::thread * inputThread;
+static bool isVersion1_1 = false;
+static std::string fileWriteRequests[256];
 
 static void sendRawData(const uint8_t type, const uint8_t id, const std::function<void(std::ostream&)>& callback) {
     std::stringstream output;
@@ -131,11 +217,19 @@ static void sendRawData(const uint8_t type, const uint8_t id, const std::functio
     std::string str = b64encode(output.str());
     str.erase(std::remove_if(str.begin(), str.end(), [](char c)->bool {return c == '\n' || c == '\r'; }), str.end());
     Poco::Checksum chk;
-    chk.update(str);
+    if (type != CCPC_RAW_FEATURE_FLAGS && (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM)) chk.update(output.str());
+    else chk.update(str);
     const uint32_t sum = chk.checksum();
-    std::cout << "!CPC" << std::hex << std::setfill('0') << std::setw(4) << str.length() << std::dec;
-    std::cout << str << std::hex << std::setfill('0') << std::setw(8) << sum << "\n";
-    std::cout.flush();
+    char tmpdata[21];
+    if (str.length() > 65535) {
+        if (isVersion1_1) {
+            snprintf(tmpdata, 21, "%012zX%08x", str.length(), sum);
+            rawWriter("!CPD" + std::string(tmpdata, 12) + str + std::string(tmpdata + 12, 8) + "\n");
+        } else fprintf(stderr, "Attempted to send raw packet that's too large to a client that doesn't support large packets (%zu bytes); dropping packet.", str.length());
+    } else {
+        snprintf(tmpdata, 13, "%04X%08x", (unsigned)str.length(), sum);
+        rawWriter("!CPC" + std::string(tmpdata, 4) + str + std::string(tmpdata + 4, 8) + "\n");
+    }
 }
 
 static void parseIBTTag(std::istream& in, lua_State *L) {
@@ -179,70 +273,103 @@ void sendRawEvent(SDL_Event e) {
             output.put(e.text.text[0]);
             output.put(0x08);
         });
-    else if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end())
-        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.button.windowID], [e](std::ostream &output) {
-            output.put(e.type == SDL_MOUSEBUTTONUP);
-            switch (e.button.button) {
-            case SDL_BUTTON_LEFT: output.put(1); break;
-            case SDL_BUTTON_RIGHT: output.put(2); break;
-            case SDL_BUTTON_MIDDLE: output.put(3); break;
-            default: output.put(e.button.button); break;
-            }
-            SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
-            uint16_t x, y;
-            if (sdlterm != NULL) {
-                x = convertX(sdlterm, e.button.x);
-                y = convertY(sdlterm, e.button.y);
-            } else {
-                x = e.button.x;
-                y = e.button.y;
-            }
-            output.write((char*)&x, 2);
-            output.write((char*)&y, 2);
+    else if (e.type == SDL_MOUSEBUTTONDOWN) {
+        Terminal * term = rawClientTerminals[rawClientTerminalIDs[e.key.windowID]];
+        int x = 1, y = 1;
+        if (selectedRenderer >= 2 && selectedRenderer <= 4) {
+            x = e.button.x; y = e.button.y;
+        } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
+            x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
+        }
+        if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 0) return;
+        int button;
+        switch (e.button.button) {
+            case SDL_BUTTON_LEFT: button = 1; break;
+            case SDL_BUTTON_RIGHT: button = 2; break;
+            case SDL_BUTTON_MIDDLE: button = 3; break;
+            default:
+                if (config.standardsMode) return;
+                else button = e.button.button;
+                break;
+        }
+        term->lastMouse = {x, y, e.button.button, 0, ""};
+        term->mouseButtonOrder.push_back(e.button.button);
+        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [button, x, y](std::ostream &output) {
+            output.put(0);
+            output.put(button);
+            output.write((const char*)&x, 4);
+            output.write((const char*)&y, 4);
         });
-    else if (e.type == SDL_MOUSEWHEEL && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end() && selectedRenderer == 0)
-        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.wheel.windowID], [e](std::ostream &output) {
-            output.put(2);
-            output.put(max(min(e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? 1 : -1), 1), -1));
-            SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
-            uint16_t x, y;
-            if (sdlterm != NULL) {
-                int tx = 0, ty = 0;
-                sdlterm->getMouse(&tx, &ty);
-                x = convertX(sdlterm, tx);
-                y = convertY(sdlterm, ty);
-            } else {
-                // ???
-            }
-            output.write((char*)&x, 2);
-            output.write((char*)&y, 2);
+    } else if (e.type == SDL_MOUSEBUTTONUP) {
+        Terminal * term = rawClientTerminals[rawClientTerminalIDs[e.key.windowID]];
+        int x = 1, y = 1;
+        if (selectedRenderer >= 2 && selectedRenderer <= 4) {
+            x = e.button.x; y = e.button.y;
+        } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
+            x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
+        }
+        if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 1) return;
+        int button;
+        switch (e.button.button) {
+            case SDL_BUTTON_LEFT: button = 1; break;
+            case SDL_BUTTON_RIGHT: button = 2; break;
+            case SDL_BUTTON_MIDDLE: button = 3; break;
+            default:
+                if (config.standardsMode) return;
+                else button = e.button.button;
+                break;
+        }
+        term->lastMouse = {x, y, e.button.button, 1, ""};
+        term->mouseButtonOrder.remove(e.button.button);
+        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [button, x, y](std::ostream &output) {
+            output.put(1);
+            output.put(button);
+            output.write((const char*)&x, 4);
+            output.write((const char*)&y, 4);
         });
-    else if (e.type == SDL_MOUSEMOTION && e.motion.state && rawClientTerminals.find(e.button.windowID) != rawClientTerminals.end()) {
+    } else if (e.type == SDL_MOUSEWHEEL) {
+        SDLTerminal * term = dynamic_cast<SDLTerminal*>(rawClientTerminals[rawClientTerminalIDs[e.key.windowID]]);
+        if (term == NULL) {
+            return;
+        } else {
+            int x = 0, y = 0;
+            term->getMouse(&x, &y);
+            x = convertX(term, x);
+            y = convertY(term, y);
+            sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [e, x, y](std::ostream &output) {
+                output.put(2);
+                output.put(max(min(-e.wheel.y, 1), -1));
+                output.write((const char*)&x, 4);
+                output.write((const char*)&y, 4);
+            });
+        }
+    } else if (e.type == SDL_MOUSEMOTION && e.motion.state) {
+        SDLTerminal * term = dynamic_cast<SDLTerminal*>(rawClientTerminals[rawClientTerminalIDs[e.key.windowID]]);
+        if (term == NULL) return;
+        int x = 1, y = 1;
+        if (selectedRenderer >= 2 && selectedRenderer <= 4) {
+            x = e.motion.x; y = e.motion.y;
+        } else if (term != NULL) {
+            x = convertX(term, e.motion.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
+        }
         std::list<Uint8> used_buttons;
         for (Uint8 i = 0; i < 32; i++) if (e.motion.state & (1 << i)) used_buttons.push_back(i + 1);
-        for (auto it = rawClientTerminals[e.button.windowID]->mouseButtonOrder.begin(); it != rawClientTerminals[e.button.windowID]->mouseButtonOrder.end();) {
+        for (auto it = term->mouseButtonOrder.begin(); it != term->mouseButtonOrder.end();) {
             auto pos = std::find(used_buttons.begin(), used_buttons.end(), *it);
-            if (pos == used_buttons.end()) it = rawClientTerminals[e.button.windowID]->mouseButtonOrder.erase(it);
+            if (pos == used_buttons.end()) it = term->mouseButtonOrder.erase(it);
             else ++it;
         }
         Uint8 button = used_buttons.back();
-        if (!rawClientTerminals[e.button.windowID]->mouseButtonOrder.empty()) button = rawClientTerminals[e.button.windowID]->mouseButtonOrder.back();
+        if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
         if (button == SDL_BUTTON_MIDDLE) button = 3;
         else if (button == SDL_BUTTON_RIGHT) button = 2;
-        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.motion.windowID], [e, button](std::ostream &output) {
+        if ((term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == button && term->lastMouse.event == 2) || (config.standardsMode && button > 3)) return;
+        term->lastMouse = {x, y, button, 2, ""};
+        sendRawData(CCPC_RAW_MOUSE_DATA, rawClientTerminalIDs[e.window.windowID], [button, x, y](std::ostream &output) {
             output.put(3);
             output.put(button);
-            SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(rawClientTerminals[e.button.windowID]);
-            uint16_t x, y;
-            if (sdlterm != NULL) {
-                x = convertX(sdlterm, e.button.x);
-                y = convertY(sdlterm, e.button.y);
-            } else {
-                x = e.button.x;
-                y = e.button.y;
-            }
-            output.write((char*)&x, 2);
-            output.write((char*)&y, 2);
+            output.write((const char*)&x, 4);
+            output.write((const char*)&y, 4);
         });
     } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE)
         sendRawData(CCPC_RAW_TERMINAL_CHANGE, rawClientTerminalIDs[e.window.windowID], [](std::ostream &output) {
@@ -256,15 +383,10 @@ void sendRawEvent(SDL_Event e) {
         });
 }
 
-#ifdef __EMSCRIPTEN__
-#define checkWindowID(c, wid) (c->term == *renderTarget || findMonitorFromWindowID(c, (*renderTarget)->id, tmps) != NULL)
-#else
-#define checkWindowID(c, wid) (wid == c->term->id || findMonitorFromWindowID(c, wid, tmps) != NULL)
-#endif
-
 struct rawMouseProviderData {
     uint8_t evtype;
     uint8_t button;
+    uint8_t id;
     uint32_t x;
     uint32_t y;
 };
@@ -275,12 +397,28 @@ static std::string rawMouseProvider(lua_State *L, void* data) {
         delete d;
         return "";
     }
-    lua_pushinteger(L, d->button);
+    Computer * comp = get_comp(L);
+    if (comp->term->id == d->id || config.monitorsUseMouseEvents) lua_pushinteger(L, d->button);
+    else {
+        if (d->evtype != 0) {
+            delete d;
+            return "";
+        }
+        std::string side;
+        monitor * m = findMonitorFromWindowID(comp, d->id, &side);
+        if (!m) {
+            delete d;
+            return "";
+        }
+        pushstring(L, side);
+    }
     lua_pushinteger(L, d->x);
     lua_pushinteger(L, d->y);
     std::string retval;
-    if (d->evtype == 0) retval = "mouse_click";
-    else if (d->evtype == 1) retval = "mouse_up";
+    if (d->evtype == 0) {
+        if (comp->term->id != d->id && !config.monitorsUseMouseEvents) retval = "monitor_touch";
+        else retval = "mouse_click";
+    } else if (d->evtype == 1) retval = "mouse_up";
     else if (d->evtype == 2) retval = "mouse_scroll";
     else if (d->evtype == 3) retval = "mouse_drag";
     delete d;
@@ -298,18 +436,45 @@ static std::string rawEventProvider(lua_State *L, void* data) {
     return name;
 }
 
+static lua_CFunction findLibraryFunction(luaL_Reg * lib, const char * name) {
+    for (; lib->name != NULL; lib++)
+        if (strcmp(lib->name, name) == 0)
+            return lib->func;
+    return NULL;
+}
+
 static void rawInputLoop() {
     while (!exiting) {
         unsigned char cc = std::cin.get();
-        if (cc == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
-            char size[5];
-            std::cin.read(size, 4);
-            long sizen = strtol(size, NULL, 16);
-            char * tmp = new char[(size_t)sizen + 1];
+        if (cc == '!' && std::cin.get() == 'C' && std::cin.get() == 'P') {
+            char protocol_type = std::cin.get();
+            size_t sizen;
+            if (protocol_type == 'C') {
+                char size[5];
+                size[4] = 0;
+                std::cin.read(size, 4);
+                sizen = strtoul(size, NULL, 16);
+            } else if (isVersion1_1 && protocol_type == 'D') {
+                char size[13];
+                size[12] = 0;
+                std::cin.read(size, 12);
+                sizen = strtoul(size, NULL, 16);
+            } else continue;
+            char * tmp = new char[sizen+1];
             tmp[sizen] = 0;
             std::cin.read(tmp, sizen);
+            std::string ddata;
+            try {
+                ddata = b64decode(std::string(tmp, sizen));
+            } catch (std::exception &e) {
+                fprintf(stderr, "Could not decode Base64: %s\n", e.what());
+                delete[] tmp;
+                continue;
+            } 
             Poco::Checksum chk;
-            chk.update(tmp, sizen);
+            if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM) chk.update(ddata);
+            else chk.update(tmp, sizen);
+            delete[] tmp;
             char hexstr[9];
             std::cin.read(hexstr, 8);
             hexstr[8] = 0;
@@ -317,15 +482,15 @@ static void rawInputLoop() {
                 fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), strtoul(hexstr, NULL, 16));
                 continue;
             }
-            std::stringstream in(b64decode(tmp));
-            delete[] tmp;
+            std::stringstream in(ddata);
 
             SDL_Event e;
             memset(&e, 0, sizeof(SDL_Event));
             std::string tmps;
             uint8_t type = in.get();
             uint8_t id = in.get();
-            if (type == CCPC_RAW_KEY_DATA) {
+            switch (type) {
+            case CCPC_RAW_KEY_DATA: {
                 uint8_t key = in.get();
                 uint8_t flags = in.get();
                 if (flags & 8) {
@@ -371,7 +536,8 @@ static void rawInputLoop() {
                         }
                     }
                 }
-            } else if (type == CCPC_RAW_MOUSE_DATA) {
+                break;
+            } case CCPC_RAW_MOUSE_DATA: {
                 uint8_t evtype = in.get();
                 uint8_t button = in.get();
                 uint32_t x = 0, y = 0;
@@ -381,6 +547,7 @@ static void rawInputLoop() {
                 for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
                         struct rawMouseProviderData * d = new struct rawMouseProviderData;
+                        d->id = id;
                         d->evtype = evtype;
                         d->button = button;
                         d->x = x;
@@ -388,7 +555,8 @@ static void rawInputLoop() {
                         queueEvent(c, rawMouseProvider, d);
                     }
                 }
-            } else if (type == CCPC_RAW_EVENT_DATA) {
+                break;
+            } case CCPC_RAW_EVENT_DATA: {
                 LockGuard lockc(computers);
                 for (Computer * c : *computers) {
                     if (checkWindowID(c, id)) {
@@ -396,7 +564,8 @@ static void rawInputLoop() {
                         queueEvent(c, rawEventProvider, ss);
                     }
                 }
-            } else if (type == CCPC_RAW_TERMINAL_CHANGE) {
+                break;
+            } case CCPC_RAW_TERMINAL_CHANGE: {
                 int isClosing = in.get();
                 if (isClosing == 1) {
                     e.type = SDL_WINDOWEVENT;
@@ -405,7 +574,7 @@ static void rawInputLoop() {
                     for (Computer * c : *computers) {
                         if (checkWindowID(c, id)) {
                             std::lock_guard<std::mutex> lock(c->termEventQueueMutex);
-                            e.window.windowID = c->term->id;
+                            e.window.windowID = id;
                             c->termEventQueue.push(e);
                             c->event_lock.notify_all();
                         }
@@ -413,7 +582,7 @@ static void rawInputLoop() {
                     for (Terminal * t : orphanedTerminals) {
                         if (t->id == id) {
                             orphanedTerminals.erase(t);
-                            delete t;
+                            t->factory->deleteTerminal(t);
                             break;
                         }
                     }
@@ -444,7 +613,360 @@ static void rawInputLoop() {
                         }
                     }
                 }
-            }
+                break;
+            } case CCPC_RAW_FEATURE_FLAGS: {
+                isVersion1_1 = true;
+                in.read((char*)&RawTerminal::supportedFeatures, 2);
+                RawTerminal::supportedFeatures &= CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM | CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT | CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS;
+                if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) {
+                    in.read((char*)&RawTerminal::supportedExtendedFeatures, 4);
+                    RawTerminal::supportedExtendedFeatures &= 0x00000000;
+                }
+                sendRawData(CCPC_RAW_FEATURE_FLAGS, id, [](std::ostream& out) {
+                    out.write((char*)&RawTerminal::supportedFeatures, 2);
+                    if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) out.write((char*)&RawTerminal::supportedExtendedFeatures, 4);
+                });
+                if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS) {
+                    std::lock_guard<std::mutex> rlock(renderTargetsLock);
+                    for (Terminal * t : renderTargets) {
+                        RawTerminal * term = dynamic_cast<RawTerminal*>(t);
+                        if (term != NULL) {
+                            sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [term](std::ostream& output) {
+                                output.put(0);
+                                output.put(term->computerID);
+                                output.write((char*)&term->width, 2);
+                                output.write((char*)&term->height, 2);
+                                output.write(term->title.c_str(), term->title.size());
+                                output.put(0);
+                            });
+                        }
+                    }
+                }
+                break;
+            } case CCPC_RAW_FILE_REQUEST: {
+                if (!(RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT)) break;
+                uint8_t reqtype = in.get();
+                uint8_t reqid = in.get();
+                std::string path, path2;
+                char c;
+                while ((c = (char)in.get())) path += c;
+                if (reqtype == CCPC_RAW_FILE_REQUEST_COPY || reqtype == CCPC_RAW_FILE_REQUEST_MOVE) while ((c = (char)in.get())) path2 += c;
+                Computer * comp = NULL;
+                LockGuard lockc(computers);
+                for (Computer * c : *computers) {
+                    if (checkWindowID(c, id)) {
+                        comp = c;
+                        break;
+                    }
+                }
+                if (comp == NULL || comp->rawFileStack == NULL) {
+                    if ((reqtype & 0xF0) == CCPC_RAW_FILE_REQUEST_OPEN && !(reqtype & CCPC_RAW_FILE_REQUEST_OPEN_WRITE)) sendRawData(CCPC_RAW_FILE_DATA, id, [reqid](std::ostream& out) {
+                        out.put(1);
+                        out.put(reqid);
+                        out.put(39); out.put(0); out.put(0); out.put(0);
+                        out.write("Could not find computer for this window", 39);
+                    }); else sendRawData(CCPC_RAW_FILE_RESPONSE, id, [reqtype, reqid](std::ostream& out) {
+                        out.put(reqtype);
+                        out.put(reqid);
+                        switch (reqtype) {
+                            case CCPC_RAW_FILE_REQUEST_MAKEDIR:
+                            case CCPC_RAW_FILE_REQUEST_DELETE:
+                            case CCPC_RAW_FILE_REQUEST_COPY:
+                            case CCPC_RAW_FILE_REQUEST_MOVE:
+                            case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE:
+                            case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE | CCPC_RAW_FILE_REQUEST_OPEN_APPEND:
+                            case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE | CCPC_RAW_FILE_REQUEST_OPEN_BINARY:
+                            case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE | CCPC_RAW_FILE_REQUEST_OPEN_APPEND | CCPC_RAW_FILE_REQUEST_OPEN_BINARY:
+                                out.write("Could not find computer for this window", 40);
+                                break;
+                            case CCPC_RAW_FILE_REQUEST_EXISTS:
+                            case CCPC_RAW_FILE_REQUEST_ISDIR:
+                            case CCPC_RAW_FILE_REQUEST_ISREADONLY:
+                                out.put(2);
+                                break;
+                            case CCPC_RAW_FILE_REQUEST_GETSIZE:
+                            case CCPC_RAW_FILE_REQUEST_GETCAPACITY:
+                            case CCPC_RAW_FILE_REQUEST_GETFREESPACE:
+                            case CCPC_RAW_FILE_REQUEST_LIST:
+                            case CCPC_RAW_FILE_REQUEST_FIND:
+                                out.put(0xFF); out.put(0xFF); out.put(0xFF); out.put(0xFF);
+                                break;
+                            case CCPC_RAW_FILE_REQUEST_GETDRIVE:
+                                out.put(0);
+                                break;
+                            case CCPC_RAW_FILE_REQUEST_ATTRIBUTES:
+                                for (int i = 0; i < 22; i++) out.put(0);
+                                out.put(2);
+                                out.put(0);
+                                break;
+                        }
+                    });
+                    break;
+                }
+                std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                if ((reqtype & 0xF0) == CCPC_RAW_FILE_REQUEST_OPEN) {
+                    if (!(reqtype & CCPC_RAW_FILE_REQUEST_OPEN_WRITE)) sendRawData(CCPC_RAW_FILE_DATA, id, [reqtype, reqid, comp, &path](std::ostream &out) {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "open"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        lua_pushstring(comp->rawFileStack, (reqtype & CCPC_RAW_FILE_REQUEST_OPEN_BINARY) ? "rb" : "r");
+                        std::string data;
+                        bool err = false;
+                        if (lua_pcall(comp->rawFileStack, 2, 2, 0)) {
+                            err = true;
+                            data = lua_tostring(comp->rawFileStack, -1);
+                            lua_pop(comp->rawFileStack, 1);
+                        } else if (lua_isnil(comp->rawFileStack, -2)) {
+                            err = true;
+                            data = lua_tostring(comp->rawFileStack, -1);
+                            lua_pop(comp->rawFileStack, 2);
+                        } else {
+                            lua_pop(comp->rawFileStack, 1);
+                            lua_getfield(comp->rawFileStack, -1, "readAll");
+                            lua_call(comp->rawFileStack, 0, 1);
+                            if (lua_isnil(comp->rawFileStack, -1)) data = ""; // shouldn't happen
+                            else data = std::string(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1));
+                            lua_pop(comp->rawFileStack, 1);
+                            lua_getfield(comp->rawFileStack, -1, "close");
+                            lua_call(comp->rawFileStack, 0, 0);
+                            lua_pop(comp->rawFileStack, 1);
+                        }
+                        out.put(err);
+                        out.put(reqid);
+                        uint32_t size = data.size();
+                        out.write((char*)&size, 4);
+                        out.write(data.c_str(), size);
+                    }); else fileWriteRequests[reqid] = (char)reqtype + path;
+                } else sendRawData(CCPC_RAW_FILE_RESPONSE, id, [reqtype, reqid, comp, &path, &path2](std::ostream& out) {
+                    out.put(reqtype);
+                    out.put(reqid);
+                    switch (reqtype) {
+                    case CCPC_RAW_FILE_REQUEST_EXISTS: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "exists"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) out.put(2);
+                        else out.put(lua_toboolean(comp->rawFileStack, -1));
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_ISDIR: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "isDir"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) out.put(2);
+                        else out.put(lua_toboolean(comp->rawFileStack, -1));
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_ISREADONLY: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "isReadOnly"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) out.put(2);
+                        else out.put(lua_toboolean(comp->rawFileStack, -1));
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_GETSIZE: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "getSize"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        uint32_t size;
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
+                        else size = lua_tointeger(comp->rawFileStack, -1);
+                        out.write((char*)&size, 4);
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_GETDRIVE: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "getDrive"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        std::string str;
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) str = "";
+                        else str = lua_tostring(comp->rawFileStack, -1);
+                        out.write(str.c_str(), str.size());
+                        out.put(0);
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_GETCAPACITY: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "getCapacity"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        uint32_t size;
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
+                        else size = lua_tointeger(comp->rawFileStack, -1);
+                        out.write((char*)&size, 4);
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_GETFREESPACE: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "getFreeSpace"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        uint32_t size;
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
+                        else size = lua_tointeger(comp->rawFileStack, -1);
+                        out.write((char*)&size, 4);
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_LIST: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "list"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        uint32_t size;
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
+                        else size = lua_rawlen(comp->rawFileStack, -1);
+                        out.write((char*)&size, 4);
+                        if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
+                            lua_rawgeti(comp->rawFileStack, -1, i + 1);
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1));
+                            out.put(0);
+                            lua_pop(comp->rawFileStack, 1);
+                        }
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_ATTRIBUTES: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "attributes"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) {
+                            for (int i = 0; i < 22; i++) out.put(0);
+                            out.put(2);
+                            out.put(0);
+                        } else if (lua_isnil(comp->rawFileStack, -1)) {
+                            for (int i = 0; i < 22; i++) out.put(0);
+                            out.put(1);
+                            out.put(0);
+                        } else {
+                            uint32_t t32;
+                            uint64_t t64;
+                            lua_getfield(comp->rawFileStack, -1, "size");
+                            t32 = lua_tointeger(comp->rawFileStack, -1);
+                            out.write((char*)&t32, 4);
+                            lua_pop(comp->rawFileStack, 1);
+                            lua_getfield(comp->rawFileStack, -1, "created");
+                            t64 = lua_tointeger(comp->rawFileStack, -1);
+                            out.write((char*)&t64, 8);
+                            lua_pop(comp->rawFileStack, 1);
+                            lua_getfield(comp->rawFileStack, -1, "modified");
+                            t64 = lua_tointeger(comp->rawFileStack, -1);
+                            out.write((char*)&t64, 8);
+                            lua_pop(comp->rawFileStack, 1);
+                            lua_getfield(comp->rawFileStack, -1, "isDir");
+                            out.put(lua_toboolean(comp->rawFileStack, -1));
+                            lua_pop(comp->rawFileStack, 1);
+                            lua_getfield(comp->rawFileStack, -1, "isReadOnly");
+                            out.put(lua_toboolean(comp->rawFileStack, -1));
+                            lua_pop(comp->rawFileStack, 1);
+                            out.put(0); out.put(0);
+                        }
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_FIND: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "find"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        uint32_t size;
+                        if (lua_pcall(comp->rawFileStack, 1, 1, 0)) size = 0xFFFFFFFF;
+                        else size = lua_rawlen(comp->rawFileStack, -1);
+                        out.write((char*)&size, 4);
+                        if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
+                            lua_rawgeti(comp->rawFileStack, -1, i + 1);
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1));
+                            out.put(0);
+                            lua_pop(comp->rawFileStack, 1);
+                        }
+                        lua_pop(comp->rawFileStack, 1);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_MAKEDIR: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "makeDir"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        if (lua_pcall(comp->rawFileStack, 1, 0, 0)) {
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1));
+                            lua_pop(comp->rawFileStack, 1);
+                        }
+                        out.put(0);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_DELETE: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "delete"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        if (lua_pcall(comp->rawFileStack, 1, 0, 0)) {
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1));
+                            lua_pop(comp->rawFileStack, 1);
+                        }
+                        out.put(0);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_COPY: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "copy"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        lua_pushstring(comp->rawFileStack, path2.c_str());
+                        if (lua_pcall(comp->rawFileStack, 2, 0, 0)) {
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1));
+                            lua_pop(comp->rawFileStack, 1);
+                        }
+                        out.put(0);
+                        break;
+                    } case CCPC_RAW_FILE_REQUEST_MOVE: {
+                        lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "move"));
+                        lua_pushstring(comp->rawFileStack, path.c_str());
+                        lua_pushstring(comp->rawFileStack, path2.c_str());
+                        if (lua_pcall(comp->rawFileStack, 2, 0, 0)) {
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1));
+                            lua_pop(comp->rawFileStack, 1);
+                        }
+                        out.put(0);
+                        break;
+                    }}
+                });
+                break;
+            } case CCPC_RAW_FILE_DATA: {
+                if (!(RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT)) break;
+                in.get();
+                uint8_t reqid = in.get();
+                if (fileWriteRequests[reqid].empty()) {
+                    sendRawData(CCPC_RAW_FILE_RESPONSE, id, [reqid](std::ostream &out) {
+                        out.put(CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE);
+                        out.put(reqid);
+                        out.write("Could not find request for given ID", 36);
+                    });
+                    break;
+                }
+                uint8_t reqtype = fileWriteRequests[reqid][0];
+                std::string path = fileWriteRequests[reqid].substr(1);
+                fileWriteRequests[reqid] = "";
+                Computer * comp = NULL;
+                LockGuard lockc(computers);
+                for (Computer * c : *computers) {
+                    if (checkWindowID(c, id)) {
+                        comp = c;
+                        break;
+                    }
+                }
+                if (comp == NULL || comp->rawFileStack == NULL) {
+                    sendRawData(CCPC_RAW_FILE_RESPONSE, id, [reqtype, reqid](std::ostream &out) {
+                        out.put(reqtype);
+                        out.put(reqid);
+                        out.write("Could not find computer for this window", 40);
+                    });
+                    break;
+                }
+                std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                sendRawData(CCPC_RAW_FILE_RESPONSE, id, [reqtype, reqid, comp, &path, &in](std::ostream& out) {
+                    out.put(reqtype);
+                    out.put(reqid);
+                    lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "open"));
+                    lua_pushstring(comp->rawFileStack, path.c_str());
+                    lua_pushstring(comp->rawFileStack, (std::string((reqtype & CCPC_RAW_FILE_REQUEST_OPEN_APPEND) ? "a" : "w") + ((reqtype & CCPC_RAW_FILE_REQUEST_OPEN_BINARY) ? "b" : "")).c_str());
+                    if (lua_pcall(comp->rawFileStack, 2, 2, 0)) {
+                        out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1) + 1);
+                        lua_pop(comp->rawFileStack, 1);
+                    } else if (lua_isnil(comp->rawFileStack, -2)) {
+                        out.write(lua_tostring(comp->rawFileStack, -1), lua_rawlen(comp->rawFileStack, -1) + 1);
+                        lua_pop(comp->rawFileStack, 2);
+                    } else {
+                        lua_pop(comp->rawFileStack, 1);
+                        uint32_t size = 0;
+                        in.read((char*)&size, 4);
+                        char * data = new char[size];
+                        in.read(data, size);
+                        lua_getfield(comp->rawFileStack, -1, "write");
+                        lua_pushlstring(comp->rawFileStack, data, size);
+                        delete[] data;
+                        lua_call(comp->rawFileStack, 1, 0);
+                        lua_getfield(comp->rawFileStack, -1, "close");
+                        lua_call(comp->rawFileStack, 0, 0);
+                        lua_pop(comp->rawFileStack, 1);
+                        out.put(0);
+                    }
+                });
+                break;
+            }}
         }
     }
 }
@@ -468,6 +990,13 @@ void RawTerminal::quit() {
     SDL_Quit();
 }
 
+void RawTerminal::initClient(uint16_t flags, uint32_t extflags) {
+    sendRawData(CCPC_RAW_FEATURE_FLAGS, 0, [flags, extflags](std::ostream& out) {
+        out.write((char*)&flags, 2);
+        if (flags & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) out.write((char*)&extflags, 4);
+    });
+}
+
 void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const char * message) {
     sendRawData(CCPC_RAW_MESSAGE_DATA, 0, [flags, title, message](std::ostream& output) {
         output.write((const char*)&flags, 4);
@@ -478,30 +1007,35 @@ void RawTerminal::showGlobalMessage(uint32_t flags, const char * title, const ch
     });
 }
 
-RawTerminal::RawTerminal(std::string title) : Terminal(config.defaultWidth, config.defaultHeight) {
+RawTerminal::RawTerminal(std::string title, uint8_t cid) : Terminal(config.defaultWidth, config.defaultHeight), computerID(cid) {
     this->title.reserve(title.size());
     std::move(title.begin(), title.end(), this->title.begin());
-    for (id = 0; currentIDs.find(id) != currentIDs.end(); id++) {}
-    currentIDs.insert(id);
-    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
+    if (!singleWindowMode) {
+        for (id = 0; currentWindowIDs.find(id) != currentWindowIDs.end(); id++) {}
+        currentWindowIDs.insert(id);
+    }
+    if (!singleWindowMode || renderTargets.empty()) sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [this, title](std::ostream& output) {
         output.put(0);
-        output.put(0);
+        output.put(computerID);
         output.write((char*)&width, 2);
         output.write((char*)&height, 2);
-        output.write(title.c_str(), strlen(title.c_str()));
+        output.write(title.c_str(), title.size());
         output.put(0);
     });
     std::lock_guard<std::mutex> rlock(renderTargetsLock);
     renderTargets.push_back(this);
+    renderTarget = --renderTargets.end();
+    onActivate();
 }
 
 RawTerminal::~RawTerminal() {
-    sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [](std::ostream& output) {
+    if (!singleWindowMode || renderTargets.size() == 1) sendRawData(CCPC_RAW_TERMINAL_CHANGE, id, [](std::ostream& output) {
         output.put(1);
         for (int i = 0; i < 6; i++) output.put(0);
     });
-    const auto pos = currentIDs.find(id);
-    if (pos != currentIDs.end()) currentIDs.erase(pos);
+    const auto pos = currentWindowIDs.find(id);
+    if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
+    if (singleWindowMode && *renderTarget == this) previousRenderTarget();
     std::lock_guard<std::mutex> rtlock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
@@ -526,7 +1060,7 @@ void RawTerminal::render() {
     changed = false;
     sendRawData(CCPC_RAW_TERMINAL_DATA, (uint8_t)id, [this](std::ostream& output) {
         output.put((char)mode);
-        output.put((char)blink);
+        output.put((char)canBlink);
         output.write((char*)&width, 2);
         output.write((char*)&height, 2);
         output.write((char*)&blinkX, 2);
@@ -609,10 +1143,10 @@ void RawTerminal::setLabel(std::string label) {
     title = label;
     sendRawData(CCPC_RAW_TERMINAL_CHANGE, (uint8_t)id, [this](std::ostream& output) {
         output.put(0);
-        output.put(0);
+        output.put(computerID);
         output.write((const char*)&width, 2);
         output.write((const char*)&height, 2);
-        output.write(title.c_str(), strlen(title.c_str()));
+        output.write(title.c_str(), title.size());
         output.put(0);
     });
 }

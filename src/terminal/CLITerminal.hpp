@@ -5,7 +5,7 @@
  * This file defines the CLITerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef NO_CLI
@@ -22,15 +22,11 @@ class CLITerminal: public Terminal {
     friend void pressAlt(int sig);
     unsigned last_pair;
     static unsigned short lastPaletteChecksum;
-    static std::set<unsigned>::iterator selectedWindow;
-    static std::set<unsigned> currentIDs;
 public:
     static void init();
     static void quit();
     static bool pollEvents();
     static void renderNavbar(std::string title);
-    static void nextWindow();
-    static void previousWindow();
     static bool stopRender;
     static bool forceRender;
 
@@ -42,6 +38,7 @@ public:
     void getMouse(int *x, int *y);
     void showMessage(uint32_t flags, const char * title, const char * message) override;
     void setLabel(std::string label) override;
+    void onActivate() override;
 };
 
 #endif

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2019-2023 JackMacWindows <jackmacwindowslinux@gmail.com> -->
+<component type="desktop-application">
+  <id>cc.craftos-pc.CraftOS-PC</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>CraftOS-PC</name>
+  <summary>Advanced ComputerCraft emulator</summary>
+
+  <description>
+    <p>
+        CraftOS-PC is a fantasy terminal that allows you to write and run 
+        programs inside an '80s-style text console.
+    </p>
+    <p>
+        CraftOS-PC emulates the popular Minecraft mod "ComputerCraft", which 
+        adds programmable computers to Minecraft using the Lua programming 
+        language. CraftOS-PC takes this experience outside Minecraft to allow 
+        you to run the same programs anywhere you go.
+    </p>
+    <p>
+        CraftOS-PC provides a set of functions (called APIs) that make it super 
+        easy to do simple tasks such as write text to the screen, read files, 
+        and more. The simplicity of these functions makes CraftOS-PC great for 
+        new programmers, but their power makes it possible to write all sorts of
+        complex programs with less code.
+    </p>
+    <p>
+        If you aren't ready to write programs yet, there's already a large 
+        number of programs for ComputerCraft that will work in CraftOS-PC, 
+        ranging from simple games to whole graphical operating systems. These 
+        can be downloaded through the built-in Pastebin and GitHub Gist clients.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">CraftOS-PC.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://www.craftos-pc.cc/images/image1.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://www.craftos-pc.cc/images/cospc-raycaster.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://www.craftos-pc.cc/images/peripherals.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://www.craftos-pc.cc/images/multicomputer.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://www.craftos-pc.cc/images/gfx.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://www.craftos-pc.cc/images/debugger_demo.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://www.craftos-pc.cc/</url>
+  <developer_name>JackMacWindows</developer_name>
+
+  <provides>
+    <binary>craftos</binary>
+  </provides>
+</component>

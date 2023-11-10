@@ -5,7 +5,7 @@
  * This file implements the methods for the mounter API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <algorithm>
@@ -32,7 +32,7 @@ static int mounter_mount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     bool read_only = config.mount_mode != MOUNT_MODE_RW;
     if (lua_isboolean(L, 3) && config.mount_mode != MOUNT_MODE_RO_STRICT) read_only = lua_toboolean(L, 3);
-    lua_pushboolean(L, addMount(get_comp(L), wstr(luaL_checkstring(L, 2)), luaL_checkstring(L, 1), read_only));
+    lua_pushboolean(L, addMount(get_comp(L), luaL_checkstring(L, 2), luaL_checkstring(L, 1), read_only));
     return 1;
 }
 
@@ -41,7 +41,7 @@ static int mounter_unmount(lua_State *L) {
     if (config.mount_mode == MOUNT_MODE_NONE) luaL_error(L, "Mounting is disabled");
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
-    std::vector<std::string> elems = split(comp_path, "/\\");
+    std::vector<std::string> elems = split(std::string(comp_path), "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") { 
@@ -80,8 +80,8 @@ static int mounter_list(lua_State *L) {
             lua_createtable(L, 1, 0); // table, entries
         }
         lua_pushinteger(L, lua_rawlen(L, -1) + 1); // table, entries, index
-        if (std::regex_match(std::get<1>(m), pathregex(WS("\\d+:")))) lua_pushfstring(L, "(virtual mount:%s)", std::get<1>(m).substr(0, std::get<1>(m).size()-1).c_str());
-        else lua_pushstring(L, astr(std::get<1>(m)).c_str()); // table, entries, index, value
+        if (std::regex_match(std::get<1>(m), std::basic_regex<path_t::value_type>(path_t("\\d+:").native()))) lua_pushfstring(L, "(virtual mount:%s)", std::get<1>(m).substr(0, std::get<1>(m).size()-1).c_str());
+        else lua_pushstring(L, path_t(std::get<1>(m)).string().c_str()); // table, entries, index, value
         lua_settable(L, -3); // table, entries
         lua_pushstring(L, ss.str().c_str()); // table, entries, key
         lua_pushvalue(L, -2); // table, entries, key, entries
@@ -95,7 +95,7 @@ static int mounter_isReadOnly(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * comp_path = luaL_checkstring(L, 1);
-    std::vector<std::string> elems = split(comp_path, "/\\");
+    std::vector<std::string> elems = split(std::string(comp_path), "/\\");
     std::list<std::string> pathc;
     for (const std::string& s : elems) {
         if (s == "..") {
@@ -111,36 +111,6 @@ static int mounter_isReadOnly(lua_State *L) {
     }
     luaL_error(L, "%s: Not mounted", comp_path);
     return 0; // redundant
-}
-
-extern "C" {
-    FILE* mounter_fopen_(lua_State *L, const char * filename, const char * mode) {
-        lastCFunction = __func__;
-        if (!((mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a') && (mode[1] == '\0' || mode[1] == 'b' || mode[1] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[2] == 'b' || mode[2] == '+') && (mode[1] == '\0' || mode[2] == '\0' || mode[3] == '\0'))) 
-            luaL_error(L, "Unsupported mode");
-        if (get_comp(L)->files_open >= config.maximumFilesOpen) { errno = EMFILE; return NULL; }
-        struct_stat st;
-        const path_t newpath = mode[0] == 'r' ? fixpath(get_comp(L), lua_tostring(L, 1), true) : fixpath_mkdir(get_comp(L), lua_tostring(L, 1));
-        if ((mode[0] == 'w' || mode[0] == 'a' || (mode[0] == 'r' && (mode[1] == '+' || (mode[1] == 'b' && mode[2] == '+')))) && fixpath_ro(get_comp(L), filename)) 
-            { errno = EACCES; return NULL; }
-        if (platform_stat(newpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) { errno = EISDIR; return NULL; }
-        FILE* retval;
-        if (mode[1] == 'b' && mode[2] == '+') retval = platform_fopen(newpath.c_str(), std::string(mode).substr(0, 2).c_str());
-        else if (mode[1] == '+') {
-            std::string mstr = mode;
-            mstr.erase(mstr.begin() + 1);
-            retval = platform_fopen(newpath.c_str(), mstr.c_str());
-        } else retval = platform_fopen(newpath.c_str(), mode);
-        if (retval != NULL) get_comp(L)->files_open++;
-        return retval;
-    }
-
-    int mounter_fclose_(lua_State *L, FILE * stream) {
-        lastCFunction = __func__;
-        const int retval = fclose(stream);
-        if (retval == 0 && get_comp(L)->files_open > 0) get_comp(L)->files_open--;
-        return retval;
-    }
 }
 
 static luaL_Reg mounter_reg[] = {

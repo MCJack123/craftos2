@@ -5,7 +5,7 @@
  * This file defines the methods for HTTP handles.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef HTTP_HANDLE_HPP
@@ -22,6 +22,7 @@ extern int http_handle_readByte(lua_State *L);
 extern int http_handle_readAllByte(lua_State *L);
 extern int http_handle_getResponseCode(lua_State *L);
 extern int http_handle_getResponseHeaders(lua_State *L);
+extern int http_handle_seek(lua_State *L);
 extern int req_read(lua_State *L);
 extern int req_readLine(lua_State *L);
 extern int req_readAll(lua_State *L);

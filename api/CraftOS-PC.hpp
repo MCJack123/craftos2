@@ -5,7 +5,7 @@
  * This file is the main header for plugins to import CraftOS-PC's API.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_HPP
@@ -13,6 +13,8 @@
 
 #include "Computer.hpp"
 #include "FileEntry.hpp"
+#define path_t _path_t
+#define to_path_t _to_path_t
 
 #if (defined(_WIN32) && (!defined(_MSC_VER) || _MSC_VER < 1900)) || (defined(__APPLE__) && !defined(__clang__))
 #warning An incompatible C++ library may be in use. This plugin may fail to work properly.
@@ -101,6 +103,7 @@ struct PluginFunctions {
      * @param name The name of the peripheral to register.
      * @param initializer The initialization function that creates the peripheral object.
      * @see peripheral_init The prototype for a peripheral initializer
+     * @deprecated Use registerPeripheralFn instead, as this can take a function object.
      */
     void (*registerPeripheral)(const std::string& name, const peripheral_init& initializer);
 
@@ -246,6 +249,88 @@ struct PluginFunctions {
      * @return Whether the operation succeeded
      */
     bool (*detachPeripheral)(Computer * computer, const std::string& side);
+
+    // The following fields are available in API version 10.4 and later.
+
+    /**
+     * Adds a hook function to be called when an event of a specific type is
+     * queued from C++. The hook is called directly after the callback function
+     * for the event, with the same parameters as an event provider + an
+     * additional field for the event name. It returns the new name of the event,
+     * which for most applications should be the same as the input. If the event
+     * name returned is empty, the event is removed from the queue. Hooks are
+     * executed in the order they were added. Computer hooks are executed
+     * before global hooks.
+     * @param event The name of the event to hook
+     * @param computer The computer to hook for, or NULL for all computers
+     * @param hook The hook function to execute
+     * @param userdata An opaque pointer to pass to the function
+     */
+    void (*addEventHook)(const std::string& event, Computer * computer, const event_hook& hook, void* userdata);
+
+    /**
+     * Sets a custom disance provider for modems.
+     * @param func The callback function to use to get distance. It takes two
+     * computer arguments (the sender and receiver), and returns a double
+     * specifying the distance.
+     */
+    void (*setDistanceProvider)(const std::function<double(const Computer *, const Computer *)>& func);
+
+    // The following fields are available in API version 10.6 and later.
+
+    /**
+     * Registers a peripheral with the specified name. This function is preferred
+     * over registerPeripheral because it can take a function object in addition
+     * to a standard function pointer.
+     * @param name The name of the peripheral to register.
+     * @param initializer The initialization function that creates the peripheral object.
+     * @see peripheral_init_fn The prototype for a peripheral initializer
+     */
+    void (*registerPeripheralFn)(const std::string& name, const peripheral_init_fn& initializer);
+
+    // The following fields are available in API version 10.8 and later.
+
+    /**
+     * Registers a factory object for a custom terminal type, and returns the ID
+     * of the new terminal type. Note that the terminal type will not be able
+     * to be used if this is not called in `plugin_load`.
+     * @param factory The factory to register
+     * @return The ID of the new terminal type
+     */
+    int (*registerTerminalFactory)(TerminalFactory * factory);
+
+    /**
+     * Adds a number of arguments to the command line. Note that some arguments
+     * will not be effective after `plugin_load`.
+     * @param args The arguments to add
+     * @return If negative, the arguments were parsed successfully;
+     *   if zero, the arguments resulted in a successful exit (e.g. `--help`);
+     *   if positive, an error occurred while parsing arguments
+     */
+    int (*commandLineArgs)(const std::vector<std::string>& args);
+
+    /**
+     * Sets the state of listener mode. Listener mode prevents any computers
+     * from starting initially (when called from `plugin_init`), and prevents
+     * CraftOS-PC from stopping until listener mode is disabled. Disabling
+     * listener mode while no computers are running will immediately tell
+     * CraftOS-PC to quit.
+     * @param mode Whether listener mode is enabled
+     */
+    void (*setListenerMode)(bool mode);
+    
+#ifdef __IPHONEOS__
+    bool (*checkIAPEligibility)(const char * identifier);
+#endif
+
+    /**
+     * Pumps the main thread task queue. THIS MUST ONLY BE CALLED ON THE MAIN
+     * THREAD, AND SHOULD ONLY BE USED WITH CUSTOM TERMINALS. Do NOT use this
+     * anywhere except inside `TerminalFactory::pollEvents`. This MUST be called
+     * inside `pollEvents` - not calling it will cause important main thread
+     * tasks (such as creating computers) to not run!
+     */
+    void (*pumpTaskQueue)();
 };
 
 /**
@@ -292,5 +377,47 @@ enum ConfigEffect {
     CONFIG_EFFECT_REBOOT,
     CONFIG_EFFECT_REOPEN
 };
+
+// Forward definitions of the plugin initialization functions to declare types and DLL linkage.
+// (As of API 10.8, it is no longer necessary to add __declspec(dllexport) to your source anymore!)
+
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT extern
+#endif
+
+extern "C" {
+// This function is called when the plugin is loaded before initializing anything
+// else, and is meant to be used for pre-initialization setup, such as adding
+// terminal types that can't be added after initialization. It is recommended
+// that anything that does not explicitly need to be here should go in
+// `plugin_init`, as that function is much safer and can handle errors.
+DLLEXPORT void plugin_load(const PluginFunctions * func, const path_t& path);
+
+// This function is called after basic initialization has completed, before any
+// computers have started up. It is used to initialize any global state required
+// for the plugin before startup, and is only called once. It should return a
+// pointer to a `PluginInfo` object that contains information about the plugin,
+// including its minimum required API/structure version. Any errors that are
+// thrown here, including through `PluginInfo`, are handled automatically and
+// displayed to the user on boot. If an error is reported through `PluginInfo`,
+// `plugin_deinit` is called after this; however, if an exception is thrown,
+// `plugin_deinit` is *not* called, as it is assumed that `plugin_init` has
+// already handled cleanup.
+DLLEXPORT PluginInfo * plugin_init(const PluginFunctions * func, const path_t& path);
+
+// This function is called when deinitializing the plugin while preparing to quit
+// CraftOS-PC, before terminals have been shut down. It gives the plugin a chance
+// to clean up any remaining resources, including deleting the `PluginInfo`
+// structure if it was dynamically allocated.
+DLLEXPORT void plugin_deinit(PluginInfo * info);
+
+// This function is called right before the plugin is unloaded, after CraftOS-PC
+// finishes deinitializing everything else. It is recommended to use
+// `plugin_deinit` instead, but this function may be necessary under some
+// circumstances.
+DLLEXPORT void plugin_unload();
+}
 
 #endif

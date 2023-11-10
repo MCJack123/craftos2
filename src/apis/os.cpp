@@ -5,7 +5,7 @@
  * This file implements the functions for the os API.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <Computer.hpp>
@@ -40,7 +40,8 @@ static int os_queueEvent(lua_State *L) {
     lua_remove(L, 1);
     const int count = lua_gettop(L);
     lua_checkstack(param, count);
-    lua_xmove(L, param, count);
+    if (config.standardsMode) xcopy(L, param, count);
+    else lua_xmove(L, param, count);
     computer->eventQueue.push(name);
     computer->event_lock.notify_all();
     return 0;
@@ -73,9 +74,8 @@ static ProtectedObject<std::unordered_map<SDL_TimerID, struct timer_data_t*> > r
 static std::string timer_event(lua_State *L, void* param) {
     struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
-    runningTimerData.lock();
+    LockGuard lock(runningTimerData);
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
-    runningTimerData.unlock();
     if (!found) return "";
     data->lock->lock();
     lua_pushinteger(L, data->timer);
@@ -90,9 +90,8 @@ static std::string timer_event(lua_State *L, void* param) {
 static Uint32 notifyEvent(Uint32 interval, void* param) {
     struct timer_data_t * data = (timer_data_t*)param;
     bool found = false;
-    runningTimerData.lock();
+    LockGuard lock2(runningTimerData);
     for (const auto& i : *runningTimerData) if (i.second == param) { found = true; break; }
-    runningTimerData.unlock();
     if (!found) return 0;
     data->lock->lock();
     if (exiting || data->comp == NULL) {
@@ -123,7 +122,8 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
     return 0;
 }
 
-static int os_startTimer(lua_State *L) {
+// imported by http.cpp:websocket_receive
+int os_startTimer(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     if (luaL_checknumber(L, 1) < 0.001 && !config.standardsMode) {
@@ -142,12 +142,11 @@ static int os_startTimer(lua_State *L) {
             if (time < 50) time = 50;
             else time = (Uint32)ceil(time / 50.0) * 50;
         }
+        LockGuard lock(runningTimerData);
         data->timer = SDL_AddTimer(time, notifyEvent, data);
+        runningTimerData->insert(std::make_pair(data->timer, data));
         return NULL;
     }, data);
-    runningTimerData.lock();
-    runningTimerData->insert(std::make_pair(data->timer, data));
-    runningTimerData.unlock();
     lua_pushinteger(L, data->timer);
     std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
@@ -157,18 +156,20 @@ static int os_startTimer(lua_State *L) {
 static int os_cancelTimer(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
-    runningTimerData.lock();
-    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
-    timer_data_t * data = (*runningTimerData)[id];
-    runningTimerData->erase(id);
-    runningTimerData.unlock();
-    data->lock->lock();
-#ifdef __EMSCRIPTEN__
-    queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
-#else
-    SDL_RemoveTimer(id);
-#endif
-    data->lock->unlock();
+    timer_data_t * data;
+    {
+        LockGuard lock(runningTimerData);
+        if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+        data = (*runningTimerData)[id];
+        runningTimerData->erase(id);
+    } {
+        std::lock_guard<std::mutex> lock(*data->lock);
+    #ifdef __EMSCRIPTEN__
+        queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
+    #else
+        SDL_RemoveTimer(id);
+    #endif
+    }
     delete data->lock;
     delete data;
     return 0;
@@ -233,17 +234,33 @@ static int os_epoch(lua_State *L) {
     std::string tmp(luaL_optstring(L, 1, "ingame"));
     std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) {return std::tolower(c); });
     if (tmp == "utc") {
+#if PTRDIFF_MAX <= 0xFFFFFFFFFFFFLL
+        lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+#else
         lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+#endif
     } else if (tmp == "local") {
         time_t t = time(NULL);
-        const long long off = (long long)mktime(localtime(&t)) - (long long)mktime(gmtime(&t));
-        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000));
+        const time_t utime = mktime(gmtime(&t));
+        tm * ltime = localtime(&t);
+        const long long off = (long long)mktime(ltime) - utime + (ltime->tm_isdst ? 3600LL : 0LL);
+#if PTRDIFF_MAX <= 0xFFFFFFFFFFFFLL
+        lua_pushnumber(L, (double)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000LL));
+#else
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() + (off * 1000LL));
+#endif
     } else if (tmp == "ingame") {
         const double m_time = (double)((std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() + 300000LL) % 1200000LL) / 50000.0;
         const double m_day = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::system_clock::now() - get_comp(L)->system_start).count() / 20 + 1;
         lua_Integer epoch = (lua_Integer)(m_day * 86400000) + (lua_Integer)(m_time * 3600000.0);
         if (config.standardsMode) epoch = (lua_Integer)floor(epoch / 200) * 200;
         lua_pushinteger(L, epoch);
+    } else if (tmp == "nano") {
+#if PTRDIFF_MAX <= 0xFFFFFFFFFFFFLL
+        lua_pushnumber(L, (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() & 0x1FFFFFFFFFFFFFLL));
+#else
+        lua_pushinteger(L, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() & 0x1FFFFFFFFFFFFFLL);
+#endif
     } else luaL_error(L, "Unsupported operation");
     return 1;
 }
@@ -280,12 +297,11 @@ static int os_setAlarm(lua_State *L) {
         struct timer_data_t * data = (timer_data_t*)a;
         Uint32 time = real_time;
         if (config.standardsMode) time = (Uint32)ceil(time / 50.0) * 50;
+        LockGuard lock(runningTimerData);
         data->timer = SDL_AddTimer(time + 3, notifyEvent, data);
+        runningTimerData->insert(std::make_pair(data->timer, data));
         return NULL;
     }, data);
-    runningTimerData.lock();
-    runningTimerData->insert(std::make_pair(data->timer, data));
-    runningTimerData.unlock();
     lua_pushinteger(L, data->timer);
     std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
@@ -295,18 +311,20 @@ static int os_setAlarm(lua_State *L) {
 static int os_cancelAlarm(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
-    runningTimerData.lock();
-    if (runningTimerData->find(id) == runningTimerData->end()) return 0;
-    timer_data_t * data = (*runningTimerData)[id];
-    runningTimerData->erase(id);
-    runningTimerData.unlock();
-    data->lock->lock();
-#ifdef __EMSCRIPTEN__
-    queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
-#else
-    SDL_RemoveTimer(id);
-#endif
-    data->lock->unlock();
+    timer_data_t * data;
+    {
+        LockGuard lock(runningTimerData);
+        if (runningTimerData->find(id) == runningTimerData->end()) return 0;
+        data = (*runningTimerData)[id];
+        runningTimerData->erase(id);
+    } {
+        std::lock_guard<std::mutex> lock(*data->lock);
+    #ifdef __EMSCRIPTEN__
+        queueTask([id](void*)->void* {SDL_RemoveTimer(id); return NULL; }, NULL);
+    #else
+        SDL_RemoveTimer(id);
+    #endif
+    }
     delete data->lock;
     delete data;
     return 0;
@@ -329,7 +347,7 @@ static int os_about(lua_State *L) {
     lastCFunction = __func__;
     lua_pushstring(L, "CraftOS-PC " CRAFTOSPC_VERSION "\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
 \n\
-Copyright (c) 2019-2021 JackMacWindows\n\
+Copyright (c) 2019-2023 JackMacWindows\n\
 \n\
 Permission is hereby granted, free of charge, to any person obtaining a copy\n\
 of this software and associated documentation files (the \"Software\"), to deal\n\

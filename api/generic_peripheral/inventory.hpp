@@ -6,7 +6,7 @@
  * to inherit from.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_GENERIC_PERIPHERAL_INVENTORY_HPP
@@ -15,12 +15,14 @@
 #include "../peripheral.hpp"
 
 class inventory : public peripheral {
+protected:
     virtual int size() = 0; // Returns the number of slots available in the inventory.
+    virtual int getItemSpace(int slot) {return 64;} // Returns the maximum number of items in a slot (defaults to 64 for all).
     virtual void getItemDetail(lua_State *L, int slot) = 0; // Pushes a single Lua value to the stack with details about an item in a slot. If the slot is empty or invalid, pushes nil. (Slots are in the range 1-size().)
     virtual int addItems(lua_State *L, int slot, int count) = 0; // Adds the item described at the top of the Lua stack to the slot selected. Only adds up to count items. If slot is 0, determine the best slot available. Returns the number of items added.
     virtual int removeItems(int slot, int count) = 0; // Removes up to a number of items from the selected slot. Returns the number of items removed.
 public:
-    int call(lua_State *L, const char * method) override {
+    virtual int call(lua_State *L, const char * method) override {
         const std::string m(method);
         if (m == "size") {
             lua_pushinteger(L, size());
@@ -29,12 +31,27 @@ public:
             lua_createtable(L, size(), 0);
             for (int i = 1; i <= size(); i++) {
                 lua_pushinteger(L, i);
+                lua_createtable(L, 0, 3);
                 getItemDetail(L, i);
+                if (lua_istable(L, -1)) {
+                    lua_getfield(L, -1, "name");
+                    lua_setfield(L, -3, "name");
+                    lua_getfield(L, -1, "count");
+                    lua_setfield(L, -3, "count");
+                    lua_getfield(L, -1, "nbt");
+                    lua_setfield(L, -3, "nbt");
+                    lua_pop(L, 1);
+                } else {
+                    lua_remove(L, -2);
+                }
                 lua_settable(L, -3);
             }
             return 1;
         } else if (m == "getItemDetail") {
             getItemDetail(L, luaL_checkinteger(L, 1));
+            return 1;
+        } else if (m == "getItemLimit") {
+            lua_pushinteger(L, getItemSpace(luaL_checkinteger(L, 1)));
             return 1;
         } else if (m == "pushItems" || m == "pullItems") {
             Computer * comp = get_comp(L);
@@ -68,14 +85,15 @@ public:
 
             lua_pushinteger(L, added);
             return 1;
-        } else return 0;
+        } else return luaL_error(L, "No such method");
     }
     void update() override {}
-    library_t getMethods() const override {
+    virtual library_t getMethods() const override {
         static luaL_Reg reg[] = {
             {"size", NULL},
             {"list", NULL},
             {"getItemDetail", NULL},
+            {"getItemLimit", NULL},
             {"pushItems", NULL},
             {"pullItems", NULL},
             {NULL, NULL}

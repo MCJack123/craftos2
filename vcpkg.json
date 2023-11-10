@@ -1,16 +1,21 @@
 {
     "name": "craftos-pc",
-    "version-string": "v2.6",
+    "version-string": "v2.8",
     "description": "Advanced ComputerCraft emulator",
     "dependencies": [
         "sdl2",
-        "poco",
+        "openssl",
         {
-            "name": "dirent",
+            "name": "poco",
+            "default-features": true,
+            "features": [ "netssl" ]
+        },
+        {
+            "name": "zlib",
             "platform": "windows"
         }
     ],
-    "default-features": ["cli", "speaker", "pdf-printer", "png-screenshots"],
+    "default-features": ["cli", "speaker", "pdf-printer", "png-screenshots", "webp-screenshots"],
     "features": {
         "cli": {
             "description": "Console interface",
@@ -27,11 +32,7 @@
                 {
                     "name": "sdl2-mixer",
                     "default-features": true,
-                    "features": [ "dynamic-load", "libflac", "mpg123", "libmodplug", "libvorbis", "opusfile", "fluidsynth" ]
-                },
-                {
-                    "name": "yasm-tool",
-                    "platform": "windows & x86"
+                    "features": [ "libmodplug", "opusfile", "fluidsynth", "libflac", "mpg123" ]
                 }
             ]
         },
@@ -42,6 +43,10 @@
         "png-screenshots": {
             "description": "Take screenshots in PNG format",
             "dependencies": [ "pngpp" ]
+        },
+        "webp-screenshots": {
+            "description": "Take screenshots and recordings in WebP format",
+            "dependencies": [ "libwebp" ]
         }
     }
 }

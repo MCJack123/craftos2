@@ -6,11 +6,11 @@
  * first computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include "main.hpp"
-static int runRenderer();
+static int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write);
 static void showReleaseNotes();
 static void* releaseNotesThread(void* data);
 #include <functional>
@@ -30,12 +30,16 @@ static void* releaseNotesThread(void* data);
 #include "terminal/TRoRTerminal.hpp"
 #include "terminal/HardwareSDLTerminal.hpp"
 #include "termsupport.hpp"
+#include <Poco/Version.h>
+#include <Poco/URI.h>
 #include <Poco/Checksum.h>
 #include <Poco/JSON/Parser.h>
 #ifndef __EMSCRIPTEN__
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
+#include <Poco/Net/NetException.h>
+#include <Poco/Net/WebSocket.h>
 #else
 #include <emscripten/emscripten.h>
 #endif
@@ -43,13 +47,22 @@ extern "C" {
 #include <lualib.h>
 }
 
+using namespace Poco::Net;
+
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
+#ifdef _WIN32
+extern void uploadCrashDumps();
+#endif
+
 extern void awaitTasks(const std::function<bool()>& predicate = []()->bool{return true;});
 extern void http_server_stop();
-extern library_t * libraries[8];
+extern void clearPeripherals();
+extern library_t * libraries[];
 extern int onboardingMode;
-#ifdef WIN32
-extern void* kernel32handle;
-#endif
+extern std::function<void(const std::string&)> rawWriter;
 #ifdef STANDALONE_ROM
 extern FileEntry standaloneROM;
 extern FileEntry standaloneDebug;
@@ -66,12 +79,17 @@ std::string script_args;
 std::string updateAtQuit;
 int returnValue = 0;
 std::unordered_map<path_t, std::string> globalPluginErrors;
+static std::string rawWebSocketURL;
 
 #if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+Poco::JSON::Object updateAtQuitRoot;
 static void* releaseNotesThread(void* data) {
     Computer * comp = (Computer*)data;
 #ifdef __APPLE__
     pthread_setname_np(std::string("Computer " + std::to_string(comp->id) + " Thread").c_str());
+#endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
 #endif
     // seed the Lua RNG
     srand(std::chrono::high_resolution_clock::now().time_since_epoch().count() & UINT_MAX);
@@ -80,18 +98,25 @@ static void* releaseNotesThread(void* data) {
         freedComputers.erase(comp);
     try {
 #ifdef STANDALONE_ROM
-        runComputer(comp, wstr(standaloneDebug["bios.lua"].data));
+        runComputer(comp, "debug/bios.lua", standaloneDebug["bios.lua"].data);
 #else
-        runComputer(comp, WS("debug/bios.lua"));
+        runComputer(comp, "debug/bios.lua");
 #endif
     } catch (std::exception &e) {
         fprintf(stderr, "Uncaught exception while executing computer %d (last C function: %s): %s\n", comp->id, lastCFunction, e.what());
         queueTask([e](void*t)->void* {const std::string m = std::string("Uh oh, an uncaught exception has occurred! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on computer thread: ") + e.what() + "\". The computer will now shut down.";  if (t != NULL) ((Terminal*)t)->showMessage(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str()); else if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", m.c_str(), NULL); return NULL; }, comp->term);
         if (comp->L != NULL) {
             comp->event_lock.notify_all();
-            for (library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+            for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(comp);
+            if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+            comp->eventTimeout = 0;
             lua_close(comp->L);   /* Cya, Lua */
             comp->L = NULL;
+            if (comp->rawFileStack) {
+                std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+                lua_close(comp->rawFileStack);
+                comp->rawFileStack = NULL;
+            }
         }
     }
     freedComputers.insert(comp);
@@ -134,10 +159,12 @@ static void showReleaseNotes() {
 
 static void update_thread() {
     try {
-        Poco::Net::HTTPSClientSession session("api.github.com", 443, new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", Poco::Net::Context::VERIFY_NONE, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"));
+        Context::Ptr ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+        addSystemCertificates(ctx);
+        HTTPSClientSession session("api.github.com", 443, ctx);
         if (!config.http_proxy_server.empty()) session.setProxy(config.http_proxy_server, config.http_proxy_port);
-        Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", Poco::Net::HTTPMessage::HTTP_1_1);
-        Poco::Net::HTTPResponse response;
+        HTTPRequest request(HTTPRequest::HTTP_GET, "/repos/MCJack123/craftos2/releases/latest", HTTPMessage::HTTP_1_1);
+        HTTPResponse response;
         session.setTimeout(Poco::Timespan(5000000));
         request.add("User-Agent", "CraftOS-PC/" CRAFTOSPC_VERSION " ComputerCraft/" CRAFTOSPC_CC_VERSION);
         session.sendRequest(request);
@@ -184,6 +211,7 @@ static void update_thread() {
                     switch (choice) {
                     case 0:
                         updateAtQuit = root->getValue<std::string>("tag_name");
+                        updateAtQuitRoot = *root;
                         return;
                     case 1:
                         config.skipUpdate = CRAFTOSPC_VERSION;
@@ -200,7 +228,7 @@ static void update_thread() {
                 } case 1:
                     return;
                 case 3:
-                    queueTask([root](void*)->void*{updateNow(root->getValue<std::string>("tag_name")); return NULL;}, NULL);
+                    queueTask([root](void*)->void*{updateNow(root->getValue<std::string>("tag_name"), root); return NULL;}, NULL);
                     return;
                 default:
                     // this should never happen
@@ -238,165 +266,164 @@ static void update_thread() {
 }
 #endif
 
-inline Terminal * createTerminal(const std::string& title) {
-#ifndef NO_CLI
-    if (selectedRenderer == 2) return new CLITerminal(title);
-    else
-#endif
-    if (selectedRenderer == 3) return new RawTerminal(title);
-    else if (selectedRenderer == 5) return new HardwareSDLTerminal(title);
-    else return new SDLTerminal(title);
-}
-
-
-static int runRenderer() {
+static int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write) {
     if (selectedRenderer == 0) SDLTerminal::init();
     else if (selectedRenderer == 5) HardwareSDLTerminal::init();
     else {
         std::cerr << "Error: Raw client mode requires using a GUI terminal.\n";
         return 3;
     }
-    std::thread inputThread([](){
+    rawWriter = write;
+    std::thread inputThread([read](){
         while (!exiting) {
-            unsigned char c1 = (unsigned char)std::cin.get();
-            if (c1 == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
-                char size[5];
-                std::cin.read(size, 4);
-                long sizen = strtol(size, NULL, 16);
-                char * tmp = new char[(size_t)sizen+1];
-                tmp[sizen] = 0;
-                std::cin.read(tmp, sizen);
-                Poco::Checksum chk;
-                chk.update(tmp, sizen);
-                char hexstr[9];
-                std::cin.read(hexstr, 8);
-                hexstr[8] = 0;
-                if (chk.checksum() != strtoul(hexstr, NULL, 16)) {
-                    fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), strtoul(hexstr, NULL, 16));
-                    continue;
-                }
-                std::stringstream in(b64decode(tmp));
-                delete[] tmp;
-                uint8_t type = (uint8_t)in.get();
-                uint8_t id = (uint8_t)in.get();
-                switch (type) {
-                case 0: {
-                    if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
-                        Terminal * term = rawClientTerminals[id];
-                        term->mode = in.get();
-                        term->blink = in.get();
-                        uint16_t width, height;
-                        in.read((char*)&width, 2);
-                        in.read((char*)&height, 2);
-                        in.read((char*)&term->blinkX, 2);
-                        in.read((char*)&term->blinkY, 2);
-                        in.seekg(in.tellg()+(std::streamoff)4); // reserved
-                        if (term->mode == 0) {
-                            unsigned char c = (unsigned char)in.get();
-                            unsigned char n = (unsigned char)in.get();
-                            for (int y = 0; y < height; y++) {
-                                for (int x = 0; x < width; x++) {
-                                    term->screen[y][x] = c;
-                                    n--;
-                                    if (n == 0) {
-                                        c = (unsigned char)in.get();
-                                        n = (unsigned char)in.get();
-                                    }
-                                }
-                            }
-                            for (int y = 0; y < height; y++) {
-                                for (int x = 0; x < width; x++) {
-                                    term->colors[y][x] = c;
-                                    n--;
-                                    if (n == 0) {
-                                        c = (unsigned char)in.get();
-                                        n = (unsigned char)in.get();
-                                    }
-                                }
-                            }
-                            in.putback(n);
-                            in.putback(c);
-                        } else {
-                            unsigned char c = (unsigned char)in.get();
-                            unsigned char n = (unsigned char)in.get();
-                            for (int y = 0; y < height * 9; y++) {
-                                for (int x = 0; x < width * 6; x++) {
-                                    term->pixels[y][x] = c;
-                                    n--;
-                                    if (n == 0) {
-                                        c = (unsigned char)in.get();
-                                        n = (unsigned char)in.get();
-                                    }
-                                }
-                            }
-                            in.putback(n);
-                            in.putback(c);
-                        }
-                        if (term->mode != 2) {
-                            for (int i = 0; i < 16; i++) {
-                                term->palette[i].r = (uint8_t)in.get();
-                                term->palette[i].g = (uint8_t)in.get();
-                                term->palette[i].b = (uint8_t)in.get();
-                            }
-                        } else {
-                            for (int i = 0; i < 256; i++) {
-                                term->palette[i].r = (uint8_t)in.get();
-                                term->palette[i].g = (uint8_t)in.get();
-                                term->palette[i].b = (uint8_t)in.get();
-                            }
-                        }
-                        term->changed = true;
-                    }
-                    break;
-                } case 4: {
-                    uint8_t quit = (uint8_t)in.get();
-                    if (quit == 1) {
-                        queueTask([id](void*)->void*{
-                            rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
-                            delete rawClientTerminals[id];
-                            rawClientTerminals.erase(id);
-                            return NULL;
-                        }, NULL);
-                        break;
-                    } else if (quit == 2) {
-                        exiting = true;
-                        if (selectedRenderer == 0) {
-                            SDL_Event e;
-                            memset(&e, 0, sizeof(SDL_Event));
-                            e.type = SDL_QUIT;
-                            SDL_PushEvent(&e);
-                        }
-                        return;
-                    }
-                    in.get(); // reserved
-                    uint16_t width = 0, height = 0;
+            std::string data = read();
+            if (data.empty()) {
+                exiting = true;
+                break;
+            }
+            long sizen;
+            size_t off = 8;
+            if (data[3] == 'C') sizen = std::stol(data.substr(4, 4), nullptr, 16);
+            else if (data[3] == 'D') {sizen = std::stol(data.substr(4, 12), nullptr, 16); off = 16;}
+            else continue;
+            std::string ddata = b64decode(data.substr(off, sizen));
+            Poco::Checksum chk;
+            if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM) chk.update(ddata);
+            else chk.update(data.substr(off, sizen));
+            if (chk.checksum() != std::stoul(data.substr(sizen + off, 8), NULL, 16)) {
+                fprintf(stderr, "Invalid checksum: expected %08X, got %08lX\n", chk.checksum(), std::stoul(data.substr(sizen + off, 8), NULL, 16));
+                continue;
+            }
+            std::stringstream in(ddata);
+            uint8_t type = (uint8_t)in.get();
+            uint8_t id = (uint8_t)in.get();
+            switch (type) {
+            case CCPC_RAW_TERMINAL_DATA: {
+                if (rawClientTerminals.find(id) != rawClientTerminals.end()) {
+                    Terminal * term = rawClientTerminals[id];
+                    term->mode = in.get();
+                    term->canBlink = in.get();
+                    uint16_t width, height;
                     in.read((char*)&width, 2);
                     in.read((char*)&height, 2);
-                    std::string title;
-                    char c;
-                    while ((c = (char)in.get())) title += c;
-                    if (rawClientTerminals.find(id) == rawClientTerminals.end()) {
-                        rawClientTerminals[id] = (Terminal*)queueTask([](void*t)->void*{return createTerminal(*(std::string*)t);}, &title);
-                        rawClientTerminalIDs[rawClientTerminals[id]->id] = id;
-                    } else rawClientTerminals[id]->setLabel(title);
-                    rawClientTerminals[id]->resize(width, height);
+                    in.read((char*)&term->blinkX, 2);
+                    in.read((char*)&term->blinkY, 2);
+                    in.seekg(in.tellg()+(std::streamoff)4); // reserved
+                    if (term->mode == 0) {
+                        unsigned char c = (unsigned char)in.get();
+                        unsigned char n = (unsigned char)in.get();
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                term->screen[y][x] = c;
+                                n--;
+                                if (n == 0) {
+                                    c = (unsigned char)in.get();
+                                    n = (unsigned char)in.get();
+                                }
+                            }
+                        }
+                        for (int y = 0; y < height; y++) {
+                            for (int x = 0; x < width; x++) {
+                                term->colors[y][x] = c;
+                                n--;
+                                if (n == 0) {
+                                    c = (unsigned char)in.get();
+                                    n = (unsigned char)in.get();
+                                }
+                            }
+                        }
+                        in.putback(n);
+                        in.putback(c);
+                    } else {
+                        unsigned char c = (unsigned char)in.get();
+                        unsigned char n = (unsigned char)in.get();
+                        for (int y = 0; y < height * 9; y++) {
+                            for (int x = 0; x < width * 6; x++) {
+                                term->pixels[y][x] = c;
+                                n--;
+                                if (n == 0) {
+                                    c = (unsigned char)in.get();
+                                    n = (unsigned char)in.get();
+                                }
+                            }
+                        }
+                        in.putback(n);
+                        in.putback(c);
+                    }
+                    if (term->mode != 2) {
+                        for (int i = 0; i < 16; i++) {
+                            term->palette[i].r = (uint8_t)in.get();
+                            term->palette[i].g = (uint8_t)in.get();
+                            term->palette[i].b = (uint8_t)in.get();
+                        }
+                    } else {
+                        for (int i = 0; i < 256; i++) {
+                            term->palette[i].r = (uint8_t)in.get();
+                            term->palette[i].g = (uint8_t)in.get();
+                            term->palette[i].b = (uint8_t)in.get();
+                        }
+                    }
+                    term->changed = true;
+                }
+                break;
+            } case CCPC_RAW_TERMINAL_CHANGE: {
+                uint8_t quit = (uint8_t)in.get();
+                if (quit == 1) {
+                    queueTask([id](void*)->void*{
+                        rawClientTerminalIDs.erase(rawClientTerminals[id]->id);
+                        rawClientTerminals[id]->factory->deleteTerminal(rawClientTerminals[id]);
+                        rawClientTerminals.erase(id);
+                        return NULL;
+                    }, NULL);
                     break;
-                } case 5: {
-                    uint32_t flags = 0;
-                    std::string title, message;
-                    char c;
-                    in.read((char*)&flags, 4);
-                    while ((c = (char)in.get())) title += c;
-                    while ((c = (char)in.get())) message += c;
-                    if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
-                    else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
-                } default: {}}
-            }
+                } else if (quit == 2) {
+                    exiting = true;
+                    if (selectedRenderer == 0) {
+                        SDL_Event e;
+                        memset(&e, 0, sizeof(SDL_Event));
+                        e.type = SDL_QUIT;
+                        SDL_PushEvent(&e);
+                    }
+                    return;
+                }
+                in.get(); // reserved
+                uint16_t width = 0, height = 0;
+                in.read((char*)&width, 2);
+                in.read((char*)&height, 2);
+                std::string title;
+                char c;
+                while ((c = (char)in.get())) title += c;
+                if (rawClientTerminals.find(id) == rawClientTerminals.end()) {
+                    rawClientTerminals[id] = (Terminal*)queueTask([](void*t)->void*{return createTerminal(*(std::string*)t);}, &title);
+                    rawClientTerminalIDs[rawClientTerminals[id]->id] = id;
+                } else rawClientTerminals[id]->setLabel(title);
+                rawClientTerminals[id]->resize(width, height);
+                break;
+            } case CCPC_RAW_MESSAGE_DATA: {
+                uint32_t flags = 0;
+                std::string title, message;
+                char c;
+                in.read((char*)&flags, 4);
+                while ((c = (char)in.get())) title += c;
+                while ((c = (char)in.get())) message += c;
+                if (rawClientTerminals.find(id) != rawClientTerminals.end()) rawClientTerminals[id]->showMessage(flags, title.c_str(), message.c_str());
+                else if (id == 0) SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), NULL);
+            } case CCPC_RAW_FEATURE_FLAGS: {
+                uint16_t f = 0;
+                uint32_t ef = 0;
+                in.read((char*)&f, 2);
+                if (f & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) in.read((char*)&ef, 4);
+                RawTerminal::supportedFeatures = f & (CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM | CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT | CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS);
+                RawTerminal::supportedExtendedFeatures = ef & (0x00000000);
+            }}
+            std::this_thread::yield();
         }
     });
+    setThreadName(inputThread, "Input Thread");
+    RawTerminal::initClient(CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM | CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS);
     mainLoop();
     inputThread.join();
-    for (auto t : rawClientTerminals) delete t.second;
+    for (auto t : rawClientTerminals) t.second->factory->deleteTerminal(t.second);
     if (selectedRenderer) HardwareSDLTerminal::quit();
     else SDLTerminal::quit();
     return 0;
@@ -406,8 +433,7 @@ static int runRenderer() {
 
 static void migrateData(bool forced) {
     migrateOldData();
-    struct_stat st;
-    if ((forced || platform_stat(getBasePath().c_str(), &st) != 0) && platform_stat((getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux")).c_str(), &st) == 0) {
+    if ((forced || !fs::exists(getBasePath())) && fs::exists(getBasePath().parent_path() / "ccemux")) {
         if (!forced) {
             SDL_MessageBoxData data;
             data.title = "Migrate Data";
@@ -426,11 +452,12 @@ static void migrateData(bool forced) {
             if (!retval) return;
         }
         // Copy computer data
-        std::list<path_t> failures;
-        const auto retval = recursiveCopy(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("computer"), getBasePath() + PATH_SEP "computer", &failures);
-        if (retval.first != 0) failures.push_back(retval.first == 1 ? getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("computer") : getBasePath() + PATH_SEP "computer");
+        std::error_code copy_error;
+        std::string msg;
+        fs::copy(getBasePath().parent_path() / "ccemux" / "computer", getBasePath() / "computer", fs::copy_options::recursive | fs::copy_options::update_existing, copy_error);
+        if (copy_error) msg += "Could not copy files: " + copy_error.message() + "\n";
         // Copy config file
-        std::ifstream in(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
+        std::ifstream in(getBasePath().parent_path() / "ccemux" / "ccemux.json");
         if (in.is_open()) {
             Value oldroot;
             Poco::JSON::Object::Ptr p;
@@ -442,7 +469,6 @@ static void migrateData(bool forced) {
                 migrateSetting("httpEnable", http_enable, Bool);
                 migrateSetting("disableLua51Features", disable_lua51_features, Bool);
                 migrateSetting("defaultComputerSettings", default_computer_settings, String);
-                migrateSetting("debugEnable", debug_enable, Bool);
                 migrateSetting("termWidth", defaultWidth, Int);
                 migrateSetting("termHeight", defaultHeight, Int);
                 if (oldroot.isMember("httpWhitelist")) {
@@ -465,12 +491,11 @@ static void migrateData(bool forced) {
                 config_save();
             } catch (Poco::JSON::JSONException &e) {
                 fprintf(stderr, "Could not read CCEmuX config file: %s\n", e.displayText().c_str());
-                failures.push_back(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
+                msg += "Could not parse " + (getBasePath().parent_path() / "ccemux" / "ccemux.json").string() + "\n";
             }
-        } else failures.push_back(getBasePath() + PATH_SEP WS("..") PATH_SEP WS("ccemux") PATH_SEP WS("ccemux.json"));
-        if (!failures.empty()) {
-            fprintf(stderr, "Failed to copy the following files while migrating CCEmuX data:\n");
-            for (const path_t& p : failures) fprintf(stderr, "%s\n", astr(p).c_str());
+        } else msg += "Could not find " + (getBasePath().parent_path() / "ccemux" / "ccemux.json").string() + "\n";
+        if (!msg.empty()) {
+            fprintf(stderr, "Some errors occurred while copying CCEmuX data:\n%s", msg.c_str());
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Migration Failure", "Some files failed to be copied while migrating from CCEmuX. Check the console to see what failed.\n", NULL);
         } else if (forced) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Migration Success", "The migration of CCEmuX data to CraftOS-PC has completed successfully.", NULL);
     }
@@ -482,43 +507,39 @@ static void migrateData(bool forced) {
 #define checkTTY() 
 #endif
 
-int main(int argc, char*argv[]) {
-    lualib_debug_ccpc_functions(setcompmask_, db_debug, db_breakpoint, db_unsetbreakpoint);
-    //lualib_io_ccpc_functions(mounter_fopen_, mounter_fclose_);
-#ifdef __EMSCRIPTEN__
-    while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
-#endif
-    int id = 0;
-    bool manualID = false;
-    bool forceMigrate = false;
-    std::string base_path_storage;
-    std::string rom_path_storage;
-    path_t customDataDir;
-    for (int i = 1; i < argc; i++) {
-        std::string arg(argv[i]);
-        if (arg == "--headless") { selectedRenderer = 1; checkTTY(); } else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
-        else if (arg == "--cli" || arg == "-c") { selectedRenderer = 2; checkTTY(); } else if (arg == "--raw") { selectedRenderer = 3; checkTTY(); } else if (arg == "--raw-client") { rawClient = true; checkTTY(); } else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); } else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
+static int id = 0;
+static bool manualID = false;
+static bool forceMigrate = false;
+static path_t customDataDir;
+
+int parseArguments(const std::vector<std::string>& argv) {
+    for (int i = 0; i < argv.size(); i++) {
+        std::string arg = argv[i];
+        if (arg == "--headless") { selectedRenderer = 1; checkTTY(); }
+        else if (arg == "--gui" || arg == "--sdl" || arg == "--software-sdl") selectedRenderer = 0;
+        else if (arg == "--cli" || arg == "-c") { selectedRenderer = 2; checkTTY(); }
+        else if (arg == "--raw") { selectedRenderer = 3; checkTTY(); }
+        else if (arg == "--raw-client") { rawClient = true; checkTTY(); }
+        else if (arg == "--raw-websocket") { rawClient = true; rawWebSocketURL = argv[++i]; }
+        else if (arg.substr(0, 16) == "--raw-websocket=") { rawClient = true; rawWebSocketURL = arg.substr(16); }
+        else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); }
+        else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
+        else if (arg == "--single") singleWindowMode = true;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
-        else if (arg == "--exec") script_file = "\x1b" + std::string(argv[++i]);
+        else if (arg == "--exec") script_file = "\x1b" + argv[++i];
         else if (arg == "--args") script_args = argv[++i];
-        else if (arg == "--plugin") customPlugins.push_back(wstr(argv[++i]));
+        else if (arg == "--plugin") customPlugins.push_back(argv[++i]);
         else if (arg == "--directory" || arg == "-d" || arg == "--data-dir") setBasePath(argv[++i]);
-        else if (arg.substr(0, 3) == "-d=") setBasePath((base_path_storage = arg.substr(3)).c_str());
-        else if (arg == "--computers-dir" || arg == "-C") computerDir = wstr(argv[++i]);
-        else if (arg.substr(0, 3) == "-C=") computerDir = wstr(arg.substr(3));
-        else if (arg == "--start-dir") customDataDir = wstr(argv[++i]);
-        else if (arg.substr(0, 3) == "-c=") customDataDir = wstr(arg.substr(3));
-        else if (arg == "--rom") setROMPath(argv[++i]);
-#ifdef _WIN32
-        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "\\assets\\computercraft\\lua").c_str());
-        else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "\\assets\\computercraft\\lua").c_str());
-        else if (arg == "--mc-save") computerDir = getMCSavePath() + wstr(argv[++i]) + WS("\\computer");
-#else
-        else if (arg == "--assets-dir" || arg == "-a") setROMPath((rom_path_storage = std::string(argv[++i]) + "/assets/computercraft/lua").c_str());
-        else if (arg.substr(0, 3) == "-a=") setROMPath((rom_path_storage = arg.substr(3) + "/assets/computercraft/lua").c_str());
-        else if (arg == "--mc-save") computerDir = getMCSavePath() + argv[++i] + "/computer";
-#endif
+        else if (arg.substr(0, 3) == "-d=") setBasePath(arg.substr(3));
+        else if (arg == "--computers-dir" || arg == "-C") computerDir = argv[++i];
+        else if (arg.substr(0, 3) == "-C=") computerDir = arg.substr(3);
+        else if (arg == "--start-dir") customDataDir = argv[++i];
+        else if (arg.substr(0, 3) == "-c=") customDataDir = arg.substr(3);
+        else if (arg == "--rom") setROMPath(argv[++i].c_str());
+        else if (arg == "--assets-dir" || arg == "-a") setROMPath(path_t(argv[++i])/"assets"/"computercraft"/"lua");
+        else if (arg.substr(0, 3) == "-a=") setROMPath(path_t(arg.substr(3))/"assets"/"computercraft"/"lua");
+        else if (arg == "--mc-save") computerDir = getMCSavePath() / argv[++i] / "computer";
         else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
         else if (arg == "--migrate") forceMigrate = true;
         else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
@@ -529,7 +550,7 @@ int main(int argc, char*argv[]) {
             }
             customMounts.push_back(std::make_tuple(mount_path.substr(0, mount_path.find('=')), mount_path.substr(mount_path.find('=') + 1), arg == "--mount" ? -1 : (arg == "--mount-rw")));
         } else if (arg == "--renderer" || arg == "-r") {
-            if (++i == argc) {
+            if (++i == argv.size()) {
                 checkTTY();
                 std::cout << "Available renderering methods:\n sdl\n headless\n "
 #ifndef NO_CLI
@@ -543,7 +564,7 @@ int main(int argc, char*argv[]) {
                 }
                 return 0;
             } else {
-                arg = std::string(argv[i]);
+                arg = argv[i];
                 std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) {return std::tolower(c); });
                 if (arg == "sdl" || arg == "awt") selectedRenderer = 0;
                 else if (arg == "headless") selectedRenderer = 1;
@@ -556,7 +577,8 @@ int main(int argc, char*argv[]) {
                 else if (arg == "direct3d" || arg == "direct3d11" || arg == "directfb" || arg == "metal" || arg == "opengl" || arg == "opengles" || arg == "opengles2" || arg == "software") {
                     selectedRenderer = 5;
                     overrideHardwareDriver = arg;
-                } else {
+                } else if (std::stoi(arg)) selectedRenderer = std::stoi(arg);
+                else {
                     std::cerr << "Unknown renderer type " << arg << "\n";
                     return 1;
                 }
@@ -570,6 +592,9 @@ int main(int argc, char*argv[]) {
             std::cout << "\nBuilt with:";
 #ifndef NO_CLI
             std::cout << " cli";
+#endif
+#ifndef NO_WEBP
+            std::cout << " webp";
 #endif
 #ifndef NO_PNG
             std::cout << " png";
@@ -587,7 +612,7 @@ int main(int argc, char*argv[]) {
 #else
             std::cout << " print_txt";
 #endif
-            std::cout << "\nCopyright (c) 2019-2021 JackMacWindows. Licensed under the MIT License.\n";
+            std::cout << "\nCopyright (c) 2019-2023 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             checkTTY();
@@ -615,8 +640,10 @@ int main(int argc, char*argv[]) {
                       << "  --headless                       Outputs only text straight to stdout\n"
                       << "  --raw                            Outputs terminal contents using a binary format\n"
                       << "  --raw-client                     Renders raw output from another terminal (GUI only)\n"
+                      << "  --raw-websocket <url>            Like --raw-client, but connects to a WebSocket server\n"
                       << "  --tror                           Outputs TRoR (terminal redirect over Rednet) packets\n"
-                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n\n"
+                      << "  --hardware                       Outputs to a GUI terminal with hardware acceleration\n"
+                      << "  --single                         Forces all screen output to a single window\n\n"
                       << "CCEmuX compatibility options:\n"
                       << "  -a|--assets-dir <dir>            Sets the CC:T directory that holds the ROM & BIOS\n"
                       << "  -C|--computers-dir <dir>         Sets the directory that stores data for each computer\n"
@@ -627,44 +654,147 @@ int main(int argc, char*argv[]) {
             return 0;
         }
     }
+    return -1;
+}
+
+int main(int argc, char*argv[]) {
+    lualib_debug_ccpc_functions(setcompmask_, db_debug, db_breakpoint, db_unsetbreakpoint);
+#ifdef __EMSCRIPTEN__
+    while (EM_ASM_INT(return window.waitingForFilesystemSynchronization ? 1 : 0;)) emscripten_sleep(100);
+#endif
+    std::vector<std::string> args;
+    for (int i = 1; i < argc; i++) args.push_back(std::string(argv[i]));
+    int res = parseArguments(args);
+    if (res >= 0) return res;
 #ifdef NO_CLI
     if (selectedRenderer == 2) {
         std::cerr << "Warning: CraftOS-PC was not built with CLI support, but the --cli flag was specified anyway. Continuing in GUI mode.\n";
         selectedRenderer = 0;
     }
 #endif
-#ifdef _WIN32
-    if (computerDir.empty()) computerDir = getBasePath() + WS("\\computer");
-#else
-    if (computerDir.empty()) computerDir = getBasePath() + WS("/computer");
-#endif
+    if (computerDir.empty()) computerDir = getBasePath() / "computer";
     if (!customDataDir.empty()) customDataDirs[id] = customDataDir;
     mainThreadID = std::this_thread::get_id();
     setupCrashHandler();
     migrateData(forceMigrate);
     config_init();
     if (selectedRenderer == -1) selectedRenderer = config.useHardwareRenderer ? 5 : 0;
-    if (rawClient) return runRenderer();
-#ifndef NO_CLI
-    if (selectedRenderer == 2) CLITerminal::init();
-    else 
+    if (rawClient) {
+        if (!rawWebSocketURL.empty()) {
+            Poco::URI uri;
+            try {
+                uri = Poco::URI(rawWebSocketURL);
+            } catch (Poco::SyntaxException &e) {
+                std::cerr << "Could not connect to WebSocket: URL malformed\n";
+                return 6;
+            }
+            if (uri.getHost() == "localhost") uri.setHost("127.0.0.1");
+            HTTPClientSession * cs;
+            if (uri.getScheme() == "ws") cs = new HTTPClientSession(uri.getHost(), uri.getPort());
+            else if (uri.getScheme() == "wss") {
+                Context::Ptr ctx = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                addSystemCertificates(ctx);
+                cs = new HTTPSClientSession(uri.getHost(), uri.getPort(), ctx);
+            } else {
+                std::cerr << "Could not connect to WebSocket: Invalid scheme '" + uri.getScheme() + "'\n";
+                return 6;
+            }
+            if (uri.getPathAndQuery().empty()) uri.setPath("/");
+            if (!config.http_proxy_server.empty()) cs->setProxy(config.http_proxy_server, config.http_proxy_port);
+            HTTPRequest request(HTTPRequest::HTTP_GET, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);
+            request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
+            request.add("Accept-Charset", "UTF-8");
+            HTTPResponse response;
+            WebSocket* ws;
+            try {
+                ws = new WebSocket(*cs, request, response);
+            } catch (Poco::Exception &e) {
+                std::cerr << "Could not connect to WebSocket: " << e.displayText() << "\n";
+                return 6;
+            } catch (std::exception &e) {
+                std::cerr << "Could not connect to WebSocket: " << e.what() << "\n";
+                return 6;
+            }
+            ws->setReceiveTimeout(Poco::Timespan(1, 0));
+#if POCO_VERSION >= 0x01090100
+            ws->setMaxPayloadSize(65536);
 #endif
-    if (selectedRenderer == 3) RawTerminal::init();
-    else if (selectedRenderer == 0) SDLTerminal::init();
-    else if (selectedRenderer == 4) TRoRTerminal::init();
-    else if (selectedRenderer == 5) HardwareSDLTerminal::init();
-    else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
+            bool open = true;
+            int retval = runRenderer([ws, &open]()->std::string {
+                char buf[65536];
+                while (open) {
+                    int flags = 0;
+                    int res;
+                    try {
+                        res = ws->receiveFrame(buf, 65536, flags);
+                        if (res == 0) {
+                            open = false;
+                            break;
+                        }
+                    } catch (Poco::TimeoutException &e) {
+                        continue;
+                    } catch (NetException &e) {
+                        open = false;
+                        break;
+                    }
+                    if (flags & WebSocket::FRAME_OP_CLOSE) {
+                        open = false;
+                        break;
+                    } else {
+                        return std::string(buf, res);
+                    }
+                }
+                return "";
+            }, [ws](const std::string& data) {
+                ws->sendFrame(data.c_str(), data.size());
+            });
+            open = false;
+            try {ws->shutdown();} catch (...) {}
+            delete ws;
+            delete cs;
+            return retval;
+        } else return runRenderer([]()->std::string {
+            while (true) {
+                unsigned char c1 = (unsigned char)std::cin.get();
+                if (c1 == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
+                    char size[5];
+                    std::cin.read(size, 4);
+                    const long sizen = strtol(size, NULL, 16);
+                    char * tmp = new char[(size_t)sizen+10];
+                    std::cin.read(tmp, sizen + 9);
+                    std::string retval = "!CPC" + std::string(size, 4) + std::string(tmp, sizen + 9);
+                    if (tmp[sizen + 8] == '\r') retval += '\n';
+                    delete[] tmp;
+                    return retval;
+                }
+            }
+        }, [](const std::string& str) {
+            std::cout << str;
+            std::cout.flush();
+        });
+    }
+    preloadPlugins();
+    TerminalFactory * factory = selectedRenderer >= terminalFactories.size() ? NULL : terminalFactories[selectedRenderer];
+    try {
+        if (factory) factory->init();
+        else SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO);
+    } catch (std::exception &e) {
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Failed to initialize renderer", ("An error occurred while initializing the renderer: " + std::string(e.what()) + ". See https://www.craftos-pc.cc/docs/error-messages for more info. CraftOS-PC will now close").c_str(), NULL);
+        else fprintf(stderr, "An error occurred while initializing the renderer: %s. See https://www.craftos-pc.cc/docs/error-messages for more info. CraftOS-PC will now close.\n", e.what());
+        SDL_Quit();
+        return 2;
+    }
     driveInit();
 #ifndef NO_MIXER
     speakerInit();
 #endif
     globalPluginErrors = initializePlugins();
-#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
+#if !defined(__EMSCRIPTEN__) && !defined(__IPHONEOS__) && !CRAFTOSPC_INDEV
     if ((selectedRenderer == 0 || selectedRenderer == 5) && config.checkUpdates && config.skipUpdate != CRAFTOSPC_VERSION) 
         std::thread(update_thread).detach();
 #endif
 #if defined(_WIN32) && defined(CRASHREPORT_API_KEY)
-    if (onboardingMode && !config.snooperEnabled) {
+    if (onboardingMode == 1 && !config.snooperEnabled && (selectedRenderer == 0 || selectedRenderer == 5)) {
         SDL_MessageBoxData data;
         data.title = "Allow analytics?";
         data.message = "CraftOS-PC can automatically upload crash logs to help bugs get fixed. These files are sent anonymously and don't contain direct personal data, but they do include general system information (see https://www.craftos-pc.cc/docs/privacy for more info). Would you like to allow crash logs to be uploaded?";
@@ -690,9 +820,18 @@ int main(int argc, char*argv[]) {
 #else
     try {
         mainLoop();
+    } catch (Poco::Exception &e) {
+        fprintf(stderr, "Uncaught exception on main thread: %s\n", e.displayText().c_str());
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", ("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Poco exception on main thread: " + e.displayText() + "\". CraftOS-PC will now close.").c_str(), NULL);
+        for (Computer * c : *computers) {
+            c->running = 0;
+            c->event_lock.notify_all();
+        }
+        exiting = true;
+        awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     } catch (std::exception &e) {
         fprintf(stderr, "Uncaught exception on main thread: %s\n", e.what());
-        if (selectedRenderer == 0 || selectedRenderer == 5) queueTask([e](void*t)->void* {SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", (std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on main thread: ") + e.what() + "\". CraftOS-PC will now close.").c_str(), NULL); return NULL; }, NULL);
+        if (selectedRenderer == 0 || selectedRenderer == 5) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Uncaught Exception", (std::string("Uh oh, CraftOS-PC has crashed! Please report this to https://www.craftos-pc.cc/bugreport. When writing the report, include the following exception message: \"Exception on main thread: ") + e.what() + "\". CraftOS-PC will now close.").c_str(), NULL);
         for (Computer * c : *computers) {
             c->running = 0;
             c->event_lock.notify_all();
@@ -701,9 +840,10 @@ int main(int argc, char*argv[]) {
         awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     }
 #endif
+    unblockInput();
+    awaitTasks([]()->bool {return computers.locked() || !computers->empty() || !taskQueue->empty();});
     for (std::thread *t : computerThreads) { if (t->joinable()) {t->join(); delete t;} }
-    // C++ doesn't like it if we try to empty the SDL event list once the plugins are gone
-    SDLTerminal::eventHandlers.clear();
+    computerThreads.clear();
     deinitializePlugins();
 #ifndef NO_MIXER
     speakerQuit();
@@ -711,21 +851,20 @@ int main(int argc, char*argv[]) {
     driveQuit();
     http_server_stop();
     config_save();
+#if !defined(__EMSCRIPTEN__) && !CRAFTOSPC_INDEV
     if (!updateAtQuit.empty()) {
-        updateNow(updateAtQuit);
+        updateNow(updateAtQuit, &updateAtQuitRoot);
         awaitTasks();
     }
-#ifndef NO_CLI
-    if (selectedRenderer == 2) CLITerminal::quit();
-    else 
 #endif
-    if (selectedRenderer == 3) RawTerminal::quit();
-    else if (selectedRenderer == 0) SDLTerminal::quit();
-    else if (selectedRenderer == 4) TRoRTerminal::quit();
-    else if (selectedRenderer == 5) HardwareSDLTerminal::quit();
+    if (factory) factory->quit();
     else SDL_Quit();
-#ifdef WIN32
-    if (kernel32handle != NULL) SDL_UnloadObject(kernel32handle);
-#endif
+    // Clear out a few lists that plugins may insert functions into
+    // We can't let these stay past the lifetime of plugins since C++ will try
+    // to access methods that were unloaded to destroy the objects
+    SDLTerminal::eventHandlers.clear();
+    clearPeripherals();
+    unloadPlugins();
+    platformExit();
     return returnValue;
 }

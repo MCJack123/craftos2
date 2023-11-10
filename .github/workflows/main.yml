@@ -1,11 +1,27 @@
 name: CI
 
-on: [push, pull_request]
+on: 
+  push:
+    paths:
+      - "src/**"
+      - "api/**"
+      - ".github/workflows/*"
+      - "craftos2-lua/**"
+      - "craftos2-lua"
+      - "resources/CraftOSTest.lua"
+  pull_request:
+    paths:
+      - "src/**"
+      - "api/**"
+      - ".github/workflows/*"
+      - "craftos2-lua/**"
+      - "craftos2-lua"
+      - "resources/CraftOSTest.lua"
 
 jobs:
 
   build:
-
+    name: Build & test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -14,25 +30,26 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 2
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
     
   build-basic:
-
+    name: Build & test (no optional features)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -45,28 +62,29 @@ jobs:
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure --without-ncurses --without-png --without-sdl_mixer --with-html
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 2
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-standalone:
-
+    name: Build & test (standalone)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev nodejs
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev nodejs
     - name: Build standalone ROM
       run: |
         git clone https://github.com/MCJack123/craftos2-rom
@@ -76,46 +94,129 @@ jobs:
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure --with-standalone_rom=craftos2-rom/fs_standalone.cpp
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CraftOSTest
       run: ./craftos --headless --script resources/CraftOSTest.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 2
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/CraftOSTest.log
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
 
   build-cct-test:
-
+    name: Run CC:T tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.15.2-1.95.3 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.19.4-1.108.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libpoco-dev libncurses5-dev
+        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev
     - name: Build Lua
       run: |
         git submodule update --init --recursive
-        make -C craftos2-lua linux
+        make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Build CraftOS-PC
       run: |
         CFLAGS=-Wall ./configure
-        make
+        make -j$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
     - name: Run CC:T McFly Tests
-      run: ./craftos --mount-ro test-rom=../CC-Tweaked/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
+      run: ./craftos --mount-ro test-rom=../CC-Tweaked/projects/core/src/test/resources/test-rom --headless --script resources/CCT-Test-Bootstrap.lua || echo $? > ~/.retval
       continue-on-error: true
+      timeout-minutes: 1
     - name: Show logs
       run: |
         cat ~/.local/share/craftos-pc/computer/0/test-log.txt
         if [ -e ~/.retval ]; then exit $(cat ~/.retval); fi
       
+  build-windows:
+    name: Build Windows
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
+    - name: Restore vcpkg cache
+      uses: lukka/run-vcpkg@v10
+      with:
+        vcpkgGitCommitId: 861c33057553ee836e7061ffbdabc25ea343145d
+    - name: Prepare environment
+      run: |
+        git submodule update --init --recursive
+        mkdir x64\ReleaseC
+        mkdir x64\Release
+        & $Env:VCPKG_ROOT\vcpkg integrate install
+        ((Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "VCPKG_TARGET_IS_WINDOWS", "false") -replace "lib/cmake/Poco", "cmake" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
+    - name: Build CraftOS-PC
+      env:
+        APIKEY: ${{secrets.WINDOWS_APIKEY}}
+      run: |
+        function Invoke-Environment {
+            param
+            (
+                # Any cmd shell command, normally a configuration batch file.
+                [Parameter(Mandatory=$true)]
+                [string] $Command
+            )
+
+            $Command = "`"" + $Command + "`""
+            cmd /c "$Command > nul 2>&1 && set" | . { process {
+                if ($_ -match '^([^=]+)=(.*)') {
+                    [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+                }
+            }}
+
+        }
+
+        Invoke-Environment "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        $tag = git rev-parse --short HEAD
+        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\" '/DCRASHREPORT_API_KEY
+        [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($Env:APIKEY)) | Out-File -Encoding "UTF8" src\apikey.cpp
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release
+        copy x64\Release\CraftOS-PC.exe CraftOS-PC.exe
+        copy x64\Release\CraftOS-PC.pdb CraftOS-PC.pdb
+        copy x64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
+        copy x64\ReleaseC\CraftOS-PC.pdb CraftOS-PC_console.pdb
+        copy craftos2-lua\src\lua51.dll lua51.dll
+        copy craftos2-lua\src\lua51.pdb lua51.pdb
+        # Remove buildtrees that kill the cache
+        Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
+    - name: Run CraftOSTest
+      run: |
+        x64\ReleaseC\CraftOS-PC --headless --script resources\CraftOSTest.lua --rom "C:\Program Files\CraftOS-PC"
+        echo $LASTEXITCODE > retval.txt
+      continue-on-error: true
+      timeout-minutes: 2
+    - name: Show logs
+      run: |
+        type "$ENV:APPDATA\CraftOS-PC\computer\0\CraftOSTest.log"
+        $code = Get-Content .\retval.txt
+        if ( $code -ne 0 ) { exit $code }
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: CraftOS-PC-Artifact
+        path: |
+          CraftOS-PC.exe
+          CraftOS-PC_console.exe
+          lua51.dll
+    - name: Upload artifact symbols
+      uses: actions/upload-artifact@v2
+      with:
+        name: CraftOS-PC-Artifact-Symbols
+        path: |
+          CraftOS-PC.pdb
+          CraftOS-PC_console.pdb
+          lua51.pdb
+  

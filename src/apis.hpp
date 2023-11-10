@@ -5,7 +5,7 @@
  * This file defines the library structures for all CraftOS APIs.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef APIS_HPP
@@ -14,7 +14,9 @@
 extern library_t config_lib;
 extern library_t fs_lib;
 extern library_t http_lib;
+#ifndef NO_MOUNTER
 extern library_t mounter_lib;
+#endif
 extern library_t os_lib;
 extern library_t periphemu_lib;
 extern library_t peripheral_lib;

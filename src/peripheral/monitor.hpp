@@ -5,7 +5,7 @@
  * This file defines the class for the monitor peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef PERIPHERAL_MONITOR_HPP
@@ -49,6 +49,8 @@ private:
     int screenshot(lua_State *L);
     int setFrozen(lua_State *L);
     int getFrozen(lua_State *L);
+    int setSize(lua_State *L);
+    int setBlockSize(lua_State *L);
 public:
     Terminal * term;
     static library_t methods;

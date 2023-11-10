@@ -29,7 +29,7 @@ public:
         // Check the value of m for each method:
         // if (m == "a") return a(L);
         // etc...
-        // else return 0;
+        // else return luaL_error(L, "No such method");
     }
     void update() override {}
     library_t getMethods() const override {return methods;}
@@ -44,10 +44,7 @@ static PluginInfo info;
 library_t myperipheral::methods = {"myperipheral", methods_reg, nullptr, nullptr};
 
 extern "C" {
-#ifdef _WIN32
-_declspec(dllexport)
-#endif
-PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
+DLLEXPORT PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
     // Replace myperipheral with the name of your peripheral
     func->registerPeripheral("myperipheral", &myperipheral::init);
     return &info;

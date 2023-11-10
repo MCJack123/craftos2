@@ -5,7 +5,7 @@
  * This file defines the methods for the drive peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <dirent.h>
@@ -25,7 +25,7 @@ int drive::getDiskLabel(lua_State *L) {
     lastCFunction = __func__;
     if (diskType == disk_type::DISK_TYPE_AUDIO) return getAudioTitle(L);
     else if (diskType == disk_type::DISK_TYPE_MOUNT) {
-        lua_pushstring(L, astr(path.substr((path.find_last_of('\\') == std::string::npos ? path.find_last_of('/') : path.find_last_of('\\')) + 1)).c_str());
+        lua_pushstring(L, path.filename().string().c_str());
         return 1;
     }
     return 0;
@@ -33,6 +33,7 @@ int drive::getDiskLabel(lua_State *L) {
 
 int drive::setDiskLabel(lua_State *L) {
     // unimplemented
+    if (diskType == disk_type::DISK_TYPE_AUDIO) luaL_error(L, "Disk label cannot be changed");
     return 0;
 }
 
@@ -58,12 +59,11 @@ int drive::hasAudio(lua_State *L) {
 int drive::getAudioTitle(lua_State *L) {
     lastCFunction = __func__;
     if (diskType != disk_type::DISK_TYPE_AUDIO) {
-        lua_pushnil(L);
+        if (diskType == disk_type::DISK_TYPE_NONE) lua_pushboolean(L, false);
+        else lua_pushnil(L);
         return 1;
     }
-    const int lastdot = (int)path.find_last_of('.');
-    const int start = path.find('\\') != std::string::npos ? (int)path.find_last_of('\\') + 1 : (int)path.find_last_of('/') + 1;
-    lua_pushstring(L, astr(path.substr(start, lastdot > start ? lastdot - start : UINT32_MAX)).c_str());
+    lua_pushstring(L, path.stem().string().c_str());
     return 1;
 }
 
@@ -72,7 +72,7 @@ int drive::playAudio(lua_State *L) {
 #ifndef NO_MIXER
     if (diskType != disk_type::DISK_TYPE_AUDIO) return 0;
     if (music != NULL) stopAudio(L);
-    music = Mix_LoadMUS(astr(path).c_str());
+    music = Mix_LoadMUS(path.string().c_str());
     if (music == NULL) fprintf(stderr, "Could not load audio: %s\n", Mix_GetError());
     if (Mix_PlayMusic(music, 1) == -1) fprintf(stderr, "Could not play audio: %s\n", Mix_GetError());
 #endif
@@ -119,10 +119,15 @@ int drive::getDiskID(lua_State *L) {
     return 1;
 }
 
+// thanks Windows
+#ifdef _MSC_VER
+#pragma optimize("", off)
+#endif
 int drive::insertDisk(lua_State *L, bool init) {
     lastCFunction = __func__;
     Computer * comp = get_comp(L);
     const int arg = init * 2 + 1;
+    const char * error, *errparam;
     if (diskType != disk_type::DISK_TYPE_NONE) lua_pop(L, ejectDisk(L));
     if (lua_isnumber(L, arg)) {
         id = lua_tointeger(L, arg);
@@ -132,50 +137,61 @@ int drive::insertDisk(lua_State *L, bool init) {
         comp->usedDriveMounts.insert(i);
         mount_path = "disk" + (i == 0 ? "" : std::to_string(i + 1));
         comp->mounter_initializing = true;
-#ifdef _WIN32
-        createDirectory(computerDir + WS("\\disk\\") + to_path_t(id));
-        addMount(comp, computerDir + WS("\\disk\\") + to_path_t(id), mount_path.c_str(), false);
-#else
-        createDirectory((computerDir + "/disk/" + std::to_string(id)).c_str());
-        addMount(comp, (computerDir + "/disk/" + std::to_string(id)).c_str(), mount_path.c_str(), false);
-#endif
+        try {
+            std::error_code e;
+            fs::create_directories(computerDir / "disk" / std::to_string(id), e);
+            if (e || !addMount(comp, computerDir / "disk" / std::to_string(id), mount_path.c_str(), false)) {
+                diskType = disk_type::DISK_TYPE_NONE;
+                comp->mounter_initializing = false;
+                error = "Could not mount";
+                goto throwError;
+            }
+        } catch (std::exception &e) {
+            comp->mounter_initializing = false;
+            throw e;
+        }
         comp->mounter_initializing = false;
     } else if (lua_isstring(L, arg)) {
-        path = wstr(lua_tostring(L, arg));
-        struct_stat st;
+        std::string str = lua_tostring(L, arg);
+        std::error_code e;
 #ifndef STANDALONE_ROM
-        if (path.substr(0, 9) == WS("treasure:")) {
-#ifdef _WIN32
-            for (size_t i = 9; i < path.size(); i++) if (path[i] == '/') path[i] = '\\';
-            path = getROMPath() + WS("\\treasure\\") + path.substr(9);
-#else
-            path = getROMPath() + WS("/treasure/") + path.substr(9);
-#endif
-        } else if (path.substr(0, 7) == WS("record:")) {
-#ifdef _WIN32
-            path = getROMPath() + WS("\\sounds\\minecraft\\sounds\\records\\") + path.substr(7) + WS(".ogg");
-#else
-            path = getROMPath() + WS("/sounds/minecraft/sounds/records/") + path.substr(7) + WS(".ogg");
-#endif
+        if (str.substr(0, 9) == "treasure:") {
+            path = getROMPath() / "treasure" / str.substr(9);
+        } else if (str.substr(0, 7) == "record:") {
+            path = getROMPath() / "sounds"/"minecraft"/"sounds"/"records" / (str.substr(7) + ".ogg");
         } else
 #endif
-        if (path.substr(0, 9) == WS("computer:")) {
-            try {std::stoi(path.substr(9));}
+        if (str.substr(0, 9) == "computer:") {
+            try {std::stoi(str.substr(9));}
             catch (std::invalid_argument &e) {
                 if (init) throw std::invalid_argument("Could not mount: Invalid computer ID");
-                else luaL_error(L, "Could not mount: Invalid computer ID");
+                else {
+                    error = "Could not mount: Invalid computer ID";
+                    goto throwError;
+                }
             }
-#ifdef _WIN32
-            path = getBasePath() + WS("\\computer\\") + path.substr(9);
+            path = getBasePath() / "computer" / str.substr(9);
+        }
+#ifdef NO_MOUNTER
+        else {
+            if (init) throw std::invalid_argument("Could not mount: Access denied");
+            else {
+                error = "Could not mount: Permission denied";
+                goto throwError;
+            }
+        }
 #else
-            path = getBasePath() + WS("/computer/") + path.substr(9);
+        else path = str;
 #endif
+        if (!fs::exists(path, e)) {
+            if (init) throw std::system_error(e.value() || errno, std::system_category(), "Could not mount: ");
+            else {
+                error = "Could not mount: %s";
+                errparam = strerror(e.value() || errno);
+                goto throwErrorParam;
+            }
         }
-        if (platform_stat(path.c_str(), &st) != 0) {
-            if (init) throw std::system_error(errno, std::system_category(), "Could not mount: ");
-            else luaL_error(L, "Could not mount: %s", strerror(errno));
-        }
-        if (S_ISDIR(st.st_mode)) {
+        if (fs::is_directory(path, e)) {
             diskType = disk_type::DISK_TYPE_MOUNT;
             int i;
             for (i = 0; comp->usedDriveMounts.find(i) != comp->usedDriveMounts.end(); i++) {}
@@ -186,7 +202,10 @@ int drive::insertDisk(lua_State *L, bool init) {
                 comp->usedDriveMounts.erase(i);
                 mount_path.clear();
                 if (init) throw std::runtime_error("Could not mount: Access denied");
-                else luaL_error(L, "Could not mount: Access denied");
+                else {
+                    error = "Could not mount: Access denied";
+                    goto throwError;
+                }
             }
         }
 #ifndef NO_MIXER
@@ -197,7 +216,10 @@ int drive::insertDisk(lua_State *L, bool init) {
 #else
         else {
             if (init) throw std::invalid_argument("Playing audio is not available in this build");
-            else luaL_error(L, "Playing audio is not available in this build");
+            else {
+                error = "Playing audio is not available in this build";
+                goto throwError;
+            }
         }
 #endif
     } else {
@@ -205,12 +227,22 @@ int drive::insertDisk(lua_State *L, bool init) {
         else luaL_error(L, "bad argument #%d (expected string or number, got %s)", arg, lua_typename(L, lua_type(L, arg)));
     }
     return 0;
+    // This dirty hack is because Windows randomly attempts to deallocate a std::wstring
+    // in the stack that doesn't exist. (???) The only way to fix it is to make it jump
+    // out of scope, and disable optimizations. (TODO: Find if scope escape is required.)
+throwError:
+    return luaL_error(L, error);
+throwErrorParam:
+    return luaL_error(L, error, errparam);
 }
+#ifdef _MSC_VER
+#pragma optimize("", on)
+#endif
 
 void driveInit() {
 #ifndef NO_MIXER
     Mix_Init(MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG);
-    Mix_OpenAudio(44100, AUDIO_S16, 2, 512);
+    Mix_OpenAudio(48000, AUDIO_S16, 2, 512); // NOTE: If changing the chunk size, update playAudio!
 #endif
 }
 
@@ -243,7 +275,7 @@ int drive::call(lua_State *L, const char * method) {
     else if (m == "ejectDisk") return ejectDisk(L);
     else if (m == "getDiskID") return getDiskID(L);
     else if (m == "insertDisk") return insertDisk(L);
-    else return 0;
+    else return luaL_error(L, "No such method");
 }
 
 static luaL_Reg drive_reg[] = {

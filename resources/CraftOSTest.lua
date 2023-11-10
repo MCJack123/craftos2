@@ -1,5 +1,10 @@
 -- Tests compliance of CraftOS APIs
 if not _HEADLESS then term.clear() end
+local old_blacklist
+if config and config.add then
+	old_blacklist = config.get("http_blacklist")
+	config.add("http_blacklist", "$private")
+end
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lightBlue)
 print("CraftOSTest 1.8")
@@ -100,7 +105,7 @@ local function test(name, expected, ...)
 		good = res == expected 
 	end
 	if not good then
-		local line = ({pcall(function() error("", 3) end)})[2]
+		local line = ({pcall(function() error("", 4) end)})[2]
 		term.setTextColor(colors.red)
 		print("[x] " .. line .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
 		logfile.writeLine("[x] " .. line .. api .. "." .. name .. " returned " .. tostr(res) .. " (expected " .. tostr(expected) .. ")")
@@ -251,7 +256,7 @@ testStart "fs"
 	test("getDir", "rom/programs", "/rom/programs/shell.lua")
 	test("getDrive", "rom", "/rom/programs/shell.lua")
 	local s = call("getSize", "/rom/apis/keys.lua")
-	if s ~= 2429 and s ~= 2492 then testLocal("fs.getSize", {2491, 2120}, s) end -- CRLF or LF
+	if s ~= 2622 and s ~= 2691 then testLocal("fs.getSize", {2622, 2691}, s) end -- CRLF or LF
 	call("makeDir", "test_dir")
 	test("isDir", true, "test_dir")
 	call("delete", "test_dir")
@@ -313,20 +318,15 @@ testStart "help"
 testEnd()
 
 testStart "http"
-	local handle = call("get", "https://pastebin.com/raw/yY9StxvU")
+	local handle = call("get", "https://httpbin.org/base64/SGVsbG8gV29ybGQhCkFub3RoZXIgbGluZS4KVGhpcyBkYXRhIHdvcmtzIHByb3Blcmx5LgoocmVzdCBvZiBkYXRhKQ==")
 	if testLocal("handle", type(handle), "table") then
 		testLocal("handle.getResponseCode", callLocal("handle.getResponseCode", handle.getResponseCode), 200)
-		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'print("Downloading latest installer...")')
-		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'local file = http.get("https://raw.githubusercontent.com/MCJack123/CCKernel2/master/CCKernel2Installer.lua")')
-		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'local out = fs.open("install.lua", "w")')
-		testLocal("handle.readAll", callLocal("handle.readAll", handle.readAll), [[out.write(file.readAll())
-file.close()
-out.close()
-shell.run("/install.lua")
-fs.delete("/install.lua")]])
+		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'Hello World!')
+		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine, true), 'Another line.\n')
+		testLocal("handle.readAll", callLocal("handle.readAll", handle.readAll), 'This data works properly.\n(rest of data)')
 		callLocal("handle.close", handle.close)
 	end
-	test("checkURL", {true, nil}, "https://pastebin.com/raw/yY9StxvU")
+	test("checkURL", {true, nil}, "https://httpbin.org/base64")
 	test("checkURL", {false, "Must specify http or https"}, "qwertyuiop")
 	test("checkURL", {false, "URL malformed"}, "http:qwertyuiop")
 	test("checkURL", {false, "Invalid protocol 'ftp'"}, "ftp://example.com")
@@ -485,6 +485,8 @@ testStart "settings"
 		"shell.allow_disk_startup",
 		"shell.allow_startup",
 		"shell.autocomplete",
+		"shell.autocomplete_hidden",
+		"shell.mobile_resize_with_keyboard",
 		"shell.report_plugin_errors",
 		"test",
 		"test2"
@@ -744,4 +746,5 @@ else
 	term.setTextColor(colors.white)
 end
 logfile.close()
+if old_blacklist then config.set("http_blacklist", old_blacklist) end
 if _HEADLESS then os.shutdown(#failed) end

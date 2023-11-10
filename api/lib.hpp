@@ -5,7 +5,7 @@
  * This file defines some functions and constants useful for plugins.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_LIB_HPP
@@ -33,12 +33,13 @@ struct Computer;
 /// To abstract this difference in implementation, a path_t type is used to allow the correct
 /// string type to be used on each platform. Since the type only changes when the platform changes,
 /// this should not have a negative impact on ABI stability.
+/// @deprecated This is retained for ABI compatibility - the next API will use std::filesystem::path instead.
 #ifdef _WIN32
-typedef std::wstring path_t;
-#define to_path_t std::to_wstring
+typedef std::wstring _path_t;
+#define _to_path_t std::to_wstring
 #else
-typedef std::string path_t;
-#define to_path_t std::to_string
+typedef std::string _path_t;
+#define _to_path_t std::to_string
 #endif
 
 // The library_t structure is used to hold information about an API.
@@ -50,6 +51,7 @@ struct library_t {
     std::function<void(Computer*)> deinit; // A function to call when closing the API
 };
 
+#ifdef CRAFTOS_PC_HPP
 /**
  * Returns the associated Computer object pointer for a Lua state.
  * This is a bit slow, so try not to call it too much, or cache results.
@@ -64,5 +66,6 @@ inline Computer * get_comp(lua_State *L) {
     lua_pop(L, 1);
     return (Computer*)retval;
 }
+#endif
 
 #endif

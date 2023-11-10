@@ -5,7 +5,7 @@
  * This file defines structures used for storing the configuration.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_CONFIGURATION_HPP
@@ -86,6 +86,15 @@ struct configuration {
 
     // The following fields are available in API version 10.3 and later.
     bool keepOpenOnShutdown;
+
+    // The following fields are available in API version 10.5 and later.
+    bool useWebP;
+
+    // The following fields are available in API version 10.6 and later.
+    bool dropFilePath;
+
+    // The following fields are available in API version 10.8 and later.
+    bool useDFPWM;
 };
 
 // A smaller structure that holds the configuration for a single computer.
@@ -95,9 +104,9 @@ struct computer_configuration {
     bool loadFailure;
     bool startFullscreen;
 
-  // The following fields are available in API version 10.3 and later.
-  int computerWidth;
-  int computerHeight;
+    // The following fields are available in API version 10.3 and later.
+    int computerWidth;
+    int computerHeight;
 };
 
 #endif

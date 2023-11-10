@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include <cstring>
+#include "../src/terminal/RawTerminal.hpp"
 
 /*
    base64.cpp and base64.h
@@ -183,39 +184,73 @@ void parseIBTTag(std::istream& in, int level = 0) {
 
 bool noterm = false;
 
+static const char * fileoptypes[] = {
+	"exists",
+	"isDir",
+	"isReadOnly",
+	"getSize",
+	"getDrive",
+	"getCapacity",
+	"getFreeSpace",
+	"list",
+	"attributes",
+	"find",
+	"makeDir",
+	"delete",
+	"copy",
+	"move",
+	"",
+	"",
+	"open('r')",
+	"open('w')",
+	"open('r') (append)",
+	"open('a')",
+	"open('rb')",
+	"open('wb')",
+	"open('r') (append)",
+	"open('ab')"
+};
+
 int main(int argc, const char * argv[]) {
 	if (argc > 1 && std::string(argv[1]) == "--noterm") noterm = true;
 	std::cout << "Listening for data...\n";
+	bool useBinaryChecksum = false;
 	while (true) {
 		unsigned char c = std::cin.get();
-		if (c == '!' && std::cin.get() == 'C' && std::cin.get() == 'P' && std::cin.get() == 'C') {
-			char size[5];
-			std::cin.read(size, 4);
+		if (c == '!' && std::cin.get() == 'C' && std::cin.get() == 'P') {
+			char mode = std::cin.get();
+			char size[13];
+			if (mode == 'C') std::cin.read(size, 4);
+			else if (mode == 'D') std::cin.read(size, 12);
+			else {std::cout << "Unknown frame type '" << mode << "'!\n"; continue;}
 			long sizen = strtol(size, NULL, 16);
 			std::cout << "Got frame of size " << sizen << "\n";
 			char * tmp = new char[sizen + 1];
 			tmp[sizen] = 0;
 			std::cin.read(tmp, sizen);
-			uint32_t sum = rc_crc32(0, tmp, sizen);
+			std::string ddata = base64_decode(tmp);
+			uint32_t sum = useBinaryChecksum ? rc_crc32(0, ddata.c_str(), ddata.size()) : rc_crc32(0, tmp, sizen);
+			delete[] tmp;
 			uint32_t getsum = 0;
 			scanf("%08x", &getsum);
 			if (sum == getsum) printf("> Checksums match (%08X)\n", getsum);
 			else printf("\n> Checksums don't match! (%08X vs. expected %08X)\n", sum, getsum);
-			std::stringstream in(base64_decode(tmp));
-			delete[] tmp;
+			std::stringstream in(ddata);
 			uint8_t type = in.get();
 			std::cout << "> Frame is of type " << (int)type << " for window ID " << (int)in.get() << "\n";
-			if (type == 0) {
+			switch (type) {
+			case CCPC_RAW_TERMINAL_DATA: {
 				uint16_t width = 0, height = 0, cursorX = 0, cursorY = 0;
 				uint8_t mode = in.get();
-				std::cout << "> Graphics mode: " << (int)mode << "\n> Cursor showing? " << (in.get() ? "Yes\n" : "No\n");
+				std::cout << "> Graphics mode: " << (int)mode << "\n> Cursor showing/blinking? " << (in.get() ? "Yes\n" : "No\n");
 				in.read((char*)&width, 2);
 				in.read((char*)&height, 2);
 				std::cout << "> Width: " << width << ", height: " << height << "\n";
 				in.read((char*)&cursorX, 2);
 				in.read((char*)&cursorY, 2);
 				std::cout << "> Cursor X: " << cursorX << ", Y: " << cursorY << "\n";
-				in.seekg((long)in.tellg() + 4);
+				std::cout << "> Grayscale? " << (in.get() ? "Yes\n" : "No\n");
+				in.seekg((long)in.tellg() + 3);
 				int i = 0;
 				if (mode == 0) {
 					if (!noterm) std::cout << "> Terminal contents:\n";
@@ -253,16 +288,19 @@ int main(int argc, const char * argv[]) {
 					printf("%s#%02x%02x%02x", (i == 0 ? "" : ", "), r, g, b);
 				}
 				std::cout << "\n";
-			} else if (type == 1) {
+				break;
+			} case CCPC_RAW_KEY_DATA: {
 				std::cout << "> Key ID or character: " << (int)in.get();
 				std::cout << "\n> Flags: " << std::hex << in.get() << "\n";
-			} else if (type == 2) {
+				break;
+			} case CCPC_RAW_MOUSE_DATA: {
 				std::cout << "> Mouse event type: " << (int)in.get() << "\n> Button: " << (int)in.get() << "\n";
 				uint32_t x = 0, y = 0;
 				in.read((char*)&x, 4);
 				in.read((char*)&y, 4);
 				std::cout << "> Button X: " << x << ", Y: " << y << "\n";
-			} else if (type == 3) {
+				break;
+			} case CCPC_RAW_EVENT_DATA: {
 				uint8_t paramCount = in.get();
 				std::cout << "> Event parameter count: " << (int)paramCount << "\n";
 				std::string str;
@@ -274,7 +312,8 @@ int main(int argc, const char * argv[]) {
 					parseIBTTag(in, 1);
 					std::cout << "\n";
 				}
-			} else if (type == 4) {
+				break;
+			} case CCPC_RAW_TERMINAL_CHANGE: {
 				std::cout << "> Closing window? " << (in.get() ? "Yes" : "No") << "\n";
 				in.get();
 				uint16_t width = 0, height = 0;
@@ -285,7 +324,8 @@ int main(int argc, const char * argv[]) {
 				char c;
 				while ((c = in.get())) str += c;
 				std::cout << "> Title: " << str << "\n";
-			} else if (type == 5) {
+				break;
+			} case CCPC_RAW_MESSAGE_DATA: {
 				uint32_t flags = 0;
 				in.read((char*)&flags, 4);
 				std::cout << "> Flags: 0x" << std::hex << std::setw(8) << std::setfill('0') << flags << "\n";
@@ -296,7 +336,124 @@ int main(int argc, const char * argv[]) {
 				str = "";
 				while ((c = in.get())) str += c;
 				std::cout << "> Message: " << str << "\n";
-			}
+				break;
+			} case CCPC_RAW_FEATURE_FLAGS: {
+				uint16_t flags = 0;
+				uint32_t eflags = 0;
+				in.read((char*)&flags, 2);
+				if (flags & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) in.read((char*)&eflags, 4);
+				std::cout << "> Supported features:\n";
+				if (flags & CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM) {std::cout << "  * Binary checksums\n"; useBinaryChecksum = true;}
+				if (flags & CCPC_RAW_FEATURE_FLAG_FILESYSTEM_SUPPORT) std::cout << "  * Filesystem extension\n";
+				if (flags & CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS) std::cout << "  * Send all windows\n";
+				if (flags & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) {
+					std::cout << "  * Extended flags:\n";
+					// if (eflags && CCPC_RAW_FEATURE_FLAG_EXTENDED_) std::cout << "    * \n";
+					// none present
+				}
+				break;
+			} case CCPC_RAW_FILE_REQUEST: {
+				uint8_t reqtype = in.get();
+				uint8_t reqid = in.get();
+				std::cout << "> File operation type: " << fileoptypes[reqtype] << "\n> Request ID: " << (int)reqid << "\n";
+				std::string path;
+				char c;
+				while ((c = in.get())) path += c;
+				std::cout << "> Path: " << path << "\n";
+				if (reqtype == CCPC_RAW_FILE_REQUEST_COPY || reqtype == CCPC_RAW_FILE_REQUEST_MOVE) {
+					path = "";
+					while ((c = in.get())) path += c;
+					std::cout << "> Second path: " << path << "\n";
+				}
+				break;
+			} case CCPC_RAW_FILE_RESPONSE: {
+				uint8_t reqtype = in.get();
+				uint8_t reqid = in.get();
+				std::cout << "> File operation type: " << fileoptypes[reqtype] << "\n> Request ID: " << (int)reqid << "\n";
+				std::string str;
+				char c;
+				uint32_t t32 = 0;
+				uint64_t t64 = 0;
+				switch (reqtype) {
+				case CCPC_RAW_FILE_REQUEST_MAKEDIR:
+				case CCPC_RAW_FILE_REQUEST_DELETE:
+				case CCPC_RAW_FILE_REQUEST_COPY:
+				case CCPC_RAW_FILE_REQUEST_MOVE:
+				case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE:
+				case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE | CCPC_RAW_FILE_REQUEST_OPEN_APPEND:
+				case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE | CCPC_RAW_FILE_REQUEST_OPEN_BINARY:
+				case CCPC_RAW_FILE_REQUEST_OPEN | CCPC_RAW_FILE_REQUEST_OPEN_WRITE | CCPC_RAW_FILE_REQUEST_OPEN_APPEND | CCPC_RAW_FILE_REQUEST_OPEN_BINARY:
+					while ((c = in.get())) str += c;
+					if (str.empty()) std::cout << "> Operation succeeded\n";
+					else std::cout << "> Operation failed: " << str << "\n";
+					break;
+				case CCPC_RAW_FILE_REQUEST_EXISTS:
+				case CCPC_RAW_FILE_REQUEST_ISDIR:
+				case CCPC_RAW_FILE_REQUEST_ISREADONLY:
+					c = in.get();
+					if (c == 0) std::cout << "> Operation reported 'false'\n";
+					else if (c == 1) std::cout << "> Operation reported 'true'\n";
+					else std::cout << "> Operation failed\n";
+					break;
+				case CCPC_RAW_FILE_REQUEST_GETSIZE:
+				case CCPC_RAW_FILE_REQUEST_GETCAPACITY:
+				case CCPC_RAW_FILE_REQUEST_GETFREESPACE:
+					in.read((char*)&t32, 4);
+					if (t32 == 0xFFFFFFFF) std::cout << "> Operation failed\n";
+					else std::cout << "> Requested size: " << t32 << "\n";
+					break;
+				case CCPC_RAW_FILE_REQUEST_LIST:
+				case CCPC_RAW_FILE_REQUEST_FIND:
+					in.read((char*)&t32, 4);
+					if (t32 == 0xFFFFFFFF) std::cout << "> Operation failed\n";
+					else {
+						std::cout << "> Results:\n";
+						for (int i = 0; i < t32; i++) {
+							str = "";
+							while ((c = in.get())) str += c;
+							std::cout << "  " << str << "\n";
+						}
+					}
+					break;
+				case CCPC_RAW_FILE_REQUEST_GETDRIVE:
+					while ((c = in.get())) str += c;
+					if (str.empty()) std::cout << "> Operation failed\n";
+					else std::cout << "> Drive path: " << str << "\n";
+					break;
+				case CCPC_RAW_FILE_REQUEST_ATTRIBUTES:
+					in.read((char*)&t32, 4);
+					std::cout << "> File size: " << t32 << "\n";
+					in.read((char*)&t64, 8);
+					t64 /= 1000;
+					std::cout << "> Creation date: " << ctime((time_t*)&t64) << "\n";
+					in.read((char*)&t64, 8);
+					t64 /= 1000;
+					std::cout << "> Modification date: " << ctime((time_t*)&t64) << "\n";
+					c = in.get();
+					std::cout << "> Is " << (c ? "" : "not ") << "a directory\n";
+					c = in.get();
+					std::cout << "> Is " << (c ? "" : "not ") << "read-only\n";
+					c = in.get();
+					if (c == 1) std::cout << "> Path does not exist\n";
+					else if (c == 2) std::cout << "> Operation failed\n";
+					break;
+				}
+				break;
+			} case CCPC_RAW_FILE_DATA: {
+				uint8_t err = in.get();
+				uint8_t reqid = in.get();
+				std::cout << "> Request ID: " << (int)reqid << "\n";
+				uint32_t size = 0;
+				in.read((char*)&size, 4);
+				char * data = new char[size];
+				in.read(data, size);
+				std::string str(data, size);
+				delete[] data;
+				if (err) std::cout << "> Operation failed: " << str << "\n";
+				else if (noterm) std::cout << "> Data size: " << size << "\n";
+				else std::cout << "> Data:\n" << str << "\n";
+				break;
+			}}
 		}
 	}
 }

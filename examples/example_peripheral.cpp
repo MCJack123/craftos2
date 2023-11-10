@@ -26,29 +26,26 @@ public:
         if (m == "add") return add(L);
         else if (m == "subtract") return subtract(L);
         else if (m == "ping") return ping(L);
-        else return 0;
+        else return luaL_error(L, "No such method");
     }
     static peripheral * init(lua_State *L, const char * side) {return new example_peripheral(L, side);}
     static void deinit(peripheral * p) {delete (example_peripheral*)p;}
-    destructor getDestructor() {return deinit;}
+    virtual destructor getDestructor() const {return deinit;}
     void update(){}
-    library_t getMethods() {return methods;}
+    virtual library_t getMethods() const {return methods;}
 };
 
 static luaL_Reg methods_reg[] = {
-    "add",
-    "subtract",
-    "ping",
+    {"add", NULL},
+    {"subtract", NULL},
+    {"ping", NULL},
 };
 static PluginInfo info;
 library_t example_peripheral::methods = {"example_peripheral", methods_reg, nullptr, nullptr};
 
 extern "C" {
-#ifdef _WIN32
-_declspec(dllexport)
-#endif
-PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
-    func->registerPeripheral("example_peripheral", &example_peripheral::init);
+DLLEXPORT PluginInfo * plugin_init(PluginFunctions * func, const path_t& path) {
+    func->registerPeripheralFn("example_peripheral", &example_peripheral::init);
     return &info;
 }
 }

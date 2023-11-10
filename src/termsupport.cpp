@@ -5,7 +5,7 @@
  * This file implements some helper functions for terminal interaction.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #include <cerrno>
@@ -13,6 +13,7 @@
 #include <cstring>
 #include <chrono>
 #include <codecvt>
+#include <fstream>
 #include <locale>
 #include <queue>
 #include <unordered_map>
@@ -21,15 +22,37 @@
 #ifndef NO_CLI
 #include <curses.h>
 #endif
+#include <dirent.h>
+#ifndef WIN32
+#include <libgen.h>
+#endif
+#include <sys/stat.h>
 #include <Terminal.hpp>
 #include "apis.hpp"
+#include "apis/handles/fs_handle.hpp"
+#include "main.hpp"
 #include "runtime.hpp"
 #include "peripheral/monitor.hpp"
 #include "peripheral/debugger.hpp"
-#include "terminal/SDLTerminal.hpp"
 #include "termsupport.hpp"
+#include "terminal/SDLTerminal.hpp"
+#include "terminal/HardwareSDLTerminal.hpp"
+#include "terminal/RawTerminal.hpp"
+#include "terminal/TRoRTerminal.hpp"
 #ifndef NO_CLI
 #include "terminal/CLITerminal.hpp"
+#endif
+#if defined(__INTELLISENSE__) && !defined(S_ISDIR)
+#define S_ISDIR(m) 1 // silence errors in IntelliSense (which isn't very intelligent for its name)
+#define W_OK 2
+#endif
+
+#ifdef __ANDROID__
+extern "C" {extern int Android_JNI_SetupThread(void);}
+#endif
+
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+extern void mobileResetModifiers();
 #endif
 
 std::thread * renderThread;
@@ -221,38 +244,83 @@ std::thread * renderThread;
 };
 #endif
 
+template<class T>
+class TerminalFactoryImpl: public TerminalFactory {
+public:
+    virtual Terminal * createTerminal(const std::string& title) {T* retval = new T(title); retval->factory = this; return retval;}
+    virtual void deleteTerminal(Terminal * term) {delete (T*)term;}
+    virtual void init() {T::init();}
+    virtual void quit() {T::quit();}
+    virtual void pollEvents() {T::pollEvents();}
+};
+
+TerminalFactoryImpl<SDLTerminal> SDLTerminalFactory;
+TerminalFactoryImpl<HardwareSDLTerminal> HardwareSDLTerminalFactory;
+TerminalFactoryImpl<RawTerminal> RawTerminalFactory;
+TerminalFactoryImpl<TRoRTerminal> TRoRTerminalFactory;
+#ifndef NO_CLI
+TerminalFactoryImpl<CLITerminal> CLITerminalFactory;
+#endif
+
+std::vector<TerminalFactory *> terminalFactories = {
+    &SDLTerminalFactory,
+    NULL,
+#ifndef NO_CLI
+    &CLITerminalFactory,
+#else
+    NULL,
+#endif
+    &RawTerminalFactory,
+    &TRoRTerminalFactory,
+    &HardwareSDLTerminalFactory
+};
+
 Uint32 task_event_type;
 Uint32 render_event_type;
+std::list<Terminal*> renderTargets;
+std::mutex renderTargetsLock;
+std::list<Terminal*>::iterator renderTarget = renderTargets.end();
+std::set<unsigned> currentWindowIDs;
+#if defined(__EMSCRIPTEN__) || defined(__IPHONEOS__) || defined(__ANDROID__)
+bool singleWindowMode = true;
+#else
+bool singleWindowMode = false;
+#endif
 
 int convertX(SDLTerminal * term, int x) {
     if (term->mode != 0) {
-        if (x < 2 * (int)term->charScale) return 0;
-        else if ((unsigned)x >= term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale))
+        if ((unsigned)x < 2 * term->dpiScale * (int)term->charScale) return 0;
+        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale)
             return (int)(Terminal::fontWidth * term->width - 1);
-        return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
+        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale));
     } else {
-        if (x < 2 * (int)term->charScale) return 1;
-        else if ((unsigned)x >= term->charWidth * term->width + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->width;
-        return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charWidth + 1);
+        if ((unsigned)x < 2 * term->dpiScale * (int)term->charScale) return 1;
+        else if ((unsigned)x >= term->charWidth * term->dpiScale * term->width + 2 * term->charScale * term->dpiScale) return (int)term->width;
+        return (int)((x - 2 * term->charScale * term->dpiScale) / (term->dpiScale * term->charWidth) + 1);
     }
 }
 
 int convertY(SDLTerminal * term, int x) {
     if (term->mode != 0) {
-        if (x < 2 * (int)term->charScale) return 0;
-        else if ((unsigned)x >= term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale))
+        if ((unsigned)x < 2 * term->dpiScale * (int)term->charScale) return 0;
+        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale)
             return (int)(Terminal::fontHeight * term->height - 1);
-        return (int)(((unsigned)x - (2 * term->charScale)) / (term->charScale * (2 / SDLTerminal::fontScale)));
+        return (int)(((unsigned)x - (2 * term->dpiScale * term->charScale)) / (term->charScale * term->dpiScale));
     } else {
-        if (x < 2 * (int)term->charScale * (int)(2 / SDLTerminal::fontScale)) return 1;
-        else if ((unsigned)x >= term->charHeight * term->height + 2 * term->charScale * (2 / SDLTerminal::fontScale)) return (int)term->height;
-        return (int)((x - 2 * term->charScale * (2 / SDLTerminal::fontScale)) / term->charHeight + 1);
+        if ((unsigned)x < 2 * (int)term->charScale * term->dpiScale) return 1;
+        else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale) return (int)term->height;
+        return (int)((x - 2 * term->charScale * term->dpiScale) / (term->dpiScale * term->charHeight) + 1);
     }
 }
 
 inline const char * checkstr(const char * str) {return str == NULL ? "(null)" : str;}
 
-extern library_t * libraries[8];
+static int pushUpvalue(lua_State *L) {
+    lua_pushvalue(L, lua_upvalueindex(1));
+    return 1;
+}
+
+extern library_t * libraries[];
 int termPanic(lua_State *L) {
     Computer * comp = get_comp(L);
     comp->running = 0;
@@ -271,9 +339,17 @@ int termPanic(lua_State *L) {
     comp->event_lock.notify_all();
     // Stop all open websockets
     while (!comp->openWebsockets.empty()) stopWebsocket(*comp->openWebsockets.begin());
-    for (const library_t * lib : libraries) if (lib->deinit != NULL) lib->deinit(comp);
+    for (library_t ** lib = libraries; *lib != NULL; lib++) if ((*lib)->deinit != NULL) (*lib)->deinit(comp);
     lua_close(comp->L);   /* Cya, Lua */
+    if (comp->eventTimeout != 0) SDL_RemoveTimer(comp->eventTimeout);
+    comp->eventTimeout = 0;
     comp->L = NULL;
+    if (comp->rawFileStack) {
+        std::lock_guard<std::mutex> lock(comp->rawFileStackMutex);
+        lua_close(comp->rawFileStack);
+        comp->rawFileStack = NULL;
+    }
+    if (selectedRenderer == 1) returnValue = 1;
     longjmp(comp->on_panic, 0);
 }
 
@@ -303,7 +379,8 @@ static bool debuggerBreak(lua_State *L, Computer * computer, debugger * dbg, con
 #ifdef __EMSCRIPTEN__
     queueTask([computer](void*)->void*{
 #endif
-    computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
+    if (computer->eventTimeout != 0) SDL_RemoveTimer(computer->eventTimeout);
+    if (config.abortTimeout > 0 || config.standardsMode) computer->eventTimeout = SDL_AddTimer(config.standardsMode ? 7000 : config.abortTimeout, eventTimeoutEvent, computer);
 #ifdef __EMSCRIPTEN__
     return NULL;}, NULL);
 #endif
@@ -397,13 +474,14 @@ void termHook(lua_State *L, lua_Debug *ar) {
         lua_sethook(computer->L, NULL, 0, 0);
         lua_sethook(computer->coro, NULL, 0, 0);
         lua_sethook(L, NULL, 0, 0);
-        queueTask([](void*arg)->void*{delete (debugger*)arg; return NULL;}, computer->debugger, true);
+        if (computer->shouldDeleteDebugger) queueTask([computer](void*arg)->void*{delete (debugger*)arg; computer->shouldDeleteDebugger = true; return NULL;}, computer->debugger, true);
+        computer->shouldDeleteDebugger = true;
         computer->debugger = NULL;
     }
-    if (ar->event == LUA_HOOKLINE && ::config.debug_enable) {
+    if (ar->event == LUA_HOOKLINE) {
         if (computer->debugger == NULL && computer->hasBreakpoints) {
             lua_getinfo(L, "Sl", ar);
-            for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
+            for (const std::pair<int, std::pair<std::string, lua_Integer> >& b : computer->breakpoints) {
                 if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline) {
                     noDebuggerBreak(L, computer, ar);
                     break;
@@ -417,8 +495,9 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     else dbg->stepCount--;
                 } else if (!computer->breakpoints.empty()) {
                     lua_getinfo(L, "Sl", ar);
-                    for (std::pair<int, std::pair<std::string, lua_Integer> > b : computer->breakpoints) {
-                        if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline) {
+                    if (ar->currentline == -1) ar->currentline++;
+                    for (const std::pair<int, std::pair<std::string, lua_Integer> >& b : computer->breakpoints) {
+                        if ((b.second.first == std::string(ar->source) || "@" + b.second.first.substr(2) == std::string(ar->source)) && b.second.second == ar->currentline + 1) {
                             if (debuggerBreak(L, computer, dbg, "Breakpoint")) return;
                             break;
                         }
@@ -428,7 +507,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
         }
     } else if (ar->event == LUA_HOOKERROR) {
         if (config.logErrors) {
-            if (config.debug_enable && !computer->isDebugger && (computer->debugger == NULL || ((debugger*)computer->debugger)->thread == NULL)) {
+            if (!computer->isDebugger && (computer->debugger == NULL || ((debugger*)computer->debugger)->thread == NULL)) {
                 lua_getglobal(L, "debug");
                 lua_getfield(L, -1, "traceback");
                 lua_pushfstring(L, "Got error: %s", lua_tostring(L, -4));
@@ -455,12 +534,22 @@ void termHook(lua_State *L, lua_Debug *ar) {
                     dbg->profile[ar->source][ar->name].running = false;
                 }
             }
-        } else if (ar->event == LUA_HOOKCALL && ar->source != NULL && ar->name != NULL) {
+        } else if (ar->event == LUA_HOOKCALL) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->thread == NULL) {
                 lua_getinfo(L, "nS", ar);
-                if (ar->name != NULL && ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require" || (std::string(ar->name) == "loadfile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
-                    (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN)))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
+                if (ar->source != NULL && ar->name != NULL) {
+                    if (ar->name != NULL && ((((std::string(ar->name) == "loadAPI" && std::string(ar->source).find("bios.lua") != std::string::npos) || std::string(ar->name) == "require" || (std::string(ar->name) == "loadfile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_LOAD)) ||
+                        (((std::string(ar->name) == "run" && std::string(ar->source).find("bios.lua") != std::string::npos) || (std::string(ar->name) == "dofile" && std::string(ar->source).find("bios.lua") != std::string::npos)) && (dbg->breakMask & DEBUGGER_BREAK_FUNC_RUN)))) if (debuggerBreak(L, computer, dbg, "Caught call")) return;
+                    if (!computer->breakpoints.empty()) {
+                        for (const std::pair<int, std::pair<std::string, lua_Integer> >& b : computer->breakpoints) {
+                            if (b.second.first == std::string(ar->name) && b.second.second == -1) {
+                                if (debuggerBreak(L, computer, dbg, "Function breakpoint")) return;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             if (dbg->isProfiling) {
                 lua_getinfo(L, "nS", ar);
@@ -490,66 +579,73 @@ void termHook(lua_State *L, lua_Debug *ar) {
     }
 }
 
+static bool renderTerminal(Terminal * term, bool& pushEvent) {
+    bool changed;
+    {
+        std::lock_guard<std::mutex> lock(term->locked);
+        if (!term->canBlink) term->blink = false;
+        else if (selectedRenderer != 1 && selectedRenderer != 2 && selectedRenderer != 3 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 400) {
+            term->blink = !term->blink;
+            term->last_blink = std::chrono::high_resolution_clock::now();
+            term->changed = true;
+        }
+        if (term->frozen) return false;
+        changed = term->changed;
+    }
+    try {
+        term->render();
+    } catch (std::exception &ex) {
+        fprintf(stderr, "Warning: Render on term %d threw an error: %s (%d)\n", term->id, ex.what(), term->errorcount);
+        if (term->errorcount++ > 10) {
+            term->errorcount = 0;
+            term->showMessage(SDL_MESSAGEBOX_ERROR, "Error rendering terminal", std::string(std::string("An error repeatedly occurred while attempting to render the terminal: ") + ex.what() + ". This is likely a bug in CraftOS-PC. Please go to https://www.craftos-pc.cc/bugreport and report this issue. The window will now close. Please note that CraftOS-PC may be left in an invalid state - you should restart the emulator.").c_str());
+            SDL_Event e;
+            e.type = SDL_WINDOWEVENT;
+            e.window.event = SDL_WINDOWEVENT_CLOSE;
+            e.window.windowID = term->id;
+            SDL_PushEvent(&e);
+            return true;
+        }
+        return false;
+    }
+    if (changed) term->errorcount = 0;
+    pushEvent = pushEvent || changed;
+    term->framecount++;
+    return false;
+}
+
 void termRenderLoop() {
 #ifdef __APPLE__
     pthread_setname_np("Render Thread");
 #endif
+#ifdef __ANDROID__
+    Android_JNI_SetupThread();
+#endif
     while (!exiting) {
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         bool pushEvent = false;
-        renderTargetsLock.lock();
         #ifndef NO_CLI
-        bool willForceRender = CLITerminal::forceRender;
+        const bool willForceRender = CLITerminal::forceRender;
         #endif
         bool errored = false;
-        for (Terminal* term : renderTargets) {
-            if (!term->canBlink) term->blink = false;
-            else if (selectedRenderer != 1 && selectedRenderer != 2 && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - term->last_blink).count() > 500) {
-                term->blink = !term->blink;
-                term->last_blink = std::chrono::high_resolution_clock::now();
-                term->changed = true;
-            }
-            if (term->frozen) continue;
-            const bool changed = term->changed;
-            try {
-                term->render();
-            } catch (std::exception &ex) {
-                fprintf(stderr, "Warning: Render on term %d threw an error: %s (%d)\n", term->id, ex.what(), term->errorcount);
-                if (term->errorcount++ > 10) {
-                    term->errorcount = 0;
-                    term->showMessage(SDL_MESSAGEBOX_ERROR, "Error rendering terminal", std::string(std::string("An error repeatedly occurred while attempting to render the terminal: ") + ex.what() + ". This is likely a bug in CraftOS-PC. Please go to https://www.craftos-pc.cc/bugreport and report this issue. The window will now close. Please note that CraftOS-PC may be left in an invalid state - you should restart the emulator.").c_str());
-                    SDL_Event e;
-                    e.type = SDL_WINDOWEVENT;
-                    e.window.event = SDL_WINDOWEVENT_CLOSE;
-                    e.window.windowID = term->id;
-                    SDL_PushEvent(&e);
-                    errored = true;
-                    break;
-                }
-                continue;
-            }
-            if (changed) term->errorcount = 0;
-            pushEvent = pushEvent || changed;
-            term->framecount++;
+        {
+            std::lock_guard<std::mutex> lock(renderTargetsLock);
+            if (singleWindowMode) {if (renderTarget != renderTargets.end() && renderTerminal(*renderTarget, pushEvent)) {errored = true; break;}}
+            else for (Terminal* term : renderTargets) if (renderTerminal(term, pushEvent)) {errored = true; break;}
         }
-        renderTargetsLock.unlock();
         if (errored) continue;
         if (pushEvent) {
             SDL_Event ev;
             ev.type = render_event_type;
             SDL_PushEvent(&ev);
-            const long long count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
-            //printf("Render thread took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
-            long long t = (1000/config.clockSpeed) - count / 1000;
-            if (t > 0) std::this_thread::sleep_for(std::chrono::milliseconds(t));
-        } else {
-            int time = 1000/config.clockSpeed;
-            std::chrono::milliseconds ms(time);
-            std::this_thread::sleep_for(ms);
         }
-        #ifndef NO_CLI
+        const long long count = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+        //printf("Render thread took %lld us (%lld fps)\n", count, count == 0 ? 1000000 : 1000000 / count);
+        long long t = (1000000/config.clockSpeed) - count;
+        if (t > 0) std::this_thread::sleep_for(std::chrono::microseconds(t));
+#ifndef NO_CLI
         if (willForceRender) CLITerminal::forceRender = false;
-        #endif
+#endif
     }
 }
 
@@ -565,23 +661,26 @@ static std::string utf8_to_string(const char *utf8str, const std::locale& loc)
 }
 
 static Uint32 mouseDebounce(Uint32 interval, void* param);
+struct comp_term_pair {Computer * comp; Terminal * term;};
 
 static std::string mouse_move(lua_State *L, void* param) {
-    Computer * computer = get_comp(L);
+    Terminal * term = (Terminal*)param;
     lua_pushinteger(L, 1);
-    lua_pushinteger(L, computer->nextMouseMove.x);
-    lua_pushinteger(L, computer->nextMouseMove.y);
-    if (!computer->nextMouseMove.side.empty()) lua_pushstring(L, computer->nextMouseMove.side.c_str());
-    computer->nextMouseMove = {0, 0, 0, 0, std::string()};
-    computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
+    lua_pushinteger(L, term->nextMouseMove.x);
+    lua_pushinteger(L, term->nextMouseMove.y);
+    if (!term->nextMouseMove.side.empty()) lua_pushstring(L, term->nextMouseMove.side.c_str());
+    term->nextMouseMove = {0, 0, 0, 0, std::string()};
+    term->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, new comp_term_pair {get_comp(L), term});
     return "mouse_move";
 }
 
 static Uint32 mouseDebounce(Uint32 interval, void* param) {
-    Computer * computer = (Computer*)param;
-    if (freedComputers.find(computer) != freedComputers.end()) return 0;
-    if (computer->nextMouseMove.event) queueEvent(computer, mouse_move, NULL);
-    else computer->mouseMoveDebounceTimer = 0;
+    comp_term_pair * data = (comp_term_pair*)param;
+    if (freedComputers.find(data->comp) != freedComputers.end()) return 0;
+    std::lock_guard<std::mutex> lock(((SDLTerminal*)data->term)->mouseMoveLock);
+    if (data->term->nextMouseMove.event) queueEvent(data->comp, mouse_move, data->term);
+    else data->term->mouseMoveDebounceTimer = 0;
+    delete data;
     return 0;
 }
 
@@ -597,12 +696,15 @@ std::string termGetEvent(lua_State *L) {
     computer->event_provider_queue_mutex.unlock();
     if (computer->running != 1) return "";
     SDL_Event e;
-    std::string tmpstrval;
     if (Computer_getEvent(computer, &e)) {
-        if (e.type == SDL_QUIT) 
-            return "die";
-        else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.sym) != keymap.end())) {
-            Terminal * term = e.key.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.key.windowID, tmpstrval)->term;
+        if (e.type == SDL_QUIT) {
+            computer->requestedExit = true;
+            computer->running = 0;
+            return "terminate";
+        } else if (e.type == SDL_KEYDOWN && ((selectedRenderer != 0 && selectedRenderer != 5) || keymap.find(e.key.keysym.sym) != keymap.end())) {
+            monitor * mon = findMonitorFromWindowID(computer, e.key.windowID, NULL);
+            if (e.key.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * term = e.key.windowID == computer->term->id ? computer->term : mon->term;
             SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
             if (e.key.keysym.sym == SDLK_F2 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot();
             else if (e.key.keysym.sym == SDLK_F3 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->toggleRecording();
@@ -610,11 +712,7 @@ std::string termGetEvent(lua_State *L) {
             else if (e.key.keysym.sym == SDLK_F11 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys && (std::string(SDL_GetCurrentVideoDriver()) != "KMSDRM" || std::string(SDL_GetCurrentVideoDriver()) == "KMSDRM_LEGACY")) sdlterm->toggleFullscreen(); // KMS must be fullscreen
 #endif
             else if (e.key.keysym.sym == SDLK_F12 && (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == 0 && sdlterm != NULL && !config.ignoreHotkeys) sdlterm->screenshot("clipboard");
-#ifdef __APPLE__
-            else if (e.key.keysym.sym == SDLK_F8 && ((e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_LGUI || (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_RGUI) && sdlterm != NULL && !config.ignoreHotkeys) {
-#else
-            else if (e.key.keysym.sym == SDLK_F8 && ((e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_LCTRL || (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_RCTRL) && sdlterm != NULL && !config.ignoreHotkeys) {
-#endif
+            else if (e.key.keysym.sym == SDLK_F8 && ((e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_LSYSMOD || (e.key.keysym.mod & ~(KMOD_CAPS | KMOD_NUM)) == KMOD_RSYSMOD) && sdlterm != NULL && !config.ignoreHotkeys) {
                 sdlterm->isOnTop = !sdlterm->isOnTop;
                 setFloating(sdlterm->win, sdlterm->isOnTop);
             } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_t : e.key.keysym.sym == 20) && (e.key.keysym.mod & KMOD_CTRL)) {
@@ -637,19 +735,13 @@ std::string termGetEvent(lua_State *L) {
                     computer->running = 2;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 48) == 0) computer->waitingForTerminate |= 16;
-            } else if (e.key.keysym.sym == SDLK_v && 
-#ifdef __APPLE__
-              (e.key.keysym.mod & KMOD_GUI) &&
-#else
-              (e.key.keysym.mod & KMOD_CTRL) &&
-#endif
-              SDL_HasClipboardText()) {
+            } else if (e.key.keysym.sym == SDLK_v && (e.key.keysym.mod & KMOD_SYSMOD) && SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
                 std::string str;
                 try {str = utf8_to_string(text, std::locale("C"));}
                 catch (std::exception &e) {return "";}
                 str = str.substr(0, min(str.find_first_of("\r\n"), (std::string::size_type)512));
-                lua_pushlstring(L, str.c_str(), str.size());
+                pushstring(L, str);
                 SDL_free(text);
                 return "paste";
             } else computer->waitingForTerminate = 0;
@@ -669,18 +761,24 @@ std::string termGetEvent(lua_State *L) {
             try {str = utf8_to_string(e.text.text, std::locale("C"));}
             catch (std::exception &ignored) {str = "?";}
             if (!str.empty()) {
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+                mobileResetModifiers();
+#endif
                 lua_pushlstring(L, str.c_str(), 1);
                 return "char";
             }
         } else if (e.type == SDL_MOUSEBUTTONDOWN && (computer->config->isColor || computer->isDebugger)) {
-            Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
+            std::string side;
+            monitor * mon = findMonitorFromWindowID(computer, e.button.windowID, &side);
+            if (e.button.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * term = e.button.windowID == computer->term->id ? computer->term : mon->term;
             int x = 1, y = 1;
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {
                 x = e.button.x; y = e.button.y;
             } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
-            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 0) return "";
+            if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 0) return "";
             if (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) {
                 switch (e.button.button) {
                 case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
@@ -691,22 +789,25 @@ std::string termGetEvent(lua_State *L) {
                     else lua_pushinteger(L, e.button.button);
                     break;
                 }
-            } else lua_pushstring(L, tmpstrval.c_str());
-            computer->lastMouse = {x, y, e.button.button, 0, ""};
+            } else lua_pushstring(L, side.c_str());
+            term->lastMouse = {x, y, e.button.button, 0, ""};
             term->mouseButtonOrder.push_back(e.button.button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
-            if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
+            if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents) ? "mouse_click" : "monitor_touch";
-        } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config->isColor || computer->isDebugger) && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
-            Terminal * term = e.button.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.button.windowID, tmpstrval)->term;
+        } else if (e.type == SDL_MOUSEBUTTONUP && (computer->config->isColor || computer->isDebugger)) {
+            std::string side;
+            monitor * mon = findMonitorFromWindowID(computer, e.button.windowID, &side);
+            if (e.button.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * term = e.button.windowID == computer->term->id ? computer->term : mon->term;
             int x = 1, y = 1;
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {
                 x = e.button.x; y = e.button.y;
             } else if (dynamic_cast<SDLTerminal*>(term) != NULL) {
                 x = convertX(dynamic_cast<SDLTerminal*>(term), e.button.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.button.y);
             }
-            if (computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == e.button.button && computer->lastMouse.event == 1) return "";
+            if (term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == e.button.button && term->lastMouse.event == 1) return "";
             switch (e.button.button) {
             case SDL_BUTTON_LEFT: lua_pushinteger(L, 1); break;
             case SDL_BUTTON_RIGHT: lua_pushinteger(L, 2); break;
@@ -716,14 +817,22 @@ std::string termGetEvent(lua_State *L) {
                 else lua_pushinteger(L, e.button.button);
                 break;
             }
-            computer->lastMouse = {x, y, e.button.button, 1, ""};
+            term->lastMouse = {x, y, e.button.button, 1, ""};
             term->mouseButtonOrder.remove(e.button.button);
+            if (!(e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
+                lua_pop(L, 1);
+                return "";
+            }
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
-            if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
+            if (e.button.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return "mouse_up";
         } else if (e.type == SDL_MOUSEWHEEL && (computer->config->isColor || computer->isDebugger) && (e.wheel.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
-            SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.wheel.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.wheel.windowID, tmpstrval)->term);
+            std::string side;
+            monitor * mon = findMonitorFromWindowID(computer, e.wheel.windowID, &side);
+            if (e.wheel.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * tterm = e.wheel.windowID == computer->term->id ? computer->term : mon->term;
+            SDLTerminal * term = dynamic_cast<SDLTerminal*>(tterm);
             if (term == NULL) {
                 return "";
             } else {
@@ -732,17 +841,24 @@ std::string termGetEvent(lua_State *L) {
                 lua_pushinteger(L, max(min(-e.wheel.y, 1), -1));
                 lua_pushinteger(L, convertX(term, x));
                 lua_pushinteger(L, convertY(term, y));
-                if (e.wheel.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
+                if (e.wheel.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             }
             return "mouse_scroll";
         } else if (e.type == SDL_MOUSEMOTION && (config.mouse_move_throttle >= 0 || e.motion.state) && (computer->config->isColor || computer->isDebugger) && (e.motion.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
-            SDLTerminal * term = dynamic_cast<SDLTerminal*>(e.motion.windowID == computer->term->id ? computer->term : findMonitorFromWindowID(computer, e.motion.windowID, tmpstrval)->term);
+            std::string side;
+            monitor * mon = findMonitorFromWindowID(computer, e.motion.windowID, &side);
+            if (e.motion.windowID != computer->term->id && mon == NULL) return "";
+            Terminal * tterm = e.motion.windowID == computer->term->id ? computer->term : mon->term;
+            SDLTerminal * term = dynamic_cast<SDLTerminal*>(tterm);
             if (term == NULL) return "";
             int x = 1, y = 1;
             if (selectedRenderer >= 2 && selectedRenderer <= 4) {
                 x = e.motion.x; y = e.motion.y;
             } else if (term != NULL) {
-                x = convertX(term, e.motion.x); y = convertY(dynamic_cast<SDLTerminal*>(term), e.motion.y);
+                if (SDL_GetRelativeMouseMode()) {
+                    x = e.motion.xrel; y = e.motion.yrel;
+                    SDL_WarpMouseInWindow(term->win, (term->width * term->charWidth + 4 * term->charScale) / 2, (term->height * term->charHeight + 4 * term->charScale) / 2);
+                } else {x = convertX(term, e.motion.x); y = convertY(term, e.motion.y);}
             }
             std::list<Uint8> used_buttons;
             for (Uint8 i = 0; i < 32; i++) if (e.motion.state & (1 << i)) used_buttons.push_back(i + 1);
@@ -755,58 +871,204 @@ std::string termGetEvent(lua_State *L) {
             if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
             if (button == SDL_BUTTON_MIDDLE) button = 3;
             else if (button == SDL_BUTTON_RIGHT) button = 2;
-            if ((computer->lastMouse.x == x && computer->lastMouse.y == y && computer->lastMouse.button == button && computer->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
-            computer->lastMouse = {x, y, button, 2, ""};
-            if (!e.motion.state) {
-                if (computer->mouseMoveDebounceTimer == 0) {
-                    computer->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, computer);
-                    computer->nextMouseMove = {0, 0, 0, 0, std::string()};
+            if ((term->lastMouse.x == x && term->lastMouse.y == y && term->lastMouse.button == button && term->lastMouse.event == 2) || (config.standardsMode && button > 3)) return "";
+            term->lastMouse = {x, y, button, 2, ""};
+            if (config.mouse_move_throttle > 0 && !e.motion.state) {
+                std::lock_guard<std::mutex> lock(term->mouseMoveLock);
+                if (term->mouseMoveDebounceTimer == 0) {
+                    term->mouseMoveDebounceTimer = SDL_AddTimer(config.mouse_move_throttle, mouseDebounce, new comp_term_pair {computer, term});
+                    term->nextMouseMove = {0, 0, 0, 0, std::string()};
                 } else {
-                    computer->nextMouseMove = {x, y, 0, 1, (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) ? tmpstrval : ""};
+                    term->nextMouseMove = {x, y, 0, 1, (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) ? side : ""};
                     return "";
                 }
             }
             lua_pushinteger(L, button);
             lua_pushinteger(L, x);
             lua_pushinteger(L, y);
-            if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, tmpstrval.c_str());
-            return e.motion.state ? "mouse_drag" : "mouse_move";
-        } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            unsigned w, h;
-            if (selectedRenderer == 0 || selectedRenderer == 5) {
-                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(computer->term);
-                if (sdlterm != NULL) {
-                    if (e.window.data1 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) w = 0;
-                    else w = (e.window.data1 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charWidth;
-                    if (e.window.data2 < 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) h = 0;
-                    else h = (e.window.data2 - 4*(2/SDLTerminal::fontScale)*sdlterm->charScale) / sdlterm->charHeight;
-                } else {w = 51; h = 19;}
-            } else {w = e.window.data1; h = e.window.data2;}
-            if (computer->term != NULL && e.window.windowID == computer->term->id && computer->term->resize(w, h)) return "term_resize";
-            else {
-                std::string side;
-                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
-                if (m != NULL && m->term->resize(w, h)) {
-                    lua_pushstring(L, side.c_str());
-                    return "monitor_resize";
+            if (e.motion.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
+            return e.motion.state ? "mouse_drag" : (SDL_GetRelativeMouseMode() ? "mouse_move_relative" : "mouse_move");
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+        } else if ((e.type == SDL_FINGERDOWN || e.type == SDL_FINGERUP || e.type == SDL_FINGERMOTION) && (computer->config->isColor || computer->isDebugger) && (e.tfinger.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
+            SDLTerminal * term = dynamic_cast<SDLTerminal*>(computer->term);
+            if (term == NULL) return "";
+            int x = min(max(e.tfinger.x * (term->width + 0.666666666666) - 0.33333333333, 0.0), (double)term->width - 1) + 1;
+            int y = min(max(e.tfinger.y * (term->height + 0.666666666666) - 0.33333333333, 0.0), (double)term->height - 1) + 1;
+            int id = -1;
+            for (int i = 0; i < term->fingers.size(); i++) if (term->fingers[i].first == e.tfinger.fingerId || (e.type == SDL_FINGERDOWN && term->fingers[i].first == 0)) {id = i; break;}
+            if (id == -1) {
+                if (e.type == SDL_FINGERDOWN) {
+                    id = term->fingers.size();
+                    term->fingers.push_back(std::make_pair(e.tfinger.fingerId, std::make_pair(x, y)));
+                    term->nFingers++;
+                } else return "";
+            } else {
+                if (e.type == SDL_FINGERDOWN && term->fingers[id].first == 0) {
+                    term->fingers[id] = std::make_pair(e.tfinger.fingerId, std::make_pair(x, y));
+                    term->nFingers++;
+                } else if (e.type == SDL_FINGERMOTION) {
+                    if (term->fingers[id].second.first == x && term->fingers[id].second.second == y) return "";
+                    else term->fingers[id].second = std::make_pair(x, y);
+                } else if (e.type == SDL_FINGERUP) {
+                    term->fingers[id] = std::make_pair((SDL_FingerID)0, std::make_pair(0, 0));
+                    if (--term->nFingers == 0) term->fingers.clear();
+                    else while (term->fingers[term->fingers.size()-1].first == 0) term->fingers.erase(term->fingers.end() - 1);
                 }
             }
-        } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
-            if (e.window.windowID == computer->term->id) return "die";
+            lua_pushinteger(L, id + 1);
+            lua_pushinteger(L, x);
+            lua_pushinteger(L, y);
+            lua_pushinteger(L, e.tfinger.fingerId);
+            switch (e.type) {
+                case SDL_FINGERDOWN: return "_CCPC_finger_touch";
+                case SDL_FINGERUP: return "_CCPC_finger_up";
+                case SDL_FINGERMOTION: return "_CCPC_finger_drag";
+            }
+#endif
+        } else if (e.type == SDL_DROPFILE) {
+            if (config.dropFilePath) {
+                // Simply paste the file path
+                // Look for a path relative to a mount; if not then just give it the whole thing
+                path_t::string_type path = path_t(e.drop.file).native();
+                std::string path_final = e.drop.file;
+                path_t::string_type::iterator largestMatch = path.begin();
+                {
+                    auto match = std::mismatch(path.begin(), path.end(), computer->dataDir.begin());
+                    if (match.first > largestMatch) {
+                        path_final = path_t(match.first + 1, path.end()).string();
+                        largestMatch = match.first;
+                    }
+                }
+                for (const auto& m : computer->mounts) {
+                    auto match = std::mismatch(path.begin(), path.end(), std::get<1>(m).begin());
+                    if (match.first > largestMatch) {
+                        path_final = "";
+                        for (const std::string& c : std::get<0>(m)) path_final += c + "/";
+                        path_final += path_t(match.first + 1, path.end()).string();
+                        largestMatch = match.first;
+                    }
+                }
+                lua_pushfstring(L, "%s ", fixpath(computer, path_final, false, false).string().c_str());
+                SDL_free(e.drop.file);
+                return "paste";
+            } else {
+                computer->droppedFiles.push_back(path_t(e.drop.file));
+                SDL_free(e.drop.file);
+                return "";
+            }
+        } else if (e.type == SDL_DROPBEGIN && !config.dropFilePath) {
+            computer->droppedFiles.clear();
+            return "";
+        } else if (e.type == SDL_DROPCOMPLETE && !config.dropFilePath) {
+            lua_createtable(L, 0, 1);
+            lua_createtable(L, computer->droppedFiles.size(), 0);
+            for (int i = 0; i < computer->droppedFiles.size(); i++) {
+                std::fstream ** fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
+                int fpid = lua_gettop(L);
+                *fp = new std::fstream(computer->droppedFiles[i], std::ios::in | std::ios::binary);
+                if (!(*fp)->is_open()) {
+                    delete *fp;
+                    lua_pop(L, 1);
+                    continue;
+                }
+
+                lua_createtable(L, 0, 1);
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_gc, 1);
+                lua_setfield(L, -2, "__gc");
+                lua_setmetatable(L, -2);
+                
+                lua_createtable(L, 0, 6);
+                lua_pushstring(L, "close");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_close, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "read");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_readByte, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "readAll");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_readAllByte, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "readLine");
+                lua_pushvalue(L, fpid);
+                lua_pushboolean(L, true);
+                lua_pushcclosure(L, fs_handle_readLine, 2);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "seek");
+                lua_pushvalue(L, fpid);
+                lua_pushcclosure(L, fs_handle_seek, 1);
+                lua_settable(L, -3);
+
+                lua_pushstring(L, "getName");
+                pushstring(L, computer->droppedFiles[i].filename().string());
+                lua_pushcclosure(L, pushUpvalue, 1);
+                lua_settable(L, -3);
+
+                lua_rawseti(L, -3, i + 1);
+                lua_pop(L, 1); // remove userdata
+            }
+            lua_pushcclosure(L, pushUpvalue, 1);
+            lua_setfield(L, -2, "getFiles");
+            return "file_transfer";
+        } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
+            unsigned w, h;
+            Terminal * term = NULL;
+            std::string side;
+            if (computer->term != NULL && computer->term->id == e.window.windowID) term = computer->term;
+            if (term == NULL) {
+                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, &side);
+                if (m != NULL) term = m->term;
+            }
+            if (term == NULL) return "";
+            if (selectedRenderer == 0 || selectedRenderer == 5) {
+                SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+                if (sdlterm != NULL) {
+                    if ((unsigned)e.window.data1 < 4*sdlterm->charScale*sdlterm->dpiScale) w = 0;
+                    else w = (e.window.data1 - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charWidth*sdlterm->dpiScale);
+                    if ((unsigned)e.window.data2 < 4*sdlterm->charScale*sdlterm->dpiScale) h = 0;
+                    else h = (e.window.data2 - 4*sdlterm->charScale*sdlterm->dpiScale) / (sdlterm->charHeight*sdlterm->dpiScale);
+                } else {w = 51; h = 19;}
+            } else {w = e.window.data1; h = e.window.data2;}
+            term->resize(w, h);
+            if (computer->term == term) return "term_resize";
             else {
+                lua_pushstring(L, side.c_str());
+                return "monitor_resize";
+            }
+        } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
+            if (e.window.windowID == computer->term->id) {
+                computer->requestedExit = true;
+                computer->running = 0;
+                return "terminate";
+            } else {
                 std::string side;
-                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, side);
+                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, &side);
                 if (m != NULL) detachPeripheral(computer, side);
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_LEAVE && config.mouse_move_throttle >= 0 && (e.button.windowID == computer->term->id || config.monitorsUseMouseEvents)) {
-            if (computer->mouseMoveDebounceTimer != 0) {
-                SDL_RemoveTimer(computer->mouseMoveDebounceTimer);
-                computer->mouseMoveDebounceTimer = 0;
-                computer->nextMouseMove = {0, 0, 0, 0, std::string() };
+            Terminal * term = NULL;
+            std::string side;
+            if (computer->term != NULL && computer->term->id == e.window.windowID) term = computer->term;
+            if (term == NULL) {
+                monitor * m = findMonitorFromWindowID(computer, e.window.windowID, &side);
+                if (m != NULL) term = m->term;
+            }
+            if (term == NULL) return "";
+            if (term->mouseMoveDebounceTimer != 0) {
+                SDL_RemoveTimer(term->mouseMoveDebounceTimer);
+                term->mouseMoveDebounceTimer = 0;
+                term->nextMouseMove = {0, 0, 0, 0, std::string() };
             }
             lua_pushinteger(L, 1);
             lua_pushnil(L);
             lua_pushnil(L);
+            if (e.window.windowID != computer->term->id && config.monitorsUseMouseEvents) lua_pushstring(L, side.c_str());
             return "mouse_move";
         }
     }
@@ -829,4 +1091,11 @@ void displayFailure(Terminal * term, const std::string& message, const std::stri
     term->canBlink = false;
     term->errorMode = true;
     term->changed = true;
+}
+
+Terminal * createTerminal(const std::string& title) {
+    if (selectedRenderer >= terminalFactories.size()) return NULL;
+    TerminalFactory * factory = terminalFactories[selectedRenderer];
+    if (factory == NULL) return NULL;
+    return factory->createTerminal(title);
 }

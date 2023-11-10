@@ -6,7 +6,7 @@
  * other CraftOS-PC components.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef MAIN_HPP
@@ -25,6 +25,7 @@ extern std::string script_file;
 extern std::string script_args;
 extern int returnValue;
 extern std::unordered_map<path_t, std::string> globalPluginErrors;
+extern int parseArguments(const std::vector<std::string>& argv);
 
 // These functions are required by main for full initialization of Lua.
 extern "C" {

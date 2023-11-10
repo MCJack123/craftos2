@@ -6,7 +6,7 @@
  * renderer classes.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2021 JackMacWindows.
+ * Copyright (c) 2019-2023 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_TERMINAL_HPP
@@ -17,6 +17,7 @@
 #include <chrono>
 #include <list>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,15 @@ static Color defaultPalette[16] = {
     {0x57, 0xa6, 0x4e},
     {0xcc, 0x4c, 0x4c},
     {0x11, 0x11, 0x11}
+};
+
+/// Used to store information about the last mouse event.
+extern "C" struct mouse_event_data {
+    int x;
+    int y;
+    uint8_t button;
+    uint8_t event;
+    std::string side;
 };
 
 // An exception type that is thrown if a terminal fails to initialize.
@@ -107,6 +117,8 @@ public:
     T* data() { return vec.data(); }
 };
 
+class TerminalFactory;
+
 // The Terminal class is the base class for all renderers. It stores the basic info about all terminal objects, as well as its contents.
 class Terminal {
 public:
@@ -131,7 +143,7 @@ public:
     int blinkX = 0; // The X position of the cursor
     int blinkY = 0; // The Y position of the cursor
     bool blink = false; // Whether the cursor is currently drawn on-screen
-    bool canBlink = true; // Whether the cursor should blink
+    bool canBlink = false; // Whether the cursor should blink
     std::chrono::high_resolution_clock::time_point last_blink = std::chrono::high_resolution_clock::now(); // The time that the cursor last blinked
     int framecount = 0; // The number of frames that have been rendered
     int errorcount = 0; // The number of consecutive errors that have happened while rendering (used to detect crashes)
@@ -143,6 +155,14 @@ public:
 
     // The following fields are available in API version 10.2 and later.
     std::list<uint8_t> mouseButtonOrder; // An ordered list of mouse buttons that have been pressed
+
+    // The following fields are available in API version 10.4 and later.
+    mouse_event_data nextMouseMove = {0, 0, 0, 0, std::string()}; // Storage for the next mouse_move event if it was debounced
+    mouse_event_data lastMouse = {-1, -1, 0, 16, std::string()}; // Data about the last mouse event
+    uint32_t mouseMoveDebounceTimer = 0; // A timer that fires when the next mouse movement event is ready
+
+    // The following fields are available in API version 10.8 and later.
+    TerminalFactory * factory = NULL; // Stores the factory that created this terminal. Factories must always set this.
 
 protected:
     // Initial constructor to fill the contents with their defaults for the specified width and height
@@ -162,6 +182,17 @@ public:
     virtual void showMessage(uint32_t flags, const char * title, const char * message)=0; // Displays a message on screen outside the bounds of CC
     virtual void setLabel(std::string label)=0; // Sets the title of the window
     virtual bool resize(unsigned w, unsigned h)=0; // Safely sets the size of the window
+    virtual void onActivate()=0; // Called in single window mode when the window becomes active
+};
+
+// The TerminalFactory class defines a class that creates new terminal objects of a certain type.
+class TerminalFactory {
+public:
+    virtual Terminal * createTerminal(const std::string& title)=0; // Returns a new terminal with the specified title.
+    virtual void deleteTerminal(Terminal * term)=0; // Deletes a terminal previously created with this factory.
+    virtual void init()=0; // Initializes the global terminal type state.
+    virtual void quit()=0; // Deinitializes the global terminal type state.
+    virtual void pollEvents()=0; // Runs in the main loop and updates any events, information, etc.
 };
 
 #endif

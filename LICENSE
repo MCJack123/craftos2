@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2019-2021 JackMacWindows
+Copyright (c) 2019-2023 JackMacWindows
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,31 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+
+Default instrument sounds for the speaker peripheral have been borrowed from
+various sources:
+
+* The following sources were retrieved from http://wiki.laptop.org/go/Sound_samples:
+
+  * banjo, bass, basedrum, bell, cow_bell, flute, guitar, hat, and pling were
+  originally created by OpenPathMusic for use in the OLPC sound library. They
+  have been shortened for use in CraftOS-PC. These were retrieved from
+  https://archive.org/details/OpenPathMusic44V[x] (where [x] is any number
+  between 1-4). The files are licensed under the Creative Commons Attribution
+  3.0 (CC BY 3.0) license. See https://creativecommons.org/licenses/by/3.0/legalcode
+  for more details.
+
+  * harp and digeridoo were originally created by Lisa Lim for use in the OLPC
+  sound library. They have been shortened for use in CraftOS-PC. These were
+  retrieved from https://archive.org/details/LisaLim. The files are licensed
+  under the Creative Commons Attribution 3.0 (CC BY 3.0) license. See
+  https://creativecommons.org/licenses/by/3.0/legalcode for more details.
+
+* bell, chime, iron_xylophone, snare, and xylophone were extracted from the
+GMGSx.sf2 soundfont that is included with SynthFont 1 (http://www.synthfont.com).
+They have been shortened for use in CraftOS-PC. They are distributed in the
+public domain.
+
+* bit was created for use in CraftOS-PC. It is distributed in the public domain.

@@ -5,7 +5,7 @@
  * This file defines the class for the debugger peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2021 JackMacWindows. 
+ * Copyright (c) 2019-2023 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_DEBUGGER_HPP
@@ -30,10 +30,10 @@
 class debugger: public peripheral {
     friend int debugger_lib_getInfo(lua_State *L);
     friend void debuggerThread(Computer*, void*, std::string);
+    friend void forwardInput();
+    friend class DAPConnection;
 private:
     bool deleteThis = false;
-    Computer * monitor;
-    std::thread * compThread;
     int _break(lua_State *L);
     int setBreakpoint(lua_State *L);
     int print(lua_State *L);
@@ -41,6 +41,9 @@ private:
     int _deinit(lua_State *L);
     library_t * createDebuggerLibrary();
     static library_t methods;
+protected:
+    std::thread * compThread = NULL;
+    Computer * monitor = NULL;
 public:
     struct profile_entry {
         bool running;
@@ -63,11 +66,12 @@ public:
     lua_State * volatile thread = NULL;
     std::unordered_map<std::string, std::unordered_map<std::string, profile_entry > > profile;
     bool isProfiling = false;
+    static peripheral * _init(lua_State *L, const char * side) {return new debugger(L, side);}
     static void deinit(peripheral * p) {delete (debugger*)p;}
-    destructor getDestructor() const override {return deinit;}
+    virtual destructor getDestructor() const override {return deinit;}
     debugger(lua_State *L, const char * side);
-    ~debugger();
-    int call(lua_State *L, const char * method) override;
+    virtual ~debugger();
+    virtual int call(lua_State *L, const char * method) override;
     library_t getMethods() const override {return methods;}
     void reinitialize(lua_State *L) override;
 };

@@ -4,14 +4,20 @@ CFLAGS=@CFLAGS@
 CPPFLAGS=@CPPFLAGS@ -I@srcdir@/api
 CXXFLAGS=@CXXFLAGS@
 LDFLAGS=@LDFLAGS@
-LIBS=craftos2-lua/src/liblua.a @LIBS@
+LIBEXT=.so
+ifndef OS
+ifeq (@OUT_TARGET@, craftos)
+ifeq ($(shell uname), Darwin)
+LIBEXT=.dylib
+endif
+endif
+endif
+LIBS=craftos2-lua/src/liblua$(LIBEXT) @LIBS@
 ifndef OS
 ifeq (@OUT_TARGET@, craftos)
 ifeq ($(shell uname), Darwin)
 LIBS+= -framework ApplicationServices
-endif
-ifeq ($(shell uname), Linux)
-LIBS+= -lX11
+LIBEXT=.dylib
 endif
 endif
 endif
@@ -26,7 +32,8 @@ IDIR=@srcdir@/api
 ODIR=obj
 _OBJ=Computer.o configuration.o favicon.o font.o gif.o main.o plugin.o runtime.o speaker_sounds.o termsupport.o util.o \
 	 apis_config.o apis_fs.o apis_fs_handle.o @HTTP_TARGET@ apis_mounter.o apis_os.o apis_periphemu.o apis_peripheral.o apis_redstone.o apis_term.o \
-	 peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o peripheral_speaker.o \
+	 peripheral_monitor.o peripheral_printer.o peripheral_computer.o peripheral_modem.o peripheral_drive.o peripheral_debugger.o \
+	 peripheral_debug_adapter.o peripheral_speaker.o peripheral_chest.o peripheral_energy.o peripheral_tank.o \
 	 terminal_SDLTerminal.o terminal_CLITerminal.o terminal_RawTerminal.o terminal_TRoRTerminal.o terminal_HardwareSDLTerminal.o @OBJS@
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
@@ -35,14 +42,14 @@ all: $(ODIR) @OUT_TARGET@
 craftos2-lua:
 	git submodule update --init --recursive
 
-craftos2-lua/src/liblua.a: craftos2-lua
+craftos2-lua/src/liblua$(LIBEXT): craftos2-lua
 	$(error Please build Lua for your platform inside the craftos2-lua directory. You can do this with `make -C craftos2-lua <platform>`, where <platform> is a platform listed with `make -C craftos2-lua`, usually linux or macosx.)
 
-@OUT_TARGET@: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform.o
+@OUT_TARGET@: craftos2-lua/src/liblua$(LIBEXT) $(OBJ) $(ODIR)/platform.o
 	echo " [LD]    $@"
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-macapp: craftos2-lua/src/liblua.a $(OBJ) $(ODIR)/platform_macapp.o
+macapp: craftos2-lua/src/liblua$(LIBEXT) $(OBJ) $(ODIR)/platform_macapp.o
 	mkdir -p CraftOS-PC.app/Contents/MacOS
 	mkdir -p CraftOS-PC.app/Contents/Resources
 	echo " [LD]    CraftOS-PC.app/Contents/MacOS/craftos"
@@ -121,11 +128,11 @@ $(ODIR)/apis_%_handle.o: $(SDIR)/apis/handles/%_handle.cpp $(SDIR)/apis/handles/
 
 mac-plugin:
 	echo " [LD]    ccemux.bundle"
-	$(CXX) -std=c++11 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include -Iapi
+	$(CXX) -std=c++17 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua$(LIBEXT) -lSDL2 -Icraftos2-lua/include -Iapi
 
 linux-plugin:
 	echo " [LD]    ccemux.so"
-	$(CXX) -std=c++11 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua.a -lSDL2 -Icraftos2-lua/include -Iapi
+	$(CXX) -std=c++17 -shared -fPIC -o ccemux.so examples/ccemux.cpp craftos2-lua/src/liblua$(LIBEXT) -lSDL2 -Icraftos2-lua/include -Iapi
 
 clean: $(ODIR)
 	rm -f craftos

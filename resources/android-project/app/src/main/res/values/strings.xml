@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">CraftOS-PC</string>
+    <string name="previous_window">Previous</string>
+    <string name="ctrl">Ctrl</string>
+    <string name="alt">Alt</string>
+    <string name="reboot">Reboot</string>
+    <string name="next">Next</string>
+    <string name="keyboard">Keyboard</string>
+    <string name="close">Close</string>
+    <string name="tab">Tab</string>
+    <string name="paste">Paste</string>
+    <string name="terminate">Terminate</string>
+    <string name="shut_down">Shut Down</string>
+</resources>
