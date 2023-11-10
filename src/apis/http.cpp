@@ -1158,7 +1158,9 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
         queueEvent(comp, websocket_failure, data);
         return;
     }
+#if POCO_VERSION >= 0x010C0000
     cs->setReceiveTimeout(Poco::Timespan(timeout * 1000000));
+#endif
     size_t pos = str.find('/', str.find(uri.getHost()));
     size_t hash = pos != std::string::npos ? str.find('#', pos) : std::string::npos;
     std::string path = urlEncode(pos != std::string::npos ? str.substr(pos, hash - pos) : "/");
