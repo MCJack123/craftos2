@@ -351,19 +351,9 @@ void xcopy(lua_State *from, lua_State *to, int n) {
     lua_remove(to, cslot);
 }
 
+// Deprecated as of CCPC v2.8; text mode no longer exists
 std::string makeASCIISafe(const char * retval, size_t len) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr;
-    try {wstr = converter.from_bytes(retval, retval + len);} 
-    catch (std::exception &e) {
-        fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-        std::string out;
-        for (size_t i = 0; i < len; i++) {if ((unsigned char)retval[i] < 128) out += retval[i]; else out += '?';}
-        return out;
-    }
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
-    return out;
+    return std::string(retval, len);
 }
 
 struct IPv6 {uint16_t a, b, c, d, e, f, g, h;};

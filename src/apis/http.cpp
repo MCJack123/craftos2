@@ -54,7 +54,6 @@ struct http_param_t {
     std::unordered_map<std::string, std::string> headers;
     std::string method;
     std::string old_url;
-    bool isBinary;
     bool redirect;
     double timeout;
 };
@@ -64,7 +63,6 @@ struct http_handle_t {
     HTTPClientSession * session;
     HTTPResponse * handle;
     std::istream * stream;
-    bool isBinary;
     std::string failureReason;
     http_handle_t(std::istream * s): stream(s) {}
 };
@@ -97,32 +95,20 @@ static std::string http_success(lua_State *L, void* data) {
     lua_pushcclosure(L, http_handle_readLine, 1);
     lua_settable(L, -3);
 
-    if (!handle->isBinary) {
-        lua_pushstring(L, "readAll");
-        lua_pushvalue(L, -3);
-        lua_pushcclosure(L, http_handle_readAll, 1);
-        lua_settable(L, -3);
+    lua_pushstring(L, "readAll");
+    lua_pushvalue(L, -3);
+    lua_pushcclosure(L, http_handle_readAllByte, 1);
+    lua_settable(L, -3);
 
-        lua_pushstring(L, "read");
-        lua_pushvalue(L, -3);
-        lua_pushcclosure(L, http_handle_readChar, 1);
-        lua_settable(L, -3);
-    } else {
-        lua_pushstring(L, "readAll");
-        lua_pushvalue(L, -3);
-        lua_pushcclosure(L, http_handle_readAllByte, 1);
-        lua_settable(L, -3);
+    lua_pushstring(L, "read");
+    lua_pushvalue(L, -3);
+    lua_pushcclosure(L, http_handle_readByte, 1);
+    lua_settable(L, -3);
 
-        lua_pushstring(L, "read");
-        lua_pushvalue(L, -3);
-        lua_pushcclosure(L, http_handle_readByte, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "seek");
-        lua_pushvalue(L, -3);
-        lua_pushcclosure(L, http_handle_seek, 1);
-        lua_settable(L, -3);
-    }
+    lua_pushstring(L, "seek");
+    lua_pushvalue(L, -3);
+    lua_pushcclosure(L, http_handle_seek, 1);
+    lua_settable(L, -3);
 
     lua_pushstring(L, "getResponseCode");
     lua_pushvalue(L, -3);
@@ -161,32 +147,20 @@ static std::string http_failure(lua_State *L, void* data) {
         lua_pushcclosure(L, http_handle_readLine, 1);
         lua_settable(L, -3);
 
-        if (!handle->isBinary) {
-            lua_pushstring(L, "readAll");
-            lua_pushvalue(L, -3);
-            lua_pushcclosure(L, http_handle_readAll, 1);
-            lua_settable(L, -3);
+        lua_pushstring(L, "readAll");
+        lua_pushvalue(L, -3);
+        lua_pushcclosure(L, http_handle_readAllByte, 1);
+        lua_settable(L, -3);
 
-            lua_pushstring(L, "read");
-            lua_pushvalue(L, -3);
-            lua_pushcclosure(L, http_handle_readChar, 1);
-            lua_settable(L, -3);
-        } else {
-            lua_pushstring(L, "readAll");
-            lua_pushvalue(L, -3);
-            lua_pushcclosure(L, http_handle_readAllByte, 1);
-            lua_settable(L, -3);
+        lua_pushstring(L, "read");
+        lua_pushvalue(L, -3);
+        lua_pushcclosure(L, http_handle_readByte, 1);
+        lua_settable(L, -3);
 
-            lua_pushstring(L, "read");
-            lua_pushvalue(L, -3);
-            lua_pushcclosure(L, http_handle_readByte, 1);
-            lua_settable(L, -3);
-
-            lua_pushstring(L, "seek");
-            lua_pushvalue(L, -3);
-            lua_pushcclosure(L, http_handle_seek, 1);
-            lua_settable(L, -3);
-        }
+        lua_pushstring(L, "seek");
+        lua_pushvalue(L, -3);
+        lua_pushcclosure(L, http_handle_seek, 1);
+        lua_settable(L, -3);
 
         lua_pushstring(L, "getResponseCode");
         lua_pushvalue(L, -3);
@@ -382,7 +356,6 @@ downloadThread_entry:
         handle->session = session;
         handle->handle = response;
         handle->url = param->old_url;
-        handle->isBinary = param->isBinary;
         if (param->redirect && handle->handle->getStatus() / 100 == 3 && handle->handle->has("Location")) {
             std::string location = handle->handle->get("Location");
             if (location.find("://") == std::string::npos) {
@@ -513,10 +486,6 @@ static int http_request(lua_State *L) {
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'body' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
         else if (lua_isstring(L, -1)) param->postData = std::string(lua_tostring(L, -1), lua_rawlen(L, -1));
         lua_pop(L, 1);
-        lua_getfield(L, 1, "binary");
-        if (!lua_isnil(L, -1) && !lua_isboolean(L, -1)) {delete param; return luaL_error(L, "bad field 'binary' (boolean expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        else if (lua_isboolean(L, -1)) param->isBinary = lua_toboolean(L, -1);
-        lua_pop(L, 1);
         lua_getfield(L, 1, "method");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'method' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
         else if (lua_isstring(L, -1)) param->method = lua_tostring(L, -1);
@@ -545,7 +514,6 @@ static int http_request(lua_State *L) {
     } else {
         param->url = lua_tostring(L, 1);
         param->old_url = param->url;
-        param->isBinary = false;
         if (lua_isstring(L, 2)) param->postData = std::string(lua_tostring(L, 2), lua_rawlen(L, 2));
         if (lua_istable(L, 3)) {
             lua_pushvalue(L, 3);
@@ -558,7 +526,6 @@ static int http_request(lua_State *L) {
             }
             lua_pop(L, 1);
         }
-        if (lua_isboolean(L, 4)) param->isBinary = lua_toboolean(L, 4);
         if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
         param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
         param->timeout = 0;
@@ -783,7 +750,6 @@ struct ws_handle {
     uint16_t port;
     void * clientID = NULL;
     ws_handle ** ud = NULL;
-    bool binary = false;
 };
 
 struct websocket_failure_data {
@@ -868,14 +834,7 @@ static int websocket_send(lua_State *L) {
     if (ws == NULL) luaL_error(L, "attempt to use a closed file");
     std::lock_guard<std::mutex> lock(ws->lock);
     if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
-    std::string buf;
-    if (!lua_toboolean(L, 2) && !ws->binary) {
-        std::wstring wstr;
-        for (unsigned char c : str) wstr += (wchar_t)c;
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
-        buf = converter.to_bytes(wstr);
-    } else buf = str;
-    if (ws->ws->sendFrame(buf.c_str(), buf.size(), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
+    if (ws->ws->sendFrame(str.c_str(), str.size(), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
         websocket_close(L);
     return 0;
 }
@@ -1055,7 +1014,7 @@ public:
                 message->url = "";
                 message->port = wsh->port;
                 message->binary = (flags & WebSocket::FRAME_OP_BITMASK) == WebSocket::FRAME_OP_BINARY;
-                message->data = message->binary ? std::string((const char*)buf, res) : makeASCIISafe((const char*)buf, res);
+                message->data = std::string((const char*)buf, res);
                 message->clientID = &request;
                 queueEvent(comp, websocket_message, message);
             }
@@ -1104,7 +1063,7 @@ public:
     }
 }
 
-static void websocket_client_thread(Computer *comp, const std::string& str, const std::unordered_map<std::string, std::string>& headers, bool binary, double timeout) {
+static void websocket_client_thread(Computer *comp, const std::string& str, const std::unordered_map<std::string, std::string>& headers, double timeout) {
 #ifdef __APPLE__
     pthread_setname_np("WebSocket Client Thread");
 #endif
@@ -1195,7 +1154,6 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
     ws_handle * wsh = &wsh_orig;
     wsh->url = str;
     wsh->ws = ws;
-    wsh->binary = binary;
     {
         std::lock_guard<std::mutex> lock(comp->openWebsocketsMutex);
         comp->openWebsockets.push_back(&wsh);
@@ -1253,7 +1211,7 @@ static void websocket_client_thread(Computer *comp, const std::string& str, cons
             ws_message * message = new ws_message;
             message->url = str;
             message->binary = (flags & WebSocket::FRAME_OP_BITMASK) == WebSocket::FRAME_OP_BINARY;
-            message->data = (message->binary || binary) ? std::string((const char*)buf, res) : makeASCIISafe((const char*)buf, res);
+            message->data = std::string((const char*)buf, res);
             queueEvent(comp, websocket_message, message);
         }
         std::this_thread::yield();
@@ -1328,14 +1286,11 @@ static int http_websocket(lua_State *L) {
             }
         }
         lua_pop(L, 1);
-        lua_getfield(L, 1, "binary");
-        bool binary = lua_toboolean(L, -1);
-        lua_pop(L, 1);
         lua_getfield(L, 1, "timeout");
         if (!lua_isnil(L, -1) && !lua_isnumber(L, -1)) luaL_error(L, "bad field 'timeout' (expected number, got %s)", lua_typename(L, lua_type(L, -1)));
         double timeout = luaL_optnumber(L, -1, config.http_timeout / 1000.0);
         lua_pop(L, 1);
-        std::thread th(websocket_client_thread, comp, url, headers, binary, timeout);
+        std::thread th(websocket_client_thread, comp, url, headers, timeout);
         setThreadName(th, "WebSocket Client Thread");
         th.detach();
     } else if (lua_isstring(L, 1)) {
@@ -1354,8 +1309,7 @@ static int http_websocket(lua_State *L) {
             }
             lua_pop(L, 1);
         }
-        bool binary = lua_toboolean(L, 3);
-        std::thread th(websocket_client_thread, comp, url, headers, binary, config.http_timeout / 1000.0);
+        std::thread th(websocket_client_thread, comp, url, headers, config.http_timeout / 1000.0);
         setThreadName(th, "WebSocket Client Thread");
         th.detach();
     } else luaL_error(L, (config.serverMode || config.vanilla) ? "bad argument #1 (expected string or table, got %s)" : "bad argument #1 (expected string, table, number, or nil, got %s)", lua_typename(L, lua_type(L, 1)));

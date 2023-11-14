@@ -10,8 +10,6 @@
 
 #ifndef __EMSCRIPTEN__
 #include <cstdlib>
-#include <codecvt>
-#include <locale>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPServerResponse.h>
@@ -70,17 +68,7 @@ int http_handle_readAll(lua_State *L) {
         ret.append(buffer, sizeof(buffer));
     ret.append(buffer, handle->stream->gcount());
     ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr;
-    try {wstr = converter.from_bytes(ret.c_str(), ret.c_str() + ret.length());}
-    catch (std::exception & e) {
-        fprintf(stderr, "http_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-        lua_pushlstring(L, ret.c_str(), ret.length());
-        return 1;
-    }
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
-    lua_pushlstring(L, out.c_str(), out.length());
+    lua_pushlstring(L, ret.c_str(), ret.length());
     return 1;
 }
 

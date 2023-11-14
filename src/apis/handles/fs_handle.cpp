@@ -11,11 +11,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <codecvt>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <locale>
 #include <string>
 #include "fs_handle.hpp"
 #include "../../util.hpp"
@@ -102,10 +100,8 @@ int fs_handle_readLine(lua_State *L) {
     std::string retval;
     std::getline(*fp, retval);
     if (retval.empty() && fp->eof()) return 0;
-    if (*retval.rbegin() == '\r' && !lua_toboolean(L, lua_upvalueindex(2))) retval = retval.substr(0, retval.size()-1);
     if (lua_toboolean(L, 1) && fp->good()) retval += '\n';
-    const std::string out = lua_toboolean(L, lua_upvalueindex(2)) ? retval : makeASCIISafe(retval.c_str(), retval.size());
-    lua_pushlstring(L, out.c_str(), out.length());
+    lua_pushlstring(L, retval.c_str(), retval.length());
     return 1;
 }
 
@@ -115,43 +111,24 @@ int fs_handle_readChar(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
     if (!fp->good()) luaL_error(L, "Could not read file");
-    std::string retval;
-    for (int i = 0; i < luaL_optinteger(L, 1, 1) && !fp->eof(); i++) {
-        uint32_t codepoint;
-        const int c = fp->get();
-        if (c == EOF) break;
-        else if (c > 0x7F) {
-            if (c & 64) {
-                const int c2 = fp->get();
-                if (c2 == EOF) {retval += '?'; break;}
-                else if (c2 < 0x80 || c2 & 64) codepoint = 1U<<31;
-                else if (c & 32) {
-                    const int c3 = fp->get();
-                    if (c3 == EOF) {retval += '?'; break;}
-                    else if (c3 < 0x80 || c3 & 64) codepoint = 1U<<31;
-                    else if (c & 16) {
-                        if (c & 8) codepoint = 1U<<31;
-                        else {
-                            const int c4 = fp->get();
-                            if (c4 == EOF) {retval += '?'; break;}
-                            else if (c4 < 0x80 || c4 & 64) codepoint = 1U<<31;
-                            else codepoint = ((c & 0x7) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
-                        }
-                    } else codepoint = ((c & 0xF) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
-                } else codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
-            } else codepoint = 1U<<31;
-        } else codepoint = (unsigned char)c;
-        if (codepoint > 255) retval += '?';
-        else {
-            if (codepoint == '\r') {
-                const int nextc = fp->get();
-                if (nextc == '\n') codepoint = nextc;
-                else fp->putback((char)nextc);
-            }
-            retval += (char)codepoint;
+    if (lua_isnumber(L, 1)) {
+        const size_t s = lua_tointeger(L, 1);
+        if (s == 0) {
+            if (fp->peek() == EOF || fp->eof()) return 0;
+            lua_pushstring(L, "");
+            return 1;
         }
+        char* retval = new char[s];
+        fp->read(retval, s);
+        const size_t actual = fp->gcount();
+        if (actual == 0) {delete[] retval; return 0;}
+        lua_pushlstring(L, retval, actual);
+        delete[] retval;
+    } else {
+        const int retval = fp->get();
+        if (retval == EOF || fp->eof()) return 0;
+        lua_pushlstring(L, (const char *)&retval, 1);
     }
-    lua_pushlstring(L, retval.c_str(), retval.length());
     return 1;
 }
 
@@ -208,12 +185,8 @@ int fs_handle_writeString(lua_State *L) {
     if (lua_isnoneornil(L, 1)) return 0;
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
     if (fp->fail()) luaL_error(L, "Could not write file");
-    std::string str(lua_tostring(L, 1), lua_rawlen(L, 1));
-    std::wstring wstr;
-    for (unsigned char c : str) wstr += (wchar_t)c;
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
-    const std::string newstr = converter.to_bytes(wstr);
-    fp->write(newstr.c_str(), newstr.size());
+    size_t sz = 0;
+    fp->write(lua_tolstring(L, 1, &sz), sz);
     return 0;
 }
 
@@ -224,12 +197,8 @@ int fs_handle_writeLine(lua_State *L) {
     if (lua_isnoneornil(L, 1)) return 0;
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
     if (fp->fail()) luaL_error(L, "Could not write file");
-    std::string str(lua_tostring(L, 1), lua_rawlen(L, 1));
-    std::wstring wstr;
-    for (unsigned char c : str) wstr += (wchar_t)c;
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t> > converter;
-    const std::string newstr = converter.to_bytes(wstr);
-    fp->write(newstr.c_str(), newstr.size());
+    size_t sz = 0;
+    fp->write(lua_tolstring(L, 1, &sz), sz);
     fp->put('\n');
     return 0;
 }
