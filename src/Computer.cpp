@@ -639,13 +639,13 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             bios_file.close();
         } else {
             status = LUA_ERRFILE;
-            lua_pushstring(L, strerror(errno));
+            lua_pushstring(self->coro, strerror(errno));
         }
 #endif
         if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.string().c_str(), lua_tostring(L, -1));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.string().c_str(), lua_tostring(self->coro, -1));
             if (::config.standardsMode) displayFailure(self->term, "Error loading bios.lua");
             else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
@@ -681,6 +681,7 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             } else if (status != 0 && self->running == 1) {
                 // Catch runtime error
                 self->running = 0;
+                lua_checkstack(self->coro, 4);
                 lua_pushcfunction(self->coro, termPanic);
                 if (lua_isstring(self->coro, -2)) lua_pushvalue(self->coro, -2);
                 else lua_pushnil(self->coro);

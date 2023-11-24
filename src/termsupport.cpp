@@ -442,13 +442,6 @@ extern "C" {
     }
 }
 
-extern "C" {
-#ifdef _WIN32
-    __declspec(dllimport)
-#endif
-    extern const char KEY_HOOK;
-}
-
 void termHook(lua_State *L, lua_Debug *ar) {
     std::string name; // For some reason MSVC explodes when this isn't at the top of the function
                       // I've had issues with it randomly moving scope boundaries around (see apis/config.cpp:101, runtime.cpp:249),
