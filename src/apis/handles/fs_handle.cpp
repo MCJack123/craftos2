@@ -101,6 +101,7 @@ int fs_handle_readLine(lua_State *L) {
     std::getline(*fp, retval);
     if (retval.empty() && fp->eof()) return 0;
     if (lua_toboolean(L, 1) && fp->good()) retval += '\n';
+    else if (!retval.empty() && retval[retval.size()-1] == '\r') retval.resize(retval.size() - 1);
     lua_pushlstring(L, retval.c_str(), retval.length());
     return 1;
 }
@@ -112,6 +113,7 @@ int fs_handle_readChar(lua_State *L) {
     if (fp->eof()) return 0;
     if (!fp->good()) luaL_error(L, "Could not read file");
     if (lua_isnumber(L, 1)) {
+        if (lua_tointeger(L, 1) < 0) luaL_error(L, "Cannot read a negative number of characters");
         const size_t s = lua_tointeger(L, 1);
         if (s == 0) {
             if (fp->peek() == EOF || fp->eof()) return 0;
@@ -139,6 +141,7 @@ int fs_handle_readByte(lua_State *L) {
     if (fp->eof()) return 0;
     if (!fp->good()) luaL_error(L, "Could not read file");
     if (lua_isnumber(L, 1)) {
+        if (lua_tointeger(L, 1) < 0) luaL_error(L, "Cannot read a negative number of bytes");
         const size_t s = lua_tointeger(L, 1);
         if (s == 0) {
             if (fp->peek() == EOF || fp->eof()) return 0;
@@ -186,7 +189,8 @@ int fs_handle_writeString(lua_State *L) {
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
     if (fp->fail()) luaL_error(L, "Could not write file");
     size_t sz = 0;
-    fp->write(lua_tolstring(L, 1, &sz), sz);
+    const char * str = lua_tolstring(L, 1, &sz);
+    fp->write(str, sz);
     return 0;
 }
 
@@ -198,7 +202,8 @@ int fs_handle_writeLine(lua_State *L) {
     else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
     if (fp->fail()) luaL_error(L, "Could not write file");
     size_t sz = 0;
-    fp->write(lua_tolstring(L, 1, &sz), sz);
+    const char * str = lua_tolstring(L, 1, &sz);
+    fp->write(str, sz);
     fp->put('\n');
     return 0;
 }
