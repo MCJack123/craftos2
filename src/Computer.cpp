@@ -707,7 +707,7 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             self->rawFileStack = NULL;
         }
     }
-    if (self->term != NULL && !self->term->errorMode && false) {
+    if (self->term != NULL && !self->term->errorMode) {
         // Reset terminal contents
         std::lock_guard<std::mutex> lock(self->term->locked);
         self->term->blinkX = 0;

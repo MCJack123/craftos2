@@ -137,15 +137,19 @@ static int term_getSize(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    std::lock_guard<std::mutex> lock(term->locked);
-    if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
-        lua_pushinteger(L, term->width * Terminal::fontWidth);
-        lua_pushinteger(L, term->height * Terminal::fontHeight);
-    } else if (lua_isnoneornil(L, 1) || lua_isboolean(L, 1) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0)) {
-        lua_pushinteger(L, term->width);
-        lua_pushinteger(L, term->height);
-    } else luaL_error(L, "bad argument #1 (expected boolean or number, got %s)", lua_typename(L, lua_type(L, 1)));
-    return 2;
+    {
+        std::lock_guard<std::mutex> lock(term->locked);
+        if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
+            lua_pushinteger(L, term->width * Terminal::fontWidth);
+            lua_pushinteger(L, term->height * Terminal::fontHeight);
+        } else if (lua_isnoneornil(L, 1) || lua_isboolean(L, 1) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0)) {
+            lua_pushinteger(L, term->width);
+            lua_pushinteger(L, term->height);
+        } else goto error;
+        return 2;
+    }
+error:
+    return luaL_error(L, "bad argument #1 (expected boolean or number, got %s)", lua_typename(L, lua_type(L, 1)));
 }
 
 static int term_clear(lua_State *L) {
