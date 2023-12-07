@@ -9,6 +9,7 @@ on:
       - "craftos2-lua/**"
       - "craftos2-lua"
       - "resources/CraftOSTest.lua"
+      - "resources/CCT-Tests.patch"
   pull_request:
     paths:
       - "src/**"
