@@ -154,16 +154,17 @@ static int fs_list(lua_State *L) {
     lastCFunction = __func__;
     std::string str = checkstring(L, 1);
     const std::vector<path_t> possible_paths = fixpath_multiple(get_comp(L), str);
-    if (possible_paths.empty()) err(L, 1, "Not a directory");
+    if (possible_paths.empty()) err(L, 1, "No such file");
     bool gotdir = false;
     std::set<std::string> entries;
     for (const path_t& path : possible_paths) {
         if (std::regex_search((*path.begin()).native(), pathregex("^\\d+:"))) {
             try {
                 const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul((*path.begin()).native())]->path(path.lexically_relative(*path.begin()));
-                gotdir = true;
-                if (d.isDir) for (const auto& p : d.dir) entries.insert(p.first);
-                else gotdir = false;
+                if (d.isDir) {
+                    gotdir = true;
+                    for (const auto& p : d.dir) entries.insert(p.first);
+                }
             } catch (...) {continue;}
         } else {
             std::error_code e;
