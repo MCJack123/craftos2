@@ -818,9 +818,9 @@ static int websocket_free(lua_State *L) {
 static int websocket_close(lua_State *L) {
     lastCFunction = __func__;
     ws_handle * ws = *(ws_handle**)lua_touserdata(L, lua_upvalueindex(1));
-    if (ws == NULL) luaL_error(L, "attempt to use a closed file");
+    if (ws == NULL) return 0;
     std::lock_guard<std::mutex> lock(ws->lock);
-    if (ws->ws == NULL) luaL_error(L, "attempt to use a closed file");
+    if (ws->ws == NULL) return 0;
     ws->ws = NULL;
     return 0;
 }

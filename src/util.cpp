@@ -225,20 +225,29 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             if (!found) return path_t();
         } else if (pathc.size() > 1) {
             bool found = false;
-            std::string back = pathc.back();
-            pathc.pop_back();
-            for (const _path_t& p : max_path.second) {
-                path_t sstmp = p;
-                for (const std::string& s : pathc) sstmp /= s;
-                e.clear();
-                if (
-                    (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(ss/back)) ||
-                    (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp)) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp).isDir))) ||
-                    (fs::exists(sstmp/back, e)) || (fs::is_directory(sstmp, e))) {
-                    ss /= sstmp/back;
-                    found = true;
-                    break;
+            std::stack<std::string> oldback;
+            while (!found && !pathc.empty()) {
+                found = false;
+                std::string back = pathc.back();
+                pathc.pop_back();
+                for (const _path_t& p : max_path.second) {
+                    path_t sstmp = p;
+                    for (const std::string& s : pathc) sstmp /= s;
+                    e.clear();
+                    if (
+                        (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(ss/back)) ||
+                        (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp)) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp).isDir))) ||
+                        (fs::exists(sstmp/back, e)) || (fs::is_directory(sstmp, e))) {
+                        ss /= sstmp/back;
+                        while (!oldback.empty()) {
+                            ss /= oldback.top();
+                            oldback.pop();
+                        }
+                        found = true;
+                        break;
+                    }
                 }
+                if (!found) oldback.push(back);
             }
             if (!found) return path_t();
         } else {

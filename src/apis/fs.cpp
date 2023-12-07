@@ -473,7 +473,7 @@ static int fs_open(lua_State *L) {
                 if (d.isDir) {
                     lua_remove(L, fpid);
                     lua_pushnil(L);
-                    if (strchr(mode, 'r') != NULL) lua_pushfstring(L, "/%s: No such file", fixpath(computer, str, false, false).string().c_str());
+                    if (strchr(mode, 'r') != NULL) lua_pushfstring(L, "/%s: Not a file", fixpath(computer, str, false, false).string().c_str());
                     else lua_pushfstring(L, "/%s: Cannot write to directory", fixpath(computer, str, false, false).string().c_str());
                     return 2; 
                 }
@@ -491,7 +491,7 @@ static int fs_open(lua_State *L) {
         std::error_code e;
         if (fs::is_directory(path, e)) { 
             lua_pushnil(L);
-            if (strchr(mode, 'r') != NULL) lua_pushfstring(L, "/%s: No such file", fixpath(computer, str, false, false).string().c_str());
+            if (strchr(mode, 'r') != NULL) lua_pushfstring(L, "/%s: Not a file", fixpath(computer, str, false, false).string().c_str());
             else lua_pushfstring(L, "/%s: Cannot write to directory", fixpath(computer, str, false, false).string().c_str());
             return 2; 
         }

@@ -39,7 +39,7 @@ int http_handle_free(lua_State *L) {
 int http_handle_close(lua_State *L) {
     lastCFunction = __func__;
     http_handle_t** handle = (http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
-    if (*handle == NULL) return luaL_error(L, "attempt to use a closed file");
+    if (*handle == NULL) return 0;
     delete (*handle)->handle;
     delete (*handle)->session;
     delete *handle;
