@@ -139,46 +139,28 @@ public:
 };
 
 // For get_comp
-typedef union {
-  void *gc;
-  void *p;
-  lua_Number n;
-  int b;
-} lua_Value;
-
-typedef struct lua_TValue {
-  lua_Value value; int tt;
-} TValue;
-
 struct lua_State {
-  void *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char status;
-  void* top;  /* first free slot in the stack */
-  void* base;  /* base of current function */
-  void *l_G;
-  void *ci;  /* call info for current function */
-  void* ctx;  /* `savedpc' of current function, or context */
-  void* stack_last;  /* last free slot in the stack */
-  void* stack;  /* stack base */
-  void *end_ci;  /* points after end of ci array*/
-  void *base_ci;  /* array of CallInfo's */
-  int stacksize;
-  int size_ci;  /* size of array `base_ci' */
-  unsigned short nCcalls;  /* number of nested C calls */
-  unsigned short baseCcalls;  /* nested C calls when resuming coroutine */
-  unsigned char hookmask;
-  unsigned char allowhook;
-  int basehookcount;
-  int hookcount;
-  lua_Hook hook;
-  TValue l_gt;  /* table of globals */
-  TValue env;  /* temporary place for environments */
-  void *openupval;  /* list of open upvalues in this stack */
-  void *gclist;
-  struct lua_longjmp *errorJmp;  /* current error recover point */
-  ptrdiff_t errfunc;  /* current error handling function (stack index) */
+    void *next; uint8_t tt; uint8_t marked;
+    uint8_t status;
+    void* top;  /* first free slot in the stack */
+    void* l_G;
+    void *ci;  /* call info for current function */
+    const int *oldpc;  /* last pc traced */
+    void* stack_last;  /* last free slot in the stack */
+    void* stack;  /* stack base */
+    int stacksize;
+    unsigned short nny;  /* number of non-yieldable calls in stack */
+    unsigned short nCcalls;  /* number of nested C calls */
+    uint8_t hookmask;
+    uint8_t allowhook;
+    int basehookcount;
+    int hookcount;
+    lua_Hook hook;
+    void *openupval;  /* list of open upvalues in this stack */
+    void *gclist;
+    struct lua_longjmp *errorJmp;  /* current error recover point */
+    ptrdiff_t errfunc;  /* current error handling function (stack index) */
+    void* base_ci;  /* CallInfo for first level (C calling Lua) */
 };
 
 inline int log2i(int num) {

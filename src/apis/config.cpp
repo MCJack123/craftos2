@@ -198,6 +198,10 @@ static int config_set(lua_State *L) {
     setConfigSetting(monitorsUseMouseEvents, boolean);
     setConfigSettingI(defaultWidth);
     setConfigSettingI(defaultHeight);
+    else if (strcmp(name, "standardsMode") == 0) {
+        config.standardsMode = lua_toboolean(L, 2);
+        lua_setdisableflags(L, config.standardsMode ? LUA_DISABLE_BYTECODE : 0);
+    }
     setConfigSetting(standardsMode, boolean);
     setConfigSetting(useHardwareRenderer, boolean);
     else if (strcmp(name, "preferredHardwareDriver") == 0)

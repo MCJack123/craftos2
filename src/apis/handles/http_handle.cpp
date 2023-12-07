@@ -14,20 +14,10 @@
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPServerResponse.h>
 #include <Poco/Net/HTTPServerRequest.h>
-#include "http_handle.hpp"
 #include "../../util.hpp"
+#include "http_handle.hpp"
 
 using namespace Poco::Net;
-
-struct http_handle_t {
-    std::string url;
-    HTTPClientSession * session;
-    HTTPResponse * handle;
-    std::istream * stream;
-    bool isBinary;
-    std::string failureReason;
-    http_handle_t(std::istream * s) : stream(s) {}
-};
 
 struct http_res {
     std::string body;
@@ -82,7 +72,7 @@ int http_handle_readLine(lua_State *L) {
     if (retval.empty() && handle->stream->eof()) return 0;
     if (lua_toboolean(L, 1)) retval += '\n';
     else if (!retval.empty() && retval[retval.size()-1] == '\r') retval = retval.substr(0, retval.size()-1);
-    const std::string out = handle->isBinary ? retval : makeASCIISafe(retval.c_str(), retval.size());
+    const std::string out = retval;
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }

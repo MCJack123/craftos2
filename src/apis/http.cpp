@@ -32,10 +32,10 @@
 #include <Poco/Net/HTTPServerRequest.h>
 #include <Poco/Net/HTTPServerResponse.h>
 #include <Poco/Net/HTTPServer.h>
-#include "handles/http_handle.hpp"
 #include "../platform.hpp"
 #include "../runtime.hpp"
 #include "../util.hpp"
+#include "handles/http_handle.hpp"
 
 #ifdef __ANDROID__
 extern "C" {extern int Android_JNI_SetupThread(void);}
@@ -56,15 +56,6 @@ struct http_param_t {
     std::string old_url;
     bool redirect;
     double timeout;
-};
-
-struct http_handle_t {
-    std::string url;
-    HTTPClientSession * session;
-    HTTPResponse * handle;
-    std::istream * stream;
-    std::string failureReason;
-    http_handle_t(std::istream * s): stream(s) {}
 };
 
 struct http_check_t {
@@ -254,12 +245,20 @@ downloadThread_entry:
             else if (uri.getScheme() == "http") {
                 session = new HTTPClientSession(uri.getHost(), uri.getPort());
             } else if (uri.getScheme() == "https") {
-                Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
-                addSystemCertificates(context);
+                try {
+                    Context::Ptr context = new Context(Context::CLIENT_USE, "", Context::VERIFY_RELAXED, 9, true, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+                    addSystemCertificates(context);
 #if POCO_VERSION >= 0x010A0000
-                context->disableProtocols(Context::PROTO_TLSV1_3); // Some sites break under TLS 1.3 - disable it to maintain compatibility until fixed (pocoproject/poco#3395)
+                    context->disableProtocols(Context::PROTO_TLSV1_3); // Some sites break under TLS 1.3 - disable it to maintain compatibility until fixed (pocoproject/poco#3395)
 #endif
-                session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+                    session = new HTTPSClientSession(uri.getHost(), uri.getPort(), context);
+                } catch (Poco::Exception &e) {
+                    http_handle_t * err = new http_handle_t(NULL);
+                    err->url = param->url;
+                    err->failureReason = e.message();
+                    queueEvent(param->comp, http_failure, err);
+                    goto downloadThread_finish;
+                }
             } else status = "Invalid protocol '" + uri.getScheme() + "'";
         }
         if (!status.empty()) {

@@ -479,6 +479,8 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             // Override the default loader to allow yielding from `load`
             lua_pushcfunction(L, yieldable_load);
             lua_setglobal(L, "load");
+            // Disable bytecode
+            lua_setdisableflags(L, LUA_DISABLE_BYTECODE);
         }
 
         // Load any plugins available

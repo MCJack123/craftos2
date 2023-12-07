@@ -13,6 +13,14 @@
 extern "C" {
 #include <lua.h>
 }
+struct http_handle_t {
+    std::string url;
+    std::string failureReason;
+    Poco::Net::HTTPClientSession * session;
+    Poco::Net::HTTPResponse * handle;
+    std::istream * stream;
+    http_handle_t(std::istream * s) : stream(s) {}
+};
 extern int http_handle_free(lua_State *L);
 extern int http_handle_close(lua_State *L);
 extern int http_handle_readAll(lua_State *L);

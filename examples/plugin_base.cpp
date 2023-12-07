@@ -15,7 +15,7 @@ extern "C" {
 
 // add your functions here...
 
-static luaL_reg M[] = {
+static luaL_Reg M[] = {
     // add functions here as {name, function}...
     {NULL, NULL}
 };
@@ -26,7 +26,7 @@ static PluginInfo info("myplugin");
 extern "C" {
 // replace "myplugin" with the plugin name
 DLLEXPORT int luaopen_myplugin(lua_State *L) {
-    luaL_register(L, "myplugin", M);
+    luaL_newlib(L, M);
     return 1;
 }
 
