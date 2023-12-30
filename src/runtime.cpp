@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include "main.hpp"
 #include "runtime.hpp"
+#include "peripheral/debugger.hpp"
 #include "platform.hpp"
 #include "terminal/SDLTerminal.hpp"
 #include "terminal/CLITerminal.hpp"
@@ -392,6 +393,7 @@ bool addMount(Computer *comp, const path_t& real_path, const std::string& comp_p
         if (!selected) return false;
     }
     comp->mounts.push_back(std::make_tuple(std::list<std::string>(pathc), real_path, read_only));
+    if (comp->debugger && !comp->isDebugger) ((debugger*)comp->debugger)->resetMounts();
     return true;
 }
 

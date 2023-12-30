@@ -832,6 +832,7 @@ debugger::debugger(lua_State *L, const char * side) {
     }
     delete p;
     monitor->debugger = createDebuggerLibrary();
+    for (const auto mount : computer->mounts) monitor->mounts.push_back(mount);
     {
         LockGuard lock(computers);
         computers->push_back(monitor);
@@ -896,6 +897,11 @@ int debugger::_deinit(lua_State *L) {
         if (L) lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
     }
     return 0;
+}
+
+void debugger::resetMounts() {
+    monitor->mounts.clear();
+    for (const auto mount : computer->mounts) monitor->mounts.push_back(mount);
 }
 
 static luaL_Reg debugger_reg[] = {

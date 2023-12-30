@@ -547,6 +547,8 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
                 lua_setfield(L, -2, "addListener");
                 lua_pushnil(L);
                 lua_setfield(L, -2, "removeListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "websocketServer");
                 lua_pop(L, 1);
             }
             lua_getglobal(L, "debug");
@@ -557,14 +559,20 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             lua_pop(L, 1);
         }
         if (config.serverMode) {
-            lua_getglobal(L, "http");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "addListener");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "removeListener");
-            lua_pop(L, 1);
+            if (config.http_enable) {
+                lua_getglobal(L, "http");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "addListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "removeListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "websocketServer");
+                lua_pop(L, 1);
+            }
             lua_pushnil(L);
             lua_setglobal(L, "mounter");
+            lua_pushnil(L);
+            lua_setglobal(L, "config");
         }
 
         // Set default globals

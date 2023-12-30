@@ -12,6 +12,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <FileEntry.hpp>
+#include "../peripheral/debugger.hpp"
 #include "../platform.hpp"
 #include "../runtime.hpp"
 #include "../terminal/SDLTerminal.hpp"
@@ -62,6 +63,7 @@ static int mounter_unmount(lua_State *L) {
             if (it == computer->mounts.end()) break;
         }
     }
+    if (found && computer->debugger && !computer->isDebugger) ((debugger*)computer->debugger)->resetMounts();
     lua_pushboolean(L, found);
     return 1;
 }

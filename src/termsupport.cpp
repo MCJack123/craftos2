@@ -714,6 +714,7 @@ std::string termGetEvent(lua_State *L) {
                     computer->waitingForTerminate &= ~1;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 3) == 0) computer->waitingForTerminate |= 1;
+                else return "";
             } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_s : e.key.keysym.sym == 31) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 4) {
                     computer->waitingForTerminate |= 8;
@@ -721,6 +722,7 @@ std::string termGetEvent(lua_State *L) {
                     computer->running = 0;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 12) == 0) computer->waitingForTerminate |= 4;
+                else return "";
             } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 16) {
                     computer->waitingForTerminate |= 32;
@@ -728,6 +730,7 @@ std::string termGetEvent(lua_State *L) {
                     computer->running = 2;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 48) == 0) computer->waitingForTerminate |= 16;
+                else return "";
             } else if (e.key.keysym.sym == SDLK_v && (e.key.keysym.mod & KMOD_SYSMOD) && SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
                 std::string str;
@@ -753,7 +756,7 @@ std::string termGetEvent(lua_State *L) {
             std::string str;
             try {str = utf8_to_string(e.text.text, std::locale("C"));}
             catch (std::exception &ignored) {str = "?";}
-            if (!str.empty()) {
+            if (!str.empty() && !(computer->waitingForTerminate & 0x2A)) {
 #if defined(__ANDROID__) || defined(__IPHONEOS__)
                 mobileResetModifiers();
 #endif
