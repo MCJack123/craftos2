@@ -658,6 +658,7 @@ struct comp_term_pair {Computer * comp; Terminal * term;};
 
 static std::string mouse_move(lua_State *L, void* param) {
     Terminal * term = (Terminal*)param;
+    std::lock_guard<std::mutex> lock(((SDLTerminal*)term)->mouseMoveLock);
     lua_pushinteger(L, 1);
     lua_pushinteger(L, term->nextMouseMove.x);
     lua_pushinteger(L, term->nextMouseMove.y);
@@ -863,7 +864,7 @@ std::string termGetEvent(lua_State *L) {
                 if (pos == used_buttons.end()) it = term->mouseButtonOrder.erase(it);
                 else ++it;
             }
-            Uint8 button = used_buttons.back();
+            Uint8 button = used_buttons.empty() ? 1 : used_buttons.back();
             if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
             if (button == SDL_BUTTON_MIDDLE) button = 3;
             else if (button == SDL_BUTTON_RIGHT) button = 2;
@@ -1057,6 +1058,7 @@ std::string termGetEvent(lua_State *L) {
             }
             if (term == NULL) return "";
             if (term->mouseMoveDebounceTimer != 0) {
+                std::lock_guard<std::mutex> lock(((SDLTerminal*)term)->mouseMoveLock);
                 SDL_RemoveTimer(term->mouseMoveDebounceTimer);
                 term->mouseMoveDebounceTimer = 0;
                 term->nextMouseMove = {0, 0, 0, 0, std::string() };
