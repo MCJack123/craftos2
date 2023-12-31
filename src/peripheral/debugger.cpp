@@ -414,7 +414,7 @@ static int debugger_lib_run(lua_State *L) {
         lua_pushcfunction(dbg->thread, _echo);
         lua_setfield(dbg->thread, -2, "_echo");
     }
-    lua_setfenv(dbg->thread, -2); // ..., func (w/env)
+    lua_setupvalue(dbg->thread, -2, 1); // ..., func (w/env)
     lua_pushboolean(L, !lua_pcall(dbg->thread, 0, LUA_MULTRET, 0)); // ..., results...
     const int top2 = lua_gettop(dbg->thread) - top; // #{..., results...} - #{...} = #{results...}
     xcopy(dbg->thread, L, top2); // ...
@@ -473,7 +473,7 @@ static int debugger_lib_getfenv(lua_State *L) {
     lua_Debug ar;
     lua_getstack(dbg->thread, 0, &ar);
     lua_getinfo(dbg->thread, "f", &ar);
-    lua_getfenv(dbg->thread, -1);
+    lua_getupvalue(dbg->thread, -1, 1);
     lua_xmove(dbg->thread, L, 1);
     lua_pop(dbg->thread, 1);
     return 1;
@@ -766,11 +766,12 @@ static std::string debugger_print(lua_State *L, void* arg) {
 }
 
 static int lua_converttostring (lua_State *L) {
-  if (lua_icontext(L)) return 1;
+  int ctx = 0;
+  if (lua_getctx(L, &ctx) == LUA_YIELD) return 1;
   luaL_checkany(L, 1);
   if (luaL_getmetafield(L, 1, "__tostring")) {
     lua_pushvalue(L, 1);
-    lua_icall(L, 1, 1, 1);  /* call metamethod */
+    lua_callk(L, 1, 1, 1, lua_converttostring);  /* call metamethod */
     return 1;
   }
   switch (lua_type(L, 1)) {
@@ -831,6 +832,7 @@ debugger::debugger(lua_State *L, const char * side) {
     }
     delete p;
     monitor->debugger = createDebuggerLibrary();
+    for (const auto mount : computer->mounts) monitor->mounts.push_back(mount);
     {
         LockGuard lock(computers);
         computers->push_back(monitor);
@@ -844,7 +846,7 @@ debugger::debugger(lua_State *L, const char * side) {
     lua_sethook(computer->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
     lua_sethook(L, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
     lua_getfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
-    for (size_t i = 1; i <= lua_objlen(L, -1); i++) {
+    for (size_t i = 1; i <= lua_rawlen(L, -1); i++) {
         lua_rawgeti(L, -1, (int)i);
         if (lua_isthread(L, -1)) lua_sethook(lua_tothread(L, -1), termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         lua_pop(L, 1);
@@ -895,6 +897,11 @@ int debugger::_deinit(lua_State *L) {
         if (L) lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
     }
     return 0;
+}
+
+void debugger::resetMounts() {
+    monitor->mounts.clear();
+    for (const auto mount : computer->mounts) monitor->mounts.push_back(mount);
 }
 
 static luaL_Reg debugger_reg[] = {

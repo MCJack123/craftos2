@@ -268,7 +268,7 @@ int printer::getInkLevel(lua_State *L) {
 
 int printer::setPageTitle(lua_State *L) {
     lastCFunction = __func__;
-    title = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
+    title = std::string(luaL_checkstring(L, 1), lua_rawlen(L, 1));
     return 0;
 }
 

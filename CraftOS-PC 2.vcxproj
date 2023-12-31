@@ -350,7 +350,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51d.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;wer.lib;crypt32.lib;normaliz.lib;SDL2maind.lib;iphlpapi.lib;libpng16d.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua52d.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;wer.lib;crypt32.lib;normaliz.lib;SDL2maind.lib;iphlpapi.lib;libpng16d.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <AdditionalOptions>/VERBOSE:LIB %(AdditionalOptions)</AdditionalOptions>
       <Profile>true</Profile>
@@ -367,12 +367,13 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
       <DisableSpecificWarnings>26812;4005</DisableSpecificWarnings>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-lua\src\lua51d.dll x64\Debug\lua51d.dll</Command>
+      <Command>copy craftos2-lua\src\lua52d.dll x64\Debug\lua52d.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -405,7 +406,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua52.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -420,12 +421,13 @@
       <LanguageStandard_C>stdc11</LanguageStandard_C>
       <DisableSpecificWarnings>26812;4005</DisableSpecificWarnings>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-lua\src\lua51.dll x64\Release\lua51.dll</Command>
+      <Command>copy craftos2-lua\src\lua52.dll x64\Release\lua52.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
@@ -456,7 +458,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua52.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;iphlpapi.lib;libpng16.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -471,12 +473,13 @@
       <LanguageStandard_C>stdc11</LanguageStandard_C>
       <DisableSpecificWarnings>26812;4005</DisableSpecificWarnings>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-lua\src\lua51.dll x64\ReleaseStandalone\lua51.dll</Command>
+      <Command>copy craftos2-lua\src\lua52.dll x64\ReleaseStandalone\lua52.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStandalone|ARM64'">
@@ -507,7 +510,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|x64'">
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)craftos2-lua\src;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua51.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;SDL2_mixer.lib;iphlpapi.lib;libpng16.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;lua52.lib;sdl2.lib;shlwapi.lib;ws2_32.lib;wldap32.lib;crypt32.lib;normaliz.lib;SDL2main.lib;SDL2_mixer.lib;iphlpapi.lib;libpng16.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -522,12 +525,13 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <DisableSpecificWarnings>26812;4005</DisableSpecificWarnings>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy craftos2-lua\src\lua51.dll x64\ReleaseC\lua51.dll</Command>
+      <Command>copy craftos2-lua\src\lua52.dll x64\ReleaseC\lua52.dll</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseC|ARM64'">

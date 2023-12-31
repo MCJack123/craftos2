@@ -54,12 +54,7 @@ void uncache_state(lua_State *L) {
 
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {
     lua_newtable(L);
-    luaL_Reg * l = lib.functions;
-    for (; l->name; l++) {
-        if (l->func == NULL) continue;
-        lua_pushcclosure(L, l->func, 0);
-        lua_setfield(L, -2, l->name);
-    }
+    luaL_setfuncs(L, lib.functions, 0);
     lua_setglobal(L, lib.name);
     if (lib.init != NULL) lib.init(comp);
 }
@@ -230,20 +225,29 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             if (!found) return path_t();
         } else if (pathc.size() > 1) {
             bool found = false;
-            std::string back = pathc.back();
-            pathc.pop_back();
-            for (const _path_t& p : max_path.second) {
-                path_t sstmp = p;
-                for (const std::string& s : pathc) sstmp /= s;
-                e.clear();
-                if (
-                    (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(ss/back)) ||
-                    (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp)) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp).isDir))) ||
-                    (fs::exists(sstmp/back, e)) || (fs::is_directory(sstmp, e))) {
-                    ss /= sstmp/back;
-                    found = true;
-                    break;
+            std::stack<std::string> oldback;
+            while (!found && !pathc.empty()) {
+                found = false;
+                std::string back = pathc.back();
+                pathc.pop_back();
+                for (const _path_t& p : max_path.second) {
+                    path_t sstmp = p;
+                    for (const std::string& s : pathc) sstmp /= s;
+                    e.clear();
+                    if (
+                        (isVFSPath(p) && (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(ss/back)) ||
+                        (nothrow(comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp)) && comp->virtualMounts[(unsigned)std::stoul(p.substr(0, p.size()-1))]->path(sstmp).isDir))) ||
+                        (fs::exists(sstmp/back, e)) || (fs::is_directory(sstmp, e))) {
+                        ss /= sstmp/back;
+                        while (!oldback.empty()) {
+                            ss /= oldback.top();
+                            oldback.pop();
+                        }
+                        found = true;
+                        break;
+                    }
                 }
+                if (!found) oldback.push(back);
             }
             if (!found) return path_t();
         } else {
@@ -340,7 +344,7 @@ static void xcopy_internal(lua_State *from, lua_State *to, int n, int copies_slo
             }
             default: {
                 if (luaL_callmeta(from, -1-i, "__tostring")) {
-                    lua_pushlstring(to, lua_tostring(from, -1), lua_strlen(from, -1));
+                    lua_pushlstring(to, lua_tostring(from, -1), lua_rawlen(from, -1));
                     lua_pop(from, 1);
                 } else lua_pushfstring(to, "<%s: %p>", lua_typename(from, lua_type(from, -1-i)), lua_topointer(from, -1-i));
                 break;
@@ -356,19 +360,9 @@ void xcopy(lua_State *from, lua_State *to, int n) {
     lua_remove(to, cslot);
 }
 
+// Deprecated as of CCPC v2.8; text mode no longer exists
 std::string makeASCIISafe(const char * retval, size_t len) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr;
-    try {wstr = converter.from_bytes(retval, retval + len);} 
-    catch (std::exception &e) {
-        fprintf(stderr, "fs_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-        std::string out;
-        for (size_t i = 0; i < len; i++) {if ((unsigned char)retval[i] < 128) out += retval[i]; else out += '?';}
-        return out;
-    }
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
-    return out;
+    return std::string(retval, len);
 }
 
 struct IPv6 {uint16_t a, b, c, d, e, f, g, h;};

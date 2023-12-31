@@ -132,7 +132,7 @@ struct Computer {
     std::mutex openWebsocketsMutex;
     std::vector<std::pair<lua_CFunction, void*>> startupCallbacks; // List of functions to call when starting up + a userdata to pass as the first argument
 
-    // The following fields are available in API version 10.9 and later.
+    // The following fields are available in API version 12.0 and later.
     std::vector<std::filesystem::path> droppedFiles; // List of files that were dropped in the current drop set
 
 private:

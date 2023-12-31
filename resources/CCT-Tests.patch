@@ -9,7 +9,15 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/mcfly.l
 diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua b/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua
 --- a/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 02:52:34.000000000 -0400
 +++ b/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 01:24:00.000000000 -0400
-@@ -122,7 +122,7 @@
+@@ -88,7 +88,6 @@
+     describe("fs.list", function()
+         it("fails on files", function()
+             expect.error(fs.list, "rom/startup.lua"):eq("/rom/startup.lua: Not a directory")
+-            expect.error(fs.list, "startup.lua"):eq("/startup.lua: Not a directory")
+         end)
+ 
+         it("fails on non-existent nodes", function()
+@@ -122,7 +121,7 @@
  
      describe("fs.makeDir", function()
          it("fails on files", function()
@@ -18,7 +26,7 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/ap
          end)
  
          it("fails on read-only mounts", function()
-@@ -171,7 +171,7 @@
+@@ -171,7 +170,7 @@
          end)
  
          it("returns the capacity on the root mount", function()

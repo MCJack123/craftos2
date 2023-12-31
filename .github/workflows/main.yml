@@ -9,6 +9,7 @@ on:
       - "craftos2-lua/**"
       - "craftos2-lua"
       - "resources/CraftOSTest.lua"
+      - "resources/CCT-Tests.patch"
   pull_request:
     paths:
       - "src/**"
@@ -26,7 +27,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
-      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
+      run: sudo git clone --branch lua-5.2 https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
     - name: Install dependencies
       run: |
         sudo apt update
@@ -54,7 +55,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
-      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
+      run: sudo git clone --branch lua-5.2 https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
     - name: Install dependencies
       run: |
         sudo apt update
@@ -87,7 +88,7 @@ jobs:
         sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev nodejs
     - name: Build standalone ROM
       run: |
-        git clone https://github.com/MCJack123/craftos2-rom
+        git clone --branch lua-5.2 https://github.com/MCJack123/craftos2-rom
         cd craftos2-rom
         node ../resources/packStandaloneROM.js
         cd ..
@@ -115,8 +116,8 @@ jobs:
     - uses: actions/checkout@v1
     - name: Download ROM & CC:T
       run: |
-        sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.19.4-1.108.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        sudo git clone --branch lua-5.2 https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
+        git clone --branch v1.20.1-1.109.0 https://github.com/cc-tweaked/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -145,7 +146,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Download ROM
-      run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
+      run: git clone --branch lua-5.2 https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
@@ -188,8 +189,8 @@ jobs:
         copy x64\Release\CraftOS-PC.pdb CraftOS-PC.pdb
         copy x64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
         copy x64\ReleaseC\CraftOS-PC.pdb CraftOS-PC_console.pdb
-        copy craftos2-lua\src\lua51.dll lua51.dll
-        copy craftos2-lua\src\lua51.pdb lua51.pdb
+        copy craftos2-lua\src\lua52.dll lua52.dll
+        copy craftos2-lua\src\lua52.pdb lua52.pdb
         # Remove buildtrees that kill the cache
         Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
     - name: Run CraftOSTest
@@ -210,7 +211,7 @@ jobs:
         path: |
           CraftOS-PC.exe
           CraftOS-PC_console.exe
-          lua51.dll
+          lua52.dll
     - name: Upload artifact symbols
       uses: actions/upload-artifact@v2
       with:
@@ -218,5 +219,5 @@ jobs:
         path: |
           CraftOS-PC.pdb
           CraftOS-PC_console.pdb
-          lua51.pdb
+          lua52.pdb
   

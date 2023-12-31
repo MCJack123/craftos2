@@ -12,6 +12,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <FileEntry.hpp>
+#include "../peripheral/debugger.hpp"
 #include "../platform.hpp"
 #include "../runtime.hpp"
 #include "../terminal/SDLTerminal.hpp"
@@ -62,6 +63,7 @@ static int mounter_unmount(lua_State *L) {
             if (it == computer->mounts.end()) break;
         }
     }
+    if (found && computer->debugger && !computer->isDebugger) ((debugger*)computer->debugger)->resetMounts();
     lua_pushboolean(L, found);
     return 1;
 }
@@ -79,7 +81,7 @@ static int mounter_list(lua_State *L) {
             lua_pop(L, 1); // table
             lua_createtable(L, 1, 0); // table, entries
         }
-        lua_pushinteger(L, lua_objlen(L, -1) + 1); // table, entries, index
+        lua_pushinteger(L, lua_rawlen(L, -1) + 1); // table, entries, index
         if (std::regex_match(std::get<1>(m), std::basic_regex<path_t::value_type>(path_t("\\d+:").native()))) lua_pushfstring(L, "(virtual mount:%s)", std::get<1>(m).substr(0, std::get<1>(m).size()-1).c_str());
         else lua_pushstring(L, path_t(std::get<1>(m)).string().c_str()); // table, entries, index, value
         lua_settable(L, -3); // table, entries

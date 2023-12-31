@@ -74,6 +74,7 @@ public:
     virtual int call(lua_State *L, const char * method) override;
     library_t getMethods() const override {return methods;}
     void reinitialize(lua_State *L) override;
+    void resetMounts();
 };
 
 #endif

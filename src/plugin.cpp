@@ -73,7 +73,7 @@ extern bool checkIAPEligibility(const char * identifier);
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    8,
+    0,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,

@@ -19,6 +19,11 @@ static std::vector<std::string> sides = {
     "left"
 };
 
+static const char * _typename(lua_State *L, int num) {
+    if (luaL_getmetafield(L, num, "__name")) return lua_tostring(L, -1);
+    else return luaL_typename(L, num);
+}
+
 static int rs_getSides(lua_State *L) {
     lua_createtable(L, 6, 0); 
     for (int i = 0; i < 6; i++) {
@@ -35,7 +40,7 @@ static int rs_getSides(lua_State *L) {
 
 static int rs_getInput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -52,7 +57,7 @@ static int rs_getInput(lua_State *L) {
 
 static int rs_getOutput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -69,7 +74,7 @@ static int rs_getOutput(lua_State *L) {
 
 static int rs_setOutput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -86,7 +91,7 @@ static int rs_setOutput(lua_State *L) {
 
 static int rs_getAnalogInput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -103,7 +108,7 @@ static int rs_getAnalogInput(lua_State *L) {
 
 static int rs_getAnalogOutput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -120,7 +125,7 @@ static int rs_getAnalogOutput(lua_State *L) {
 
 static int rs_setAnalogOutput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -131,7 +136,7 @@ static int rs_setAnalogOutput(lua_State *L) {
         }
     }
     if (side == -1) return luaL_error(L, "bad argument #1 (unknown option %s)", sidestr.c_str());
-    if (!lua_isnumber(L, 2)) return luaL_error(L, "bad argument #2 (number expected, got %s)", luaL_typename(L, 2));
+    if (!lua_isnumber(L, 2)) return luaL_error(L, "bad argument #2 (number expected, got %s)", _typename(L, 2));
     const lua_Number strength = lua_tonumber(L, 2);
     if (isnan(strength)) return luaL_argerror(L, 2, "number expected, got nan");
     if (isinf(strength)) return luaL_argerror(L, 2, "number expected, got inf");
@@ -142,7 +147,7 @@ static int rs_setAnalogOutput(lua_State *L) {
 
 static int rs_getBundledInput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -159,7 +164,7 @@ static int rs_getBundledInput(lua_State *L) {
 
 static int rs_getBundledOutput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -176,7 +181,7 @@ static int rs_getBundledOutput(lua_State *L) {
 
 static int rs_setBundledOutput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -187,7 +192,7 @@ static int rs_setBundledOutput(lua_State *L) {
         }
     }
     if (side == -1) return luaL_error(L, "bad argument #1 (unknown option %s)", sidestr.c_str());
-    if (!lua_isnumber(L, 2)) return luaL_error(L, "bad argument #2 (number expected, got %s)", luaL_typename(L, 2));
+    if (!lua_isnumber(L, 2)) return luaL_error(L, "bad argument #2 (number expected, got %s)", _typename(L, 2));
     const lua_Number strength = lua_tonumber(L, 2);
     if (isnan(strength)) return luaL_argerror(L, 2, "number expected, got nan");
     if (isinf(strength)) return luaL_argerror(L, 2, "number expected, got inf");
@@ -198,7 +203,7 @@ static int rs_setBundledOutput(lua_State *L) {
 
 static int rs_testBundledInput(lua_State *L) {
     Computer * comp = get_comp(L);
-    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", luaL_typename(L, 1));
+    if (lua_type(L, 1) != LUA_TSTRING) return luaL_error(L, "bad argument #1 (string expected, got %s)", _typename(L, 1));
     std::string sidestr = lua_tostring(L, 1);
     std::transform(sidestr.begin(), sidestr.end(), sidestr.begin(), [](unsigned char c) {return std::tolower(c); });
     int side = -1;
@@ -209,7 +214,7 @@ static int rs_testBundledInput(lua_State *L) {
         }
     }
     if (side == -1) return luaL_error(L, "bad argument #1 (unknown option %s)", sidestr.c_str());
-    if (!lua_isnumber(L, 2)) return luaL_error(L, "bad argument #2 (number expected, got %s)", luaL_typename(L, 2));
+    if (!lua_isnumber(L, 2)) return luaL_error(L, "bad argument #2 (number expected, got %s)", _typename(L, 2));
     const lua_Number mask = lua_tonumber(L, 2);
     if (isnan(mask)) return luaL_argerror(L, 2, "number expected, got nan");
     if (isinf(mask)) return luaL_argerror(L, 2, "number expected, got inf");
@@ -218,7 +223,7 @@ static int rs_testBundledInput(lua_State *L) {
     return 1;
 }
 
-static luaL_reg rs_reg[] = {
+static luaL_Reg rs_reg[] = {
     {"getSides", rs_getSides},
     {"getInput", rs_getInput},
     {"getOutput", rs_getOutput},

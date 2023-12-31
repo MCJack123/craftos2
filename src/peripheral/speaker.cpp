@@ -565,7 +565,7 @@ int speaker::playAudio(lua_State *L) {
     luaL_checktype(L, 1, LUA_TTABLE);
     const double volume = luaL_optnumber(L, 2, 1.0);
     if (volume < 0.0 || volume > 3.0) luaL_error(L, "invalid volume %f", volume);
-    size_t len = lua_objlen(L, 1);
+    size_t len = lua_rawlen(L, 1);
     if (len > 131072) luaL_error(L, "Audio data is too large");
     else if (len == 0) luaL_error(L, "Cannot play empty audio");
     if (audioQueue->size() > (config.standardsMode ? 47 : 187)) {

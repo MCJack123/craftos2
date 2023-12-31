@@ -10,26 +10,14 @@
 
 #ifndef __EMSCRIPTEN__
 #include <cstdlib>
-#include <codecvt>
-#include <locale>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/Net/HTTPClientSession.h>
 #include <Poco/Net/HTTPServerResponse.h>
 #include <Poco/Net/HTTPServerRequest.h>
-#include "http_handle.hpp"
 #include "../../util.hpp"
+#include "http_handle.hpp"
 
 using namespace Poco::Net;
-
-struct http_handle_t {
-    std::string url;
-    HTTPClientSession * session;
-    HTTPResponse * handle;
-    std::istream * stream;
-    bool isBinary;
-    std::string failureReason;
-    http_handle_t(std::istream * s) : stream(s) {}
-};
 
 struct http_res {
     std::string body;
@@ -51,7 +39,7 @@ int http_handle_free(lua_State *L) {
 int http_handle_close(lua_State *L) {
     lastCFunction = __func__;
     http_handle_t** handle = (http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
-    if (*handle == NULL) return luaL_error(L, "attempt to use a closed file");
+    if (*handle == NULL) return 0;
     delete (*handle)->handle;
     delete (*handle)->session;
     delete *handle;
@@ -70,17 +58,7 @@ int http_handle_readAll(lua_State *L) {
         ret.append(buffer, sizeof(buffer));
     ret.append(buffer, handle->stream->gcount());
     ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstr;
-    try {wstr = converter.from_bytes(ret.c_str(), ret.c_str() + ret.length());}
-    catch (std::exception & e) {
-        fprintf(stderr, "http_handle_readAll: Error decoding UTF-8: %s\n", e.what());
-        lua_pushlstring(L, ret.c_str(), ret.length());
-        return 1;
-    }
-    std::string out;
-    for (wchar_t c : wstr) {if (c < 256) out += (char)c; else out += '?';}
-    lua_pushlstring(L, out.c_str(), out.length());
+    lua_pushlstring(L, ret.c_str(), ret.length());
     return 1;
 }
 
@@ -94,7 +72,7 @@ int http_handle_readLine(lua_State *L) {
     if (retval.empty() && handle->stream->eof()) return 0;
     if (lua_toboolean(L, 1)) retval += '\n';
     else if (!retval.empty() && retval[retval.size()-1] == '\r') retval = retval.substr(0, retval.size()-1);
-    const std::string out = handle->isBinary ? retval : makeASCIISafe(retval.c_str(), retval.size());
+    const std::string out = retval;
     lua_pushlstring(L, out.c_str(), out.length());
     return 1;
 }

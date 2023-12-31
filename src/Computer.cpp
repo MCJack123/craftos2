@@ -49,6 +49,7 @@ std::unordered_set<Terminal*> orphanedTerminals;
 
 // Context structure for yieldable load
 struct load_ctx {
+    int id;
     std::thread thread;
     std::mutex lock;
     std::condition_variable notify;
@@ -218,6 +219,10 @@ static const char * file_reader(lua_State *L, void * ud, size_t *size) {
 // computer thread that it's done. The results are copied back to the
 // main state, and the loader returns.
 
+std::vector<load_ctx*> load_ctx_stack; // since Lua 5.2+ stores context as ints, we can't store a pointer -
+                                       // instead, all pointers are placed in this vector and the context is an offset here
+                                       // (maybe we can store a stack index instead?)
+
 static const char * yield_loader(lua_State *L, void* data, size_t *size) {
     load_ctx* ctx = (load_ctx*)data;
     lua_State *coro = lua_newthread(L);
@@ -226,7 +231,7 @@ static const char * yield_loader(lua_State *L, void* data, size_t *size) {
     ctx->argcount = 0;
     int status;
     do {
-        status = lua_resume(coro, ctx->argcount);
+        status = lua_resume(coro, ctx->coro, ctx->argcount);
         if (status == 0) {
             if (lua_isnoneornil(coro, 1)) return NULL;
             else if (lua_isstring(coro, 1)) return lua_tolstring(coro, 1, size);
@@ -249,7 +254,7 @@ static const char * yield_loader(lua_State *L, void* data, size_t *size) {
 }
 
 static void load_thread(load_ctx* ctx) {
-    int status = lua_load52(ctx->coro, yield_loader, ctx, ctx->name, ctx->mode);
+    int status = lua_load(ctx->coro, yield_loader, ctx, ctx->name, NULL);
     if (ctx->status == 3) return;
     std::unique_lock<std::mutex> lock(ctx->lock);
     if (status == 0) {
@@ -274,6 +279,8 @@ static int load_ctx_gc(lua_State *L) {
         }
         ctx->thread.join();
     }
+    load_ctx_stack[ctx->id] = NULL;
+    while (!load_ctx_stack.empty() && load_ctx_stack[load_ctx_stack.size()-1] == NULL) load_ctx_stack.erase(load_ctx_stack.end()-1);
     ctx->thread.~thread();
     ctx->lock.~mutex();
     ctx->notify.~condition_variable();
@@ -282,8 +289,9 @@ static int load_ctx_gc(lua_State *L) {
 
 static int yieldable_load(lua_State *L) {
     load_ctx* ctx;
-    if (lua_vcontext(L)) {
-        ctx = (load_ctx*)lua_vcontext(L);
+    int ctxid = 0;
+    if (lua_getctx(L, &ctxid) == LUA_YIELD) {
+        ctx = load_ctx_stack[ctxid];
         std::unique_lock<std::mutex> lock(ctx->lock);
         ctx->status = 0;
         ctx->L = L;
@@ -299,7 +307,7 @@ static int yieldable_load(lua_State *L) {
         if (status == 0) {  /* OK? */
             if (env != 0) {  /* 'env' parameter? */
                 lua_pushvalue(L, env);  /* environment for loaded function */
-                if (!lua_setfenv(L, -2))  /* set it as 1st upvalue */
+                if (!lua_setupvalue(L, 1, -2))  /* set it as 1st upvalue */
                     lua_pop(L, 1);  /* remove 'env' if not used by previous call */
             }
             return 1;
@@ -327,6 +335,11 @@ static int yieldable_load(lua_State *L) {
         ctx->envidx = lua_isnoneornil(L, 4) ? 0 : 4;
         ctx->L = L;
         ctx->coro = lua_newthread(L);
+        for (; ctxid < load_ctx_stack.size(); ctxid++)
+            if (load_ctx_stack[ctxid] == NULL) break;
+        if (ctxid == load_ctx_stack.size()) load_ctx_stack.push_back(ctx);
+        else load_ctx_stack[ctxid] = ctx;
+        ctx->id = ctxid;
         lua_pushvalue(L, 1);
         lua_xmove(L, ctx->coro, 1);
     }
@@ -336,12 +349,12 @@ static int yieldable_load(lua_State *L) {
         if (ctx->status == 1) {
             int argcount = ctx->argcount;
             ctx->argcount = lua_gettop(L) - ctx->argcount;
-            return lua_vyield(L, argcount, ctx);
+            return lua_yieldk(L, argcount, ctxid, yieldable_load);
         } else if (ctx->status == 3) return 0; // this should never happen
     }
     if (ctx->argcount == 1 && ctx->envidx != 0) {  /* OK? */
         lua_pushvalue(L, ctx->envidx);  /* environment for loaded function */
-        if (!lua_setfenv(L, -2))  /* set it as 1st upvalue */
+        if (!lua_setupvalue(L, 1, -2))  /* set it as 1st upvalue */
             lua_pop(L, 1);  /* remove 'env' if not used by previous call */
     }
     return ctx->argcount;
@@ -353,6 +366,7 @@ extern int mobile_luaopen(lua_State *L);
 
 static const luaL_Reg lualibs[] = {
   {"", luaopen_base},
+  {LUA_COLIBNAME, luaopen_coroutine},
   {LUA_OSLIBNAME, luaopen_os},
   {LUA_TABLIBNAME, luaopen_table},
   {LUA_STRLIBNAME, luaopen_string},
@@ -434,10 +448,10 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
 
         // Load libraries
         const luaL_Reg *lib = lualibs;
+        /* call open functions from 'loadedlibs' and set results to global table */
         for (; lib->func; lib++) {
-            lua_pushcfunction(L, lib->func);
-            lua_pushstring(L, lib->name);
-            lua_call(L, 1, 0);
+            luaL_requiref(L, lib->name, lib->func, 1);
+            lua_pop(L, 1);  /* remove lib */
         }
         lua_getglobal(L, "os");
         lua_getfield(L, -1, "date");
@@ -465,6 +479,8 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             // Override the default loader to allow yielding from `load`
             lua_pushcfunction(L, yieldable_load);
             lua_setglobal(L, "load");
+            // Disable bytecode
+            lua_setdisableflags(L, LUA_DISABLE_BYTECODE);
         }
 
         // Load any plugins available
@@ -531,6 +547,8 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
                 lua_setfield(L, -2, "addListener");
                 lua_pushnil(L);
                 lua_setfield(L, -2, "removeListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "websocketServer");
                 lua_pop(L, 1);
             }
             lua_getglobal(L, "debug");
@@ -541,14 +559,20 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             lua_pop(L, 1);
         }
         if (config.serverMode) {
-            lua_getglobal(L, "http");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "addListener");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "removeListener");
-            lua_pop(L, 1);
+            if (config.http_enable) {
+                lua_getglobal(L, "http");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "addListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "removeListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "websocketServer");
+                lua_pop(L, 1);
+            }
             lua_pushnil(L);
             lua_setglobal(L, "mounter");
+            lua_pushnil(L);
+            lua_setglobal(L, "config");
         }
 
         // Set default globals
@@ -621,17 +645,17 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         path_t bios_path_expanded = getROMPath() / bios_name;
         std::ifstream bios_file(bios_path_expanded);
         if (bios_file.is_open()) {
-            status = lua_load(self->coro, file_reader, &bios_file, "@bios.lua");
+            status = lua_load(self->coro, file_reader, &bios_file, "@bios.lua", NULL);
             bios_file.close();
         } else {
             status = LUA_ERRFILE;
-            lua_pushstring(L, strerror(errno));
+            lua_pushstring(self->coro, strerror(errno));
         }
 #endif
         if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.string().c_str(), lua_tostring(L, -1));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.string().c_str(), lua_tostring(self->coro, -1));
             if (::config.standardsMode) displayFailure(self->term, "Error loading bios.lua");
             else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
@@ -660,13 +684,14 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         if (config.abortTimeout > 0 || config.standardsMode) self->eventTimeout = SDL_AddTimer(::config.standardsMode ? 7000 : ::config.abortTimeout, eventTimeoutEvent, self);
 #endif
         while (status == LUA_YIELD && self->running == 1) {
-            status = lua_resume(self->coro, narg);
+            status = lua_resume(self->coro, NULL, narg);
             if (status == LUA_YIELD) {
-                if (lua_gettop(self->coro) && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_strlen(self->coro, -1)));
+                if (lua_gettop(self->coro) && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_rawlen(self->coro, -1)));
                 else narg = getNextEvent(self->coro, "");
             } else if (status != 0 && self->running == 1) {
                 // Catch runtime error
                 self->running = 0;
+                lua_checkstack(self->coro, 4);
                 lua_pushcfunction(self->coro, termPanic);
                 if (lua_isstring(self->coro, -2)) lua_pushvalue(self->coro, -2);
                 else lua_pushnil(self->coro);

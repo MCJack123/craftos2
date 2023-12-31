@@ -26,7 +26,6 @@ struct http_check_t {
 };
 
 struct http_data_t {
-    bool isBinary;
     Computer * comp;
     char** headers;
 };
@@ -38,7 +37,6 @@ struct http_param_t {
     std::unordered_map<std::string, std::string> headers;
     std::string method;
     std::string old_url;
-    bool isBinary;
     bool redirect;
 };
 
@@ -152,22 +150,15 @@ std::string http_success(lua_State *L, void* data) {
     lua_pushcclosure(L, http_handle_readAll, 1);
     lua_settable(L, -3);
 
-    if (!((http_data_t*)(*handle)->userData)->isBinary) {
-        lua_pushstring(L, "readLine");
-        lua_pushlightuserdata(L, handle);
-        lua_pushcclosure(L, http_handle_readLine, 1);
-        lua_settable(L, -3);
+    lua_pushstring(L, "read");
+    lua_pushlightuserdata(L, handle);
+    lua_pushcclosure(L, http_handle_readByte, 1);
+    lua_settable(L, -3);
 
-        lua_pushstring(L, "read");
-        lua_pushlightuserdata(L, handle);
-        lua_pushcclosure(L, http_handle_readChar, 1);
-        lua_settable(L, -3);
-    } else {
-        lua_pushstring(L, "read");
-        lua_pushlightuserdata(L, handle);
-        lua_pushcclosure(L, http_handle_readByte, 1);
-        lua_settable(L, -3);
-    }
+    lua_pushstring(L, "readLine");
+    lua_pushlightuserdata(L, handle);
+    lua_pushcclosure(L, http_handle_readLine, 1);
+    lua_settable(L, -3);
 
     lua_pushstring(L, "getResponseCode");
     lua_pushlightuserdata(L, handle);
@@ -221,7 +212,6 @@ int http_request(lua_State *L) {
     attr.onsuccess = downloadSucceeded;
     attr.onerror = downloadFailed;
     http_data_t * data = new http_data_t;
-    data->isBinary = lua_isboolean(L, 4) && lua_toboolean(L, 4);
     data->comp = get_comp(L);
     attr.userData = data;
     if (lua_isstring(L, 2)) attr.requestData = lua_tolstring(L, 2, &attr.requestDataSize);
@@ -291,7 +281,7 @@ int http_checkURL(lua_State *L) {
     luaL_checkstring(L, 1);
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    param->url = std::string(lua_tostring(L, 1), lua_strlen(L, 1));
+    param->url = std::string(lua_tostring(L, 1), lua_rawlen(L, 1));
     std::thread th(checkThread, param);
     setThreadName(th, "HTTP Check Thread");
     th.detach();
