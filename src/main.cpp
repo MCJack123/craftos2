@@ -6,7 +6,7 @@
  * first computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include "main.hpp"
@@ -612,7 +612,7 @@ int parseArguments(const std::vector<std::string>& argv) {
 #else
             std::cout << " print_txt";
 #endif
-            std::cout << "\nCopyright (c) 2019-2023 JackMacWindows. Licensed under the MIT License.\n";
+            std::cout << "\nCopyright (c) 2019-2024 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             checkTTY();

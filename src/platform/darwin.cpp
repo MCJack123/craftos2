@@ -5,7 +5,7 @@
  * This file implements functions specific to macOS when run from the Terminal.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #ifdef __APPLE__ // disable error checking on Windows

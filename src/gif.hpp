@@ -5,7 +5,7 @@
  * This file defines some functions from gif.cpp for external use.
  *
  * This code is licensed in the public domain.
- * Copyright (c) 2019-2023 JackMacWindows, Charlie Tangora.
+ * Copyright (c) 2019-2024 JackMacWindows, Charlie Tangora.
  */
 
 #ifndef gif_h

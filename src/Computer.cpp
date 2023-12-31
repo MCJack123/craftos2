@@ -5,7 +5,7 @@
  * This file implements the methods of the Computer class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 extern "C" {

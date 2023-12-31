@@ -5,7 +5,7 @@
  * This file implements the methods for the speaker peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #ifndef NO_MIXER
