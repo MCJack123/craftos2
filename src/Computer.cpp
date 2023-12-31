@@ -307,7 +307,7 @@ static int yieldable_load(lua_State *L) {
         if (status == 0) {  /* OK? */
             if (env != 0) {  /* 'env' parameter? */
                 lua_pushvalue(L, env);  /* environment for loaded function */
-                if (!lua_setupvalue(L, 1, -2))  /* set it as 1st upvalue */
+                if (!lua_setupvalue(L, -2, 1))  /* set it as 1st upvalue */
                     lua_pop(L, 1);  /* remove 'env' if not used by previous call */
             }
             return 1;
@@ -354,7 +354,7 @@ static int yieldable_load(lua_State *L) {
     }
     if (ctx->argcount == 1 && ctx->envidx != 0) {  /* OK? */
         lua_pushvalue(L, ctx->envidx);  /* environment for loaded function */
-        if (!lua_setupvalue(L, 1, -2))  /* set it as 1st upvalue */
+        if (!lua_setupvalue(L, -2, 1))  /* set it as 1st upvalue */
             lua_pop(L, 1);  /* remove 'env' if not used by previous call */
     }
     return ctx->argcount;

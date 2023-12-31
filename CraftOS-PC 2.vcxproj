@@ -563,7 +563,6 @@
     <None Include=".github\workflows\main.yml" />
     <None Include=".github\workflows\release.yml" />
     <None Include=".gitignore" />
-    <None Include=".travis.yml" />
     <None Include="configure.ac" />
     <None Include="DOCUMENTATION.md" />
     <None Include="LICENSE" />
