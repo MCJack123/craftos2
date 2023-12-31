@@ -487,6 +487,7 @@ testStart "settings"
 		"shell.autocomplete",
 		"shell.autocomplete_hidden",
 		"shell.mobile_resize_with_keyboard",
+		"shell.package_path",
 		"shell.report_plugin_errors",
 		"test",
 		"test2"
