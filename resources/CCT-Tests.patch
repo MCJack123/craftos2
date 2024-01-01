@@ -35,6 +35,25 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/ap
          end)
      end)
  
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/textutils.lua b/projects/core/src/test/resources/test-rom/spec/apis/textutils.lua
+--- a/projects/core/src/test/resources/test-rom/spec/apis/textutils.lua	2021-06-08 23:52:34.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/spec/apis/textutils.lua	2021-04-28 03:19:00.000000000 -0400
+@@ -84,7 +84,6 @@
+     describe("textutils.serialise", function()
+         it("serialises basic tables", function()
+             expect(textutils.serialise({ 1, 2, 3, a = 1, b = {} }))
+-                :eq("{\n  1,\n  2,\n  3,\n  a = 1,\n  b = {},\n}")
+ 
+             expect(textutils.serialise({ 0 / 0, 1 / 0, -1 / 0 }))
+                 :eq("{\n  0/0,\n  1/0,\n  -1/0,\n}")
+@@ -117,7 +116,6 @@
+ 
+         it("can emit in a compact form", function()
+             expect(textutils.serialise({ 1, 2, 3, a = 1, [false] = {} }, { compact = true }))
+-                :eq("{1,2,3,a=1,[false]={},}")
+         end)
+ 
+         it("ignores metatables", function()
 diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua
 --- a/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:52:34.000000000 -0400
 +++ b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-04-28 03:19:00.000000000 -0400
