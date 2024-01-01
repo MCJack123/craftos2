@@ -175,7 +175,7 @@ static void update_thread() {
 #if (defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
             SDL_MessageBoxData msg;
             SDL_MessageBoxButtonData buttons[] = {
-                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"},
+                {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update at Quit"},
                 {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Ask Me Later"},
                 {0, 0, "More Options..."}
             };
@@ -196,7 +196,7 @@ static void update_thread() {
                         {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 3, "Cancel"},
                         {0, 2, "View Release Notes"},
                         {0, 1, "Skip This Version"},
-                        {0, 0, "Update at Quit"}
+                        {0, 0, "Update Now"}
                     };
                     msg.flags = SDL_MESSAGEBOX_INFORMATION;
                     msg.window = NULL;
@@ -210,8 +210,7 @@ static void update_thread() {
                     delete choicep;
                     switch (choice) {
                     case 0:
-                        updateAtQuit = root->getValue<std::string>("tag_name");
-                        updateAtQuitRoot = *root;
+                        queueTask([root](void*)->void* {updateNow(root->getValue<std::string>("tag_name"), root); return NULL; }, NULL);
                         return;
                     case 1:
                         config.skipUpdate = CRAFTOSPC_VERSION;
@@ -228,7 +227,8 @@ static void update_thread() {
                 } case 1:
                     return;
                 case 3:
-                    queueTask([root](void*)->void*{updateNow(root->getValue<std::string>("tag_name"), root); return NULL;}, NULL);
+                    updateAtQuit = root->getValue<std::string>("tag_name");
+                    updateAtQuitRoot = *root;
                     return;
                 default:
                     // this should never happen
