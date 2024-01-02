@@ -1366,7 +1366,6 @@ static int websocket_server_close(lua_State *L) {
     if (f == NULL) return 0;
     f->srv->stop();
     delete f->srv;
-    delete f;
     *(websocket_server::Factory**)lua_touserdata(L, lua_upvalueindex(1)) = NULL;
     return 0;
 }
@@ -1377,7 +1376,6 @@ static int websocket_server_free(lua_State *L) {
     if (f == NULL) return 0;
     f->srv->stop();
     delete f->srv;
-    delete f;
     *(websocket_server::Factory**)lua_touserdata(L, 1) = NULL;
     return 0;
 }
