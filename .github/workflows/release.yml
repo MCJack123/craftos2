@@ -158,10 +158,10 @@ jobs:
         token: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
     - name: Update file
       run: |
-        sed 's/version "[^"]*"/version "'${GITHUB_REF:1}'"/' 's/sha256 "[^"]*"/sha256 "'$(curl -sL https://github.com/MCJack123/releases/$GITHUB_REF/download/CraftOS-PC.dmg | shasum -a 256 | awk '{print $1;}')'"/' Casks/craftos-pc.rb > tmp.rb
+        sed -e 's/version "[^"]*"/version "'${GITHUB_REF:1}'"/' -e 's/sha256 "[^"]*"/sha256 "'$(curl -sL https://github.com/MCJack123/releases/$GITHUB_REF/download/CraftOS-PC.dmg | shasum -a 256 | awk '{print $1;}')'"/' Casks/craftos-pc.rb > tmp.rb
         mv tmp.rb Casks/craftos-pc.rb
     - name: Upload
-      run: git push origin master
+      run: git commit -m $GITHUB_REF && git push origin master
 
   release-ubuntu:
     name: Upload Ubuntu PPA package
