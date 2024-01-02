@@ -161,7 +161,11 @@ jobs:
         sed -e 's/version "[^"]*"/version "'${GITHUB_REF_NAME:1:-7}'"/' -e 's/sha256 "[^"]*"/sha256 "'$(curl -sL https://github.com/MCJack123/releases/$GITHUB_REF_NAME/download/CraftOS-PC.dmg | shasum -a 256 | awk '{print $1;}')'"/' Casks/craftos-pc-accelerated.rb > tmp.rb
         mv tmp.rb Casks/craftos-pc-accelerated.rb
     - name: Upload
-      run: git commit -m $GITHUB_REF && git push origin master
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "<>"
+        git commit -m $GITHUB_REF
+        git push origin master
 
   release-ubuntu:
     name: Upload Ubuntu PPA package
