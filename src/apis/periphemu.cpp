@@ -5,7 +5,7 @@
  * This file implements the methods for the periphemu API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <algorithm>
@@ -138,7 +138,7 @@ bool detachPeripheral(Computer * computer, const std::string& side) {
 
 static int periphemu_create(lua_State* L) {
     lastCFunction = __func__;
-    if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_typerror(L, 1, "string or number");
+    if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_error(L, "bad argument #1 (expected string or number, got %s)", lua_typename(L, lua_type(L, 1)));
     Computer * computer = get_comp(L);
     const std::string type = luaL_checkstring(L, 2);
     std::string side = lua_isnumber(L, 1) ? type + "_" + std::to_string(lua_tointeger(L, 1)) : lua_tostring(L, 1);

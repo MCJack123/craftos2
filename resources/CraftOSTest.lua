@@ -7,9 +7,9 @@ if config and config.add then
 end
 term.setCursorPos(1, 1)
 term.setTextColor(colors.lightBlue)
-print("CraftOSTest 1.8")
+print("CraftOSTest 1.9")
 term.setTextColor(colors.white)
-if os.version() ~= "CraftOS 1.8" then error("This test is for CraftOS 1.8.") end
+if os.version() ~= "CraftOS 1.9" then error("This test is for CraftOS 1.9.") end
 
 local api_tests = {}
 local api = nil
@@ -487,6 +487,7 @@ testStart "settings"
 		"shell.autocomplete",
 		"shell.autocomplete_hidden",
 		"shell.mobile_resize_with_keyboard",
+		"shell.package_path",
 		"shell.report_plugin_errors",
 		"test",
 		"test2"

@@ -5,7 +5,7 @@
  * This file implements the methods for the term API.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <Computer.hpp>
@@ -24,7 +24,7 @@ static int term_write(lua_State *L) {
     lastCFunction = __func__;
     if (selectedRenderer == 1) {
         printf("%s", luaL_checkstring(L, 1));
-        headlessCursorX += lua_strlen(L, 1);
+        headlessCursorX += lua_objlen(L, 1);
         return 0;
     } else if (selectedRenderer == 4) printf("TW:%d;%s\n", get_comp(L)->term->id, luaL_checkstring(L, 1));
     Computer * computer = get_comp(L);
@@ -99,7 +99,7 @@ static int term_setCursorPos(lua_State *L) {
 
 static int term_setCursorBlink(lua_State *L) {
     lastCFunction = __func__;
-    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    if (!lua_isboolean(L, 1)) luaL_error(L, "bad argument #1 (expected boolean, got %s)", lua_typename(L, lua_type(L, 1)));
     if (selectedRenderer != 1) {
         Terminal * term = get_comp(L)->term;
         std::lock_guard<std::mutex> lock(term->locked);
@@ -140,15 +140,19 @@ static int term_getSize(lua_State *L) {
     }
     Computer * computer = get_comp(L);
     Terminal * term = computer->term;
-    std::lock_guard<std::mutex> lock(term->locked);
-    if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
-        lua_pushinteger(L, term->width * Terminal::fontWidth);
-        lua_pushinteger(L, term->height * Terminal::fontHeight);
-    } else if (lua_isnoneornil(L, 1) || lua_isboolean(L, 1) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0)) {
-        lua_pushinteger(L, term->width);
-        lua_pushinteger(L, term->height);
-    } else luaL_typerror(L, 1, "boolean or number");
-    return 2;
+    {
+        std::lock_guard<std::mutex> lock(term->locked);
+        if ((lua_isboolean(L, 1) && lua_toboolean(L, 1)) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) > 0)) {
+            lua_pushinteger(L, term->width * Terminal::fontWidth);
+            lua_pushinteger(L, term->height * Terminal::fontHeight);
+        } else if (lua_isnoneornil(L, 1) || lua_isboolean(L, 1) || (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0)) {
+            lua_pushinteger(L, term->width);
+            lua_pushinteger(L, term->height);
+        } else goto error;
+        return 2;
+    }
+error:
+    return luaL_error(L, "bad argument #1 (expected boolean or number, got %s)", lua_typename(L, lua_type(L, 1)));
 }
 
 static int term_clear(lua_State *L) {
@@ -243,7 +247,7 @@ static int term_blit(lua_State *L) {
     lastCFunction = __func__;
     if (selectedRenderer == 1) {
         printf("%s", lua_tostring(L, 1));
-        headlessCursorX += lua_strlen(L, 1);
+        headlessCursorX += lua_objlen(L, 1);
         return 0;
     }
     Computer * computer = get_comp(L);
@@ -324,7 +328,7 @@ static int term_setPaletteColor(lua_State *L) {
 
 static int term_setGraphicsMode(lua_State *L) {
     lastCFunction = __func__;
-    if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) luaL_typerror(L, 1, "boolean or number");
+    if (!lua_isboolean(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (expected boolean or number, got %s)", lua_typename(L, lua_type(L, 1)));
     Computer * computer = get_comp(L);
     if (selectedRenderer == 1 || selectedRenderer == 2 || !(computer->config->isColor || computer->isDebugger)) return 0;
     if (lua_isnumber(L, 1) && (lua_tointeger(L, 1) < 0 || lua_tointeger(L, 1) > 2)) return luaL_error(L, "bad argument #1 (invalid mode %d)", lua_tointeger(L, 1));
@@ -410,7 +414,7 @@ static int term_drawPixels(lua_State *L) {
     }
 
     if (!isSolidFill && fillType != LUA_TTABLE)
-        return luaL_typerror(L, 3, "table or number");
+        return luaL_error(L, "bad argument #3 (expected table or number, got %s)", lua_typename(L, lua_type(L, 3)));
 
     bool undefinedWidth;
     unsigned width, height;
@@ -535,7 +539,7 @@ static int term_getPixels(lua_State* L) {
     if (end_w < 0) return luaL_argerror(L, 3, "width cannot be negative");
     else if (end_h < 0) return luaL_argerror(L, 4, "height cannot be negative");
     else if (!lua_isnoneornil(L, 5) && !lua_isboolean(L, 5))
-        return luaL_typerror(L, 5, "boolean");
+        return luaL_error(L, "bad argument #5 (expected boolean, got %s)", lua_typename(L, lua_type(L, 5)));
 
     const bool use_strings = lua_toboolean(L, 5);
 
@@ -631,21 +635,21 @@ static int term_nativePaletteColor(lua_State *L) {
 
 static int term_showMouse(lua_State *L) {
     lastCFunction = __func__;
-    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    if (!lua_isboolean(L, 1)) luaL_error(L, "bad argument #1 (expected boolean, got %s)", lua_typename(L, lua_type(L, 1)));
     SDL_ShowCursor(lua_toboolean(L, 1));
     return 0;
 }
 
 static int term_relativeMouse(lua_State *L) {
     lastCFunction = __func__;
-    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    luaL_checktype(L, 1, LUA_TBOOLEAN);
     SDL_SetRelativeMouseMode((SDL_bool)lua_toboolean(L, 1));
     return 0;
 }
 
 static int term_setFrozen(lua_State *L) {
     lastCFunction = __func__;
-    if (!lua_isboolean(L, 1)) luaL_typerror(L, 1, "boolean");
+    if (!lua_isboolean(L, 1)) luaL_error(L, "bad argument #1 (expected boolean, got %s)", lua_typename(L, lua_type(L, 1)));
     Terminal * term = get_comp(L)->term;
     if (term == NULL) return 0;
     std::lock_guard<std::mutex> lock(term->locked);

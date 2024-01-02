@@ -15,7 +15,6 @@ Visit the website at https://www.craftos-pc.cc/ for more information, including 
   * Arch Linux with AUR helper
   * iOS 11.0+
   * Android 7.0+
-* Administrator privileges
 * 20-50 MB free space
 
 ## Installing

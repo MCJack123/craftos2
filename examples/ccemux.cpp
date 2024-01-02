@@ -6,7 +6,7 @@
  * programs when run in CraftOS-PC.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 extern "C" {
@@ -145,11 +145,11 @@ static int ccemux_getVersion(lua_State *L) {
 
 static int ccemux_openEmu(lua_State *L) {
     Computer * comp = get_comp(L);
-    int id = 0;
+    int id = luaL_optinteger(L, 1, -1);
     if (lua_isnumber(L, 1)) id = (int)lua_tointeger(L, 1);
-    else if (!lua_isnoneornil(L, 1)) luaL_typerror(L, 1, "number");
-    else {
+    if (id < 0) {
         std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
+        id = 0;
         while (functions->getComputerById(id) != NULL) id++;
     }
     if (functions->attachPeripheral(comp, "computer_" + std::to_string(id), "computer", NULL, "") == NULL) lua_pushnil(L);
@@ -252,7 +252,7 @@ static PluginInfo info("ccemux", 3);
 
 extern "C" {
 DLLEXPORT int luaopen_ccemux(lua_State *L) {
-    luaL_register(L, lua_tostring(L, 1), M);
+    luaL_newlib(L, M);
     functions->addVirtualMount(get_comp(L), emuROM, "/rom");
     return 1;
 }

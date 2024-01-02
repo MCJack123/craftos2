@@ -5,7 +5,7 @@
  * This file implements the methods of the Computer class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 extern "C" {
@@ -49,6 +49,7 @@ std::unordered_set<Terminal*> orphanedTerminals;
 
 // Context structure for yieldable load
 struct load_ctx {
+    int id;
     std::thread thread;
     std::mutex lock;
     std::condition_variable notify;
@@ -170,8 +171,8 @@ extern "C" {
         computer->breakpoints[id] = std::make_pair("@/" + fixpath(computer, luaL_checkstring(L, 1), false, false).string(), luaL_checkinteger(L, 2));
         if (!computer->hasBreakpoints) computer->forceCheckTimeout = true;
         computer->hasBreakpoints = true;
-        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
-        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 1000000);
+        lua_sethook(computer->L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL, 1000000);
+        lua_sethook(L, termHook, LUA_MASKCOUNT | LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL, 1000000);
         lua_pushinteger(L, id);
         return 1;
     }
@@ -299,6 +300,7 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
 
         // Load libraries
         const luaL_Reg *lib = lualibs;
+        /* call open functions from 'loadedlibs' and set results to global table */
         for (; lib->func; lib++) {
             lua_pushcfunction(L, lib->func);
             lua_pushstring(L, lib->name);
@@ -311,7 +313,7 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         lua_pushnil(L);
         lua_setglobal(L, "os");
         // TODO: Fix logErrors since error hooks are no longer enabled
-        if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
+        if (self->debugger != NULL && !self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKLINE | LUA_MASKRET | LUA_MASKCALL, 0);
         //else if (!self->isDebugger) lua_sethook(self->coro, termHook, LUA_MASKRET | LUA_MASKCALL | LUA_MASKERROR | LUA_MASKRESUME | LUA_MASKYIELD, 0);
         //else lua_sethook(self->coro, termHook, LUA_MASKERROR, 0);
         lua_atpanic(L, termPanic);
@@ -398,6 +400,8 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
                 lua_setfield(L, -2, "addListener");
                 lua_pushnil(L);
                 lua_setfield(L, -2, "removeListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "websocketServer");
                 lua_pop(L, 1);
             }
             lua_getglobal(L, "debug");
@@ -408,14 +412,20 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             lua_pop(L, 1);
         }
         if (config.serverMode) {
-            lua_getglobal(L, "http");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "addListener");
-            lua_pushnil(L);
-            lua_setfield(L, -2, "removeListener");
-            lua_pop(L, 1);
+            if (config.http_enable) {
+                lua_getglobal(L, "http");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "addListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "removeListener");
+                lua_pushnil(L);
+                lua_setfield(L, -2, "websocketServer");
+                lua_pop(L, 1);
+            }
             lua_pushnil(L);
             lua_setglobal(L, "mounter");
+            lua_pushnil(L);
+            lua_setglobal(L, "config");
         }
 
         // Set default globals
@@ -492,13 +502,13 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             bios_file.close();
         } else {
             status = LUA_ERRFILE;
-            lua_pushstring(L, strerror(errno));
+            lua_pushstring(self->coro, strerror(errno));
         }
 #endif
         if (status || !lua_isfunction(self->coro, -1)) {
             /* If something went wrong, error message is at the top of */
             /* the stack */
-            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.string().c_str(), lua_tostring(L, -1));
+            fprintf(stderr, "Couldn't load BIOS: %s (%s). Please make sure the CraftOS ROM is installed properly. (See https://www.craftos-pc.cc/docs/error-messages for more information.)\n", bios_path_expanded.string().c_str(), lua_tostring(self->coro, -1));
             if (::config.standardsMode) displayFailure(self->term, "Error loading bios.lua");
             else queueTask([bios_path_expanded](void* term)->void*{
                 ((Terminal*)term)->showMessage(
@@ -519,11 +529,12 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         while (status == LUA_YIELD && self->running == 1) {
             status = lua_resume(self->coro, narg);
             if (status == LUA_YIELD) {
-                if (lua_gettop(self->coro) && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_strlen(self->coro, -1)));
+                if (lua_gettop(self->coro) && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_objlen(self->coro, -1)));
                 else narg = getNextEvent(self->coro, "");
             } else if (status != 0 && self->running == 1) {
                 // Catch runtime error
                 self->running = 0;
+                lua_checkstack(self->coro, 4);
                 lua_pushcfunction(self->coro, termPanic);
                 if (lua_isstring(self->coro, -2)) lua_pushvalue(self->coro, -2);
                 else lua_pushnil(self->coro);

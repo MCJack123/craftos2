@@ -5,7 +5,7 @@
  * This file implements the RawTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <algorithm>
@@ -724,7 +724,7 @@ static void rawInputLoop() {
                             lua_getfield(comp->rawFileStack, -1, "readAll");
                             lua_call(comp->rawFileStack, 0, 1);
                             if (lua_isnil(comp->rawFileStack, -1)) data = ""; // shouldn't happen
-                            else data = std::string(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
+                            else data = std::string(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
                             lua_pop(comp->rawFileStack, 1);
                             lua_getfield(comp->rawFileStack, -1, "close");
                             lua_call(comp->rawFileStack, 0, 0);
@@ -807,7 +807,7 @@ static void rawInputLoop() {
                         out.write((char*)&size, 4);
                         if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
                             lua_rawgeti(comp->rawFileStack, -1, i + 1);
-                            out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
                             out.put(0);
                             lua_pop(comp->rawFileStack, 1);
                         }
@@ -858,7 +858,7 @@ static void rawInputLoop() {
                         out.write((char*)&size, 4);
                         if (size != 0xFFFFFFFF) for (uint32_t i = 0; i < size; i++) {
                             lua_rawgeti(comp->rawFileStack, -1, i + 1);
-                            out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
                             out.put(0);
                             lua_pop(comp->rawFileStack, 1);
                         }
@@ -868,7 +868,7 @@ static void rawInputLoop() {
                         lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "makeDir"));
                         lua_pushstring(comp->rawFileStack, path.c_str());
                         if (lua_pcall(comp->rawFileStack, 1, 0, 0)) {
-                            out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
                             lua_pop(comp->rawFileStack, 1);
                         }
                         out.put(0);
@@ -877,7 +877,7 @@ static void rawInputLoop() {
                         lua_pushcfunction(comp->rawFileStack, findLibraryFunction(fs_lib.functions, "delete"));
                         lua_pushstring(comp->rawFileStack, path.c_str());
                         if (lua_pcall(comp->rawFileStack, 1, 0, 0)) {
-                            out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
                             lua_pop(comp->rawFileStack, 1);
                         }
                         out.put(0);
@@ -887,7 +887,7 @@ static void rawInputLoop() {
                         lua_pushstring(comp->rawFileStack, path.c_str());
                         lua_pushstring(comp->rawFileStack, path2.c_str());
                         if (lua_pcall(comp->rawFileStack, 2, 0, 0)) {
-                            out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
                             lua_pop(comp->rawFileStack, 1);
                         }
                         out.put(0);
@@ -897,7 +897,7 @@ static void rawInputLoop() {
                         lua_pushstring(comp->rawFileStack, path.c_str());
                         lua_pushstring(comp->rawFileStack, path2.c_str());
                         if (lua_pcall(comp->rawFileStack, 2, 0, 0)) {
-                            out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1));
+                            out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
                             lua_pop(comp->rawFileStack, 1);
                         }
                         out.put(0);
@@ -944,10 +944,10 @@ static void rawInputLoop() {
                     lua_pushstring(comp->rawFileStack, path.c_str());
                     lua_pushstring(comp->rawFileStack, (std::string((reqtype & CCPC_RAW_FILE_REQUEST_OPEN_APPEND) ? "a" : "w") + ((reqtype & CCPC_RAW_FILE_REQUEST_OPEN_BINARY) ? "b" : "")).c_str());
                     if (lua_pcall(comp->rawFileStack, 2, 2, 0)) {
-                        out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1) + 1);
+                        out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1) + 1);
                         lua_pop(comp->rawFileStack, 1);
                     } else if (lua_isnil(comp->rawFileStack, -2)) {
-                        out.write(lua_tostring(comp->rawFileStack, -1), lua_strlen(comp->rawFileStack, -1) + 1);
+                        out.write(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1) + 1);
                         lua_pop(comp->rawFileStack, 2);
                     } else {
                         lua_pop(comp->rawFileStack, 1);

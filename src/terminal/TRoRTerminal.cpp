@@ -5,7 +5,7 @@
  * This file implements the TRoRTerminal class.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <iostream>
@@ -44,7 +44,7 @@ static std::string trorEvent(lua_State *L, void* userp) {
     }
     delete str;
     lua_newtable(L);
-    lua_setfenv(L, -2);
+    lua_setupvalue(L, -2, 1);
     lua_call(L, 0, LUA_MULTRET);
     std::string name = lua_tostring(L, 1);
     lua_remove(L, 1);

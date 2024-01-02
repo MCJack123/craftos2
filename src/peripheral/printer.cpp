@@ -5,7 +5,7 @@
  * This file implements the methods for the printer peripheral.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <cstring>
@@ -268,7 +268,7 @@ int printer::getInkLevel(lua_State *L) {
 
 int printer::setPageTitle(lua_State *L) {
     lastCFunction = __func__;
-    title = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
+    title = std::string(luaL_checkstring(L, 1), lua_objlen(L, 1));
     return 0;
 }
 

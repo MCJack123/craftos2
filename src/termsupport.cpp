@@ -5,7 +5,7 @@
  * This file implements some helper functions for terminal interaction.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <cerrno>
@@ -394,7 +394,7 @@ static void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
     lua_settable(coro, -3);
     lua_newtable(coro);
     lua_pushstring(coro, "__index");
-    lua_getfenv(L, -2);
+    lua_getupvalue(L, -2, 1);
     lua_xmove(L, coro, 1);
     lua_settable(coro, -3);
     lua_setmetatable(coro, -2);
@@ -402,7 +402,7 @@ static void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
     int status = lua_resume(coro, 2);
     int narg;
     while (status == LUA_YIELD) {
-        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_strlen(coro, -1)));
+        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_objlen(coro, -1)));
         else narg = getNextEvent(coro, "");
         status = lua_resume(coro, narg);
     }
@@ -423,13 +423,6 @@ extern "C" {
         }
         return 0;
     }
-}
-
-extern "C" {
-#ifdef _WIN32
-    __declspec(dllimport)
-#endif
-    extern const char KEY_HOOK;
 }
 
 void termHook(lua_State *L, lua_Debug *ar) {
@@ -502,7 +495,7 @@ void termHook(lua_State *L, lua_Debug *ar) {
                 if (debuggerBreak(L, computer, dbg, lua_tostring(L, -2) == NULL ? "Error" : lua_tostring(L, -2))) return;
         }
     } else if (computer->debugger != NULL && !computer->isDebugger) {
-        if (ar->event == LUA_HOOKRET || ar->event == LUA_HOOKTAILRET) {
+        if (ar->event == LUA_HOOKRET) {
             debugger * dbg = (debugger*)computer->debugger;
             if (dbg->breakType == DEBUGGER_BREAK_TYPE_RETURN && dbg->thread == NULL && debuggerBreak(L, computer, dbg, "Pause")) return;
             if (dbg->isProfiling) {
@@ -642,6 +635,7 @@ struct comp_term_pair {Computer * comp; Terminal * term;};
 
 static std::string mouse_move(lua_State *L, void* param) {
     Terminal * term = (Terminal*)param;
+    std::lock_guard<std::mutex> lock(((SDLTerminal*)term)->mouseMoveLock);
     lua_pushinteger(L, 1);
     lua_pushinteger(L, term->nextMouseMove.x);
     lua_pushinteger(L, term->nextMouseMove.y);
@@ -698,6 +692,7 @@ std::string termGetEvent(lua_State *L) {
                     computer->waitingForTerminate &= ~1;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 3) == 0) computer->waitingForTerminate |= 1;
+                else return "";
             } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_s : e.key.keysym.sym == 31) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 4) {
                     computer->waitingForTerminate |= 8;
@@ -705,6 +700,7 @@ std::string termGetEvent(lua_State *L) {
                     computer->running = 0;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 12) == 0) computer->waitingForTerminate |= 4;
+                else return "";
             } else if (((selectedRenderer == 0 || selectedRenderer == 5) ? e.key.keysym.sym == SDLK_r : e.key.keysym.sym == 19) && (e.key.keysym.mod & KMOD_CTRL)) {
                 if (computer->waitingForTerminate & 16) {
                     computer->waitingForTerminate |= 32;
@@ -712,6 +708,7 @@ std::string termGetEvent(lua_State *L) {
                     computer->running = 2;
                     return "terminate";
                 } else if ((computer->waitingForTerminate & 48) == 0) computer->waitingForTerminate |= 16;
+                else return "";
             } else if (e.key.keysym.sym == SDLK_v && (e.key.keysym.mod & KMOD_SYSMOD) && SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
                 std::string str;
@@ -737,7 +734,7 @@ std::string termGetEvent(lua_State *L) {
             std::string str;
             try {str = utf8_to_string(e.text.text, std::locale("C"));}
             catch (std::exception &ignored) {str = "?";}
-            if (!str.empty()) {
+            if (!str.empty() && !(computer->waitingForTerminate & 0x2A)) {
 #if defined(__ANDROID__) || defined(__IPHONEOS__)
                 mobileResetModifiers();
 #endif
@@ -844,7 +841,7 @@ std::string termGetEvent(lua_State *L) {
                 if (pos == used_buttons.end()) it = term->mouseButtonOrder.erase(it);
                 else ++it;
             }
-            Uint8 button = used_buttons.back();
+            Uint8 button = used_buttons.empty() ? 1 : used_buttons.back();
             if (!term->mouseButtonOrder.empty()) button = term->mouseButtonOrder.back();
             if (button == SDL_BUTTON_MIDDLE) button = 3;
             else if (button == SDL_BUTTON_RIGHT) button = 2;
@@ -1038,6 +1035,7 @@ std::string termGetEvent(lua_State *L) {
             }
             if (term == NULL) return "";
             if (term->mouseMoveDebounceTimer != 0) {
+                std::lock_guard<std::mutex> lock(((SDLTerminal*)term)->mouseMoveLock);
                 SDL_RemoveTimer(term->mouseMoveDebounceTimer);
                 term->mouseMoveDebounceTimer = 0;
                 term->nextMouseMove = {0, 0, 0, 0, std::string() };

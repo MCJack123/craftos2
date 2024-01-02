@@ -5,7 +5,7 @@
  * This file creates the base class for all peripherals to inherit.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_PERIPHERAL_HPP
@@ -56,9 +56,7 @@ public:
     virtual int call(lua_State *L, const char * method)=0;
     // This function is deprecated, and no longer works. In fact, it did not work
     // in any version of the API. Just leave this as-is.
-#if __cplusplus >= 201402L
     [[deprecated]]
-#endif
     virtual void update() {}
     // This function should return a library_t containing the names of all of the
     // methods available to the peripheral. Only the keys, name, and size members

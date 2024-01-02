@@ -6,7 +6,7 @@
  * first computer.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include "main.hpp"
@@ -178,7 +178,7 @@ static void update_thread() {
 #if (defined(__APPLE__) || defined(WIN32)) && !defined(STANDALONE_ROM)
                     SDL_MessageBoxData msg;
                     SDL_MessageBoxButtonData buttons[] = {
-                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update Now"},
+                        {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "Update at Quit"},
                         {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, "Ask Me Later"},
                         {0, 0, "More Options..."}
                     };
@@ -199,7 +199,7 @@ static void update_thread() {
                                 {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 3, "Cancel"},
                                 {0, 2, "View Release Notes"},
                                 {0, 1, "Skip This Version"},
-                                {0, 0, "Update at Quit"}
+                                {0, 0, "Update Now"}
                             };
                             msg.flags = SDL_MESSAGEBOX_INFORMATION;
                             msg.window = NULL;
@@ -213,8 +213,7 @@ static void update_thread() {
                             delete choicep;
                             switch (choice) {
                             case 0:
-                                updateAtQuit = obj->getValue<std::string>("tag_name");
-                                updateAtQuitRoot = *obj;
+                                queueTask([obj](void*)->void*{updateNow(obj->getValue<std::string>("tag_name"), obj); return NULL;}, NULL);
                                 return;
                             case 1:
                                 config.skipUpdate = CRAFTOSPC_VERSION;
@@ -231,7 +230,8 @@ static void update_thread() {
                         } case 1:
                             return;
                         case 3:
-                            queueTask([obj](void*)->void*{updateNow(obj->getValue<std::string>("tag_name"), obj); return NULL;}, NULL);
+                            updateAtQuit = obj->getValue<std::string>("tag_name");
+                            updateAtQuitRoot = *obj;
                             return;
                         default:
                             // this should never happen
@@ -618,7 +618,7 @@ int parseArguments(const std::vector<std::string>& argv) {
 #else
             std::cout << " print_txt";
 #endif
-            std::cout << "\nCopyright (c) 2019-2023 JackMacWindows. Licensed under the MIT License.\n";
+            std::cout << "\nCopyright (c) 2019-2024 JackMacWindows. Licensed under the MIT License.\n";
             return 0;
         } else if (arg == "--help" || arg == "-h" || arg == "-?") {
             checkTTY();

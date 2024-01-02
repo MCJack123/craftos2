@@ -5,7 +5,7 @@
  * This file implements the methods for the fs API.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <cerrno>
@@ -154,16 +154,17 @@ static int fs_list(lua_State *L) {
     lastCFunction = __func__;
     std::string str = checkstring(L, 1);
     const std::vector<path_t> possible_paths = fixpath_multiple(get_comp(L), str);
-    if (possible_paths.empty()) err(L, 1, "Not a directory");
+    if (possible_paths.empty()) err(L, 1, "No such file");
     bool gotdir = false;
     std::set<std::string> entries;
     for (const path_t& path : possible_paths) {
         if (std::regex_search((*path.begin()).native(), pathregex("^\\d+:"))) {
             try {
                 const FileEntry &d = get_comp(L)->virtualMounts[(unsigned)std::stoul((*path.begin()).native())]->path(path.lexically_relative(*path.begin()));
-                gotdir = true;
-                if (d.isDir) for (const auto& p : d.dir) entries.insert(p.first);
-                else gotdir = false;
+                if (d.isDir) {
+                    gotdir = true;
+                    for (const auto& p : d.dir) entries.insert(p.first);
+                }
             } catch (...) {continue;}
         } else {
             std::error_code e;
@@ -437,7 +438,14 @@ static int fs_open(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
     const char * mode = luaL_checkstring(L, 2);
-    if ((mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') || (!(mode[1] == 'b' && mode[2] == '\0') && mode[1] != '\0')) luaL_error(L, "%s: Unsupported mode", mode);
+    if (
+        (mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') ||
+        (
+            !(mode[1] == '+' && mode[2] == 'b' && mode[3] == '\0') &&
+            !(mode[1] == '+' && mode[2] == '\0') &&
+            !(mode[1] == 'b' && mode[2] == '\0') &&
+            mode[1] != '\0'
+        )) luaL_error(L, "%s: Unsupported mode", mode);
     std::string str = checkstring(L, 1);
     const path_t path = mode[0] == 'r' ? fixpath(get_comp(L), str, true) : fixpath_mkdir(get_comp(L), str);
     if (path.empty()) {
@@ -466,7 +474,7 @@ static int fs_open(lua_State *L) {
                 if (d.isDir) {
                     lua_remove(L, fpid);
                     lua_pushnil(L);
-                    if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", fixpath(computer, str, false, false).string().c_str());
+                    if (strchr(mode, 'r') != NULL) lua_pushfstring(L, "/%s: Not a file", fixpath(computer, str, false, false).string().c_str());
                     else lua_pushfstring(L, "/%s: Cannot write to directory", fixpath(computer, str, false, false).string().c_str());
                     return 2; 
                 }
@@ -484,7 +492,7 @@ static int fs_open(lua_State *L) {
         std::error_code e;
         if (fs::is_directory(path, e)) { 
             lua_pushnil(L);
-            if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0) lua_pushfstring(L, "/%s: No such file", fixpath(computer, str, false, false).string().c_str());
+            if (strchr(mode, 'r') != NULL) lua_pushfstring(L, "/%s: Not a file", fixpath(computer, str, false, false).string().c_str());
             else lua_pushfstring(L, "/%s: Cannot write to directory", fixpath(computer, str, false, false).string().c_str());
             return 2; 
         }
@@ -505,14 +513,21 @@ static int fs_open(lua_State *L) {
         std::fstream ** fp = (std::fstream**)lua_newuserdata(L, sizeof(std::fstream*));
         fpid = lua_gettop(L);
         std::ios::openmode flags = std::ios::binary;
-        if (strchr(mode, 'r')) flags |= std::ios::in;
-        else if (strchr(mode, 'w')) flags |= std::ios::out | std::ios::trunc;
-        else if (strchr(mode, 'a')) flags |= std::ios::in | std::ios::out | std::ios::ate;
+        if (strchr(mode, 'r')) {
+            flags |= std::ios::in;
+            if (strchr(mode, '+')) flags |= std::ios::out;
+        } else if (strchr(mode, 'w')) {
+            flags |= std::ios::out | std::ios::trunc;
+            if (strchr(mode, '+')) flags |= std::ios::in;
+        } else if (strchr(mode, 'a')) {
+            flags |= std::ios::in | std::ios::out | std::ios::ate;
+            if (strchr(mode, '+')) flags |= std::ios::in;
+        }
         *fp = new std::fstream(path, flags);
         if (!(*fp)->is_open()) {
             bool ok = false;
             if (strchr(mode, 'a')) {
-                (*fp)->open(path, std::ios::out | std::ios::trunc);
+                (*fp)->open(path, (flags & ~std::ios::ate) | std::ios::trunc);
                 ok = (*fp)->is_open();
             }
             if (!ok) {
@@ -540,27 +555,48 @@ static int fs_open(lua_State *L) {
     lua_pushvalue(L, fpid);
     lua_pushcclosure(L, fs_handle_close, 1);
     lua_settable(L, -3);
-    if (strcmp(mode, "r") == 0) {
+
+    lua_pushstring(L, "seek");
+    lua_pushvalue(L, fpid);
+    lua_pushcclosure(L, fs_handle_seek, 1);
+    lua_settable(L, -3);
+
+    if (mode[0] == 'r' || strchr(mode, '+')) {
+        if (strchr(mode, 'b')) {
+            lua_pushstring(L, "read");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_readByte, 1);
+            lua_settable(L, -3);
+        } else {
+            lua_pushstring(L, "read");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_readChar, 1);
+            lua_settable(L, -3);
+        }
+
         lua_pushstring(L, "readAll");
         lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_readAll, 1);
+        lua_pushcclosure(L, fs_handle_readAllByte, 1);
         lua_settable(L, -3);
 
         lua_pushstring(L, "readLine");
         lua_pushvalue(L, fpid);
-        lua_pushboolean(L, false);
-        lua_pushcclosure(L, fs_handle_readLine, 2);
+        lua_pushcclosure(L, fs_handle_readLine, 1);
         lua_settable(L, -3);
+    }
 
-        lua_pushstring(L, "read");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_readChar, 1);
-        lua_settable(L, -3);
-    } else if (strcmp(mode, "w") == 0 || strcmp(mode, "a") == 0) {
-        lua_pushstring(L, "write");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_writeString, 1);
-        lua_settable(L, -3);
+    if (mode[0] == 'w' || mode[0] == 'a' || strchr(mode, '+')) {
+        if (strchr(mode, 'b')) {
+            lua_pushstring(L, "write");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_writeByte, 1);
+            lua_settable(L, -3);
+        } else {
+            lua_pushstring(L, "write");
+            lua_pushvalue(L, fpid);
+            lua_pushcclosure(L, fs_handle_writeString, 1);
+            lua_settable(L, -3);
+        }
 
         lua_pushstring(L, "writeLine");
         lua_pushvalue(L, fpid);
@@ -571,43 +607,8 @@ static int fs_open(lua_State *L) {
         lua_pushvalue(L, fpid);
         lua_pushcclosure(L, fs_handle_flush, 1);
         lua_settable(L, -3);
-    } else if (strcmp(mode, "rb") == 0) {
-        lua_pushstring(L, "read");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_readByte, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "readAll");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_readAllByte, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "readLine");
-        lua_pushvalue(L, fpid);
-        lua_pushboolean(L, true);
-        lua_pushcclosure(L, fs_handle_readLine, 2);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "seek");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_seek, 1);
-        lua_settable(L, -3);
-    } else if (strcmp(mode, "wb") == 0 || strcmp(mode, "ab") == 0) {
-        lua_pushstring(L, "write");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_writeByte, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "flush");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_flush, 1);
-        lua_settable(L, -3);
-
-        lua_pushstring(L, "seek");
-        lua_pushvalue(L, fpid);
-        lua_pushcclosure(L, fs_handle_seek, 1);
-        lua_settable(L, -3);
     }
+
     computer->files_open++;
     return 1;
 }

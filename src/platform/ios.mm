@@ -5,7 +5,7 @@
  * This file implements functions specific to iOS app binaries.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 extern "C" {
@@ -768,6 +768,7 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
         window_info.info.uikit.window.rootViewController = rootvc;
         sdlView = oldvc.view;
         viewController = vc;
+        [viewController retain];
         // Remove the updateKeyboard method in the old view controller, as it glitches out the screen when opening/closing the keyboard
         method_setImplementation(class_getInstanceMethod([oldvc class], @selector(updateKeyboard)), [ViewController instanceMethodForSelector:@selector(updateKeyboard)]);
         // Set fullscreen mode, but only on devices without a notch
@@ -781,18 +782,18 @@ void iosSetSafeAreaConstraints(SDLTerminal * term) {
 }
 
 void updateCloseButton() {
-    if (computers->empty()) return;
+    if (computers->empty() || !viewController) return;
     viewController.closeButton.enabled = computers->size() > 1 || (*renderTarget) != computers->front()->term;
     viewController.nextButton.enabled = renderTargets.size() > 1;
     viewController.previousButton.enabled = renderTargets.size() > 1;
 }
 
 void iOS_SetWindowTitle(SDL_Window * win, const char * title) {
-    viewController.navigationItem.title = [NSString stringWithCString:title encoding:NSASCIIStringEncoding];
+    if (viewController) viewController.navigationItem.title = [NSString stringWithCString:title encoding:NSASCIIStringEncoding];
 }
 
 void mobileResetModifiers() {
-    [viewController resetModifiers];
+    if (viewController) [viewController resetModifiers];
 }
 
 void handler(int sig) {
@@ -907,7 +908,9 @@ static luaL_Reg mobile_reg[] = {
 };*/
 
 int mobile_luaopen(lua_State *L) {
-    luaL_register(L, "mobile", mobile_reg);
+    luaL_newlib(L, mobile_reg);
+    lua_pushvalue(L, -1);
+    lua_setglobal(L, "mobile");
     /*lua_pushstring(L, "ios");
     lua_newtable(L);
     for (luaL_Reg* r = ios_reg; r->name && r->func; r++) {

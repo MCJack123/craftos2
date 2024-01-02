@@ -5,7 +5,7 @@
  * This file implements the functions for the os API.
  *
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <Computer.hpp>
@@ -26,7 +26,7 @@ static int os_getComputerLabel(lua_State *L) {
 static int os_setComputerLabel(lua_State *L) {
     lastCFunction = __func__;
     Computer * comp = get_comp(L);
-    comp->config->label = std::string(luaL_optstring(L, 1, ""), lua_isstring(L, 1) ? lua_strlen(L, 1) : 0);
+    comp->config->label = std::string(luaL_optstring(L, 1, ""), lua_isstring(L, 1) ? lua_objlen(L, 1) : 0);
     if (comp->term != NULL) comp->term->setLabel(comp->config->label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config->label));
     return 0;
 }
@@ -34,7 +34,7 @@ static int os_setComputerLabel(lua_State *L) {
 static int os_queueEvent(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    const std::string name = std::string(luaL_checkstring(L, 1), lua_strlen(L, 1));
+    const std::string name = std::string(luaL_checkstring(L, 1), lua_objlen(L, 1));
     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param = lua_newthread(computer->paramQueue);
     lua_remove(L, 1);
@@ -347,7 +347,7 @@ static int os_about(lua_State *L) {
     lastCFunction = __func__;
     lua_pushstring(L, "CraftOS-PC " CRAFTOSPC_VERSION "\n\nCraftOS-PC 2 is licensed under the MIT License.\nMIT License\n\
 \n\
-Copyright (c) 2019-2023 JackMacWindows\n\
+Copyright (c) 2019-2024 JackMacWindows\n\
 \n\
 Permission is hereby granted, free of charge, to any person obtaining a copy\n\
 of this software and associated documentation files (the \"Software\"), to deal\n\

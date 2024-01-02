@@ -5,7 +5,7 @@
  * This file defines some functions and constants useful for plugins.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_LIB_HPP

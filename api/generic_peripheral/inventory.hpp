@@ -6,7 +6,7 @@
  * to inherit from.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #ifndef CRAFTOS_PC_GENERIC_PERIPHERAL_INVENTORY_HPP

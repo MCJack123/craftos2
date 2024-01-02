@@ -5,7 +5,7 @@
  * This file defines the class for the VS Code debug adapter.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2023 JackMacWindows. 
+ * Copyright (c) 2019-2024 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_DEBUG_ADAPTER_HPP

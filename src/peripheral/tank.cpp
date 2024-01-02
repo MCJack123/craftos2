@@ -5,7 +5,7 @@
  * This file defines the methods for the tank peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include "tank.hpp"

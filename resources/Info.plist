@@ -21,15 +21,15 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.7.5</string>
+	<string>2.8</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>LSApplicationCategoryType</key>
 	<string>Unknown</string>
 	<key>CFBundleVersion</key>
-	<string>2.7.5</string>
+	<string>2.8</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright (C) 2019-2023 JackMacWindows.</string>
+	<string>Copyright (C) 2019-2024 JackMacWindows.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

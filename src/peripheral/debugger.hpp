@@ -5,7 +5,7 @@
  * This file defines the class for the debugger peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2023 JackMacWindows. 
+ * Copyright (c) 2019-2024 JackMacWindows. 
  */
 
 #ifndef PERIPHERAL_DEBUGGER_HPP
@@ -74,6 +74,7 @@ public:
     virtual int call(lua_State *L, const char * method) override;
     library_t getMethods() const override {return methods;}
     void reinitialize(lua_State *L) override;
+    void resetMounts();
 };
 
 #endif

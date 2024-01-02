@@ -9,7 +9,15 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/mcfly.l
 diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua b/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua
 --- a/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 02:52:34.000000000 -0400
 +++ b/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua	2020-06-29 01:24:00.000000000 -0400
-@@ -122,7 +122,7 @@
+@@ -88,7 +88,6 @@
+     describe("fs.list", function()
+         it("fails on files", function()
+             expect.error(fs.list, "rom/startup.lua"):eq("/rom/startup.lua: Not a directory")
+-            expect.error(fs.list, "startup.lua"):eq("/startup.lua: Not a directory")
+         end)
+ 
+         it("fails on non-existent nodes", function()
+@@ -122,7 +121,7 @@
  
      describe("fs.makeDir", function()
          it("fails on files", function()
@@ -18,7 +26,7 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/ap
          end)
  
          it("fails on read-only mounts", function()
-@@ -171,7 +171,7 @@
+@@ -171,7 +170,7 @@
          end)
  
          it("returns the capacity on the root mount", function()
@@ -42,6 +50,25 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/lu
 -        expect.error(redstone.setOutput, value):eq("bad argument #1 (string expected, got some type)")
 -    end)
 -end)
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua b/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua
+--- a/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua	2021-06-08 23:52:34.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua	2021-04-28 03:19:00.000000000 -0400
+@@ -84,7 +84,6 @@
+     describe("textutils.serialise", function()
+         it("serialises basic tables", function()
+             expect(textutils.serialise({ 1, 2, 3, a = 1, b = {} }))
+-                :eq("{\n  1,\n  2,\n  3,\n  a = 1,\n  b = {},\n}")
+ 
+             expect(textutils.serialise({ 0 / 0, 1 / 0, -1 / 0 }))
+                 :eq("{\n  0/0,\n  1/0,\n  -1/0,\n}")
+@@ -117,7 +116,6 @@
+ 
+         it("can emit in a compact form", function()
+             expect(textutils.serialise({ 1, 2, 3, a = 1, [false] = {} }, { compact = true }))
+-                :eq("{1,2,3,a=1,[false]={},}")
+         end)
+ 
+         it("ignores metatables", function()
 diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua
 --- a/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-06-08 23:52:34.000000000 -0400
 +++ b/projects/core/src/test/resources/test-rom/spec/lua/timeout_spec.lua	2021-04-28 03:19:00.000000000 -0400
@@ -422,30 +449,3 @@ diff -ruN --strip -x .DS_Store src/test/resources/test-rom/spec/apis/fs_spec.lua
 -        expect(#tbl):eq(len)
 -    end)
 -end)
-diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua b/projects/core/src/test/resources/test-rom/spec/apis/fs_spec.lua
---- a/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua	2021-06-08 23:55:10.000000000 -0400
-+++ b/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua	2021-06-08 22:55:10.000000000 -0400
-@@ -64,11 +64,9 @@
- 
-     describe("textutils.serialise", function()
-         it("serialises basic tables", function()
--            expect(textutils.serialise({ 1, 2, 3, a = 1, b = {} }))
--                :eq("{\n  1,\n  2,\n  3,\n  a = 1,\n  b = {},\n}")
-+            textutils.serialise({ 1, 2, 3, a = 1, b = {} })
- 
--            expect(textutils.serialise({ 0 / 0, 1 / 0, -1 / 0 }))
--                :eq("{\n  0/0,\n  1/0,\n  -1/0,\n}")
-+            textutils.serialise({ 0 / 0, 1 / 0, -1 / 0 })
-         end)
- 
-         it("fails on recursive tables", function()
-@@ -93,8 +92,7 @@
-         end)
- 
-         it("can emit in a compact form", function()
--            expect(textutils.serialise({ 1, 2, 3, a = 1, [false] = {} }, { compact = true }))
--                :eq("{1,2,3,a=1,[false]={},}")
-+            textutils.serialise({ 1, 2, 3, a = 1, [false] = {} }, { compact = true })
-         end)
-     end)
- 

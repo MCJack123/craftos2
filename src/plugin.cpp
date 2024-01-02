@@ -5,7 +5,7 @@
  * This file implements various functions relating to plugin loading.
  * 
  * This code is licensed under the MIT license.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <unordered_map>
@@ -73,7 +73,7 @@ extern bool checkIAPEligibility(const char * identifier);
 
 static const PluginFunctions function_map = {
     PLUGIN_VERSION,
-    8,
+    0,
     CRAFTOSPC_VERSION,
     selectedRenderer,
     &config,

@@ -11,6 +11,7 @@ on:
       - "resources/CCT-Tests.patch"
       - "resources/CraftOSTest.lua"
       - "Makefile.in"
+      - "resources/CCT-Tests.patch"
   pull_request:
     paths:
       - "src/**"
@@ -109,7 +110,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.19.4-1.106.0 https://github.com/SquidDev-CC/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.20.1-1.109.2 https://github.com/cc-tweaked/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |

@@ -5,7 +5,7 @@
  * This file defines the methods for the drive peripheral.
  * 
  * This code is licensed under the MIT License.
- * Copyright (c) 2019-2023 JackMacWindows.
+ * Copyright (c) 2019-2024 JackMacWindows.
  */
 
 #include <dirent.h>
@@ -224,7 +224,7 @@ int drive::insertDisk(lua_State *L, bool init) {
 #endif
     } else {
         if (init) throw std::invalid_argument("bad argument (expected string or number)");
-        else luaL_typerror(L, arg, "string or number");
+        else luaL_error(L, "bad argument #%d (expected string or number, got %s)", arg, lua_typename(L, lua_type(L, arg)));
     }
     return 0;
     // This dirty hack is because Windows randomly attempts to deallocate a std::wstring
