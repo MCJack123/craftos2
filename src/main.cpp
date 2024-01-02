@@ -187,55 +187,55 @@ static void update_thread() {
             msg.numbuttons = 3;
             msg.buttons = buttons;
             msg.colorScheme = NULL;
-            int* choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
+            int* choicep = (int*)queueTask([](void* arg)->void* {int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num; }, &msg);
             int choice = *choicep;
             delete choicep;
             switch (choice) {
-                case 0: {
-                    SDL_MessageBoxButtonData buttons2[] = {
-                        {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 3, "Cancel"},
-                        {0, 2, "View Release Notes"},
-                        {0, 1, "Skip This Version"},
-                        {0, 0, "Update Now"}
-                    };
-                    msg.flags = SDL_MESSAGEBOX_INFORMATION;
-                    msg.window = NULL;
-                    msg.title = "Update Options";
-                    msg.message = "Select an option:";
-                    msg.numbuttons = 4;
-                    msg.buttons = buttons2;
-                    msg.colorScheme = NULL;
-                    choicep = (int*)queueTask([ ](void* arg)->void*{int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num;}, &msg);
-                    choice = *choicep;
-                    delete choicep;
-                    switch (choice) {
-                    case 0:
-                        queueTask([root](void*)->void* {updateNow(root->getValue<std::string>("tag_name"), root); return NULL; }, NULL);
-                        return;
-                    case 1:
-                        config.skipUpdate = CRAFTOSPC_VERSION;
-                        config_save();
-                        return;
-                    case 2:
-                        queueTask([](void*)->void*{showReleaseNotes(); return NULL;}, NULL);
-                        return;
-                    case 3:
-                        return;
-                    default:
-                        exit(choice);
-                    }
-                } case 1:
+            case 0: {
+                SDL_MessageBoxButtonData buttons2[] = {
+                    {SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 3, "Cancel"},
+                    {0, 2, "View Release Notes"},
+                    {0, 1, "Skip This Version"},
+                    {0, 0, "Update Now"}
+                };
+                msg.flags = SDL_MESSAGEBOX_INFORMATION;
+                msg.window = NULL;
+                msg.title = "Update Options";
+                msg.message = "Select an option:";
+                msg.numbuttons = 4;
+                msg.buttons = buttons2;
+                msg.colorScheme = NULL;
+                choicep = (int*)queueTask([](void* arg)->void* {int* num = new int; SDL_ShowMessageBox((SDL_MessageBoxData*)arg, num); return num; }, &msg);
+                choice = *choicep;
+                delete choicep;
+                switch (choice) {
+                case 0:
+                    queueTask([root](void*)->void* {updateNow(root->getValue<std::string>("tag_name"), root); return NULL; }, NULL);
+                    return;
+                case 1:
+                    config.skipUpdate = CRAFTOSPC_VERSION;
+                    config_save();
+                    return;
+                case 2:
+                    queueTask([](void*)->void* {showReleaseNotes(); return NULL; }, NULL);
                     return;
                 case 3:
-                    updateAtQuit = root->getValue<std::string>("tag_name");
-                    updateAtQuitRoot = *root;
                     return;
                 default:
-                    // this should never happen
                     exit(choice);
+                }
+            } case 1:
+                return;
+            case 3:
+                updateAtQuit = root->getValue<std::string>("tag_name");
+                updateAtQuitRoot = *root;
+                return;
+            default:
+                // this should never happen
+                exit(choice);
             }
 #else
-            queueTask([](void* arg)->void*{
+            queueTask([](void* arg)->void* {
                 SDL_MessageBoxData msg;
                 SDL_MessageBoxButtonData buttons[] = {
                     {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "OK"},
@@ -260,6 +260,8 @@ static void update_thread() {
             }, (void*)(std::string("A new update to CraftOS-PC is available (") + root->getValue<std::string>("tag_name") + " is the latest version, you have " CRAFTOSPC_VERSION "). Go to " + root->getValue<std::string>("html_url") + " to download the new version.").c_str());
 #endif
         }
+    } catch (Poco::Exception &e) {
+        fprintf(stderr, "Could not check for updates: %s\n", e.message());
     } catch (std::exception &e) {
         fprintf(stderr, "Could not check for updates: %s\n", e.what());
     }
