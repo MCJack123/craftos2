@@ -311,7 +311,7 @@ jobs:
         # this gets all libraries required recursively (?)
         ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
         cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
-        mkdir -p AppDir/etc/ssl/certs
+        mkdir -p AppDir/usr/lib/ssl
         cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
         lua -e 'local file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "rb")) local data = file:read("*a") file:close() file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "wb")) file:write(data:gsub("/usr(/lib/ssl[^\0]*\0)", ".%1\0\0\0")) file:close()'
         appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
