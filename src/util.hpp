@@ -26,8 +26,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.8"
-#define CRAFTOSPC_CC_VERSION "1.109.2"
+#define CRAFTOSPC_VERSION    "v2.8.1"
+#define CRAFTOSPC_CC_VERSION "1.109.3"
 #define CRAFTOSPC_INDEV      false
 
 using path_t = std::filesystem::path;
