@@ -261,7 +261,7 @@ static void update_thread() {
 #endif
         }
     } catch (Poco::Exception &e) {
-        fprintf(stderr, "Could not check for updates: %s\n", e.message());
+        fprintf(stderr, "Could not check for updates: %s\n", e.message().c_str());
     } catch (std::exception &e) {
         fprintf(stderr, "Could not check for updates: %s\n", e.what());
     }
