@@ -1,5 +1,5 @@
 # Initialize
-AC_INIT([CraftOS-PC], [2.6])
+AC_INIT([CraftOS-PC], [2.8])
 AC_CONFIG_SRCDIR([src/main.cpp])
 m4_include([m4/find_cxx.m4])
 m4_include([m4/find_cxx11.m4])
@@ -137,6 +137,8 @@ if test "x$enable_wasm" != "xyes"; then
         AC_CHECK_HEADERS(hpdf.h, [], [AS_IF([test "x$PRINT_TYPE" = "x0"], [AC_MSG_ERROR([Could not find hpdf header.])], [PRINT_TYPE=1])])
         AC_SEARCH_LIBS(HPDF_New, hpdf, [], [AS_IF([test "x$PRINT_TYPE" = "x0"], [AC_MSG_ERROR([Could not find hpdf library.])], [PRINT_TYPE=1])])
     ], [])
+
+    AC_SEARCH_LIBS(backtrace, execinfo, [], []) # for musl libc on Linux
 
     if test "x$NO_PNG" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_PNG"; fi
     if test "x$NO_WEBP" = "x1"; then CPPFLAGS="$CPPFLAGS -DNO_WEBP"; fi
