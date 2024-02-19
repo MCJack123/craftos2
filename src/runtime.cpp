@@ -239,6 +239,7 @@ int getNextEvent(lua_State *L, const std::string& filter) {
     std::string ev;
     computer->getting_event = true;
     lua_State *param;
+    if (computer->eventQueue.size() > QUEUE_LIMIT) fprintf(stderr, "Warning: Queue overflow on computer %d!\n", computer->id);
     do {
         if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
         param = lua_newthread(computer->paramQueue);

@@ -478,18 +478,19 @@ static int http_request(lua_State *L) {
     if (lua_istable(L, 1)) {
         lua_getfield(L, 1, "url");
         if (!lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'url' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        param->url = lua_tostring(L, -1);
+        param->url = tostring(L, -1);
         param->old_url = param->url;
         lua_pop(L, 1);
         lua_getfield(L, 1, "body");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'body' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        else if (lua_isstring(L, -1)) param->postData = std::string(lua_tostring(L, -1), lua_rawlen(L, -1));
+        else if (lua_isstring(L, -1)) param->postData = tostring(L, -1);
         lua_pop(L, 1);
         lua_getfield(L, 1, "method");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'method' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        else if (lua_isstring(L, -1)) param->method = lua_tostring(L, -1);
+        else if (lua_isstring(L, -1)) param->method = tostring(L, -1);
         lua_pop(L, 1);
         lua_getfield(L, 1, "redirect");
+        param->redirect = true;
         if (!lua_isnil(L, -1) && !lua_isboolean(L, -1)) {delete param; return luaL_error(L, "bad field 'redirect' (boolean expected, got %s)", lua_typename(L, lua_type(L, -1)));}
         else if (lua_isboolean(L, -1)) param->redirect = lua_toboolean(L, -1);
         lua_pop(L, 1);
@@ -511,9 +512,10 @@ static int http_request(lua_State *L) {
         else param->timeout = 0;
         lua_pop(L, 1);
     } else {
-        param->url = lua_tostring(L, 1);
+        param->url = checkstring(L, 1);
         param->old_url = param->url;
-        if (lua_isstring(L, 2)) param->postData = std::string(lua_tostring(L, 2), lua_rawlen(L, 2));
+        if (!lua_isnoneornil(L, 2)) param->postData = checkstring(L, 2);
+        else param->postData = "";
         if (lua_istable(L, 3)) {
             lua_pushvalue(L, 3);
             lua_pushnil(L);
@@ -525,7 +527,7 @@ static int http_request(lua_State *L) {
             }
             lua_pop(L, 1);
         }
-        if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
+        param->method = luaL_optstring(L, 5, "");
         param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
         param->timeout = 0;
     }
