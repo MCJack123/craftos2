@@ -1364,7 +1364,9 @@ static int websocket_server_listen(lua_State *L) {
  */
 static int websocket_server_close(lua_State *L) {
     lastCFunction = __func__;
+    Computer * comp = get_comp(L);
     websocket_server::Factory * f = *(websocket_server::Factory**)lua_touserdata(L, lua_upvalueindex(1));
+    comp->openWebsocketServers.erase(f->srv->port());
     if (f == NULL) return 0;
     f->srv->stop();
     delete f->srv;
@@ -1374,7 +1376,9 @@ static int websocket_server_close(lua_State *L) {
 
 static int websocket_server_free(lua_State *L) {
     lastCFunction = __func__;
+    Computer * comp = get_comp(L);
     websocket_server::Factory * f = *(websocket_server::Factory**)lua_touserdata(L, 1);
+    comp->openWebsocketServers.erase(f->srv->port());
     if (f == NULL) return 0;
     f->srv->stop();
     delete f->srv;
