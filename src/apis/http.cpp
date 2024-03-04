@@ -324,7 +324,17 @@ downloadThread_entry:
         }
         http_handle_t * handle;
         try {
-            handle = new http_handle_t(&session->receiveResponse(*response));
+            if (config.standardsMode) {
+                // Fix seeking by reading the entire data into a stringstream
+                std::istream& instream = session->receiveResponse(*response);
+                std::stringstream * ss = new std::stringstream;
+                while (!instream.eof()) {
+                    char buf[4096];
+                    instream.read(buf, 4096);
+                    ss->write(buf, instream.gcount());
+                }
+                handle = new http_handle_t(ss);
+            } else handle = new http_handle_t(&session->receiveResponse(*response));
         } catch (Poco::TimeoutException &e) {
             http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
@@ -348,6 +358,8 @@ downloadThread_entry:
             err->url = param->url;
             err->failureReason = "Response is too large";
             queueEvent(param->comp, http_failure, err);
+            if (config.standardsMode) delete (std::stringstream*)handle->stream;
+            delete handle;
             delete response;
             delete session;
             goto downloadThread_finish;
@@ -361,6 +373,7 @@ downloadThread_entry:
                 if (location[0] == '/') location = uri.getScheme() + "://" + uri.getHost() + location;
                 else location = uri.getScheme() + "://" + uri.getHost() + path.substr(0, path.find('?')) + "/" + location;
             }
+            if (config.standardsMode) delete (std::stringstream*)handle->stream;
             delete handle->handle;
             delete handle->session;
             delete handle;
