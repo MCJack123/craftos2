@@ -90,6 +90,16 @@ int drive::stopAudio(lua_State *L) {
     return 0;
 }
 
+static const char * disk_event(lua_State *L, void* arg) {
+    lua_pushstring(L, (const char*)arg);
+    return "disk";
+}
+
+static const char * disk_eject(lua_State *L, void* arg) {
+    lua_pushstring(L, (const char*)arg);
+    return "disk_eject";
+}
+
 int drive::ejectDisk(lua_State *L) {
     lastCFunction = __func__;
     if (diskType == disk_type::DISK_TYPE_NONE) return 0;
@@ -108,6 +118,7 @@ int drive::ejectDisk(lua_State *L) {
             }
         }
     }
+    queueEvent(get_comp(L), disk_eject, (void*)side.c_str());
     diskType = disk_type::DISK_TYPE_NONE;
     return 0;
 }
@@ -226,6 +237,7 @@ int drive::insertDisk(lua_State *L, bool init) {
         if (init) throw std::invalid_argument("bad argument (expected string or number)");
         else luaL_error(L, "bad argument #%d (expected string or number, got %s)", arg, lua_typename(L, lua_type(L, arg)));
     }
+    queueEvent(comp, disk_event, (void*)side.c_str());
     return 0;
     // This dirty hack is because Windows randomly attempts to deallocate a std::wstring
     // in the stack that doesn't exist. (???) The only way to fix it is to make it jump
@@ -255,6 +267,7 @@ void driveQuit() {
 
 drive::drive(lua_State *L, const char * side) {
     if (lua_isstring(L, 3) || lua_isnumber(L, 3)) insertDisk(L, true);
+    this->side = side;
 }
 
 drive::~drive() { 
