@@ -68,7 +68,7 @@ public:
             else src = p, dest = this;
 
             if (fromSlot < 1 || fromSlot > src->size()) return luaL_error(L, "From slot out of range (between 1 and %d)", src->size());
-            if (!lua_isnil(L, 4) && (toSlot < 1 || toSlot > dest->size())) return luaL_error(L, "To slot out of range (between 1 and %d)", dest->size());
+            if (!lua_isnoneornil(L, 4) && (toSlot < 1 || toSlot > dest->size())) return luaL_error(L, "To slot out of range (between 1 and %d)", dest->size());
             if (limit <= 0) {
                 lua_pushinteger(L, 0);
                 return 1;
