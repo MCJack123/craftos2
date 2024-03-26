@@ -22,6 +22,7 @@ static void forwardInput();
 #endif
 
 static debug_adapter * stdio_debugger = NULL;
+static std::mutex stdio_debugger_lock;
 static std::thread * inputThread = NULL;
 
 static std::string dap_input(lua_State *L, void* arg) {
@@ -49,6 +50,7 @@ static void forwardInput() {
         }
         std::cerr << sz << "\n";
         for (int i = 0; i < sz; i++) data += std::cin.get();
+        std::lock_guard<std::mutex> lock(stdio_debugger_lock);
         if (stdio_debugger != NULL) {
             std::string * str = new std::string(data);
             queueEvent(stdio_debugger->monitor, dap_input, str);
