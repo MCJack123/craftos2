@@ -438,14 +438,6 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         lua_setmetatable(L, -2);
         lua_setfield(L, LUA_REGISTRYINDEX, "_coroutine_stack");
 
-        // Disable luaL_register using package.loaded by making it a dummy table
-        lua_newtable(L);
-        lua_createtable(L, 0, 1);
-        lua_pushcfunction(L, doNothing);
-        lua_setfield(L, -2, "__newindex");
-        lua_setmetatable(L, -2);
-        lua_setfield(L, LUA_REGISTRYINDEX, "_LOADED");
-
         // Load libraries
         const luaL_Reg *lib = lualibs;
         /* call open functions from 'loadedlibs' and set results to global table */
@@ -482,6 +474,12 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
             // Disable bytecode
             lua_setdisableflags(L, LUA_DISABLE_BYTECODE);
         }
+
+        // Replace `os` in `_LOADED` with CC's `os`
+        lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
+        lua_getglobal(L, "os");
+        lua_setfield(L, -2, "os");
+        lua_pop(L, 1);
 
         // Load any plugins available
         if (!config.vanilla) {
