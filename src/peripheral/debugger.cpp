@@ -601,11 +601,12 @@ static int debugger_lib_catch(lua_State *L) {
     lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    if (std::string(lua_tostring(L, 1)) == "error") dbg->breakMask |= DEBUGGER_BREAK_FUNC_ERROR;
-    else if (std::string(lua_tostring(L, 1)) == "load") dbg->breakMask |= DEBUGGER_BREAK_FUNC_LOAD;
-    else if (std::string(lua_tostring(L, 1)) == "run") dbg->breakMask |= DEBUGGER_BREAK_FUNC_RUN;
-    else if (std::string(lua_tostring(L, 1)) == "resume") dbg->breakMask |= DEBUGGER_BREAK_FUNC_RESUME;
-    else if (std::string(lua_tostring(L, 1)) == "yield") dbg->breakMask |= DEBUGGER_BREAK_FUNC_YIELD;
+    std::string opt = tostring(L, 1);
+    if (opt == "error") dbg->breakMask |= DEBUGGER_BREAK_FUNC_ERROR;
+    else if (opt == "load") dbg->breakMask |= DEBUGGER_BREAK_FUNC_LOAD;
+    else if (opt == "run") dbg->breakMask |= DEBUGGER_BREAK_FUNC_RUN;
+    else if (opt == "resume") dbg->breakMask |= DEBUGGER_BREAK_FUNC_RESUME;
+    else if (opt == "yield") dbg->breakMask |= DEBUGGER_BREAK_FUNC_YIELD;
     return 0;
 }
 
@@ -613,11 +614,12 @@ static int debugger_lib_uncatch(lua_State *L) {
     lastCFunction = __func__;
     lua_getfield(L, LUA_REGISTRYINDEX, "_debugger");
     debugger * dbg = (debugger*)lua_touserdata(L, -1);
-    if (std::string(lua_tostring(L, 1)) == "error") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_ERROR;
-    else if (std::string(lua_tostring(L, 1)) == "load") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_LOAD;
-    else if (std::string(lua_tostring(L, 1)) == "run") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_RUN;
-    else if (std::string(lua_tostring(L, 1)) == "resume") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_RESUME;
-    else if (std::string(lua_tostring(L, 1)) == "yield") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_YIELD;
+    std::string opt = tostring(L, 1);
+    if (opt == "error") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_ERROR;
+    else if (opt == "load") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_LOAD;
+    else if (opt == "run") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_RUN;
+    else if (opt == "resume") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_RESUME;
+    else if (opt == "yield") dbg->breakMask &= ~DEBUGGER_BREAK_FUNC_YIELD;
     return 0;
 }
 

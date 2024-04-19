@@ -684,7 +684,7 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         while (status == LUA_YIELD && self->running == 1) {
             status = lua_resume(self->coro, NULL, narg);
             if (status == LUA_YIELD) {
-                if (lua_gettop(self->coro) && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, std::string(lua_tostring(self->coro, -1), lua_rawlen(self->coro, -1)));
+                if (lua_gettop(self->coro) && lua_isstring(self->coro, -1)) narg = getNextEvent(self->coro, tostring(self->coro, -1));
                 else narg = getNextEvent(self->coro, "");
             } else if (status != 0 && self->running == 1) {
                 // Catch runtime error
