@@ -185,7 +185,7 @@ Uint32 eventTimeoutEvent(Uint32 interval, void* param) {
     Computer * computer = (Computer*)param;
     LockGuard lock(computers);
     if (freedComputers.find(computer) != freedComputers.end()) return 0;
-    if (!computer->L || computer->getting_event || !computer->eventTimeout || std::chrono::high_resolution_clock::now() - computer->last_event > std::chrono::milliseconds(config.abortTimeout * 2)) return 0;
+    if (!computer->L || computer->getting_event || !computer->eventTimeout || (computer->timeoutCheckCount == 0 && std::chrono::high_resolution_clock::now() - computer->last_event > std::chrono::milliseconds(config.abortTimeout * 2))) return 1000;
     if (++computer->timeoutCheckCount >= 5) {
         if (config.standardsMode) {
             // In standards mode we give no second chances - just crash and burn
