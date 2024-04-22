@@ -164,6 +164,7 @@ jobs:
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "<>"
+        git add .
         git commit -m $GITHUB_REF
         git push origin master
 

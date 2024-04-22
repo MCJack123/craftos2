@@ -402,7 +402,7 @@ static void noDebuggerBreak(lua_State *L, Computer * computer, lua_Debug * ar) {
     int status = lua_resume(coro, 2);
     int narg;
     while (status == LUA_YIELD) {
-        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, std::string(lua_tostring(coro, -1), lua_objlen(coro, -1)));
+        if (lua_isstring(coro, -1)) narg = getNextEvent(coro, tostring(coro, -1));
         else narg = getNextEvent(coro, "");
         status = lua_resume(coro, narg);
     }

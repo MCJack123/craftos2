@@ -724,7 +724,7 @@ static void rawInputLoop() {
                             lua_getfield(comp->rawFileStack, -1, "readAll");
                             lua_call(comp->rawFileStack, 0, 1);
                             if (lua_isnil(comp->rawFileStack, -1)) data = ""; // shouldn't happen
-                            else data = std::string(lua_tostring(comp->rawFileStack, -1), lua_objlen(comp->rawFileStack, -1));
+                            else data = tostring(comp->rawFileStack, -1);
                             lua_pop(comp->rawFileStack, 1);
                             lua_getfield(comp->rawFileStack, -1, "close");
                             lua_call(comp->rawFileStack, 0, 0);

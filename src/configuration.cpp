@@ -440,9 +440,13 @@ void config_save() {
     root["pluginData"] = pluginRoot;
     for (const auto& opt : unknownOptions) root[opt.first] = opt.second;
     std::ofstream out(getBasePath() / "config"/"global.json");
-    out << root;
-    out.close();
+    if (out.is_open()) {
+        out << root;
+        out.close();
 #ifdef __EMSCRIPTEN__
-    queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
+        queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
 #endif
+    } else {
+        showMessage("An error occurred while writing the global configuration file. The current session's config will not be saved.");
+    }
 }

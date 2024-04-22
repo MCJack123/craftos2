@@ -17,6 +17,7 @@ int chest::size() {
 
 void chest::getItemDetail(lua_State *L, int slot) {
     if (slot < 1 || slot > (isDouble ? 54 : 27)) {lua_pushnil(L); return;}
+    if (items[slot-1].count == 0) {lua_pushnil(L); return;}
     lua_createtable(L, 0, 2);
     lua_pushlstring(L, items[slot-1].name.c_str(), items[slot-1].name.size());
     lua_setfield(L, -2, "name");

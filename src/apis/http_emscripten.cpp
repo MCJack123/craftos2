@@ -281,7 +281,7 @@ int http_checkURL(lua_State *L) {
     luaL_checkstring(L, 1);
     http_param_t * param = new http_param_t;
     param->comp = get_comp(L);
-    param->url = std::string(lua_tostring(L, 1), lua_objlen(L, 1));
+    param->url = tostring(L, 1);
     std::thread th(checkThread, param);
     setThreadName(th, "HTTP Check Thread");
     th.detach();

@@ -35,6 +35,7 @@ private:
     void* music = NULL;
 #endif
     int id = 0;
+    std::string side;
     int isDiskPresent(lua_State *L);
     int getDiskLabel(lua_State *L);
     int setDiskLabel(lua_State *L);

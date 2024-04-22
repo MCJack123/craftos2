@@ -266,6 +266,8 @@ static void update_thread() {
                 return;
             }
         }
+    } catch (Poco::Exception &e) {
+        fprintf(stderr, "Could not check for updates: %s\n", e.message().c_str());
     } catch (std::exception &e) {
         fprintf(stderr, "Could not check for updates: %s\n", e.what());
     }
@@ -546,8 +548,14 @@ int parseArguments(const std::vector<std::string>& argv) {
         else if (arg == "--assets-dir" || arg == "-a") setROMPath(path_t(argv[++i])/"assets"/"computercraft"/"lua");
         else if (arg.substr(0, 3) == "-a=") setROMPath(path_t(arg.substr(3))/"assets"/"computercraft"/"lua");
         else if (arg == "--mc-save") computerDir = getMCSavePath() / argv[++i] / "computer";
-        else if (arg == "-i" || arg == "--id") { manualID = true; id = std::stoi(argv[++i]); }
-        else if (arg == "--migrate") forceMigrate = true;
+        else if (arg == "-i" || arg == "--id") {
+            manualID = true;
+            try {id = std::stoi(argv[++i]);}
+            catch (std::out_of_range &e) {
+                std::cerr << "Error: Computer ID is out of range\n";
+                return 1;
+            }
+        } else if (arg == "--migrate") forceMigrate = true;
         else if (arg == "--mount" || arg == "--mount-ro" || arg == "--mount-rw") {
             std::string mount_path = argv[++i];
             if (mount_path.find('=') == std::string::npos) {

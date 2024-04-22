@@ -137,7 +137,7 @@ static int config_set(lua_State *L) {
             // trying to deallocate unallocated/invalid memory. The only workaround I've found is to make the static variables
             // dynamic, thus telling MSVC to keep its grubby hands off allocation/deallocation. It's an unfortunate situation,
             // but there's really no way around it.
-            std::string * message = new std::string("A script is attempting to change the default mount mode to " + (lua_isnumber(L, 2) ? std::to_string(lua_tointeger(L, 2)) : std::string(lua_tostring(L, 2))) + ". This will allow any script to access any part of your REAL computer that is not blacklisted. Do you want to allow this change?");
+            std::string * message = new std::string("A script is attempting to change the default mount mode to " + (lua_isnumber(L, 2) ? std::to_string(lua_tointeger(L, 2)) : tostring(L, 2)) + ". This will allow any script to access any part of your REAL computer that is not blacklisted. Do you want to allow this change?");
             data.message = message->c_str();
             data.numbuttons = 2;
             SDL_MessageBoxButtonData buttons[2];
@@ -165,7 +165,7 @@ static int config_set(lua_State *L) {
         } else luaL_error(L, "Configuration option 'mount_mode' is protected");
     } setConfigSetting(disable_lua51_features, boolean);
     else if (strcmp(name, "default_computer_settings") == 0)
-        config.default_computer_settings = std::string(luaL_checkstring(L, 2), lua_objlen(L, 2));
+        config.default_computer_settings = checkstring(L, 2);
     setConfigSetting(logErrors, boolean);
     setConfigSettingI(computerSpaceLimit);
     setConfigSettingI(maximumFilesOpen);
@@ -204,7 +204,7 @@ static int config_set(lua_State *L) {
     setConfigSetting(standardsMode, boolean);
     setConfigSetting(useHardwareRenderer, boolean);
     else if (strcmp(name, "preferredHardwareDriver") == 0)
-        config.preferredHardwareDriver = std::string(luaL_checkstring(L, 2), lua_objlen(L, 2));
+        config.preferredHardwareDriver = checkstring(L, 2);
     setConfigSetting(useVsync, boolean);
     setConfigSetting(http_websocket_enabled, boolean);
     setConfigSettingI(http_max_websockets);
@@ -245,7 +245,7 @@ static int config_set(lua_State *L) {
         switch (std::get<0>(userConfig[name])) {
             case 0: config.pluginData[name] = lua_toboolean(L, 2) ? "true" : "false"; break;
             case 1: config.pluginData[name] = std::to_string(luaL_checkinteger(L, 2)); break;
-            case 2: config.pluginData[name] = std::string(luaL_checkstring(L, 2), lua_objlen(L, 2)); break;
+            case 2: config.pluginData[name] = checkstring(L, 2); break;
             case 3: return luaL_error(L, "Invalid type"); // maybe fix this later?
         }
         if (std::get<1>(userConfig[name]) != nullptr) {

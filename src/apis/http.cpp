@@ -324,7 +324,17 @@ downloadThread_entry:
         }
         http_handle_t * handle;
         try {
-            handle = new http_handle_t(&session->receiveResponse(*response));
+            if (config.standardsMode) {
+                // Fix seeking by reading the entire data into a stringstream
+                std::istream& instream = session->receiveResponse(*response);
+                std::stringstream * ss = new std::stringstream;
+                while (!instream.eof()) {
+                    char buf[4096];
+                    instream.read(buf, 4096);
+                    ss->write(buf, instream.gcount());
+                }
+                handle = new http_handle_t(ss);
+            } else handle = new http_handle_t(&session->receiveResponse(*response));
         } catch (Poco::TimeoutException &e) {
             http_handle_t * err = new http_handle_t(NULL);
             err->url = param->url;
@@ -348,6 +358,8 @@ downloadThread_entry:
             err->url = param->url;
             err->failureReason = "Response is too large";
             queueEvent(param->comp, http_failure, err);
+            if (config.standardsMode) delete (std::stringstream*)handle->stream;
+            delete handle;
             delete response;
             delete session;
             goto downloadThread_finish;
@@ -361,6 +373,7 @@ downloadThread_entry:
                 if (location[0] == '/') location = uri.getScheme() + "://" + uri.getHost() + location;
                 else location = uri.getScheme() + "://" + uri.getHost() + path.substr(0, path.find('?')) + "/" + location;
             }
+            if (config.standardsMode) delete (std::stringstream*)handle->stream;
             delete handle->handle;
             delete handle->session;
             delete handle;
@@ -478,18 +491,19 @@ static int http_request(lua_State *L) {
     if (lua_istable(L, 1)) {
         lua_getfield(L, 1, "url");
         if (!lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'url' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        param->url = lua_tostring(L, -1);
+        param->url = tostring(L, -1);
         param->old_url = param->url;
         lua_pop(L, 1);
         lua_getfield(L, 1, "body");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'body' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        else if (lua_isstring(L, -1)) param->postData = std::string(lua_tostring(L, -1), lua_objlen(L, -1));
+        else if (lua_isstring(L, -1)) param->postData = tostring(L, -1);
         lua_pop(L, 1);
         lua_getfield(L, 1, "method");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'method' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
-        else if (lua_isstring(L, -1)) param->method = lua_tostring(L, -1);
+        else if (lua_isstring(L, -1)) param->method = tostring(L, -1);
         lua_pop(L, 1);
         lua_getfield(L, 1, "redirect");
+        param->redirect = true;
         if (!lua_isnil(L, -1) && !lua_isboolean(L, -1)) {delete param; return luaL_error(L, "bad field 'redirect' (boolean expected, got %s)", lua_typename(L, lua_type(L, -1)));}
         else if (lua_isboolean(L, -1)) param->redirect = lua_toboolean(L, -1);
         lua_pop(L, 1);
@@ -511,9 +525,10 @@ static int http_request(lua_State *L) {
         else param->timeout = 0;
         lua_pop(L, 1);
     } else {
-        param->url = lua_tostring(L, 1);
+        param->url = checkstring(L, 1);
         param->old_url = param->url;
-        if (lua_isstring(L, 2)) param->postData = std::string(lua_tostring(L, 2), lua_objlen(L, 2));
+        if (!lua_isnoneornil(L, 2)) param->postData = checkstring(L, 2);
+        else param->postData = "";
         if (lua_istable(L, 3)) {
             lua_pushvalue(L, 3);
             lua_pushnil(L);
@@ -525,7 +540,7 @@ static int http_request(lua_State *L) {
             }
             lua_pop(L, 1);
         }
-        if (lua_isstring(L, 5)) param->method = lua_tostring(L, 5);
+        param->method = luaL_optstring(L, 5, "");
         param->redirect = !lua_isboolean(L, 6) || lua_toboolean(L, 6);
         param->timeout = 0;
     }
@@ -1321,7 +1336,9 @@ static const char websocket_server_listen[] = "local _port, _isOpen = ...\n"
  */
 static int websocket_server_close(lua_State *L) {
     lastCFunction = __func__;
+    Computer * comp = get_comp(L);
     websocket_server::Factory * f = *(websocket_server::Factory**)lua_touserdata(L, lua_upvalueindex(1));
+    comp->openWebsocketServers.erase(f->srv->port());
     if (f == NULL) return 0;
     f->srv->stop();
     delete f->srv;
@@ -1337,7 +1354,9 @@ static int websocket_server_isOpen(lua_State *L) {
 
 static int websocket_server_free(lua_State *L) {
     lastCFunction = __func__;
+    Computer * comp = get_comp(L);
     websocket_server::Factory * f = *(websocket_server::Factory**)lua_touserdata(L, 1);
+    comp->openWebsocketServers.erase(f->srv->port());
     if (f == NULL) return 0;
     f->srv->stop();
     delete f->srv;

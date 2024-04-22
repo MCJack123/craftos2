@@ -17,7 +17,7 @@ static int peripheral_isPresent(lua_State *L) {
     luaL_checkstring(L, 1);
     Computer * computer = get_comp(L);
     std::lock_guard<std::mutex> lock(computer->peripherals_mutex);
-    lua_pushboolean(L, computer->peripherals.find(std::string(lua_tostring(L, -1))) != computer->peripherals.end());
+    lua_pushboolean(L, computer->peripherals.find(tostring(L, -1)) != computer->peripherals.end());
     return 1;
 }
 

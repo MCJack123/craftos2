@@ -38,6 +38,9 @@ extern "C" {
 #include <webp/mux.h>
 #include <webp/encode.h>
 #endif
+#ifndef __USE_GNU
+#include <execinfo.h>
+#endif
 #include "../platform.hpp"
 #include "../util.hpp"
 

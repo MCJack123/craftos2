@@ -248,7 +248,7 @@ static struct luaL_Reg M[] = {
     {NULL, NULL}
 };
 
-static PluginInfo info("ccemux", 3);
+static PluginInfo info("ccemux", 0);
 
 extern "C" {
 DLLEXPORT int luaopen_ccemux(lua_State *L) {

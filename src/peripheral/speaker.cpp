@@ -807,6 +807,9 @@ speaker::speaker(lua_State *L, const char * side) {
         Mix_GroupChannel(next, channelGroup);
     }
     Mix_RegisterEffect(audioChannel, audioEffect, NULL, this);
+    Computer * comp = this->comp;
+    const char * _side = this->side.c_str();
+    channelFinishCallbacks[audioChannel] = [comp, _side](int c){queueEvent(comp, speaker_audio_empty, (void*)_side);};
     Mix_PlayChannel(audioChannel, empty_chunk, -1);
 }
 

@@ -26,7 +26,7 @@ static int os_getComputerLabel(lua_State *L) {
 static int os_setComputerLabel(lua_State *L) {
     lastCFunction = __func__;
     Computer * comp = get_comp(L);
-    comp->config->label = std::string(luaL_optstring(L, 1, ""), lua_isstring(L, 1) ? lua_objlen(L, 1) : 0);
+    comp->config->label = tostring(L, 1, "");
     if (comp->term != NULL) comp->term->setLabel(comp->config->label.empty() ? "CraftOS Terminal: " + std::string(comp->isDebugger ? "Debugger" : "Computer") + " " + std::to_string(comp->id) : "CraftOS Terminal: " + asciify(comp->config->label));
     return 0;
 }
@@ -34,7 +34,7 @@ static int os_setComputerLabel(lua_State *L) {
 static int os_queueEvent(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    const std::string name = std::string(luaL_checkstring(L, 1), lua_objlen(L, 1));
+    const std::string name = checkstring(L, 1);
     if (!lua_checkstack(computer->paramQueue, 1)) luaL_error(L, "Could not allocate space for event");
     lua_State *param = lua_newthread(computer->paramQueue);
     lua_remove(L, 1);
@@ -126,27 +126,30 @@ static Uint32 notifyEvent(Uint32 interval, void* param) {
 int os_startTimer(lua_State *L) {
     lastCFunction = __func__;
     Computer * computer = get_comp(L);
-    if (luaL_checknumber(L, 1) < 0.001 && !config.standardsMode) {
-        queueEvent(computer, [](lua_State *L, void*)->std::string {lua_pushinteger(L, 1); return "timer"; }, NULL);
-        lua_pushinteger(L, 1);
-        return 1;
-    }
     struct timer_data_t * data = new struct timer_data_t;
     data->comp = computer;
     data->lock = new std::mutex;
     data->isAlarm = false;
-    queueTask([L](void*a)->void* {
+    lua_Number _time = luaL_checknumber(L, 1);
+    if (_time < 0.001) _time = 0.001;
+    queueTask([_time](void*a)->void* {
         struct timer_data_t * data = (timer_data_t*)a;
-        Uint32 time = (Uint32)(lua_tonumber(L, 1) * 1000);
+        Uint32 time = (Uint32)(_time * 1000);
+        if (time == 0) time = 1;
         if (config.standardsMode) {
             if (time < 50) time = 50;
             else time = (Uint32)ceil(time / 50.0) * 50;
         }
         LockGuard lock(runningTimerData);
         data->timer = SDL_AddTimer(time, notifyEvent, data);
-        runningTimerData->insert(std::make_pair(data->timer, data));
+        if (data->timer) runningTimerData->insert(std::make_pair(data->timer, data));
         return NULL;
     }, data);
+    if (!data->timer) {
+        delete data->lock;
+        delete data;
+        return luaL_error(L, "Error occurred while creating timer: ", SDL_GetError());
+    }
     lua_pushinteger(L, data->timer);
     std::lock_guard<std::mutex> lock(computer->timerIDsMutex);
     computer->timerIDs.insert(data->timer);
