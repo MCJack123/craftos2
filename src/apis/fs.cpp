@@ -296,7 +296,7 @@ static int calculateDirectorySize(const path_t& path) {
     std::error_code e;
     for (const auto& dir : fs::directory_iterator(path, e)) {
         if (dir.is_directory()) size += calculateDirectorySize(dir.path());
-        else size += dir.file_size();
+        else size += dir.file_size(e);
     }
     return size;
 }
