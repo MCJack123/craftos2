@@ -36,20 +36,20 @@ static ProtectedObject<std::unordered_map<void*, Computer*> > getCompCache;
 
 Computer * get_comp(lua_State *L) {
     try {
-        return getCompCache->at(L->l_G);
+        return getCompCache->at(L->glref);
     } catch (std::out_of_range &e) {
         LockGuard lock(getCompCache);
         lua_rawgeti(L, LUA_REGISTRYINDEX, 1);
         Computer * retval = (Computer*)lua_touserdata(L, -1);
         lua_pop(L, 1);
-        getCompCache->insert(std::make_pair(L->l_G, retval));
+        getCompCache->insert(std::make_pair(L->glref, retval));
         return retval;
     }
 }
 
 void uncache_state(lua_State *L) {
     LockGuard lock(getCompCache);
-    getCompCache->erase(L->l_G);
+    getCompCache->erase(L->glref);
 }
 
 void load_library(Computer *comp, lua_State *L, const library_t& lib) {
