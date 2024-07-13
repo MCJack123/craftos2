@@ -172,7 +172,7 @@ static int fs_list(lua_State *L) {
                 gotdir = true;
                 for (const auto& dir : fs::directory_iterator(path, e)) {
                     if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
-                    entries.insert(dir.path().filename().string());
+                    entries.insert(dir.path().filename().u8string());
                 }
             }
         }
@@ -644,7 +644,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
                 if (fs::is_directory(path, e)) {
                     for (const auto& dir : fs::directory_iterator(path, e)) {
                         if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
-                        if (std::regex_match(dir.path().filename().string(), std::regex(pathc_regex))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + dir.path().filename().string());
+                        if (std::regex_match(dir.path().filename().u8string(), std::regex(pathc_regex))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + dir.path().filename().u8string());
                     }
                 }
             }
