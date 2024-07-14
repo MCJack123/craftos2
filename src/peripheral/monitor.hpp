@@ -51,6 +51,7 @@ private:
     int getFrozen(lua_State *L);
     int setSize(lua_State *L);
     int setBlockSize(lua_State *L);
+    int forceUpdate(lua_State *L);
 public:
     Terminal * term;
     static library_t methods;
