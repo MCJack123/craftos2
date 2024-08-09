@@ -313,6 +313,7 @@ int res_setStatusCode(lua_State *L) {
     struct http_res * res = (http_res*)lua_touserdata(L, lua_upvalueindex(1));
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || res->res->sent()) return luaL_error(L, "attempt to use a closed file");
     res->res->setStatus((HTTPResponse::HTTPStatus)luaL_checkinteger(L, 1));
+    if (lua_isstring(L, 2)) res->res->setReason(tostring(L, 2));
     return 0;
 }
 
