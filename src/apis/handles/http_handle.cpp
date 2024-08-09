@@ -214,7 +214,6 @@ int req_readLine(lua_State *L) {
     if (*(bool*)lua_touserdata(L, lua_upvalueindex(2)) || !req->stream().good()) return luaL_error(L, "attempt to use a closed file");
     std::string line;
     std::getline(req->stream(), line);
-    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
     lua_pushstring(L, line.c_str());
     return 1;
 }
@@ -228,7 +227,6 @@ int req_readAll(lua_State *L) {
     while (req->stream().read(buffer, sizeof(buffer)))
         ret.append(buffer, sizeof(buffer));
     ret.append(buffer, req->stream().gcount());
-    ret.erase(std::remove(ret.begin(), ret.end(), '\r'), ret.end());
     lua_pushstring(L, ret.c_str());
     return 1;
 }
