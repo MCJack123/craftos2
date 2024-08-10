@@ -176,6 +176,7 @@ int fs_handle_readAllByte(lua_State *L) {
     if (str == NULL) return luaL_error(L, "failed to allocate memory");
     fp->read(str, size);
     size = fp->gcount();
+    fp->get(); // set EOF flag
     lua_pushlstring(L, str, size);
     free(str);
     return 1;
