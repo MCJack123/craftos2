@@ -67,8 +67,9 @@ inline bool isVFSPath(path_t path) {
     return false;
 }
 
-static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& path) {
+static std::vector<path_t> fixpath_multiple(Computer *comp, std::string path) {
     std::vector<path_t> retval;
+    path.erase(std::remove_if(path.begin(), path.end(), [](char c)->bool {return c == '"' || c == '*' || c == ':' || c == '<' || c == '>' || c == '?' || c == '|' || c < 32; }), path.end());
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (std::string s : elems) {
@@ -77,7 +78,6 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& p
             else if (pathc.empty()) pathc.push_back("..");
             else pathc.pop_back();
         } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
-            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
     }
