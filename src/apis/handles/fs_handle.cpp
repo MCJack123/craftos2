@@ -96,7 +96,7 @@ int fs_handle_readLine(lua_State *L) {
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
-    if (!fp->good()) luaL_error(L, "Could not read file");
+    if (!fp->good()) return luaL_error(L, "Could not read file");
     std::string retval;
     std::getline(*fp, retval);
     if (retval.empty() && fp->eof()) return 0;
@@ -139,7 +139,7 @@ int fs_handle_readByte(lua_State *L) {
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
-    if (!fp->good()) luaL_error(L, "Could not read file");
+    if (!fp->good()) return luaL_error(L, "Could not read file");
     if (lua_isnumber(L, 1)) {
         if (lua_tointeger(L, 1) < 0) luaL_error(L, "Cannot read a negative number of bytes");
         const size_t s = lua_tointeger(L, 1);
@@ -167,7 +167,7 @@ int fs_handle_readAllByte(lua_State *L) {
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) return 0;
-    if (!fp->good()) luaL_error(L, "Could not read file");
+    if (!fp->good()) return luaL_error(L, "Could not read file");
     std::streampos pos = fp->tellg();
     fp->seekg(0, std::ios_base::end);
     size_t size = fp->tellg() - pos;
@@ -176,7 +176,7 @@ int fs_handle_readAllByte(lua_State *L) {
     if (str == NULL) return luaL_error(L, "failed to allocate memory");
     fp->read(str, size);
     size = fp->gcount();
-    fp->get(); // set EOF flag
+    fp->setstate(std::ios::eofbit); // set EOF flag
     lua_pushlstring(L, str, size);
     free(str);
     return 1;
@@ -185,10 +185,14 @@ int fs_handle_readAllByte(lua_State *L) {
 int fs_handle_writeString(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
-    if (fp == NULL) luaL_error(L, "attempt to use a closed file");
+    if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
-    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
-    if (fp->fail()) luaL_error(L, "Could not write file");
+    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
+    if (fp->eof()) {
+        fp->seekp(0, std::ios::end);
+        fp->clear(fp->rdstate() & ~std::ios::eofbit);
+    }
+    if (!fp->good()) return luaL_error(L, "Could not write file");
     size_t sz = 0;
     const char * str = lua_tolstring(L, 1, &sz);
     fp->write(str, sz);
@@ -198,10 +202,14 @@ int fs_handle_writeString(lua_State *L) {
 int fs_handle_writeLine(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
-    if (fp == NULL) luaL_error(L, "attempt to use a closed file");
+    if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (lua_isnoneornil(L, 1)) return 0;
-    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
-    if (fp->fail()) luaL_error(L, "Could not write file");
+    else if (!lua_isstring(L, 1) && !lua_isnumber(L, 1)) return luaL_error(L, "bad argument #1 (string expected, got %s)", lua_typename(L, lua_type(L, 1)));
+    if (fp->eof()) {
+        fp->seekp(0, std::ios::end);
+        fp->clear(fp->rdstate() & ~std::ios::eofbit);
+    }
+    if (!fp->good()) return luaL_error(L, "Could not write file");
     size_t sz = 0;
     const char * str = lua_tolstring(L, 1, &sz);
     fp->write(str, sz);
@@ -212,8 +220,12 @@ int fs_handle_writeLine(lua_State *L) {
 int fs_handle_writeByte(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
-    if (fp == NULL) luaL_error(L, "attempt to use a closed file");
-    if (fp->fail()) luaL_error(L, "Could not write file");
+    if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
+    if (fp->eof()) {
+        fp->seekp(0, std::ios::end);
+        fp->clear(fp->rdstate() & ~std::ios::eofbit);
+    }
+    if (!fp->good()) return luaL_error(L, "Could not write file");
     if (lua_type(L, 1) == LUA_TNUMBER) {
         const char b = (unsigned char)(lua_tointeger(L, 1) & 0xFF);
         fp->put(b);
@@ -222,14 +234,14 @@ int fs_handle_writeByte(lua_State *L) {
         const char * str = lua_tolstring(L, 1, &sz);
         if (sz == 0) return 0;
         fp->write(str, sz);
-    } else luaL_error(L, "bad argument #1 (number or string expected, got %s)", lua_typename(L, lua_type(L, 1)));
+    } else return luaL_error(L, "bad argument #1 (number or string expected, got %s)", lua_typename(L, lua_type(L, 1)));
     return 0;
 }
 
 int fs_handle_flush(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
-    if (fp == NULL) luaL_error(L, "attempt to use a closed file");
+    if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     fp->flush();
 #ifdef __EMSCRIPTEN__
     queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
