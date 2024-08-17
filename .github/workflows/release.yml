@@ -113,7 +113,7 @@ jobs:
 
   release-mac:
     name: Build macOS binary
-    runs-on: macos-latest
+    runs-on: macos-13
     environment: production
     steps:
     - uses: actions/checkout@v1
