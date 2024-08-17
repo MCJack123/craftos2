@@ -165,7 +165,8 @@ inline bool isVFSPath(path_t path) {
     return false;
 }
 
-path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt, std::string * mountPath, bool * isRoot) {
+path_t fixpath(Computer *comp, std::string path, bool exists, bool addExt, std::string * mountPath, bool * isRoot) {
+    path.erase(std::remove_if(path.begin(), path.end(), [](char c)->bool {return c == '"' || c == '*' || c == ':' || c == '<' || c == '>' || c == '?' || c == '|' || c < 32; }), path.end());
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (std::string s : elems) {
@@ -175,7 +176,6 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
             else pathc.pop_back();
         } else if (!s.empty() && s.find_first_not_of(' ') != std::string::npos && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
             s = s.substr(s.find_first_not_of(' '), s.find_last_not_of(' ') - s.find_first_not_of(' ') + 1);
-            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
     }
@@ -274,14 +274,14 @@ path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt
     return ss;
 }
 
-bool fixpath_ro(Computer *comp, const std::string& path) {
+bool fixpath_ro(Computer *comp, std::string path) {
+    path.erase(std::remove_if(path.begin(), path.end(), [](char c)->bool {return c == '"' || c == '*' || c == ':' || c == '<' || c == '>' || c == '?' || c == '|' || c < 32; }), path.end());
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return false; else pathc.pop_back(); }
         else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
             s = s.substr(s.find_first_not_of(' '), s.find_last_not_of(' ') - s.find_first_not_of(' ') + 1);
-            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
     }
@@ -299,14 +299,14 @@ bool fixpath_ro(Computer *comp, const std::string& path) {
     return max_path.second;
 }
 
-std::set<std::string> getMounts(Computer * computer, const std::string& comp_path) {
+std::set<std::string> getMounts(Computer * computer, std::string comp_path) {
+    comp_path.erase(std::remove_if(comp_path.begin(), comp_path.end(), [](char c)->bool {return c == '"' || c == '*' || c == ':' || c == '<' || c == '>' || c == '?' || c == '|' || c < 32; }), comp_path.end());
     std::vector<std::string> elems = split(comp_path, "/\\");
     std::list<std::string> pathc;
     std::set<std::string> retval;
     for (std::string s : elems) {
         if (s == "..") { if (pathc.empty()) return retval; else pathc.pop_back(); }
         else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
-            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
     }

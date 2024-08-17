@@ -835,11 +835,10 @@ static int websocket_send(lua_State *L) {
     std::string str = checkstring(L, 1);
     if (config.http_max_websocket_message > 0 && str.size() > (unsigned)config.http_max_websocket_message) luaL_error(L, "Message is too large");
     ws_handle * ws = *(ws_handle**)lua_touserdata(L, lua_upvalueindex(1));
-    if (ws == NULL) luaL_error(L, "attempt to use a closed file");
+    if (ws == NULL) return luaL_error(L, "attempt to use a closed file");
     std::lock_guard<std::mutex> lock(ws->lock);
     if (ws->ws == NULL) return luaL_error(L, "attempt to use a closed file");
-    if (ws->ws->sendFrame(str.c_str(), str.size(), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT)) < 1) 
-        websocket_close(L);
+    ws->ws->sendFrame(str.c_str(), str.size(), (int)WebSocket::FRAME_FLAG_FIN | (int)(lua_toboolean(L, 2) ? WebSocket::FRAME_BINARY : WebSocket::FRAME_TEXT));
     return 0;
 }
 

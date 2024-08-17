@@ -67,8 +67,9 @@ inline bool isVFSPath(path_t path) {
     return false;
 }
 
-static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& path) {
+static std::vector<path_t> fixpath_multiple(Computer *comp, std::string path) {
     std::vector<path_t> retval;
+    path.erase(std::remove_if(path.begin(), path.end(), [](char c)->bool {return c == '"' || c == '*' || c == ':' || c == '<' || c == '>' || c == '?' || c == '|' || c < 32; }), path.end());
     std::vector<std::string> elems = split(path, "/\\");
     std::list<std::string> pathc;
     for (std::string s : elems) {
@@ -77,7 +78,6 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, const std::string& p
             else if (pathc.empty()) pathc.push_back("..");
             else pathc.pop_back();
         } else if (!s.empty() && !std::all_of(s.begin(), s.end(), [](const char c)->bool{return c == '.';})) {
-            s.erase(std::remove_if(s.begin(), s.end(), [](char c)->bool{return c=='"'||c==':'||c=='<'||c=='>'||c=='?'||c=='|';}), s.end());
             pathc.push_back(s);
         }
     }
@@ -172,7 +172,7 @@ static int fs_list(lua_State *L) {
                 gotdir = true;
                 for (const auto& dir : fs::directory_iterator(path, e)) {
                     if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
-                    entries.insert(dir.path().filename().string());
+                    entries.insert(dir.path().filename().u8string());
                 }
             }
         }
@@ -296,7 +296,7 @@ static int calculateDirectorySize(const path_t& path) {
     std::error_code e;
     for (const auto& dir : fs::directory_iterator(path, e)) {
         if (dir.is_directory()) size += calculateDirectorySize(dir.path());
-        else size += dir.file_size();
+        else size += dir.file_size(e);
     }
     return size;
 }
@@ -644,7 +644,7 @@ static std::list<std::string> matchWildcard(Computer * comp, const std::list<std
                 if (fs::is_directory(path, e)) {
                     for (const auto& dir : fs::directory_iterator(path, e)) {
                         if (dir.path().filename() == ".DS_Store" || dir.path().filename() == "desktop.ini") continue;
-                        if (std::regex_match(dir.path().filename().string(), std::regex(pathc_regex))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + dir.path().filename().string());
+                        if (std::regex_match(dir.path().filename().u8string(), std::regex(pathc_regex))) nextOptions.push_back(opt + (opt.empty() ? "" : "/") + dir.path().filename().u8string());
                     }
                 }
             }

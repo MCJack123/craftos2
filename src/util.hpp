@@ -26,8 +26,8 @@ extern "C" {
 #include <Computer.hpp>
 #include <Terminal.hpp>
 
-#define CRAFTOSPC_VERSION    "v2.8.2-luajit"
-#define CRAFTOSPC_CC_VERSION "1.110.2"
+#define CRAFTOSPC_VERSION    "v2.8.3-luajit"
+#define CRAFTOSPC_CC_VERSION "1.112.0"
 #define CRAFTOSPC_INDEV      false
 
 using path_t = std::filesystem::path;
@@ -195,10 +195,10 @@ extern std::vector<std::wstring> split(const std::wstring& strToSplit, const wch
 extern std::vector<path_t> split(const path_t& strToSplit, const path_t::value_type * delimeter);
 extern void load_library(Computer *comp, lua_State *L, const library_t& lib);
 extern void HTTPDownload(const std::string& url, const std::function<void(std::istream*, Poco::Exception*, Poco::Net::HTTPResponse*)>& callback);
-extern path_t fixpath(Computer *comp, const std::string& path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool * isRoot = NULL);
-extern bool fixpath_ro(Computer *comp, const std::string& path);
+extern path_t fixpath(Computer *comp, std::string path, bool exists, bool addExt = true, std::string * mountPath = NULL, bool * isRoot = NULL);
+extern bool fixpath_ro(Computer *comp, std::string path);
 extern path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md = true, std::string * mountPath = NULL);
-extern std::set<std::string> getMounts(Computer * computer, const std::string& comp_path);
+extern std::set<std::string> getMounts(Computer * computer, std::string comp_path);
 extern void peripheral_update(Computer *comp);
 extern struct computer_configuration getComputerConfig(int id);
 extern void setComputerConfig(int id, const computer_configuration& cfg);
