@@ -370,6 +370,7 @@ struct IPv6 {uint16_t a, b, c, d, e, f, g, h;};
 static constexpr uint32_t makeIP(int a, int b, int c, int d) {return (a << 24) | (b << 16) | (c << 8) | d;}
 
 static std::vector<std::pair<uint32_t, uint8_t> > reservedIPv4s = {
+    {makeIP(0, 0, 0, 0), 32},
     {makeIP(10, 0, 0, 0), 8},
     {makeIP(100, 64, 0, 0), 10},
     {makeIP(127, 0, 0, 0), 8},
@@ -379,13 +380,18 @@ static std::vector<std::pair<uint32_t, uint8_t> > reservedIPv4s = {
     {makeIP(192, 0, 2, 0), 24},
     {makeIP(192, 168, 0, 0), 16},
     {makeIP(198, 18, 0, 0), 15},
+    {makeIP(224, 0, 0, 0), 4},
     {makeIP(255, 255, 255, 255), 32}
 };
 
 static std::vector<std::pair<IPv6, uint8_t> > reservedIPv6s = {
+    {{0, 0, 0, 0, 0, 0, 0, 0}, 128},
     {{0, 0, 0, 0, 0, 0, 0, 1}, 128},
     {{0xfc00, 0, 0, 0, 0, 0, 0, 0}, 7},
-    {{0xfe80, 0, 0, 0, 0, 0, 0, 0}, 10}
+    {{0xfd00, 0, 0, 0, 0, 0, 0, 0}, 8},
+    {{0xfe80, 0, 0, 0, 0, 0, 0, 0}, 10},
+    {{0xfec0, 0, 0, 0, 0, 0, 0, 0}, 10},
+    {{0xff00, 0, 0, 0, 0, 0, 0, 0}, 8}
 };
 
 static std::atomic_bool didAddIPv4IPs(false);
