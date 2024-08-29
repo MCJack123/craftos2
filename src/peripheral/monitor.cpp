@@ -23,14 +23,18 @@ monitor::monitor(lua_State *L, const char * side) {
     unsigned w = term->width, h = term->height;
     if (lua_isnumber(L, 3)) w = (unsigned)lua_tointeger(L, 3);
     if (lua_isnumber(L, 4)) h = (unsigned)lua_tointeger(L, 4);
-    if (w != term->width || h != term->height) term->resize(w, h);
+    if (w != term->width || h != term->height) {
+        SDLTerminal * sdlterm = dynamic_cast<SDLTerminal*>(term);
+        if (sdlterm) sdlterm->resizeWholeWindow(w, h);
+        else term->resize(w, h);
+    }
 }
 
 monitor::~monitor() {term->factory->deleteTerminal(term);}
 
 int monitor::write(lua_State *L) {
     lastCFunction = __func__;
-    if (selectedRenderer == 4) printf("TW:%d;%s\n", term->id, luaL_checkstring(L, 1));
+    if (selectedRenderer == 4)   printf("TW:%d;%s\n", term->id, luaL_checkstring(L, 1));
     size_t str_sz;
     const char * str = luaL_checklstring(L, 1, &str_sz);
     std::lock_guard<std::mutex> lock(term->locked);
