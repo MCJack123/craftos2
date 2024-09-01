@@ -291,12 +291,12 @@ jobs:
         strip craftos
     - name: Build AppImage
       run: |
-        mkdir icons
-        unzip resources/linux-icons.zip -d icons
         mkdir AppDir
         curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
         chmod a+x AppDir/AppRun
         if [[ $GITHUB_REF =~ luajit ]]; then
+          mkdir icons
+          unzip resources/linux-icons.zip -d icons
           install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC-Accelerated.desktop
           install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC-Accelerated.desktop
           install -D -m 0644 icons/1024.png AppDir/craftos-luajit.png
@@ -304,9 +304,9 @@ jobs:
           install -D -m 0755 craftos2-luajit/src/libluajit.so AppDir/usr/lib/libluajit.so
           install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC-Accelerated.appdata.xml
         else
-          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
-          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
-          install -D -m 0644 icons/1024.png AppDir/craftos.png
+          install -D -m 0644 resources/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
+          install -D -m 0644 resources/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
+          install -D -m 0644 resources/linux-icons/1024.png AppDir/craftos.png
           install -D -m 0755 craftos AppDir/usr/bin/craftos
           install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
           install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
