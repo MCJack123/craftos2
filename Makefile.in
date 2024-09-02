@@ -8,8 +8,16 @@ LDFLAGS=@LDFLAGS@
 LIBEXT=.so
 ifndef OS
 ifeq (@OUT_TARGET@, craftos)
+ifeq ($(shell uname), Linux)
+EXTRA_PLATFORM_INSTALL_TARGETS=install-linux fixup-liblua-path
+endif
+endif
+endif
+ifndef OS
+ifeq (@OUT_TARGET@, craftos)
 ifeq ($(shell uname), Darwin)
 LIBEXT=.dylib
+EXTRA_PLATFORM_INSTALL_TARGETS=install-darwin
 endif
 endif
 endif
@@ -22,11 +30,22 @@ LIBEXT=.dylib
 endif
 endif
 endif
+INSTALL_TARGETS?=install-bin install-liblua $(EXTRA_PLATFORM_INSTALL_TARGETS)
 PREFIX?=@prefix@
 prefix=$(PREFIX)
-DESTDIR?=@exec_prefix@
+exec_prefix=@exec_prefix@
+ifdef DESTDIR
+$(if $(findstring /bin,$(DESTDIR)), \
+	$(warning "The DESTDIR variable was significantly changed. Please set BINDIR if you would like to change where binaries will be installed."))
+endif
+BINDIR=@bindir@
+SHAREDIR=@datarootdir@
+INCLUDEDIR=@includedir@
+LIBDIR=@libdir@
+MACAPPDIR=$(DESTDIR)/$(PREFIX)/Applications
+LIBLUA_NAME=libcraftos2-liblua
 ifneq (/usr,$(PREFIX))
-CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(PREFIX)/share/craftos\"
+CPPFLAGS:=$(CPPFLAGS) -DCUSTOM_ROM_DIR=\"$(SHAREDIR)/craftos\"
 endif
 SDIR=@srcdir@/src
 IDIR=@srcdir@/api
@@ -141,16 +160,82 @@ clean: $(ODIR)
 
 rebuild: clean craftos
 
-install: craftos
-	echo " [CP]    $(DESTDIR)/craftos"
-	cp craftos $(DESTDIR)/craftos
+fixup-liblua-path: craftos $(filter linux-plugin,$(MAKECMDGOALS))
+	echo " [FIXUP] craftos"
+	patchelf --replace-needed craftos2-lua/src/liblua.so "$(LIBLUA_NAME)$(LIBEXT)" craftos
+	if [ -f ccemux$(LIBEXT) ]; then \
+		echo " [FIXUP] ccemux$(LIBEXT)"; \
+		patchelf --replace-needed "craftos2-lua/src/liblua$(LIBEXT)" "$(LIBLUA_NAME)$(LIBEXT)" "ccemux$(LIBEXT)"; \
+	fi
+
+install-darwin: macapp
+	cp -r CraftOS-PC.app $(DESTDIR)$(MACAPPDIR)
+
+install-linux:
+	echo " [MKDIR] $(DESTDIR)$(SHAREDIR)/applications"
+	mkdir -p "$(DESTDIR)$(SHAREDIR)/applications"
+	echo " [CP]    resources/CraftOS-PC.desktop"
+	cp resources/CraftOS-PC.desktop "$(DESTDIR)$(SHAREDIR)/applications"
+	
+	for dimension in 16 24 32 48 64 96 128 256 1024; do \
+	 	icondir="$(DESTDIR)$(SHAREDIR)/icons/hicolor/$${dimension}x$${dimension}/apps"; \
+		echo " [MKDIR] $${icondir}"; \
+		mkdir -p "$${icondir}"; \
+		echo " [CP]    resources/linux-icons/$${dimension}.png"; \
+		cp "resources/linux-icons/$${dimension}.png" "$${icondir}/craftos.png"; \
+	done
+
+
+install-bin: craftos $(filter fixup-liblua-path,$(MAKECMDGOALS))
+	echo " [MKDIR] $(DESTDIR)$(BINDIR)"
+	mkdir -p "$(DESTDIR)$(BINDIR)"
+	echo " [CP]    craftos"
+	cp craftos "$(DESTDIR)$(BINDIR)/craftos"
+
+# craftos2-lua does have a ``make install`` rule, but it installs a lot of
+# files that conflict with a standard Lua installation.
+install-liblua: craftos2-lua/src/liblua$(LIBEXT)
+	echo " [MKDIR] $(DESTDIR)$(LIBDIR)"
+	mkdir "$(DESTDIR)$(LIBDIR)"
+	echo " [CP]    craftos2-lua/src/liblua$(LIBEXT)"
+	cp craftos2-lua/src/liblua$(LIBEXT) $(DESTDIR)$(LIBDIR)/$(LIBLUA_NAME)$(LIBEXT)
+
+install: $(INSTALL_TARGETS)
+
+# Not installed by default, since some distributions (e.g. Fedora/RHEL) expect
+# headers to be packaged seperately.
+extra-install-headers:
+	echo " [MKDIR] $(DESTDIR)$(INCLUDEDIR)"
+	mkdir -p "$(DESTDIR)$(INCLUDEDIR)"
+	echo " [CP]    api"
+	cp -R api "$(DESTDIR)$(INCLUDEDIR)/CraftOS-PC"
+	echo " [CP]    craftos2-lua/include"
+	cp -R craftos2-lua/include/* "$(DESTDIR)$(INCLUDEDIR)/CraftOS-PC"
+
+# Not installed by default, since this is not always wanted.
+extra-install-linux-plugin: linux-plugin fixup-liblua-path
+	echo " [MKDIR] $(DESTDIR)$(SHAREDIR)/craftos/plugins"
+	mkdir -p "$(DESTDIR)$(SHAREDIR)/craftos/plugins"
+	echo " [CP]    ccemux$(LIBEXT)"
+	cp "ccemux$(LIBEXT)" "$(DESTDIR)$(SHAREDIR)/craftos/plugins"
 
 uninstall:
-	echo " [RM]    $(DESTDIR)/craftos"
-	rm $(DESTDIR)/craftos
+	echo " [RM]    $(DESTDIR)$(BINDIR)/craftos"
+	rm -f "$(DESTDIR)$(BINDIR)/craftos"
+	echo " [RM]    $(DESTDIR)$(SHAREDIR)/applications/CraftOS-PC.desktop"
+	rm -f "$(DESTDIR)$(SHAREDIR)/applications/CraftOS-PC.desktop"
+	echo ' [RM]    $(DESTDIR)$(SHAREDIR)/icons/hicolor/*/apps/craftos.png'
+	rm -f "$(DESTDIR)$(SHAREDIR)/icons/hicolor/*/apps/craftos.png"
+	echo ' [RM]    $(DESTDIR)$(LIBDIR)/$(LIBLUA_NAME)$(LIBEXT)'
+	rm -f "$(DESTDIR)$(LIBDIR)/$(LIBLUA_NAME)$(LIBEXT)"
+	echo ' [RM]    $(DESTDIR)$(INCLUDEDIR)/CraftOS-PC'
+	rm -rf "$(DESTDIR)$(INCLUDEDIR)/CraftOS-PC"
+	echo ' [RM]    $(DESTDIR)$(MACAPPDIR)/CraftOS-PC.app'
+	rm -rf "$(DESTDIR)$(MACAPPDIR)/CraftOS-PC.app"
+
 
 test: craftos
 	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua -d "$(shell mktemp -d)"
 
-.PHONY: all macapp clean rebuild install uninstall test
+.PHONY: all macapp clean rebuild install install-bin install-headers install-liblua install-linux install-darwin extra-install-linux-plugin uninstall test
 .SILENT:
