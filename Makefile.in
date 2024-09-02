@@ -152,4 +152,5 @@ uninstall:
 test: craftos
 	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua -d "$(shell mktemp -d)"
 
+.PHONY: all macapp clean rebuild install uninstall test
 .SILENT:
