@@ -192,6 +192,7 @@ install-bin: craftos $(filter fixup-liblua-path,$(MAKECMDGOALS))
 	echo " [CP]    craftos"
 	cp craftos "$(DESTDIR)$(BINDIR)/craftos"
 
+
 # craftos2-lua does have a ``make install`` rule, but it installs a lot of
 # files that conflict with a standard Lua installation.
 install-liblua: craftos2-lua/src/liblua$(LIBEXT)
@@ -219,6 +220,18 @@ extra-install-linux-plugin: linux-plugin fixup-liblua-path
 	echo " [CP]    ccemux$(LIBEXT)"
 	cp "ccemux$(LIBEXT)" "$(DESTDIR)$(SHAREDIR)/craftos/plugins"
 
+# Not installed by default, since this is not always wanted.
+extra-install-apport:
+	echo " [MKDIR] $(DESTDIR)$(SHAREDIR)/apport/package-hooks"
+	mkdir -p "$(DESTDIR)$(SHAREDIR)/apport/package-hooks"
+	echo " [CP]    resources/apport/apport_hook.py"
+	cp resources/apport/apport_hook.py $(DESTDIR)$(SHAREDIR)/apport/package-hooks/craftos-pc.py
+	cp resources/apport/apport_hook.py $(DESTDIR)$(SHAREDIR)/apport/package-hooks/source_craftos-pc.py
+	echo " [MKDIR] $(DESTDIR)$(SYSCONFDIR)/apport/crashdb.conf.d"
+	mkdir -p "$(DESTDIR)$(SYSCONFDIR)/apport/crashdb.conf.d"
+	echo " [CP]    resources/apport/apport_crashdb.conf"
+	cp resources/apport/apport_crashdb.conf $(DESTDIR)$(SYSCONFDIR)/apport/crashdb.conf.d/craftos_pc-crashdb.conf
+
 uninstall:
 	echo " [RM]    $(DESTDIR)$(BINDIR)/craftos"
 	rm -f "$(DESTDIR)$(BINDIR)/craftos"
@@ -232,10 +245,15 @@ uninstall:
 	rm -rf "$(DESTDIR)$(INCLUDEDIR)/CraftOS-PC"
 	echo ' [RM]    $(DESTDIR)$(MACAPPDIR)/CraftOS-PC.app'
 	rm -rf "$(DESTDIR)$(MACAPPDIR)/CraftOS-PC.app"
-
+	echo ' [RM]    $(DESTDIR)$(SYSCONFDIR)/apport/crashdb.conf.d/craftos_pc-crashdb.conf'
+	rm -f "$(DESTDIR)$(SYSCONFDIR)/apport/crashdb.conf.d/craftos_pc-crashdb.conf"
+	echo ' [RM]    $(DESTDIR)$(SHAREDIR)/apport/package-hooks/source_craftos-pc.py'
+	rm -f "$(DESTDIR)$(SHAREDIR)/apport/package-hooks/source_craftos-pc.py"
+	echo ' [RM]    $(DESTDIR)$(SHAREDIR)/apport/package-hooks/craftos-pc.py'
+	rm -f "$(DESTDIR)$(SHAREDIR)/apport/package-hooks/craftos-pc.py"
 
 test: craftos
 	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua -d "$(shell mktemp -d)"
 
-.PHONY: all macapp clean rebuild install install-bin install-headers install-liblua install-linux install-darwin extra-install-linux-plugin uninstall test
+.PHONY: all macapp clean rebuild install install-bin install-headers install-liblua install-linux install-darwin extra-install-linux-plugin extra-install-apport uninstall test
 .SILENT:
