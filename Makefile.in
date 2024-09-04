@@ -232,6 +232,18 @@ extra-install-apport:
 	echo " [CP]    resources/apport/apport_crashdb.conf"
 	cp resources/apport/apport_crashdb.conf $(DESTDIR)$(SYSCONFDIR)/apport/crashdb.conf.d/craftos_pc-crashdb.conf
 
+# Not installed by default, since this is not always wanted.
+extra-install-appstream:
+	echo " [MKDIR] $(DESTDIR)$(SHAREDIR)/metainfo"
+	mkdir -p "$(DESTDIR)$(SHAREDIR)/metainfo"
+	echo " [CP]    resources/appdata.xml"
+	cp resources/appdata.xml $(DESTDIR)$(SHAREDIR)/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
+	echo " [MKDIR] $(DESTDIR)$(SHAREDIR)/applications"
+	mkdir -p "$(DESTDIR)$(SHAREDIR)/applications"
+	# XXX: Should we be installing the .desktop file into the AppStream-friendly location by default?
+	echo " [CP]    resources/CraftOS-PC.desktop"
+	cp resources/CraftOS-PC.desktop "$(DESTDIR)$(SHAREDIR)/applications/cc.craftos-pc.CraftOS-PC.desktop"
+
 uninstall:
 	echo " [RM]    $(DESTDIR)$(BINDIR)/craftos"
 	rm -f "$(DESTDIR)$(BINDIR)/craftos"
@@ -255,5 +267,5 @@ uninstall:
 test: craftos
 	./craftos --headless --script $(shell pwd)/resources/CraftOSTest.lua -d "$(shell mktemp -d)"
 
-.PHONY: all macapp clean rebuild install install-bin install-headers install-liblua install-linux install-darwin extra-install-linux-plugin extra-install-apport uninstall test
+.PHONY: all macapp clean rebuild install install-bin install-headers install-liblua install-linux install-darwin extra-install-linux-plugin extra-install-apport extra-install-appstream uninstall test
 .SILENT:
