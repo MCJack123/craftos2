@@ -146,6 +146,21 @@ $(ODIR)/apis_%_handle.o: $(SDIR)/apis/handles/%_handle.cpp $(SDIR)/apis/handles/
 	echo " [CXX]   $@"
 	$(CXX) -o $@ -c $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS) $<
 
+AppDir: craftos
+	mkdir AppDir
+	$(MAKE) DESTDIR=AppDir $(INSTALL_TARGETS) extra-install-appstream
+	cp resources/linux-icons/1024.png AppDir/craftos.png
+	# Vendor SSL certificates (needed for network requests to work properly?)
+	# XXX: Might not be necessary since https://github.com/AppImage/appimagetool/pull/32
+	mkdir -p AppDir/usr/lib/ssl
+	cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
+	# Vendor libraries
+	# this gets all libraries required recursively (?)
+	ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
+	cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
+	# XXX: patch libcrypto
+	lua -e 'local file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "rb")) local data = file:read("*a") file:close() file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "wb")) file:write(data:gsub("/usr(/lib/ssl[^\0]*\0)", ".%1\0\0\0")) file:close()'
+
 mac-plugin:
 	echo " [LD]    ccemux.bundle"
 	$(CXX) -std=c++17 -bundle -fpic -o ccemux.bundle examples/ccemux.cpp craftos2-lua/src/liblua$(LIBEXT) -lSDL2 -Icraftos2-lua/include -Iapi
