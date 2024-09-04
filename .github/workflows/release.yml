@@ -291,11 +291,8 @@ jobs:
         strip craftos
     - name: Build AppImage
       run: |
-        mkdir AppDir
-        curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
-        chmod a+x AppDir/AppRun
         if [[ $GITHUB_REF =~ luajit ]]; then
-          mkdir icons
+          mkdir AppDir icons
           unzip resources/linux-icons.zip -d icons
           install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC-Accelerated.desktop
           install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC-Accelerated.desktop
@@ -303,22 +300,20 @@ jobs:
           install -D -m 0755 craftos AppDir/usr/bin/craftos-luajit
           install -D -m 0755 craftos2-luajit/src/libluajit.so AppDir/usr/lib/libluajit.so
           install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC-Accelerated.appdata.xml
+          # this gets all libraries required recursively (?)
+          ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
+          cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
+          mkdir -p AppDir/usr/lib/ssl
+          cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
+          lua -e 'local file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "rb")) local data = file:read("*a") file:close() file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "wb")) file:write(data:gsub("/usr(/lib/ssl[^\0]*\0)", ".%1\0\0\0")) file:close()'
         else
-          install -D -m 0644 resources/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
-          install -D -m 0644 resources/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
-          install -D -m 0644 resources/linux-icons/1024.png AppDir/craftos.png
-          install -D -m 0755 craftos AppDir/usr/bin/craftos
-          install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
-          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
+          make AppDir
         fi
+        curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
+        chmod a+x AppDir/AppRun
+
         mkdir -p AppDir/usr/share/craftos
         cp -Rp /usr/local/share/craftos/rom /usr/local/share/craftos/debug /usr/local/share/craftos/bios.lua /usr/local/share/craftos/hdfont.bmp AppDir/usr/share/craftos/
-        # this gets all libraries required recursively (?)
-        ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
-        cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
-        mkdir -p AppDir/usr/lib/ssl
-        cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
-        lua -e 'local file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "rb")) local data = file:read("*a") file:close() file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "wb")) file:write(data:gsub("/usr(/lib/ssl[^\0]*\0)", ".%1\0\0\0")) file:close()'
         appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
     - name: Upload AppImage
       uses: shogo82148/actions-upload-release-asset@v1.6.3
