@@ -1,3 +1,7 @@
+-- SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+--
+-- SPDX-License-Identifier: MIT
+
 local function runTests()
     local oldClockSpeed = config.get("clockSpeed")
     config.set("clockSpeed", 1000)

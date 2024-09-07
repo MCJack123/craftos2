@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
+
 /*
  * peripheral_base.cpp
  * CraftOS-PC 2

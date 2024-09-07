@@ -1,2 +1,6 @@
+# SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+#
+# SPDX-License-Identifier: CC0-1.0
+
 src/font.c linguist-generated
 src/peripheral/speaker_sounds.cpp linguist-generated

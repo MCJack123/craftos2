@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+#
+# SPDX-License-Identifier: MIT
+
 cmake_minimum_required(VERSION 3.6)
 
 project(MY_APP)

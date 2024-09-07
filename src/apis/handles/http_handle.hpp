@@ -1,12 +1,7 @@
-/*
- * apis/handles/http_handle.hpp
- * CraftOS-PC 2
- * 
- * This file defines the methods for HTTP handles.
- * 
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #ifndef HTTP_HANDLE_HPP
 #define HTTP_HANDLE_HPP

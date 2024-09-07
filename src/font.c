@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 /* GIMP RGB C-Source image dump (font.c) */
  
 struct font_image {

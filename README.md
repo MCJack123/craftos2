@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+
+SPDX-License-Identifier: MIT
+-->
+
 # CraftOS-PC 2 [![Actions Status](https://github.com/MCJack123/craftos2/workflows/CI/badge.svg)](https://github.com/MCJack123/craftos2/actions)
 A rewrite of [CraftOS-PC (Classic)](https://github.com/MCJack123/craftos) using C++ and a modified version of PUC Lua, as well as SDL for drawing.
 

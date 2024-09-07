@@ -1,12 +1,7 @@
-/*
- * peripheral/modem.cpp
- * CraftOS-PC 2
- * 
- * This file defines the methods for the modem peripheral.
- * 
- * This code is licensed under the MIT License.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #include "../runtime.hpp"
 static std::string modem_message(lua_State *message, void* data);

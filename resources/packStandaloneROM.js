@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
+
 // Run this script with Node in the same directory as the ROM
 // Generates an fs_standalone.cpp file that can be used for standalone builds
 const fs = require("fs");

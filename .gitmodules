@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+#
+# SPDX-License-Identifier: CC0-1.0
+
 [submodule "craftos2-lua"]
 	path = craftos2-lua
 	url = https://github.com/MCJack123/craftos2-lua

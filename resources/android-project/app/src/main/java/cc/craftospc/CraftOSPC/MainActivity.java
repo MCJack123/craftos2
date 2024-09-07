@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
+
 package cc.craftospc.CraftOSPC;
 
 import android.content.Context;

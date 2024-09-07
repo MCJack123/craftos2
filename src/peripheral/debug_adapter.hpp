@@ -1,12 +1,7 @@
-/*
- * peripheral/debug_adapter.hpp
- * CraftOS-PC 2
- * 
- * This file defines the class for the VS Code debug adapter.
- * 
- * This code is licensed under the MIT License.
- * Copyright (c) 2019-2024 JackMacWindows. 
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #ifndef PERIPHERAL_DEBUG_ADAPTER_HPP
 #define PERIPHERAL_DEBUG_ADAPTER_HPP

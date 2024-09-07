@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2024 Tomodachi94
+#
+# SPDX-License-Identifier: CC0-1.0
+
+version = 1
+
+# Original works
+
+[[annotations]]
+path = ["vcpkg.json"]
+SPDX-FileCopyrightText = "2019-2024 JackMacWindows"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [".github/ISSUE_TEMPLATE/bug_report.md", ".github/ISSUE_TEMPLATE/feature_request.md"]
+SPDX-FileCopyrightText = "2019-2024 JackMacWindows"
+SPDX-License-Identifier = "MIT"
+
+# Vendored files
+
+[[annotations]]
+path = ["configure"]
+SPDX-FileCopyrightText = "1992-1996, 1998-2012 Free Software Foundation, Inc."
+SPDX-License-Identifier = "FSFUL"
+
+[[annotations]]
+path = ["resources/android-project/gradlew", "resources/android-project/gradlew.bat", "resources/android-project/gradle/wrapper/gradle-wrapper.properties"]
+SPDX-FileCopyrightText = "Gradle, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ["resources/android-project/app/src/main/java/org/libsdl/app/*.java", "resources/android-project/app/src/main/AndroidManifest.xml", "resources/android-project/app/jni/CMakeLists.txt"]
+SPDX-FileCopyrightText = "1997-2024 Sam Lantinga <slouken@libsdl.org> and contributors"
+SPDX-License-Identifier = "Zlib"
+
+# Generated files
+
+[[annotations]]
+path = ["src/platform/CraftOS-PC 2.rc"]
+SPDX-FileCopyrightText = "2019-2024 JackMacWindows"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["CraftOS-PC 2.sln", "CraftOS-PC 2.vcxproj", "CraftOS-PC 2.vcxproj.filters", "resources/analysis.ruleset"]
+SPDX-FileCopyrightText = "2019-2024 JackMacWindows"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["examples/ccemux.vcxproj", "examples/ccemux.vcxproj.filters"]
+SPDX-FileCopyrightText = "2019-2024 JackMacWindows"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = "resources/android-project/.idea/*.xml"
+SPDX-FileCopyrightText = "2019-2024 JackMacWindows"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["resources/android-project/.idea/modules/app/craftos2-android.app.iml", "resources/android-project/.idea/modules/craftos2-android.iml"]
+SPDX-FileCopyrightText = "2019-2024 JackMacWindows"
+SPDX-License-Identifier = "CC0-1.0"
+

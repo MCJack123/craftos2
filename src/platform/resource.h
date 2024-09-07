@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by CraftOS-PC 2.rc

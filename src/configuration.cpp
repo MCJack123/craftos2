@@ -1,12 +1,7 @@
-/*
- * configuration.cpp
- * CraftOS-PC 2
- *
- * This file implements functions for interacting with the configuration.
- *
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #include <fstream>
 #include <unordered_map>

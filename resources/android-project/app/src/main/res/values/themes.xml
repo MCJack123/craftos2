@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+
+SPDX-License-Identifier: MIT
+-->
+
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Theme.CraftOSPC" parent="Theme.MaterialComponents.DayNight.NoActionBar">

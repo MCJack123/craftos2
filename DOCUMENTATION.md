@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+
+SPDX-License-Identifier: MIT
+-->
+
 # New feature documentation
 This file provides documentation for the new APIs in CraftOS-PC.
 
