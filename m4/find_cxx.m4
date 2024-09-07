@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2006 Guido U. Draheim <guidod@gmx.de>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later WITH Autoconf-exception-2.0
 dnl @synopsis AX_CXX_CHECK_LIB(libname, functioname, action-if, action-if-not)
 dnl
 dnl The standard AC_CHECK_LIB can not test functions in namespaces.
