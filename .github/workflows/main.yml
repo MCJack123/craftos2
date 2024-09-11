@@ -205,7 +205,7 @@ jobs:
         $code = Get-Content .\retval.txt
         if ( $code -ne 0 ) { exit $code }
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: CraftOS-PC-Artifact
         path: |
@@ -213,7 +213,7 @@ jobs:
           CraftOS-PC_console.exe
           lua52.dll
     - name: Upload artifact symbols
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: CraftOS-PC-Artifact-Symbols
         path: |
