@@ -229,7 +229,7 @@ void config_init() {
 #else
         false,
 #endif
-        false,
+        true,
         false,
         false
     };
