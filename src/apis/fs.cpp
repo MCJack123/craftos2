@@ -239,7 +239,7 @@ static int fs_isReadOnly(lua_State *L) {
 #ifdef WIN32
     else if (e.clear(), fs::is_directory(path, e)) {
         e.clear();
-        const path_t file = path / "a";
+        const path_t file = path / ".reallylongfilenamethatshouldhopefullyneverexist";
         const bool didexist = fs::exists(file, e);
         std::fstream fp(file, didexist ? std::ios::in : std::ios::out);
         lua_pushboolean(L, !fp.is_open());
