@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+#
+# SPDX-License-Identifier: MIT
+
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)

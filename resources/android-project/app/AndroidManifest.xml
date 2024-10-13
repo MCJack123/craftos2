@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!--
+SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+
+SPDX-License-Identifier: MIT
+-->
+
 <!-- Replace com.test.game with the identifier of your game below, e.g.
      com.gamemaker.game
 -->

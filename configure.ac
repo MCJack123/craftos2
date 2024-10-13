@@ -1,3 +1,7 @@
+dnl SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+dnl
+dnl SPDX-License-Identifier: MIT
+
 # Initialize
 AC_INIT([CraftOS-PC], [2.8])
 AC_CONFIG_SRCDIR([src/main.cpp])

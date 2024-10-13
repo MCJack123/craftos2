@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #import <StoreKit/StoreKit.h>
 #import <UIKit/UIKit.h>
 #include <openssl/asn1.h>
