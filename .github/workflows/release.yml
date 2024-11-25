@@ -41,7 +41,7 @@ jobs:
     - name: Download resources
       run: git clone https://github.com/MCJack123/craftos2-release-resources $env:GITHUB_WORKSPACE\craftos2-release-resources
     - name: Download built executables
-      uses: dawidd6/action-download-artifact@v2.22.0
+      uses: dawidd6/action-download-artifact@v6
       with:
         github_token: ${{secrets.GITHUB_TOKEN}}
         workflow: main.yml
