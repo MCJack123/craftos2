@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+#
+# SPDX-License-Identifier: MIT
 
 # Uncomment this if you're using STL in your project
 # You can find more information here:

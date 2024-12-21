@@ -1,13 +1,7 @@
-/*
- * Computer.hpp
- * CraftOS-PC 2
- *
- * This file defines the Computer class, which stores the state of each running
- * computer.
- *
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #ifndef CRAFTOS_PC_COMPUTER_HPP
 #define CRAFTOS_PC_COMPUTER_HPP

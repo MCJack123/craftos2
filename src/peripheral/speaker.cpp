@@ -1,12 +1,7 @@
-/*
- * peripheral/speaker.cpp
- * CraftOS-PC 2
- * 
- * This file implements the methods for the speaker peripheral.
- * 
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #ifndef NO_MIXER
 #include <cmath>
