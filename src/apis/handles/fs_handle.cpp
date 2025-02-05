@@ -23,7 +23,7 @@
 #endif
 
 #ifdef __EMSCRIPTEN__
-EM_JS(void, syncfs, (), {
+EM_JS(void, emsyncfs, (), {
     if (window.fsIsSyncing) return;
     window.fsIsSyncing = true;
     FS.syncfs(false, function(err) {
@@ -44,7 +44,7 @@ int fs_handle_close(lua_State *L) {
     *fp = NULL;
     get_comp(L)->files_open--;
 #ifdef __EMSCRIPTEN__
-    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+    queueTask([](void*)->void*{emsyncfs(); return NULL;}, NULL, true);
 #endif
     return 0;
 }
@@ -60,7 +60,7 @@ int fs_handle_gc(lua_State *L) {
     *fp = NULL;
     get_comp(L)->files_open--;
 #ifdef __EMSCRIPTEN__
-    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+    queueTask([](void*)->void*{emsyncfs(); return NULL;}, NULL, true);
 #endif
     return 0;
 }
@@ -244,7 +244,7 @@ int fs_handle_flush(lua_State *L) {
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     fp->flush();
 #ifdef __EMSCRIPTEN__
-    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+    queueTask([](void*)->void*{emsyncfs(); return NULL;}, NULL, true);
 #endif
     return 0;
 }

@@ -34,7 +34,7 @@ extern "C" {
     };
     extern struct font_image font_image;
 #ifdef __EMSCRIPTEN__
-    extern void syncfs();
+    extern void emsyncfs();
 #endif
 }
 
@@ -304,7 +304,7 @@ void HardwareSDLTerminal::render() {
 #endif
         }
 #ifdef __EMSCRIPTEN__
-        queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
+        queueTask([](void*)->void* {emsyncfs(); return NULL; }, NULL, true);
 #endif
     }
     if (shouldRecord) {

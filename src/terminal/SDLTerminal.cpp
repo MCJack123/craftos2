@@ -81,7 +81,7 @@ extern "C" {
         return (*renderTarget)->title.c_str();
     }
 
-    extern void syncfs();
+    extern void emsyncfs();
 }
 
 void onWindowCreate(int id, const char * title) {EM_ASM({if (Module.windowEventListener !== undefined) Module.windowEventListener.onWindowCreate($0, $1);}, id, title);}
@@ -382,7 +382,7 @@ void SDLTerminal::render() {
         }
         SDL_FreeSurface(temp);
 #ifdef __EMSCRIPTEN__
-        queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+        queueTask([](void*)->void*{emsyncfs(); return NULL;}, NULL, true);
 #endif
     }
     if (shouldRecord) {
@@ -561,7 +561,7 @@ void SDLTerminal::stopRecording() {
 #endif
     recorderHandle = NULL;
 #ifdef __EMSCRIPTEN__
-    queueTask([](void*)->void*{syncfs(); return NULL;}, NULL, true);
+    queueTask([](void*)->void*{emsyncfs(); return NULL;}, NULL, true);
 #endif
     changed = true;
 }

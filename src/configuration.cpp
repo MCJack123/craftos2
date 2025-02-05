@@ -24,7 +24,7 @@ struct configuration config;
 int onboardingMode = 0;
 
 #ifdef __EMSCRIPTEN__
-extern "C" {extern void syncfs(); }
+extern "C" {extern void emsyncfs(); }
 #endif
 
 static void showMessage(const std::string& message) {
@@ -89,7 +89,7 @@ void setComputerConfig(int id, const computer_configuration& cfg) {
     out << root;
     out.close();
 #ifdef __EMSCRIPTEN__
-    queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
+    queueTask([](void*)->void* {emsyncfs(); return NULL; }, NULL, true);
 #endif
 }
 
@@ -442,7 +442,7 @@ void config_save() {
         out << root;
         out.close();
 #ifdef __EMSCRIPTEN__
-        queueTask([](void*)->void* {syncfs(); return NULL; }, NULL, true);
+        queueTask([](void*)->void* {emsyncfs(); return NULL; }, NULL, true);
 #endif
     } else {
         showMessage("An error occurred while writing the global configuration file. The current session's config will not be saved.");
