@@ -1,4 +1,9 @@
 #!/bin/sh
+
+# SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+#
+# SPDX-License-Identifier: MIT
+
 # Mac distribution auto-updater
 # DO NOT RUN STANDALONE!
 SRCAPP=$(dirname $0)/CraftOS-PC.app

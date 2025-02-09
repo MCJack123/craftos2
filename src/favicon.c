@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 /* GIMP RGBA C-Source image dump (favicon.c) */
 
 struct favicon {

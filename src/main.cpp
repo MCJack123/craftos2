@@ -1,13 +1,7 @@
-/*
- * main.cpp
- * CraftOS-PC 2
- * 
- * This file handles command-line flags, sets up the runtime, and starts the
- * first computer.
- * 
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #include "main.hpp"
 static int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write);

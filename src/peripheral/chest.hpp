@@ -1,12 +1,7 @@
-/*
- * peripheral/chest.hpp
- * CraftOS-PC 2
- * 
- * This file defines the class for the chest peripheral.
- * 
- * This code is licensed under the MIT License.
- * Copyright (c) 2019-2024 JackMacWindows. 
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #ifndef PERIPHERAL_CHEST_HPP
 #define PERIPHERAL_CHEST_HPP
