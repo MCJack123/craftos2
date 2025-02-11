@@ -276,7 +276,7 @@ downloadThread_entry:
         else if (config.http_timeout > 0) session->setTimeout(Poco::Timespan(config.http_timeout * 1000));
         size_t requestSize = param->postData.size();
         for (const auto& h : param->headers) {request.add(h.first, h.second); requestSize += h.first.size() + h.second.size() + 1;}
-        if (isLocalhost) request.add("Host", "localhost");
+        if (isLocalhost) request.add("Host", "localhost:" + std::to_string(uri.getPort()));
         if (!request.has("User-Agent")) request.add("User-Agent", "computercraft/" CRAFTOSPC_CC_VERSION " CraftOS-PC/" CRAFTOSPC_VERSION);
         if (!request.has("Accept-Charset")) request.add("Accept-Charset", "UTF-8");
         if (!param->postData.empty()) {
