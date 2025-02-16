@@ -160,7 +160,8 @@ int http_handle_getResponseCode(lua_State *L) {
     http_handle_t * handle = *(http_handle_t**)lua_touserdata(L, lua_upvalueindex(1));
     if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     lua_pushinteger(L, handle->handle->getStatus());
-    return 1;
+    pushstring(L, handle->handle->getReason());
+    return 2;
 }
 
 int http_handle_getResponseHeaders(lua_State *L) {
