@@ -582,8 +582,9 @@ static bool renderTerminal(Terminal * term, bool& pushEvent) {
             term->last_blink = std::chrono::high_resolution_clock::now();
             term->changed = true;
         }
-        if (term->frozen) return false;
+        if (term->frozen && !term->forcedUpdate) return false;
         changed = term->changed;
+        term->forcedUpdate = false;
     }
     try {
         term->render();

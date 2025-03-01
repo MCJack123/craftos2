@@ -152,6 +152,7 @@ public:
 
     // The following fields are available in API version 10.1 and later.
     bool frozen = false; // Whether the terminal should stop rendering
+    bool forcedUpdate = false; // Ignores `frozen` to render the terminal once 
 
     // The following fields are available in API version 10.2 and later.
     std::list<uint8_t> mouseButtonOrder; // An ordered list of mouse buttons that have been pressed
