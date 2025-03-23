@@ -1,12 +1,7 @@
-/*
- * plugin.cpp
- * CraftOS-PC 2
- *
- * This file implements various functions relating to plugin loading on iOS.
- *
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #include <unordered_map>
 #define get_comp __get_comp_unused

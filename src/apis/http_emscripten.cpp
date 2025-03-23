@@ -1,13 +1,7 @@
-/*
- * apis/http_emscripten.cpp
- * CraftOS-PC 2
- * 
- * This file implements the http API for the Emscripten platform, which does not
- * support the standard HTTP implementation using Poco.
- * 
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #define CRAFTOSPC_INTERNAL
 #ifdef __EMSCRIPTEN__

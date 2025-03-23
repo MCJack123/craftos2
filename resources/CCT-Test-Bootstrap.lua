@@ -1,3 +1,7 @@
+-- SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+--
+-- SPDX-License-Identifier: MIT
+
 config.set("abortTimeout", 3000) -- to speed things up a bit
 config.add("http_blacklist", "$private")
 if ... == "debugger" then

@@ -1,12 +1,7 @@
-/*
- * peripheral/drive.cpp
- * CraftOS-PC 2
- * 
- * This file defines the methods for the drive peripheral.
- * 
- * This code is licensed under the MIT License.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #include <dirent.h>
 #include <sys/stat.h>
