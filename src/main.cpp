@@ -34,6 +34,7 @@ static void* releaseNotesThread(void* data);
 #include <Poco/URI.h>
 #include <Poco/Checksum.h>
 #include <Poco/JSON/Parser.h>
+#include <Poco/JSON/JSONException.h>
 #ifndef __EMSCRIPTEN__
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/HTTPRequest.h>

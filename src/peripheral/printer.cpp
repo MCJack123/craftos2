@@ -37,7 +37,11 @@ static std::unordered_map<HPDF_STATUS, const char *> pdf_errors = {
     {HPDF_ENCRYPT_INVALID_PASSWORD, "1. Tried to set the owner password to NULL.\t2. Owner and user password are the same."},
     {HPDF_ERR_UNKNOWN_CLASS, "Internal error. Data consistency was lost."},
     {HPDF_EXCEED_GSTATE_LIMIT, "Stack depth > HPDF_LIMIT_MAX_GSTATE."},
+#ifdef HPDF_FAILED_TO_ALLOC_MEM
+    {HPDF_FAILED_TO_ALLOC_MEM, "Memory allocation failed."},
+#else
     {HPDF_FAILD_TO_ALLOC_MEM, "Memory allocation failed."},
+#endif
     {HPDF_FILE_IO_ERROR, "File processing failed. (Detailed code is set.)"},
     {HPDF_FILE_OPEN_ERROR, "Cannot open a file. (Detailed code is set.)"},
     {HPDF_FONT_EXISTS, "Tried to load a font that has been registered."},

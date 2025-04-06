@@ -11,6 +11,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <configuration.hpp>
+#include <Poco/JSON/JSONException.h>
 #include "platform.hpp"
 #include "runtime.hpp"
 #include "terminal/SDLTerminal.hpp"

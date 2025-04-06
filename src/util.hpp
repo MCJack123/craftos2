@@ -22,6 +22,8 @@ extern "C" {
 #include <vector>
 #include <Poco/JSON/JSON.h>
 #include <Poco/JSON/Parser.h>
+#include <Poco/JSON/Object.h>
+#include <Poco/JSON/Array.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Computer.hpp>
 #include <Terminal.hpp>
