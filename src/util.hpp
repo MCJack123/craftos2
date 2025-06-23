@@ -166,7 +166,7 @@ struct lua_State {
 };
 
 inline int log2i(int num) {
-    if (num == 0) return 0;
+    if (num <= 0) return 0;
     int retval;
     for (retval = 0; (num & 1) == 0; retval++) num = num >> 1;
     return retval;
