@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Google Inc. and the Material Icons project
+
+SPDX-License-Identifier: Apache-2.0
+-->
+
 <vector android:height="24dp" android:tint="#FF4F4C"
     android:viewportHeight="24" android:viewportWidth="24"
     android:width="24dp" xmlns:android="http://schemas.android.com/apk/res/android">

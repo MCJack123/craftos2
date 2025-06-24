@@ -1,12 +1,7 @@
-/*
- * configuration.hpp
- * CraftOS-PC 2
- *
- * This file defines structures used for storing the configuration.
- *
- * This code is licensed under the MIT license.
- * Copyright (c) 2019-2024 JackMacWindows.
- */
+// Copyright (c) 2019-2024 JackMacWindows.
+// SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+//
+// SPDX-License-Identifier: MIT
 
 #ifndef CRAFTOS_PC_CONFIGURATION_HPP
 #define CRAFTOS_PC_CONFIGURATION_HPP
