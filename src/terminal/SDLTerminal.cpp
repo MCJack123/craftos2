@@ -480,7 +480,7 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
             changed = true;
         }
     }
-    while (gotResizeEvent) std::this_thread::yield(); // this should probably be a condition variable
+    while (gotResizeEvent && (!singleWindowMode || *renderTarget == this)) std::this_thread::yield(); // this should probably be a condition variable
     return true;
 }
 

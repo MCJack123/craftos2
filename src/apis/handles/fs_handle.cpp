@@ -69,11 +69,15 @@ int fs_handle_readAll(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
-    if (fp->eof()) return 0;
-    if (!fp->good()) luaL_error(L, "Could not read file");
+    if (fp->eof()) {
+        if (fp->tellg() < 1) return 0;
+        lua_pushliteral(L, "");
+        return 1;
+    }
+    if (!fp->good()) return 0;
     const long pos = (long)fp->tellg();
     fp->seekg(0, std::ios::end);
-    if (!fp->good()) luaL_error(L, "Could not read file");
+    if (!fp->good()) return 0;
     long size = (long)fp->tellg() - pos;
     char * retval = new char[size + 1];
     memset(retval, 0, size + 1);

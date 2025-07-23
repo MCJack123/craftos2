@@ -497,10 +497,12 @@ static int http_request(lua_State *L) {
         lua_getfield(L, 1, "body");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'body' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
         else if (lua_isstring(L, -1)) param->postData = tostring(L, -1);
+        else param->postData = "";
         lua_pop(L, 1);
         lua_getfield(L, 1, "method");
         if (!lua_isnil(L, -1) && !lua_isstring(L, -1)) {delete param; return luaL_error(L, "bad field 'method' (string expected, got %s)", lua_typename(L, lua_type(L, -1)));}
         else if (lua_isstring(L, -1)) param->method = tostring(L, -1);
+        else param->method = "";
         lua_pop(L, 1);
         lua_getfield(L, 1, "redirect");
         param->redirect = true;
