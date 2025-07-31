@@ -134,8 +134,8 @@ int http_handle_readByte(lua_State *L) {
     } else {
         const size_t c = lua_tointeger(L, 1);
         char * retval = new char[c];
-        handle->stream->read(retval, c);
-        lua_pushlstring(L, retval, c);
+        size_t count = handle->stream->readsome(retval, c);
+        lua_pushlstring(L, retval, count);
     }
     return 1;
 }
