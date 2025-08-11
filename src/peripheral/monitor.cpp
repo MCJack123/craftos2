@@ -573,6 +573,14 @@ int monitor::setBlockSize(lua_State *L) {
     return 0;
 }
 
+int monitor::forceUpdate(lua_State *L) {
+    lastCFunction = __func__;
+    if (term == NULL) return 0;
+    std::lock_guard<std::mutex> lock(term->locked);
+    term->forcedUpdate = true;
+    return 0;
+}
+
 int monitor::call(lua_State *L, const char * method) {
     std::string m(method);
     if (m == "write") return write(L);
