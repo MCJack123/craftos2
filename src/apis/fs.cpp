@@ -123,8 +123,10 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, std::string path) {
 static std::string normalizePath(const path_t& basePath) {
     path_t cleanPath;
     for (const auto& p : basePath) {
-        if (std::regex_match(p.native(), pathregex("^\\.\\.\\.+$"))) cleanPath /= ".";
-        else cleanPath /= p;
+        path_t::string_type str = p.native();
+        str.erase(std::remove_if(str.begin(), str.end(), [](path_t::string_type::value_type c)->bool {return c == '"' || c == '*' || c == ':' || c == '<' || c == '>' || c == '?' || c == '|' || c < 32;}), str.end());
+        if (std::regex_match(str, pathregex("^\\.\\.\\.+$"))) cleanPath /= ".";
+        else cleanPath /= path_t(str);
     }
     cleanPath = cleanPath.lexically_normal();
     if (path_t::preferred_separator != (path_t::value_type)'/') {
@@ -246,15 +248,16 @@ static int fs_isReadOnly(lua_State *L) {
 
 static int fs_getName(lua_State *L) {
     lastCFunction = __func__;
-    pushstring(L, path_t(normalizePath(checkstring(L, 1))).filename().string());
+    std::string retval = path_t(normalizePath(checkstring(L, 1))).filename().string();
+    if (retval.empty()) lua_pushliteral(L, "root");
+    else pushstring(L, retval);
     return 1;
 }
 
 static int fs_getDrive(lua_State *L) {
     lastCFunction = __func__;
     std::string retval;
-    std::string str = checkstring(L, 1);
-    fixpath_mkdir(get_comp(L), str + "/a", false, &retval);
+    if (fixpath(get_comp(L), checkstring(L, 1), true, true, &retval).empty()) return 0;
     lua_pushstring(L, retval.c_str());
     return 1;
 }

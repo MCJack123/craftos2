@@ -74,10 +74,10 @@ int fs_handle_readAll(lua_State *L) {
         lua_pushliteral(L, "");
         return 1;
     }
-    if (!fp->good()) return 0;
+    if (fp->bad() || fp->fail()) return 0;
     const long pos = (long)fp->tellg();
     fp->seekg(0, std::ios::end);
-    if (!fp->good()) return 0;
+    if (fp->bad() || fp->fail()) return 0;
     long size = (long)fp->tellg() - pos;
     char * retval = new char[size + 1];
     memset(retval, 0, size + 1);
@@ -170,8 +170,12 @@ int fs_handle_readAllByte(lua_State *L) {
     lastCFunction = __func__;
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
-    if (fp->eof()) return 0;
-    if (!fp->good()) return luaL_error(L, "Could not read file");
+    if (fp->eof()) {
+        if (fp->tellg() < 1) return 0;
+        lua_pushliteral(L, "");
+        return 1;
+    }
+    if (fp->bad() || fp->fail()) return luaL_error(L, "Could not read file");
     std::streampos pos = fp->tellg();
     fp->seekg(0, std::ios_base::end);
     size_t size = fp->tellg() - pos;

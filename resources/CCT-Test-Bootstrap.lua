@@ -1,4 +1,5 @@
 config.set("abortTimeout", 3000) -- to speed things up a bit
+config.set("standardsMode", true)
 config.add("http_blacklist", "$private")
 if ... == "debugger" then
     periphemu.create("left", "debugger")
