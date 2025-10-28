@@ -13,6 +13,10 @@
         {
             "name": "zlib",
             "platform": "windows"
+        },
+        {
+            "name": "dirent",
+            "platform": "windows"
         }
     ],
     "default-features": ["cli", "speaker", "pdf-printer", "png-screenshots", "webp-screenshots"],

@@ -11,6 +11,7 @@
 #ifndef PERIPHERAL_DEBUGGER_HPP
 #define PERIPHERAL_DEBUGGER_HPP
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
