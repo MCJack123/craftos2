@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+#
+# SPDX-License-Identifier: MIT
+
 diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/mcfly.lua b/projects/core/src/test/resources/test-rom/mcfly.lua
 --- a/projects/core/src/test/resources/test-rom/mcfly.lua	2020-06-29 02:52:34.000000000 -0400
 +++ b/projects/core/src/test/resources/test-rom/mcfly.lua	2020-06-27 02:49:47.000000000 -0400

@@ -1,3 +1,7 @@
+-- SPDX-FileCopyrightText: 2019-2024 JackMacWindows
+--
+-- SPDX-License-Identifier: MIT
+
 -- Tests compliance of CraftOS APIs
 if not _HEADLESS then term.clear() end
 local old_blacklist
