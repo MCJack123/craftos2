@@ -220,4 +220,75 @@ jobs:
           CraftOS-PC.pdb
           CraftOS-PC_console.pdb
           lua52.pdb
+
+  build-windows-arm:
+    name: Build Windows (ARM)
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download ROM
+      run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
+    - name: Restore vcpkg cache
+      uses: lukka/run-vcpkg@v10
+      with:
+        vcpkgGitCommitId: 1b4a65242adfd65a82b1d1a6f31f1accdfe09af9
+
+    - name: Prepare environment
+      run: |
+        git submodule update --init --recursive
+        mkdir ARM64\ReleaseC
+        mkdir ARM64\Release
+        & $Env:VCPKG_ROOT\vcpkg integrate install
+        ((Get-Content -path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake") -replace "VCPKG_TARGET_IS_WINDOWS", "false") -replace "lib/cmake/Poco", "cmake" | Set-Content -Path "$Env:VCPKG_ROOT\ports\poco\portfile.cmake"
+    - name: Build CraftOS-PC
+      env:
+        APIKEY: ${{secrets.WINDOWS_APIKEY}}
+      run: |
+        function Invoke-Environment {
+            param
+            (
+                # Any cmd shell command, normally a configuration batch file.
+                [Parameter(Mandatory=$true)]
+                [string] $Command
+            )
+
+            $Command = "`"" + $Command + "`""
+            cmd /c "$Command > nul 2>&1 && set" | . { process {
+                if ($_ -match '^([^=]+)=(.*)') {
+                    [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+                }
+            }}
+
+        }
+
+        Invoke-Environment "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"
+        $tag = git rev-parse --short HEAD
+        Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\" '/DCRASHREPORT_API_KEY
+        [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($Env:APIKEY)) | Out-File -Encoding "UTF8" src\apikey.cpp
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC /p:Platform=ARM64
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release /p:Platform=ARM64
+        copy ARM64\Release\CraftOS-PC.exe CraftOS-PC.exe
+        copy ARM64\Release\CraftOS-PC.pdb CraftOS-PC.pdb
+        copy ARM64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
+        copy ARM64\ReleaseC\CraftOS-PC.pdb CraftOS-PC_console.pdb
+        copy craftos2-lua\src\lua52.dll lua52.dll
+        copy craftos2-lua\src\lua52.pdb lua52.pdb
+        # Remove buildtrees that kill the cache
+        Remove-Item vcpkg\buildtrees\* -Force -Recurse -ErrorAction SilentlyContinue
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: CraftOS-PC-Artifact-ARM64
+        path: |
+          CraftOS-PC.exe
+          CraftOS-PC_console.exe
+          lua52.dll
+    - name: Upload artifact symbols
+      uses: actions/upload-artifact@v4
+      with:
+        name: CraftOS-PC-Artifact-ARM64-Symbols
+        path: |
+          CraftOS-PC.pdb
+          CraftOS-PC_console.pdb
+          lua52.pdb
   
