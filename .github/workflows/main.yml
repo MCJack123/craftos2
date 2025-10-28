@@ -117,7 +117,7 @@ jobs:
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-        git clone --branch v1.20.1-1.112.0 https://github.com/cc-tweaked/CC-Tweaked ../CC-Tweaked
+        git clone --branch v1.20.1-1.116.1 https://github.com/cc-tweaked/CC-Tweaked ../CC-Tweaked
         patch -p1 -d ../CC-Tweaked < resources/CCT-Tests.patch
     - name: Install dependencies
       run: |
@@ -150,7 +150,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v10
       with:
-        vcpkgGitCommitId: 861c33057553ee836e7061ffbdabc25ea343145d
+        vcpkgGitCommitId: baf57686c0ec86cbf2e4c055ea09cee710280cc6
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
