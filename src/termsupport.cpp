@@ -642,14 +642,24 @@ void termRenderLoop() {
     }
 }
 
-static std::string utf8_to_string(const char *utf8str, const std::locale& loc)
+static std::string utf8_to_string(const char *utf8str)
 {
     // UTF-8 to wstring
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
     const std::wstring wstr = wconv.from_bytes(utf8str);
     // wstring to string
-    std::vector<char> buf(wstr.size());
-    std::use_facet<std::ctype<wchar_t>>(loc).narrow(wstr.data(), wstr.data() + wstr.size(), '\0', buf.data());
+    std::vector<char> buf;
+    buf.reserve(wstr.size());
+    for (const wchar_t ch : wstr) {
+        if (ch < 256 && charsetConversion[ch] == ch) buf.push_back((char)ch);
+        else if (charsetConversion[0x7F] == ch) buf.push_back((char)0x7F);
+        else {
+            for (int i = 0; i < 0x20; i++) {
+                if (charsetConversion[i] == ch) {buf.push_back((char)i); break;}
+                else if (charsetConversion[i+0x80] == ch) {buf.push_back((char)(i+0x80)); break;}
+            }
+        }
+    }
     return std::string(buf.data(), buf.size());
 }
 
@@ -735,7 +745,7 @@ std::string termGetEvent(lua_State *L) {
             } else if (e.key.keysym.sym == SDLK_v && (e.key.keysym.mod & KMOD_SYSMOD) && SDL_HasClipboardText()) {
                 char * text = SDL_GetClipboardText();
                 std::string str;
-                try {str = utf8_to_string(text, std::locale("C"));}
+                try {str = utf8_to_string(text);}
                 catch (std::exception &e) {return "";}
                 str = str.substr(0, min(str.find_first_of("\r\n"), (std::string::size_type)512));
                 pushstring(L, str);
@@ -755,8 +765,8 @@ std::string termGetEvent(lua_State *L) {
             }
         } else if (e.type == SDL_TEXTINPUT) {
             std::string str;
-            try {str = utf8_to_string(e.text.text, std::locale("C"));}
-            catch (std::exception &ignored) {str = "?";}
+            try {str = utf8_to_string(e.text.text);}
+            catch (std::exception &ignored) {str = "";}
             if (!str.empty() && !(computer->waitingForTerminate & 0x2A)) {
 #if defined(__ANDROID__) || defined(__IPHONEOS__)
                 mobileResetModifiers();

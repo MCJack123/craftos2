@@ -188,6 +188,7 @@ inline std::string asciify(std::string str) {
 extern struct configuration config;
 extern std::unordered_map<std::string, std::pair<int, int> > configSettings;
 extern std::unordered_map<std::string, std::tuple<int, std::function<int(const std::string&, void*)>, void*> > userConfig;
+extern const wchar_t charsetConversion[256];
 
 extern std::string loadingPlugin;
 extern const char * lastCFunction;
