@@ -758,6 +758,7 @@ static int http_removeListener(lua_State *L) {
 #endif
 
 extern int os_startTimer(lua_State *L);
+extern int os_cancelTimer(lua_State *L);
 
 struct ws_handle {
     bool isServer;
@@ -865,12 +866,22 @@ static int websocket_receive(lua_State *L) {
                 url = new std::string(lua_tostring(L, 2));
             }
             if (*ev == "websocket_message" && !ws->isServer && *url == ws->url) {
+                if (tm > 0) {
+                    lua_pushcfunction(L, os_cancelTimer);
+                    lua_pushinteger(L, tm);
+                    lua_call(L, 1, 0);
+                }
                 lua_pushvalue(L, 3);
                 lua_pushvalue(L, 4);
                 delete ev;
                 delete url;
                 return 2;
             } else if (*ev == "websocket_server_message" && ws->isServer && lua_touserdata(L, 2) == ws->clientID) {
+                if (tm > 0) {
+                    lua_pushcfunction(L, os_cancelTimer);
+                    lua_pushinteger(L, tm);
+                    lua_call(L, 1, 0);
+                }
                 lua_pushvalue(L, 3);
                 lua_pushvalue(L, 4);
                 delete ev;
@@ -884,6 +895,11 @@ static int websocket_receive(lua_State *L) {
                 delete url;
                 return 1;
             } else if (*ev == "terminate") {
+                if (tm > 0) {
+                    lua_pushcfunction(L, os_cancelTimer);
+                    lua_pushinteger(L, tm);
+                    lua_call(L, 1, 0);
+                }
                 delete ev;
                 delete url;
                 return luaL_error(L, "Terminated");
@@ -1343,6 +1359,11 @@ static int websocket_server_listen(lua_State *L) {
             if (lua_isnumber(L, 2)) {
                 int id = lua_tointeger(L, 2);
                 if (*ev == "websocket_server_connect" && id == f->srv->port()) {
+                    if (tm > 0) {
+                        lua_pushcfunction(L, os_cancelTimer);
+                        lua_pushinteger(L, tm);
+                        lua_call(L, 1, 0);
+                    }
                     lua_pushvalue(L, 3);
                     delete ev;
                     return 1;
@@ -1351,6 +1372,11 @@ static int websocket_server_listen(lua_State *L) {
                     delete ev;
                     return 1;
                 } else if (*ev == "terminate") {
+                    if (tm > 0) {
+                        lua_pushcfunction(L, os_cancelTimer);
+                        lua_pushinteger(L, tm);
+                        lua_call(L, 1, 0);
+                    }
                     delete ev;
                     return luaL_error(L, "Terminated");
                 }

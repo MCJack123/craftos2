@@ -156,7 +156,8 @@ int os_startTimer(lua_State *L) {
     return 1;
 }
 
-static int os_cancelTimer(lua_State *L) {
+// imported by http.cpp:websocket_receive
+int os_cancelTimer(lua_State *L) {
     lastCFunction = __func__;
     const SDL_TimerID id = (SDL_TimerID)luaL_checkinteger(L, 1);
     timer_data_t * data;

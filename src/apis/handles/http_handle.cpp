@@ -170,9 +170,16 @@ int http_handle_getResponseHeaders(lua_State *L) {
     if (handle == NULL) return luaL_error(L, "attempt to use a closed file");
     lua_createtable(L, 0, handle->handle->size());
     for (const auto& h : *handle->handle) {
-        lua_pushstring(L, h.first.c_str());
-        lua_pushstring(L, h.second.c_str());
-        lua_settable(L, -3);
+        lua_getfield(L, -1, h.first.c_str());
+        if (lua_isstring(L, -1)) {
+            lua_pushliteral(L, ",");
+            lua_pushstring(L, h.second.c_str());
+            lua_concat(L, 3);
+        } else {
+            lua_pop(L, 1);
+            lua_pushstring(L, h.second.c_str());
+        }
+        lua_setfield(L, -2, h.first.c_str());
     }
     return 1;
 }

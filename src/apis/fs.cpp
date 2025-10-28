@@ -237,16 +237,8 @@ static int fs_isReadOnly(lua_State *L) {
     if (path.empty()) err(L, 1, "Invalid path"); // This should never happen
     if (!fs::exists(path, e)) lua_pushboolean(L, false);
 #ifdef WIN32
-    else if (e.clear(), fs::is_directory(path, e)) {
-        e.clear();
-        const path_t file = path / ".reallylongfilenamethatshouldhopefullyneverexist";
-        const bool didexist = fs::exists(file, e);
-        std::fstream fp(file, didexist ? std::ios::in : std::ios::out);
-        lua_pushboolean(L, !fp.is_open());
-        if (fp.is_open()) fp.close();
-        e.clear();
-        if (!didexist && fs::exists(file, e)) fs::remove(file, e);
-    }
+    else if (e.clear(), fs::is_directory(path, e))
+        lua_pushboolean(L, winFolderIsReadOnly(path));
 #endif
     else lua_pushboolean(L, access(path.native().c_str(), W_OK) != 0);
     return 1;
@@ -765,15 +757,8 @@ static int fs_attributes(lua_State *L) {
             std::error_code e;
             if (!fs::exists(path, e)) lua_pushboolean(L, false);
 #ifdef WIN32
-            else if (e.clear(), fs::is_directory(path, e)) {
-                const path_t file = path / "a";
-                const bool didexist = fs::exists(file, e);
-                std::fstream fp(file, didexist ? std::ios::in : std::ios::out);
-                lua_pushboolean(L, !fp.is_open());
-                fp.close();
-                e.clear();
-                if (!didexist && fs::exists(file, e)) fs::remove(file, e);
-            }
+            else if (e.clear(), fs::is_directory(path, e))
+                lua_pushboolean(L, winFolderIsReadOnly(path));
 #endif
             else lua_pushboolean(L, access(path.c_str(), W_OK) != 0);
         }
@@ -799,15 +784,6 @@ static int fs_getCapacity(lua_State *L) {
     return 1;
 }
 
-static int fs_isDriveRoot(lua_State *L) {
-    lastCFunction = __func__;
-    bool res = false;
-    std::string str = checkstring(L, 1);
-    fixpath(get_comp(L), str, false, true, NULL, &res);
-    lua_pushboolean(L, res);
-    return 1;
-}
-
 static luaL_Reg fs_reg[] = {
     {"list", fs_list},
     {"exists", fs_exists},
@@ -827,7 +803,6 @@ static luaL_Reg fs_reg[] = {
     {"getDir", fs_getDir},
     {"attributes", fs_attributes},
     {"getCapacity", fs_getCapacity},
-    {"isDriveRoot", fs_isDriveRoot},
     {NULL, NULL}
 };
 
