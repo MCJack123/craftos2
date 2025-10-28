@@ -267,8 +267,8 @@ jobs:
         $tag = git rev-parse --short HEAD
         Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\" '/DCRASHREPORT_API_KEY
         [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($Env:APIKEY)) | Out-File -Encoding "UTF8" src\apikey.cpp
-        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC /p:Platform=ARM64
-        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release /p:Platform=ARM64
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC /p:Platform=ARM64 /p:VcpkgEnableManifest=true
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release /p:Platform=ARM64 /p:VcpkgEnableManifest=true
         copy ARM64\Release\CraftOS-PC.exe CraftOS-PC.exe
         copy ARM64\Release\CraftOS-PC.pdb CraftOS-PC.pdb
         copy ARM64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
