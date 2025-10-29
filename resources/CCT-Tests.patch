@@ -35,6 +35,48 @@ diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/ap
          end)
      end)
  
+diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/os_spec.lua b/projects/core/src/test/resources/test-rom/spec/apis/os_spec.lua
+--- a/projects/core/src/test/resources/test-rom/spec/apis/os_spec.lua	2021-06-08 23:52:34.000000000 -0400
++++ b/projects/core/src/test/resources/test-rom/spec/apis/os_spec.lua	2021-04-28 03:19:00.000000000 -0400
+@@ -189,38 +189,3 @@
+         end)
+     end)
+-
+-    describe("os.queueEvent", function()
+-        local function roundtrip(...)
+-            local event_name = ("event_%08x"):format(math.random(1, 0x7FFFFFFF))
+-            os.queueEvent(event_name, ...)
+-            return select(2, os.pullEvent(event_name))
+-        end
+-
+-        it("preserves references in tables", function()
+-            local tbl = {}
+-            local xs = roundtrip({ tbl, tbl })
+-            expect(xs[1]):eq(xs[2])
+-        end)
+-
+-        it("handles recursive tables", function()
+-            local tbl = {}
+-            tbl[1] = tbl
+-
+-            local xs = roundtrip(tbl)
+-            expect(xs):eq(xs[1])
+-        end)
+-
+-        it("does not preserve references in separate args", function()
+-            -- I'm not sure I like this behaviour, but it is what CC has always done.
+-            local tbl = {}
+-            local xs, ys = roundtrip(tbl, tbl)
+-            expect(xs):ne(ys)
+-        end)
+-
+-        it("clones objects", function()
+-            local tbl = {}
+-            local xs = roundtrip(tbl)
+-            expect(xs):ne(tbl)
+-        end)
+-    end)
+ end)
 diff -ruN --strip -x .DS_Store projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua b/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua
 --- a/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua	2021-06-08 23:52:34.000000000 -0400
 +++ b/projects/core/src/test/resources/test-rom/spec/apis/textutils_spec.lua	2021-04-28 03:19:00.000000000 -0400

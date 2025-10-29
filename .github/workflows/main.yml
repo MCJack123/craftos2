@@ -150,7 +150,7 @@ jobs:
     - name: Download ROM
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Restore vcpkg cache
-      uses: lukka/run-vcpkg@v10
+      uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: baf57686c0ec86cbf2e4c055ea09cee710280cc6
     - name: Prepare environment
@@ -231,7 +231,7 @@ jobs:
     - name: Download ROM
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Restore vcpkg cache
-      uses: lukka/run-vcpkg@v10
+      uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 1b4a65242adfd65a82b1d1a6f31f1accdfe09af9
 

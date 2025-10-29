@@ -120,11 +120,11 @@ static std::vector<path_t> fixpath_multiple(Computer *comp, std::string path) {
     return retval;
 }
 
-static std::string normalizePath(const path_t& basePath) {
+static std::string normalizePath(const path_t& basePath, bool allowWildcards = false) {
     path_t cleanPath;
     for (const auto& p : basePath) {
         path_t::string_type str = p.native();
-        str.erase(std::remove_if(str.begin(), str.end(), [](path_t::string_type::value_type c)->bool {return c == '"' || c == '*' || c == ':' || c == '<' || c == '>' || c == '?' || c == '|' || c < 32;}), str.end());
+        str.erase(std::remove_if(str.begin(), str.end(), [allowWildcards](path_t::string_type::value_type c)->bool {return c == '"' || (c == '*' && !allowWildcards) || c == ':' || c == '<' || c == '>' || (c == '?' && !allowWildcards) || c == '|' || c < 32;}), str.end());
         if (std::regex_match(str, pathregex("^\\.\\.\\.+$"))) cleanPath /= ".";
         else cleanPath /= path_t(str);
     }
@@ -425,7 +425,7 @@ static int fs_combine(lua_State *L) {
         if (str[0] == '/' || str[0] == '\\') str = str.substr(1);
         basePath /= str;
     }
-    pushstring(L, normalizePath(basePath));
+    pushstring(L, normalizePath(basePath, true));
     return 1;
 }
 
