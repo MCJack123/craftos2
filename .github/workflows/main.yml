@@ -12,6 +12,7 @@ on:
       - "resources/CCT-Tests.patch"
       - "CraftOS-PC 2.sln"
       - "CraftOS-PC 2.vcxproj"
+      - "examples/ccemux.vcxproj"
   pull_request:
     paths:
       - "src/**"
