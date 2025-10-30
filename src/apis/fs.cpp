@@ -248,7 +248,7 @@ static int fs_isReadOnly(lua_State *L) {
 
 static int fs_getName(lua_State *L) {
     lastCFunction = __func__;
-    std::string retval = path_t(normalizePath(checkstring(L, 1))).filename().string();
+    std::string retval = path_t(normalizePath(checkstring(L, 1), true)).filename().string();
     if (retval.empty()) lua_pushliteral(L, "root");
     else pushstring(L, retval);
     return 1;
@@ -687,7 +687,7 @@ static int fs_find(lua_State *L) {
 
 static int fs_getDir(lua_State *L) {
     lastCFunction = __func__;
-    path_t path = path_t(normalizePath(checkstring(L, 1)));
+    path_t path = path_t(normalizePath(checkstring(L, 1), true));
     if (path.empty() || path.string() == "/") {
         lua_pushliteral(L, "..");
         return 1;

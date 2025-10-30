@@ -171,7 +171,6 @@ int fs_handle_readAllByte(lua_State *L) {
     std::iostream * fp = *(std::iostream**)lua_touserdata(L, lua_upvalueindex(1));
     if (fp == NULL) return luaL_error(L, "attempt to use a closed file");
     if (fp->eof()) {
-        if (fp->tellg() < 1) return 0;
         lua_pushliteral(L, "");
         return 1;
     }

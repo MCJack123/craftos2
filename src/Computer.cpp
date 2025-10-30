@@ -374,6 +374,7 @@ static const luaL_Reg lualibs[] = {
   {LUA_DBLIBNAME, luaopen_debug},
   {LUA_UTF8LIBNAME, luaopen_utf8},
   {LUA_BITLIBNAME, luaopen_bit32},
+  {LUA_ERRORINFOLIBNAME, luaopen_error_info},
   {NULL, NULL}
 };
 
@@ -510,6 +511,8 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         lua_setglobal(L, "loadfile");
         lua_pushnil(L);
         lua_setglobal(L, "print");
+        lua_pushnil(L);
+        lua_setglobal(L, "cc.internal.error_info");
         if (config.vanilla) {
             lua_pushnil(L);
             lua_setglobal(L, "config");
