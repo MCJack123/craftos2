@@ -154,6 +154,13 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: baf57686c0ec86cbf2e4c055ea09cee710280cc6
+    - name: Set up binary cache
+      uses: actions/cache@v4.3.0
+      with:
+        path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+        key: ${{ runner.os }}-vcpkg-binary-cache-${{ hashFiles('vcpkg*.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-binary-cache-
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
@@ -233,7 +240,13 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 1b4a65242adfd65a82b1d1a6f31f1accdfe09af9
-
+    - name: Set up binary cache
+      uses: actions/cache@v4.3.0
+      with:
+        path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+        key: ${{ runner.os }}-vcpkg-binary-cache-arm-${{ hashFiles('vcpkg*.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-binary-cache-arm-
     - name: Prepare environment
       run: |
         git submodule update --init --recursive
