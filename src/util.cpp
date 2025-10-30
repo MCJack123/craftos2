@@ -156,6 +156,8 @@ static std::list<std::string> split_list(const std::string& strToSplit, const ch
 
 path_t fixpath_mkdir(Computer * comp, const std::string& path, bool md, std::string * mountPath) {
     if (md && fixpath_ro(comp, path)) return path_t();
+    path_t firstTest = fixpath(comp, path, true, true, mountPath);
+    if (!firstTest.empty()) return firstTest;
     std::list<std::string> components = split_list(path, "/\\");
     while (!components.empty() && components.front().empty()) components.pop_front();
     if (components.empty()) return fixpath(comp, "", true);

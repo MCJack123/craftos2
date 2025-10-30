@@ -496,8 +496,14 @@ bool winFolderIsReadOnly(path_t path) {
     HANDLE tokenHandle = nullptr;
 
     // Get current process token
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &tokenHandle))
-        return true;
+    if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &tokenHandle)) {
+        if (GetLastError() == ERROR_NO_TOKEN) {
+            if (!ImpersonateSelf(SecurityImpersonation))
+                return true;
+            if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &tokenHandle))
+                return true;
+        } else return true;
+    }
 
     PSECURITY_DESCRIPTOR securityDesc = nullptr;
     PACL dacl = nullptr;
