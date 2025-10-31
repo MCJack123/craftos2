@@ -514,6 +514,78 @@ static int id = 0;
 static bool manualID = false;
 static bool forceMigrate = false;
 static path_t customDataDir;
+static std::vector<std::pair<std::string, std::string>> configOptions;
+
+#define setConfigSettingB(n) else if (strcmp(name, #n) == 0) config.n = strcasecmp(value, "true") == 0
+#define setConfigSettingI(n) else if (strcmp(name, #n) == 0) config.n = atoi(value)
+
+static void setConfigOption(const char * name, const char * value) {
+    bool isUserConfig = false;
+    if (strcmp(name, "http_enable") == 0)
+        config.http_enable = strcasecmp(value, "true") == 0;
+    else if (strcmp(name, "debug_enable") == 0) ; // do nothing
+    else if (strcmp(name, "mount_mode") == 0) {
+        if (strcmp(value, "none") == 0) config.mount_mode = MOUNT_MODE_NONE;
+        else if (strcmp(value, "ro strict") == 0 || strcmp(value, "ro_strict") == 0) config.mount_mode = MOUNT_MODE_RO_STRICT;
+        else if (strcmp(value, "ro") == 0) config.mount_mode = MOUNT_MODE_RO;
+        else if (strcmp(value, "rw") == 0) config.mount_mode = MOUNT_MODE_RW;
+        else config.mount_mode = atoi(value);
+    } setConfigSettingB(disable_lua51_features);
+    else if (strcmp(name, "default_computer_settings") == 0)
+        config.default_computer_settings = value;
+    setConfigSettingB(logErrors);
+    setConfigSettingI(computerSpaceLimit);
+    setConfigSettingI(maximumFilesOpen);
+    setConfigSettingI(maxNotesPerTick);
+    setConfigSettingI(clockSpeed);
+    setConfigSettingB(showFPS);
+    setConfigSettingI(abortTimeout);
+    setConfigSettingB(ignoreHotkeys);
+    setConfigSettingB(checkUpdates);
+    setConfigSettingB(vanilla);
+    setConfigSettingI(initialComputer);
+    setConfigSettingI(maxRecordingTime);
+    setConfigSettingI(recordingFPS);
+    setConfigSettingI(maxOpenPorts);
+    setConfigSettingI(mouse_move_throttle);
+    setConfigSettingB(monitorsUseMouseEvents);
+    setConfigSettingI(defaultWidth);
+    setConfigSettingI(defaultHeight);
+    setConfigSettingB(standardsMode);
+    setConfigSettingB(useHardwareRenderer);
+    else if (strcmp(name, "preferredHardwareDriver") == 0)
+        config.preferredHardwareDriver = value;
+    setConfigSettingB(useVsync);
+    setConfigSettingB(http_websocket_enabled);
+    setConfigSettingI(http_max_websockets);
+    setConfigSettingI(http_max_websocket_message);
+    setConfigSettingI(http_max_requests);
+    setConfigSettingI(http_max_upload);
+    setConfigSettingI(http_max_download);
+    setConfigSettingI(http_timeout);
+    setConfigSettingB(extendMargins);
+    setConfigSettingB(snapToSize);
+    setConfigSettingB(snooperEnabled);
+    setConfigSettingB(keepOpenOnShutdown);
+    setConfigSettingB(useWebP);
+    setConfigSettingB(dropFilePath);
+    setConfigSettingB(useDFPWM);
+    else if (strcmp(name, "useHDFont") == 0)
+        config.customFontPath = strcasecmp(value, "true") == 0 ? "hdfont" : "";
+    else if (strcmp(name, "http_whitelist") == 0) {
+        // ?
+    } else if (strcmp(name, "http_blacklist") == 0) {
+        // ?
+    } else if (userConfig.find(name) != userConfig.end()) {
+        isUserConfig = true;
+        switch (std::get<0>(userConfig[name])) {
+            case 0: config.pluginData[name] = strcasecmp(value, "true") == 0 ? "true" : "false"; break;
+            case 1: config.pluginData[name] = std::to_string(atoi(value)); break;
+            case 2: config.pluginData[name] = value; break;
+            case 3: fprintf(stderr, "Invalid type for option '%s'\n", name); break; // maybe fix this later?
+        }
+    } else fprintf(stderr, "Unknown configuration option '%s'\n", name);
+}
 
 int parseArguments(const std::vector<std::string>& argv) {
     for (int i = 0; i < argv.size(); i++) {
@@ -548,6 +620,15 @@ int parseArguments(const std::vector<std::string>& argv) {
             try {id = std::stoi(argv[++i]);}
             catch (std::out_of_range &e) {
                 std::cerr << "Error: Computer ID is out of range\n";
+                return 1;
+            }
+        } else if (arg == "-o" || arg == "--option") {
+            std::string val = argv[++i];
+            size_t pos = val.find('=');
+            if (pos != std::string::npos) {
+                configOptions.push_back(std::make_pair(val.substr(0, pos), val.substr(pos + 1)));
+            } else {
+                std::cerr << "Invalid parameter passed to --option\n";
                 return 1;
             }
         } else if (arg == "--migrate") forceMigrate = true;
@@ -634,6 +715,7 @@ int parseArguments(const std::vector<std::string>& argv) {
                       << "  --script <file>                  Sets a script to be run before starting the shell\n"
                       << "  --exec <code>                    Sets Lua code to be run before starting the shell\n"
                       << "  --args \"<args>\"                  Sets arguments to be passed to the file in --script\n"
+                      << "  -o|--option <name>=<value>       Sets a global config option before starting (can be used multiple times)\n"
                       << "  --mount[-ro|-rw] <path>=<dir>    Automatically mounts a directory at startup\n"
                       << "    Variants:\n"
                       << "      --mount      Uses default mount_mode in config\n"
@@ -687,6 +769,10 @@ int main(int argc, char*argv[]) {
     setupCrashHandler();
     migrateData(forceMigrate);
     config_init();
+    if (!configOptions.empty()) {
+        for (const auto& opt : configOptions) setConfigOption(opt.first.c_str(), opt.second.c_str());
+        config_save();
+    }
     if (selectedRenderer == -1) selectedRenderer = config.useHardwareRenderer ? 5 : 0;
     if (rawClient) {
         if (!rawWebSocketURL.empty()) {

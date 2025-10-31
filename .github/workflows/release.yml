@@ -35,6 +35,13 @@ jobs:
         check-name: 'Build Windows'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         wait-interval: 10
+    - name: Wait for build to complete
+      uses: MCJack123/wait-on-check-action@master
+      with:
+        ref: ${{ github.ref }}
+        check-name: 'Build Windows (ARM)'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        wait-interval: 10
     - uses: actions/checkout@v1
     - name: Download ROM
       run: git clone https://github.com/MCJack123/craftos2-rom $env:GITHUB_WORKSPACE\craftos2-rom
@@ -48,6 +55,14 @@ jobs:
         commit: ${{ github.sha }}
         name: CraftOS-PC-Artifact
         path: ${{ github.workspace }}\bin
+    - name: Download built executables (ARM)
+      uses: dawidd6/action-download-artifact@v6
+      with:
+        github_token: ${{secrets.GITHUB_TOKEN}}
+        workflow: main.yml
+        commit: ${{ github.sha }}
+        name: CraftOS-PC-Artifact-ARM64
+        path: ${{ github.workspace }}\bin-arm
     - name: Build installer
       env:
         TAG_NAME: ${{ github.event.release.tag_name }}
@@ -77,6 +92,16 @@ jobs:
         echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\LICENSE.txt $env:GITHUB_WORKSPACE\bin\LICENSE.txt /Q /K /Y
         cd $env:GITHUB_WORKSPACE\bin
         Compress-Archive -Path * -DestinationPath ..\CraftOS-PC-Portable-Win64.zip
+    - name: Build portable package (ARM)
+      run: |
+        echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\bios.lua $env:GITHUB_WORKSPACE\bin-arm\bios.lua /Q /K /Y
+        echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\hdfont.bmp $env:GITHUB_WORKSPACE\bin-arm\hdfont.bmp /Q /K /Y
+        echo D | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\rom $env:GITHUB_WORKSPACE\bin-arm\rom /E /Q /K /Y
+        echo D | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\debug $env:GITHUB_WORKSPACE\bin-arm\debug /E /Q /K /Y
+        xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll-arm\* $env:GITHUB_WORKSPACE\bin-arm\ /Q /K /Y
+        echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\LICENSE.txt $env:GITHUB_WORKSPACE\bin-arm\LICENSE.txt /Q /K /Y
+        cd $env:GITHUB_WORKSPACE\bin-arm
+        Compress-Archive -Path * -DestinationPath ..\CraftOS-PC-Portable-WinARM64.zip
     - name: Upload installer
       uses: shogo82148/actions-upload-release-asset@v1.6.3
       env:
@@ -109,6 +134,15 @@ jobs:
         upload_url: ${{ github.event.release.upload_url }}
         asset_path: ${{ github.workspace }}\CraftOS-PC-Portable-Win64.zip
         asset_name: CraftOS-PC-Portable-Win64.zip
+        asset_content_type: application/zip
+    - name: Upload portable archive (ARM)
+      uses: shogo82148/actions-upload-release-asset@v1.6.3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ github.workspace }}\CraftOS-PC-Portable-WinARM64.zip
+        asset_name: CraftOS-PC-Portable-WinARM64.zip
         asset_content_type: application/zip
 
   release-mac:
