@@ -43,3 +43,7 @@ extern void addSystemCertificates(Poco::Net::Context::Ptr context);
 extern void unblockInput();
 extern bool winFolderIsReadOnly(path_t path);
 #endif
+
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#endif
