@@ -13,6 +13,7 @@
 static int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write);
 static void showReleaseNotes();
 static void* releaseNotesThread(void* data);
+#include <cstring>
 #include <functional>
 #include <fstream>
 #include <iomanip>
