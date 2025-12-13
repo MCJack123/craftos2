@@ -19,6 +19,7 @@ extern "C" {
 #include <sys/stat.h>
 #include "apis.hpp"
 #include "main.hpp"
+#include "mem/cluster.hpp"
 #include "peripheral/computer.hpp"
 #include "platform.hpp"
 #include "runtime.hpp"
@@ -61,6 +62,14 @@ struct load_ctx {
     lua_State *coro;
     const char * name;
     const char * mode;
+};
+
+// Structure for memory allocators
+struct allocators {
+    ClusterAllocator ropes;
+    ClusterAllocator substrings;
+
+    allocators(size_t TStringSize): ropes(TStringSize), substrings(TStringSize) {}
 };
 
 // Basic CraftOS libraries
@@ -380,6 +389,31 @@ static const luaL_Reg lualibs[] = {
 
 static int doNothing(lua_State *L) {return 0;}
 
+static void * memAllocator(void * ud, void * ptr, size_t osize, size_t nsize) {
+    // TODO: separate allocator
+    if (nsize) return realloc(ptr, nsize);
+    else {free(ptr); return NULL;}
+}
+
+static void * objAllocator(void * ud, void * ptr, int type, size_t osize, size_t nsize) {
+    Computer * comp = (Computer*)ud;
+    switch (type) {
+        case LUA_TROPSTR: {
+            if (comp->allocator_ctx == NULL) comp->allocator_ctx = new allocators(nsize);
+            if (nsize) return comp->allocator_ctx->ropes.alloc();
+            else {comp->allocator_ctx->ropes.free(ptr); return NULL;}
+        } case LUA_TSUBSTR: {
+            if (comp->allocator_ctx == NULL) comp->allocator_ctx = new allocators(nsize);
+            if (nsize) return comp->allocator_ctx->substrings.alloc();
+            else {comp->allocator_ctx->substrings.free(ptr); return NULL;}
+        } default: return memAllocator(ud, ptr, osize, nsize);
+    }
+}
+
+static int errfunc(lua_State *L) {
+    throw std::runtime_error("PANIC: unprotected error in call to Lua API (" + std::string(lua_tostring(L, -1)) + ")\n");
+}
+
 // Main computer loop
 void runComputer(Computer * self, const path_t& bios_name, const std::string& bios_data) {
     self->running = 1;
@@ -405,12 +439,18 @@ void runComputer(Computer * self, const path_t& bios_name, const std::string& bi
         }
         self->colors = 0xF0;
         self->system_start = std::chrono::system_clock::now();
+        if (self->allocator_ctx != NULL) {
+            delete self->allocator_ctx;
+            self->allocator_ctx = NULL;
+        }
 
         /*
         * All Lua contexts are held in this structure. We work with it almost
         * all the time.
         */
-        lua_State *L = self->L = luaL_newstate();
+        lua_State *L = self->L = lua_newstate(memAllocator, self);
+        lua_atpanic(L, errfunc);
+        lua_setobjallocf(L, objAllocator, self);
         uncache_state(L);
 
         self->coro = lua_newthread(L);

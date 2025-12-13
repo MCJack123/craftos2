@@ -651,7 +651,7 @@ int parseArguments(const std::vector<std::string>& argv) {
                 for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
                     SDL_RendererInfo rendererInfo;
                     SDL_GetRenderDriverInfo(i, &rendererInfo);
-                    printf(" %s\n", rendererInfo.name);
+                    printf(" %s\n", rendererInfo.name, i);
                 }
                 return 0;
             } else {
@@ -665,7 +665,7 @@ int parseArguments(const std::vector<std::string>& argv) {
                 else if (arg == "raw") selectedRenderer = 3;
                 else if (arg == "tror") selectedRenderer = 4;
                 else if (arg == "hardware-sdl" || arg == "jfx") selectedRenderer = 5;
-                else if (arg == "direct3d" || arg == "direct3d11" || arg == "directfb" || arg == "metal" || arg == "opengl" || arg == "opengles" || arg == "opengles2" || arg == "software") {
+                else if (arg == "direct3d" || arg == "direct3d11" || arg == "directfb" || arg == "metal" || arg == "opengl" || arg == "opengles" || arg == "opengles2" || arg == "vulkan" || arg == "gpu" || arg == "software") {
                     selectedRenderer = 5;
                     overrideHardwareDriver = arg;
                 } else if (std::stoi(arg)) selectedRenderer = std::stoi(arg);

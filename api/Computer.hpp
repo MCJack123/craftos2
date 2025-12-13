@@ -135,6 +135,8 @@ struct Computer {
     // The following fields are available in API version 12.0 and later.
     std::vector<std::filesystem::path> droppedFiles; // List of files that were dropped in the current drop set
 
+    struct allocators * allocator_ctx = NULL; // Private: context for allocators
+
 private:
     // The constructor is marked private to avoid having to implement it in this file.
     // It isn't necessary to construct a Computer directly; just use the startComputer function instead.
