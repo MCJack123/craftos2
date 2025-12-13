@@ -649,6 +649,15 @@ static int term_getFrozen(lua_State *L) {
     return 1;
 }
 
+static int term_forceUpdate(lua_State *L) {
+    lastCFunction = __func__;
+    Terminal * term = get_comp(L)->term;
+    if (term == NULL) return 0;
+    std::lock_guard<std::mutex> lock(term->locked);
+    term->forcedUpdate = true;
+    return 0;
+}
+
 /* export */ int term_benchmark(lua_State *L) {
     lastCFunction = __func__;
     if (get_comp(L)->term == NULL) return 0;
@@ -695,6 +704,7 @@ static luaL_Reg term_reg[] = {
     {"relativeMouse", term_relativeMouse},
     {"setFrozen", term_setFrozen},
     {"getFrozen", term_getFrozen},
+    {"forceUpdate", term_forceUpdate},
     {NULL, NULL}
 };
 
