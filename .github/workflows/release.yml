@@ -294,76 +294,47 @@ jobs:
         git commit -a -m "$GITHUB_REF"
         git push
 
-  release-appimage:
-    name: Build Linux AppImage
-    runs-on: ubuntu-20.04
-    environment: production
+  build-appimage:
+    name: "${{ matrix.name }} (${{ matrix.arch }})"
+    runs-on: ${{ matrix.runs-on }}
+    needs: [release-arch]
+    strategy:
+      matrix:
+        include:
+          - runs-on: ubuntu-latest
+            name: Build AppImage
+            arch: x86_64
+          # comment out these 3 lines if aarch64 is not wanted
+          - runs-on: ubuntu-24.04-arm
+            name: Build AppImage
+            arch: aarch64
+    container: ghcr.io/pkgforge-dev/archlinux:latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Download ROM
-      run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
-    - name: Install dependencies
-      env:
-        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-      run: |
-        sudo apt update
-        sudo apt install -y libsdl2-dev libsdl2-mixer-dev libhpdf-dev libpng++-dev libwebp-dev libpoco-dev libncurses5-dev patchelf lua5.3
-        sudo curl -sLo /usr/bin/appimagetool https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
-        sudo chmod a+x /usr/bin/appimagetool
-        echo "$GPG_SIGNING_KEY" > signing.asc
-        gpg --import signing.asc
-        rm signing.asc
-    - name: Build Lua
-      run: |
-        git submodule update --init --recursive
-        if [[ ! $GITHUB_REF =~ luajit ]]; then make -C craftos2-lua linux -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}'); fi
-    - name: Build CraftOS-PC
-      run: |
-        ./configure
-        make PREFIX=././ -j$(grep ^cpu\\scores /proc/cpuinfo | uniq | awk '{print $4}')
-        if [[ ! $GITHUB_REF =~ luajit ]]; then patchelf --replace-needed craftos2-lua/src/liblua.so libcraftos2-lua.so craftos; fi
-        strip craftos
-    - name: Build AppImage
-      run: |
-        mkdir icons
-        unzip resources/linux-icons.zip -d icons
-        mkdir AppDir
-        curl -sLo AppDir/AppRun https://github.com/AppImage/AppImageKit/releases/download/13/AppRun-x86_64
-        chmod a+x AppDir/AppRun
-        if [[ $GITHUB_REF =~ luajit ]]; then
-          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC-Accelerated.desktop
-          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC-Accelerated.desktop
-          install -D -m 0644 icons/1024.png AppDir/craftos-luajit.png
-          install -D -m 0755 craftos AppDir/usr/bin/craftos-luajit
-          install -D -m 0755 craftos2-luajit/src/libluajit.so AppDir/usr/lib/libluajit.so
-          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC-Accelerated.appdata.xml
-        else
-          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/cc.craftos-pc.CraftOS-PC.desktop
-          install -D -m 0644 icons/CraftOS-PC.desktop AppDir/usr/share/applications/CraftOS-PC.desktop
-          install -D -m 0644 icons/1024.png AppDir/craftos.png
-          install -D -m 0755 craftos AppDir/usr/bin/craftos
-          install -D -m 0755 craftos2-lua/src/liblua.so AppDir/usr/lib/libcraftos2-lua.so
-          install -D -m 0644 resources/appdata.xml AppDir/usr/share/metainfo/cc.craftos-pc.CraftOS-PC.appdata.xml
-        fi
-        mkdir -p AppDir/usr/share/craftos
-        cp -Rp /usr/local/share/craftos/rom /usr/local/share/craftos/debug /usr/local/share/craftos/bios.lua /usr/local/share/craftos/hdfont.bmp AppDir/usr/share/craftos/
-        # this gets all libraries required recursively (?)
-        ldd ./craftos | grep -o '/lib/[^ ]*\.so[^ :]*' | grep -Ev 'libstdc\+\+|libm\.|libgcc|libc\.|libX|libx|libpulse|libdbus|libsystemd|libreadline|libpthread|libdl|librt|libbsd|libnsl|libresolv' | sort | uniq | tee /dev/stderr | xargs -I {} cp -Lp {} AppDir/usr/lib
-        cp -Lp /lib/x86_64-linux-gnu/libX11.so.6 AppDir/usr/lib
-        mkdir -p AppDir/usr/lib/ssl
-        cp -Lp /etc/ssl/certs/ca-certificates.crt AppDir/usr/lib/ssl/cert.pem
-        lua -e 'local file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "rb")) local data = file:read("*a") file:close() file = assert(io.open("AppDir/usr/lib/libcrypto.so.1.1", "wb")) file:write(data:gsub("/usr(/lib/ssl[^\0]*\0)", ".%1\0\0\0")) file:close()'
-        appimagetool -s AppDir CraftOS-PC.x86_64.AppImage
-    - name: Upload AppImage
-      uses: shogo82148/actions-upload-release-asset@v1.6.3
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: CraftOS-PC.x86_64.AppImage
-        asset_name: CraftOS-PC.x86_64.AppImage
-        asset_content_type: application/octet-stream
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af # v2
+      - name: Make AppImage
+        run: /bin/sh ./resources/make-appimage.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: AppImage-${{ matrix.arch }}
+          path: dist
 
+  release-appimage:
+    if: ${{ github.ref_name == 'main' }}
+    needs: [build-appimage]
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: AppImage-*
+          merge-multiple: true
+      - name: Release AppImage
+        uses: pkgforge-dev/make-stable-appimage-release@4ed3d48ccb065352b6e6c0db6d39885b201c54a0 #v1.1
+
+  
   release-arch-appimage:
     name: Update Arch AUR `craftos-pc-bin` package
     runs-on: ubuntu-latest
@@ -392,7 +363,7 @@ jobs:
         VERSION=$(echo $GITHUB_REF | grep -o '[0-9\.]*')
         git clone ssh://aur@aur.archlinux.org/craftos-pc$LUAJIT-bin.git
         cd craftos-pc$LUAJIT-bin
-        lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-bin-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2/releases/download/$GITHUB_REF/CraftOS-PC.x86_64.AppImage | shasum -a 256 | awk '{print $1;}')
+        lua $GITHUB_WORKSPACE/craftos2-release-resources/arch/write-bin-pkgbuild.lua $VERSION $(curl -sL https://github.com/MCJack123/craftos2/archive/$GITHUB_REF.tar.gz | shasum -a 256 | awk '{print $1;}') $(curl -sL https://github.com/MCJack123/craftos2/releases/download/$GITHUB_REF/*-x86_64.AppImage | shasum -a 256 | awk '{print $1;}')
         cat PKGBUILD .SRCINFO
         git add PKGBUILD .SRCINFO
         git commit -a -m "$GITHUB_REF"
