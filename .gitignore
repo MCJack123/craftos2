@@ -18,6 +18,7 @@ CraftOS-PC*.app
 codesign
 CraftOS-PC 2.code-workspace
 Makefile
+resources/craftos2.pc
 config.log
 config.status
 CraftOS-PC*.dmg

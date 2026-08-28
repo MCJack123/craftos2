@@ -148,5 +148,5 @@ if test "x$enable_wasm" != "xyes"; then
 
 fi
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile resources/craftos2.pc])
 AC_OUTPUT
