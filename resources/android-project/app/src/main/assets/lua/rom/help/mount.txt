@@ -1,0 +1,4 @@
+The mount command allows mounting external directories inside the CraftOS environment.
+To mount a directory, specify the directory to mount at inside CraftOS, and the path to the directory to mount.
+You can also specify whether the mount should be read-only by adding "readOnly", "true", or "false" to the end of the command.
+(The read-only status may be affected by the `mount_mode` config option.)

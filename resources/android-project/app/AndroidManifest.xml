@@ -62,25 +62,16 @@
         <meta-data android:name="SDL_ENV.SDL_ACCELEROMETER_AS_JOYSTICK" android:value="0"/>
          -->
      
-        <activity android:name="MainActivity"
-            android:label="@string/app_name"
-            android:alwaysRetainTaskState="true"
-            android:launchMode="singleInstance"
-            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
-            >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <!-- Drop file event -->
-            <!--
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
-            -->
-        </activity>
+        <activity
+    android:name=".LaunchActivity"
+    android:exported="true"
+    android:theme="@android:style/Theme.Translucent.NoTitleBar"> <!-- Makes the background transparent -->
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity>
+         
     </application>
 
 </manifest>

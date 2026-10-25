@@ -10,6 +10,7 @@ import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
@@ -68,15 +69,27 @@ public class MainActivity extends SDLActivity implements MultiFingerTapGestureDe
             } catch (Exception ignored) {}
         } else System.out.println("Already extracted ROM for this build; skipping.");
         super.onCreate(savedInstanceState);
+        if (mBrokenLibraries) {
+            return;
+        }
         setContentView(R.layout.activity_main);
-        ((ConstraintLayout)findViewById(R.id.rootview)).addView(mLayout, 0);
+        ConstraintLayout rootViewLayout = findViewById(R.id.rootview);
+        if (rootViewLayout != null && mLayout != null) {
+            if (mLayout.getParent() != null) {
+                ((ViewGroup) mLayout.getParent()).removeView(mLayout);
+            }
+            rootViewLayout.addView(mLayout, 0);
+        }
         gesturesManager = new AndroidGesturesManager(getBaseContext());
         gesturesManager.setMultiFingerTapGestureListener(this);
         gesturesManager.setShoveGestureListener(this);
         gesturesManager.setSidewaysShoveGestureListener(this);
-        findViewById(R.id.terminateButton).setOnTouchListener(this);
-        findViewById(R.id.shutdownButton).setOnTouchListener(this);
-        findViewById(R.id.rebootButton).setOnTouchListener(this);
+        View terminateButton = findViewById(R.id.terminateButton);
+        if (terminateButton != null) terminateButton.setOnTouchListener(this);
+        View shutdownButton = findViewById(R.id.shutdownButton);
+        if (shutdownButton != null) shutdownButton.setOnTouchListener(this);
+        View rebootButton = findViewById(R.id.rebootButton);
+        if (rebootButton != null) rebootButton.setOnTouchListener(this);
         final View view = getWindow().getDecorView();
         final View rootView = view.findViewById(android.R.id.content);
         rootView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
@@ -98,6 +111,14 @@ public class MainActivity extends SDLActivity implements MultiFingerTapGestureDe
                 }
             }
         });
+    }
+
+    @Override
+    protected String[] getLibraries() {
+        return new String[] {
+            "SDL2",
+            "main"
+        };
     }
 
     @Override

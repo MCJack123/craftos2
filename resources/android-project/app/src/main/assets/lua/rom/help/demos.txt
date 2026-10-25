@@ -1,0 +1,5 @@
+CraftOS-PC includes a few demo programs to show off the new features in CraftOS-PC.
+* gfxpaint is a simple drawing program that uses graphics mode for higher resolution pictures. (It does not support saving at the moment.)
+* pngview allows viewing PNG files that have 256 colors or fewer.
+* raycast demonstrates 3D rendering using ray-casting to draw an image. (The code was adapted from a program for TI calculators.)
+* screenfetch displays info about the current system and takes a screenshot.

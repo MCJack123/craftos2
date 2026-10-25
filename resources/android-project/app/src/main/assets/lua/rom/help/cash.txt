@@ -1,0 +1,23 @@
+cash is an alternate shell for ComputerCraft that uses a Bourne-like interface.
+To run instead of shell.lua, set the bios.use_cash setting and disable the bios.use_multishell setting.
+## Features
+* Bash/sh-style command line
+* Tab completion (defaulting to file names where not supported)
+* Customizable prompts (including ANSI support)
+* Local & environment variables
+* Argument quoting
+* Multiple commands on one line with semicolons
+* Many built-in functions (including in-line Lua commands)
+* Arithmetic expansion
+* If, while, for statements
+* Function support
+* Shell scripting/shebangs
+* Background jobs
+* rc files
+* Restorable history
+* Job control, pausing
+* Partial CCKernel2 support
+* Full compatibility with CraftOS shell.lua
+### Missing features
+* Backtick/command substitution
+* Pipes/console redirection/here documents

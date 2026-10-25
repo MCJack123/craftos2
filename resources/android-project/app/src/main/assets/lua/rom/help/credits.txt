@@ -1,0 +1,9 @@
+CraftOS-PC was created by JackMacWindows.
+ComputerCraft was created by Daniel "dan200" Ratcliffe, with additional code by Aaron "Cloudy" Mills.
+CC: Tweaked was created by SquidDev as a fork of ComputerCraft.
+Thanks to nitrogenfingers, GopherATL and RamiLego for program contributions.
+Thanks to EveryOS for sending me a patched version of Lua that finally fixed issue #1.
+
+Join the ComputerCraft community online at http://www.computercraft.cc.
+
+To help contribute to CraftOS-PC, browse the source code at https://github.com/MCJack123/craftos2.

@@ -1,0 +1,10 @@
+The attach command attaches peripherals to the current computer. 
+To use, type in the side to attach it on and the type of peripheral to attach.
+These are the default peripherals available:
+* computer (use id instead of side)
+* debugger
+* drive
+* modem
+* monitor
+* printer
+* speaker

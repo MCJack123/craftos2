@@ -1,0 +1,31 @@
+Visit the website at https://www.craftos-pc.cc
+Please report bugs at https://www.craftos-pc.cc/bugreport. Thanks!
+View the documentation at https://wiki.computercraft.cc
+Show off your programs or ask for help at our forum: https://forums.computercraft.cc
+You can disable these messages by running "set motd.enable false".
+Use "pastebin put" to upload a program to pastebin.
+Use the "edit" program to create and edit your programs.
+You can use "wget" to download a file from the internet.
+On an advanced computer you can use "fg" or "bg" to run multiple programs at the same time.
+Use an advanced computer to use colours, graphics mode, and the mouse.
+With a speaker you can play sounds.
+Programs that are placed in the "startup" folder in the root of a computer are started on boot.
+Use a modem to connect with other computers.
+Use "monitor" to run a program on a attached monitor.
+Don't forget to label your computer with "label set".
+Feeling creative? Use a printer to print a book!
+Files beginning with a "." are hidden from "list" by default.
+Running "set" lists the current values of all settings.
+Holding the Ctrl and T keys terminates the running program.
+You can attach peripherals using the "attach" program.
+You can change to the alternate cash shell with "set bios.use_cash true".
+Check out the source code at https://github.com/MCJack123/craftos2.
+Is a program not working correctly? Please report it to https://www.craftos-pc.cc/compatibility.
+Did you know there's a ComputerCraft Discord server? Join us at https://discord.computercraft.cc!
+You can take screenshots with F2, and record the screen to a GIF with F3.
+Pressing F12 will copy a screenshot to the clipboard.
+Open new computers by typing "attach <id> computer" in the shell.
+You can view new features in CraftOS-PC at any time with "help whatsnew".
+Did you know you can load regular Lua libraries as plugins?
+CraftOS-PC has its own Discord server available at https://www.craftos-pc.cc/discord.
+You can drag and drop files onto an open computer to upload them.

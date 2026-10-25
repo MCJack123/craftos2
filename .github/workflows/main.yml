@@ -1,6 +1,7 @@
 name: CI
 
 on: 
+  workflow_dispatch: 
   push:
     paths:
       - "src/**"
@@ -28,7 +29,7 @@ jobs:
     name: Build & test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Download ROM
       run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
     - name: Install dependencies
@@ -56,7 +57,7 @@ jobs:
     name: Build & test (no optional features)
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Download ROM
       run: sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
     - name: Install dependencies
@@ -84,7 +85,7 @@ jobs:
     name: Build & test (standalone)
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt update
@@ -116,7 +117,7 @@ jobs:
     name: Run CC:T tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Download ROM & CC:T
       run: |
         sudo git clone https://github.com/MCJack123/craftos2-rom /usr/local/share/craftos
@@ -147,7 +148,7 @@ jobs:
     name: Build Windows
     runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Download ROM
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Restore vcpkg cache
@@ -155,7 +156,7 @@ jobs:
       with:
         vcpkgGitCommitId: baf57686c0ec86cbf2e4c055ea09cee710280cc6
     - name: Set up binary cache
-      uses: actions/cache@v4.3.0
+      uses: actions/cache@v4
       with:
         path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
         key: ${{ runner.os }}-vcpkg-binary-cache-${{ hashFiles('vcpkg*.json') }}
@@ -233,7 +234,7 @@ jobs:
     name: Build Windows (ARM)
     runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Download ROM
       run: git clone https://github.com/MCJack123/craftos2-rom "C:\Program Files\CraftOS-PC"
     - name: Restore vcpkg cache
@@ -241,7 +242,7 @@ jobs:
       with:
         vcpkgGitCommitId: 1b4a65242adfd65a82b1d1a6f31f1accdfe09af9
     - name: Set up binary cache
-      uses: actions/cache@v4.3.0
+      uses: actions/cache@v4
       with:
         path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
         key: ${{ runner.os }}-vcpkg-binary-cache-arm-${{ hashFiles('vcpkg*.json') }}

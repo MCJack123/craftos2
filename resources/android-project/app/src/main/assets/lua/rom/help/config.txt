@@ -1,0 +1,4 @@
+The config command allows you to view and change ComputerCraft configuration options from inside CraftOS.
+The list subcommand lists all keys and values in the configuration.
+The get subcommand prints the current value of the specified option.
+The set subcommand sets the value of the specified option.

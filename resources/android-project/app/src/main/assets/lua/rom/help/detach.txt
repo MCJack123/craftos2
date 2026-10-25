@@ -1,0 +1,1 @@
+The detach command removes a peripheral from the specified side.
